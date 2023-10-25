@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Text, Dict, Any
 
+from loguru import logger
 from mongoengine import DoesNotExist, Q
 
 from kairon.exceptions import AppException
@@ -14,7 +15,8 @@ class CognitionDataProcessor:
     Class contains logic for saves, updates and deletes bot content and cognition content
     """
 
-    def is_collection_limit_exceeded(self, bot, user, collection):
+    @staticmethod
+    def is_collection_limit_exceeded(bot, user, collection):
         """
         checks if collection limit is exhausted
 
@@ -33,7 +35,8 @@ class CognitionDataProcessor:
         else:
             return False
 
-    def is_column_collection_limit_exceeded(self, bot, user, metadata):
+    @staticmethod
+    def is_column_collection_limit_exceeded(bot, user, metadata):
         """
         checks if columns in collection limit is exhausted
 
@@ -46,49 +49,26 @@ class CognitionDataProcessor:
         bot_settings = bot_settings.to_mongo().to_dict()
         return len(metadata) >= bot_settings["cognition_columns_per_collection_limit"]
 
-    def is_same_column_in_metadata(self, metadata):
+    @staticmethod
+    def is_same_column_in_metadata(metadata):
         """
         checks if there are same columns in metadata
 
-        :param bot: bot id
         :param metadata: schema
         :return: boolean
         """
         if len(metadata) < 2:
             return False
-        column_names_set = set()
-        for item in metadata:
-            column_name = item["column_name"]
-            if column_name in column_names_set:
-                return True
-            column_names_set.add(column_name)
-
-    # def get_content(self, bot: Text, **kwargs):
-    #     """
-    #     fetches content
-    #
-    #     :param bot: bot id
-    #     :return: yield dict
-    #     """
-    #     kwargs["bot"] = bot
-    #     search = kwargs.pop('data', None)
-    #     start_idx = kwargs.pop('start_idx', 0)
-    #     page_size = kwargs.pop('page_size', 10)
-    #     cognition_data = CognitionData.objects(**kwargs)
-    #     if search:
-    #         cognition_data = cognition_data.search_text(search)
-    #     for value in cognition_data.skip(start_idx).limit(page_size):
-    #         item = value.to_mongo().to_dict()
-    #         item.pop('timestamp')
-    #         item["_id"] = item["_id"].__str__()
-    #         yield item
+        column_names = [item["column_name"] for item in metadata]
+        unique_column_names = set(column_names)
+        return len(unique_column_names) < len(column_names)
 
     def save_cognition_schema(self, metadata: Dict, user: Text, bot: Text):
-        if self.is_collection_limit_exceeded(bot, user, metadata.get('collection_name')):
+        if CognitionDataProcessor.is_collection_limit_exceeded(bot, user, metadata.get('collection_name')):
             raise AppException('Collection limit exceeded!')
-        if metadata.get('metadata') and self.is_column_collection_limit_exceeded(bot, user, metadata.get('metadata')):
+        if metadata.get('metadata') and CognitionDataProcessor.is_column_collection_limit_exceeded(bot, user, metadata.get('metadata')):
             raise AppException('Column limit exceeded for collection!')
-        if metadata.get('metadata') and self.is_same_column_in_metadata(metadata.get('metadata')):
+        if metadata.get('metadata') and CognitionDataProcessor.is_same_column_in_metadata(metadata.get('metadata')):
             raise AppException('Columns cannot be same in the schema!')
         metadata_obj = CognitionSchema(bot=bot, user=user)
         metadata_obj.metadata = [ColumnMetadata(**meta) for meta in metadata.get('metadata') or []]
@@ -96,25 +76,14 @@ class CognitionDataProcessor:
         metadata_id = metadata_obj.save().to_mongo().to_dict()["_id"].__str__()
         return metadata_id
 
-    def update_cognition_schema(self, metadata_id: str, metadata: Dict, user: Text, bot: Text):
-        try:
-            metadata_obj = CognitionSchema.objects(bot=bot, id=metadata_id).get()
-            if metadata_obj.collection_name != metadata.get('collection_name'):
-                raise AppException('Collection name cannot be updated!')
-            metadata_obj.metadata = [ColumnMetadata(**meta) for meta in metadata.get('metadata')]
-            metadata_obj.bot = bot
-            metadata_obj.user = user
-            metadata_obj.timestamp = datetime.utcnow()
-            metadata_obj.save()
-        except DoesNotExist:
-            raise AppException("Schema with given id not found!")
-
     def delete_cognition_schema(self, metadata_id: str, bot: Text):
         try:
             metadata = CognitionSchema.objects(bot=bot, id=metadata_id).get()
-            cognition_data = self.find_matching_cognition_data(bot, metadata.to_mongo().to_dict())
+            cognition_data = list(CognitionData.objects(Q(collection=metadata['collection_name']) &
+                                                        Q(bot=bot)))
             if cognition_data:
-                cognition_data.delete()
+                for data in cognition_data:
+                    data.delete()
             metadata.delete()
         except DoesNotExist:
             raise AppException("Schema does not exists!")
@@ -136,12 +105,13 @@ class CognitionDataProcessor:
             final_data['collection_name'] = collection
             yield final_data
 
-    def __validate_metadata_and_payload(self, bot, payload):
+    @staticmethod
+    def validate_metadata_and_payload(bot, payload):
         data = payload.get('data')
         collection = payload.get('collection', None)
-        matched_metadata = self.find_matching_metadata(bot, data, collection)
+        matched_metadata = CognitionDataProcessor.find_matching_metadata(bot, data, collection)
         for metadata_dict in matched_metadata['metadata']:
-            self.validate_column_values(data, metadata_dict)
+            CognitionDataProcessor.validate_column_values(data, metadata_dict)
 
     def save_cognition_data(self, payload: Dict, user: Text, bot: Text):
         from kairon import Utility
@@ -161,7 +131,7 @@ class CognitionDataProcessor:
                                          collection_name=payload.get('collection'), raise_error=False):
                 raise AppException('Text content type does not have schema!')
         if payload.get('content_type') == CognitionDataType.json.value:
-            self.__validate_metadata_and_payload(bot, payload)
+            CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
 
         payload_obj = CognitionData()
         payload_obj.data = payload.get('data')
@@ -186,7 +156,7 @@ class CognitionDataProcessor:
         try:
             payload_obj = CognitionData.objects(bot=bot, id=payload_id).get()
             if content_type == CognitionDataType.json.value:
-                self.__validate_metadata_and_payload(bot, payload)
+                CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
             payload_obj.data = data
             payload_obj.content_type = content_type
             payload_obj.collection = payload.get('collection', None)
@@ -203,7 +173,7 @@ class CognitionDataProcessor:
         except DoesNotExist:
             raise AppException("Payload does not exists!")
 
-    def list_cognition_data(self, bot: Text, **kwargs):
+    def list_cognition_data(self, bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
         """
         fetches content
 
@@ -214,8 +184,6 @@ class CognitionDataProcessor:
         """
         kwargs["bot"] = bot
         search = kwargs.pop('data', None)
-        start_idx = kwargs.pop('start_idx', 0)
-        page_size = kwargs.pop('page_size', 10)
         cognition_data = CognitionData.objects(**kwargs)
         if search:
             cognition_data = cognition_data.search_text(search)
@@ -254,15 +222,5 @@ class CognitionDataProcessor:
                                                         Q(bot=bot)).get()
             return matching_metadata
         except DoesNotExist as e:
+            logger.exception(e)
             raise AppException("Columns do not exist in the schema!")
-
-    @staticmethod
-    def find_matching_cognition_data(bot: Text, metadata: Dict):
-        columns = [val['column_name'] for val in metadata['metadata']]
-        matching_cognition_data = CognitionData.objects(Q(collection=metadata.get('collection_name')) &
-                                                        Q(bot=bot) &
-                                                        Q(content_type='json'))
-        for cognition_data in matching_cognition_data or []:
-            data_keys = list(cognition_data['data'].keys())
-            if data_keys == columns:
-                return cognition_data

@@ -53,18 +53,6 @@ async def download_faq_files(
     return response
 
 
-# @router.get("/text/faq", response_model=Response)
-# async def get_text(
-#         request: Request,
-#         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
-# ):
-#     """
-#     Fetches text content of the bot
-#     """
-#     kwargs = request.query_params._dict.copy()
-#     return {"data": list(cognition_processor.get_content(current_user.get_bot(), **kwargs))}
-
-
 @router.post("/cognition/schema", response_model=Response)
 async def save_cognition_schema(
         metadata: CognitionSchemaRequest,
@@ -77,28 +65,6 @@ async def save_cognition_schema(
         "message": "Schema saved!",
         "data": {
             "_id": cognition_processor.save_cognition_schema(
-                    metadata.dict(),
-                    current_user.get_user(),
-                    current_user.get_bot(),
-            )
-        }
-    }
-
-
-@router.put("/cognition/schema/{metadata_id}", response_model=Response)
-async def update_cognition_schema(
-        metadata_id: str,
-        metadata: CognitionSchemaRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
-):
-    """
-    Saves and updates cognition metadata into the bot
-    """
-    return {
-        "message": "Schema updated!",
-        "data": {
-            "_id": cognition_processor.update_cognition_schema(
-                    metadata_id,
                     metadata.dict(),
                     current_user.get_user(),
                     current_user.get_bot(),
@@ -191,9 +157,10 @@ async def delete_cognition_data(
 async def list_cognition_data(
         request: Request,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        start_idx: int = 0, page_size: int = 10
 ):
     """
     Fetches cognition content of the bot
     """
     kwargs = request.query_params._dict.copy()
-    return {"data": list(cognition_processor.list_cognition_data(current_user.get_bot(), **kwargs))}
+    return {"data": list(cognition_processor.list_cognition_data(current_user.get_bot(), start_idx, page_size, **kwargs))}

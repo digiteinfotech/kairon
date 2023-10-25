@@ -14261,6 +14261,9 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
+        settings = BotSettings.objects(bot=bot).get()
+        settings.llm_settings = LLMSettings(enable_faq=True)
+        settings.save()
         metadata = {
             "metadata": [
                 {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
@@ -14269,6 +14272,12 @@ class TestMongoProcessor:
             "user": user
         }
         pytest.metadata_id = processor.save_cognition_schema(metadata, user, bot)
+
+        payload = {
+            "data": {"details": "Pune"},
+            "collection": "details_collection",
+            "content_type": "json"}
+        processor.save_cognition_data(payload, user, bot)
 
         metadata_one = {
             "metadata": [
@@ -14299,6 +14308,9 @@ class TestMongoProcessor:
             processor.save_cognition_schema(metadata_three, user, bot)
         processor.delete_cognition_schema(pytest.metadata_id_one, bot)
         processor.delete_cognition_schema(pytest.metadata_id_two, bot)
+        settings = BotSettings.objects(bot=bot).get()
+        settings.llm_settings = LLMSettings(enable_faq=False)
+        settings.save()
 
     def test_save_payload_metadata_column_limit_exceeded(self):
         processor = CognitionDataProcessor()
@@ -14360,56 +14372,6 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Only str and int data types are supported"):
             CognitionSchema(**metadata).save()
 
-    def test_update_payload_metadata_different_collection_name(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        metadata = {
-            "metadata": [
-                {"column_name": "birthday", "data_type": "int", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "test_update_payload_metadata_different_collection_name",
-            "bot": bot,
-            "user": user
-        }
-        with pytest.raises(AppException, match="Collection name cannot be updated!"):
-            processor.update_cognition_schema(pytest.metadata_id, metadata, user, bot)
-
-    def test_update_payload_metadata(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        settings = BotSettings.objects(bot=bot).get()
-        settings.llm_settings = LLMSettings(enable_faq=True)
-        settings.save()
-        metadata = {
-            "metadata": [
-                {"column_name": "birthday", "data_type": "int", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_collection",
-            "bot": bot,
-            "user": user
-        }
-        processor.update_cognition_schema(pytest.metadata_id, metadata, user, bot)
-        payload = {
-            "data": {"birthday": 15},
-            "collection": "details_collection",
-            "content_type": "json"}
-        processor.save_cognition_data(payload, user, bot)
-
-    def test_update_payload_metadata_not_found(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        metadata_id = '5349b4ddd2919d08c09890f3'
-        metadata = {
-            "metadata": [
-                {"column_name": "month", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "age",
-            "bot": bot,
-            "user": user
-        }
-        with pytest.raises(AppException, match="Schema with given id not found!"):
-            processor.update_cognition_schema(metadata_id, metadata, user, bot)
-
     def test_get_payload_metadata(self):
         processor = CognitionDataProcessor()
         bot = 'test'
@@ -14418,7 +14380,7 @@ class TestMongoProcessor:
         print(data)
         assert data[0]
         assert data[0]['_id']
-        assert data[0]['metadata'][0] == {'column_name': 'birthday', 'data_type': 'int', 'enable_search': True, 'create_embeddings': True}
+        assert data[0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True, 'create_embeddings': True}
         assert data[0]['collection_name'] == 'details_collection'
 
     def test_delete_payload_metadata(self):
@@ -14794,7 +14756,7 @@ class TestMongoProcessor:
             "bot": bot,
             "user": user
         }
-        with pytest.raises(ValidationError, match="data of type dict is required if content type is json"):
+        with pytest.raises(ValidationError, match="content type and type of data do not match!"):
             CognitionData(**payload).save()
 
     def test_update_payload_content_collection_does_not_exists(self):

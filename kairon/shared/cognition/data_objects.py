@@ -58,7 +58,7 @@ class CognitionData(Auditlog):
     vector_id = SequenceField(required=True)
     data = DynamicField(required=True)
     content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value,
-                                                            CognitionDataType.json.value])
+                                                                              CognitionDataType.json.value])
     collection = StringField(default=None)
     user = StringField(required=True)
     bot = StringField(required=True)
@@ -73,6 +73,6 @@ class CognitionData(Auditlog):
             self.clean()
 
         if isinstance(self.data, dict) and self.content_type != CognitionDataType.json.value:
-            raise ValidationError("data of type dict is required if content type is json")
+            raise ValidationError("content type and type of data do not match!")
         if not self.data or (isinstance(self.data, str) and Utility.check_empty_string(self.data)):
             raise ValidationError("data cannot be empty")

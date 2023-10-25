@@ -1272,6 +1272,19 @@ def test_metadata_upload_api(monkeypatch):
     assert actual["data"]["_id"]
     assert actual["error_code"] == 0
 
+    payload = {
+        "data": {"details": "Nupur"},
+        "collection": "details",
+        "content_type": "json"}
+    payload_response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    payload_actual = payload_response.json()
+    assert payload_actual["message"] == "Record saved!"
+    assert payload_actual["error_code"] == 0
+
     response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
@@ -1408,97 +1421,6 @@ def test_metadata_upload_column_name_empty():
     assert actual["error_code"] == 422
 
 
-def test_metadata_update_api(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-
-    metadata = {
-            "metadata": [{"column_name": "language", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-        "collection_name": "details"
-    }
-    response = client.put(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id}",
-        json=metadata,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    print(actual)
-    assert actual["message"] == "Schema updated!"
-    assert actual["error_code"] == 0
-
-    payload = {
-        "data": {"language": "Python"},
-        "content_type": "json",
-        "collection": "details"
-    }
-    response_payload = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition",
-        json=payload,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-
-
-def test_metadata_update_api_different_collection():
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
-        json={
-            "metadata": [
-                {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "different_collection"
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    print(actual)
-    pytest.metadata_id_two = actual["data"]["_id"]
-    assert actual["message"] == "Schema saved!"
-    assert actual["data"]["_id"]
-    assert actual["error_code"] == 0
-
-    updated_metadata = {
-            "metadata": [{"column_name": "language", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-        "collection_name": "details"
-    }
-    response_one = client.put(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id_two}",
-        json=updated_metadata,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual_one = response_one.json()
-    print(actual_one)
-    assert actual_one["message"] == "Collection name cannot be updated!"
-    assert actual_one["error_code"] == 422
-
-    response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id_two}",
-        json={
-            "metadata_id": pytest.metadata_id_two,
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-
-
-def test_metadata_update_api_not_found():
-    metadata_id = '594ced02ef345b2b049222c5'
-    metadata = {
-            "metadata": [{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "age"
-    }
-    response = client.put(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{metadata_id}",
-        json=metadata,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    print(actual)
-    assert not actual["success"]
-    assert actual["message"] == "Schema with given id not found!"
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
-
-
 def test_get_payload_metadata():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -1508,7 +1430,7 @@ def test_get_payload_metadata():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual['data'][0]['metadata'][0] == {'column_name': 'language', 'data_type': 'str', 'enable_search': True, 'create_embeddings': True}
+    assert actual['data'][0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True, 'create_embeddings': True}
     assert actual['data'][0]['collection_name'] == 'details'
 
 
@@ -1847,7 +1769,7 @@ def test_list_cognition_data(mock_list_cognition_data):
     mock_list_cognition_data.return_value = _list_cognition_data()
     filter_query = 'without having to manage'
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/cognition?data={filter_query}&start_idx=0&page_size=10",
+        url=f"/api/bot/{pytest.bot}/data/cognition?data={filter_query}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -2079,7 +2001,7 @@ def test_payload_upload_json_data_content_type_text(monkeypatch):
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'data of type dict is required if content type is json', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'content type and type of data do not match!', 'type': 'value_error'}]
 
 
 def test_payload_updated_api():

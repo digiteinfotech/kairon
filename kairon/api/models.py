@@ -981,7 +981,7 @@ class CognitiveDataRequest(BaseModel):
         data = values.get("data")
         content_type = values.get("content_type")
         if isinstance(data, dict) and content_type != CognitionDataType.json.value:
-            raise ValueError("data of type dict is required if content type is json")
+            raise ValueError("content type and type of data do not match!")
         if not data or (isinstance(data, str) and Utility.check_empty_string(data)):
             raise ValueError("data cannot be empty")
         return values
