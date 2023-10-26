@@ -1,4 +1,5 @@
 from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 import os
@@ -18,6 +19,7 @@ from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
+from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.utils import Utility
 from mongoengine import connect
 import mock
@@ -392,9 +394,9 @@ class TestMessageBroadcastCli:
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=send_notifications, bot="test_cli", user="testUser",
                                                 event_id="65432123456789876543"))
-    def test_message_broadcast_all_arguments(self, monkeypatch):
-        def mock_translator(*args, **kwargs):
-            return None
+    def test_message_broadcast_all_arguments(self, mock_namespace):
+        with patch('kairon.events.definitions.message_broadcast.MessageBroadcastEvent.execute', autospec=True):
 
-        monkeypatch.setattr(MessageBroadcastEvent, "execute", mock_translator)
-        cli()
+            cli()
+        for proxy in ActorFactory._ActorFactory__actors.values():
+            assert not proxy[1].actor_ref.is_alive()

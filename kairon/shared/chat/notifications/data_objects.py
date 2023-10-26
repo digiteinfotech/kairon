@@ -2,7 +2,7 @@ from mongoengine import Document, StringField, DateTimeField, DynamicDocument, E
     EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField
 
 from kairon import Utility
-from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
 from datetime import datetime
 from kairon.shared.chat.notifications.constants import MessageBroadcastLogType, MessageBroadcastType
@@ -88,7 +88,6 @@ class MessageBroadcastSettings(Auditlog):
     recipients_config = EmbeddedDocumentField(RecipientsConfiguration)
     template_config = ListField(EmbeddedDocumentField(TemplateConfiguration))
     pyscript = StringField()
-    pyscript_timeout = IntField(default=10)
     bot = StringField(required=True)
     user = StringField(required=True)
     status = BooleanField(default=True)

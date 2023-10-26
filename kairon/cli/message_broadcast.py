@@ -8,6 +8,8 @@ from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 
 
 def send_notifications(args):
+    from kairon.shared.concurrency.actors.factory import ActorFactory
+
     logger.info("args: {}", args)
     bot = args.bot
     user = args.user
@@ -15,7 +17,10 @@ def send_notifications(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
     logger.info("event_id: {}", args.event_id)
-    MessageBroadcastEvent(bot, user).execute(event_id=event_id)
+    try:
+        MessageBroadcastEvent(bot, user).execute(event_id=event_id)
+    finally:
+        ActorFactory.stop_all()
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):

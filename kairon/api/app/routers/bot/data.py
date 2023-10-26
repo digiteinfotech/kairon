@@ -1,11 +1,14 @@
 import os
 
 from fastapi import UploadFile, File, Security, APIRouter
+from starlette.requests import Request
 from starlette.responses import FileResponse
 
-from kairon.api.models import Response, TextData, CognitiveDataRequest
+from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
+from kairon.shared.cognition.data_objects import CognitionData
+from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import DESIGNER_ACCESS
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
@@ -13,6 +16,7 @@ from kairon.shared.utils import Utility
 
 router = APIRouter()
 processor = MongoProcessor()
+cognition_processor = CognitionDataProcessor()
 
 
 @router.post("/faq/upload", response_model=Response)
@@ -50,19 +54,19 @@ async def download_faq_files(
     return response
 
 
-@router.post("/text/faq", response_model=Response)
-def save_bot_text(
-        text: TextData,
+@router.post("/cognition/schema", response_model=Response)
+async def save_cognition_schema(
+        schema: CognitionSchemaRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Saves text content into the bot
+    Saves and updates cognition metadata into the bot
     """
     return {
-        "message": "Text saved!",
+        "message": "Schema saved!",
         "data": {
-            "_id": processor.save_content(
-                    text.data,
+            "_id": cognition_processor.save_cognition_schema(
+                    schema.dict(),
                     current_user.get_user(),
                     current_user.get_bot(),
             )
@@ -70,54 +74,32 @@ def save_bot_text(
     }
 
 
-@router.put("/text/faq/{text_id}", response_model=Response)
-def update_bot_text(
-        text_id: str,
-        text: TextData,
+@router.delete("/cognition/schema/{schema_id}", response_model=Response)
+async def delete_cognition_schema(
+        schema_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Updates text content into the bot
+    Deletes cognition content of the bot
     """
+    cognition_processor.delete_cognition_schema(schema_id, current_user.get_bot())
     return {
-        "message": "Text updated!",
-        "data": {
-            "_id": processor.update_content(
-                text_id,
-                text.data,
-                current_user.get_user(),
-                current_user.get_bot(),
-            )
-        }
+        "message": "Schema deleted!"
     }
 
 
-@router.delete("/text/faq/{text_id}", response_model=Response)
-def delete_bot_text(
-        text_id: str,
+@router.get("/cognition/schema", response_model=Response)
+async def list_cognition_schema(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Deletes text content of the bot
+    Fetches cognition content of the bot
     """
-    processor.delete_content(text_id, current_user.get_user(), current_user.get_bot())
-    return {
-        "message": "Text deleted!"
-    }
-
-
-@router.get("/text/faq", response_model=Response)
-def get_text(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
-):
-    """
-    Fetches text content of the bot
-    """
-    return {"data": list(processor.get_content(current_user.get_bot()))}
+    return {"data": list(cognition_processor.list_cognition_schema(current_user.get_bot()))}
 
 
 @router.post("/cognition", response_model=Response)
-def save_cognition_data(
+async def save_cognition_data(
         cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -127,7 +109,7 @@ def save_cognition_data(
     return {
         "message": "Record saved!",
         "data": {
-            "_id": processor.save_cognition_data(
+            "_id": cognition_processor.save_cognition_data(
                     cognition.dict(),
                     current_user.get_user(),
                     current_user.get_bot(),
@@ -137,7 +119,7 @@ def save_cognition_data(
 
 
 @router.put("/cognition/{cognition_id}", response_model=Response)
-def update_cognition_data(
+async def update_cognition_data(
         cognition_id: str,
         cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -148,7 +130,7 @@ def update_cognition_data(
     return {
         "message": "Record updated!",
         "data": {
-            "_id": processor.update_cognition_data(
+            "_id": cognition_processor.update_cognition_data(
                 cognition_id,
                 cognition.dict(),
                 current_user.get_user(),
@@ -159,24 +141,34 @@ def update_cognition_data(
 
 
 @router.delete("/cognition/{cognition_id}", response_model=Response)
-def delete_cognition_data(
+async def delete_cognition_data(
         cognition_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Deletes cognition content of the bot
     """
-    processor.delete_cognition_data(cognition_id, current_user.get_bot())
+    cognition_processor.delete_cognition_data(cognition_id, current_user.get_bot())
     return {
         "message": "Record deleted!"
     }
 
 
 @router.get("/cognition", response_model=Response)
-def list_cognition_data(
+async def list_cognition_data(
+        request: Request,
+        start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches cognition content of the bot
     """
-    return {"data": list(processor.list_cognition_data(current_user.get_bot()))}
+    kwargs = request.query_params._dict.copy()
+    kwargs.pop('start_idx', None)
+    kwargs.pop('page_size', None)
+    row_cnt = processor.get_row_count(CognitionData, current_user.get_bot())
+    data = {
+        "logs": list(cognition_processor.list_cognition_data(current_user.get_bot(), start_idx, page_size, **kwargs)),
+        "total": row_cnt
+    }
+    return {"data": data}

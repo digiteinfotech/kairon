@@ -1,5 +1,38 @@
 [
   {
+    "type": "broadcast",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678651620,
+    "data": {
+      "name": "agwise_advisory",
+      "template": [
+        {
+          "format": "TEXT",
+          "text": "Kisan Suvidha Program Follow-up",
+          "type": "HEADER"
+        },
+        {
+          "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+          "type": "BODY"
+        },
+        {
+          "text": "reply with STOP to unsubscribe",
+          "type": "FOOTER"
+        },
+        {
+          "buttons": [
+            {
+              "text": "Connect to Agronomist",
+              "type": "QUICK_REPLY"
+            }
+          ],
+          "type": "BUTTONS"
+        }
+      ],
+      "template_params": null
+    }
+  },
+  {
     "type": "flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678651620,
@@ -223,6 +256,52 @@
         "image": null,
         "custom": null
       }
+    }
+  },
+  {
+    "type": "broadcast",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678651620,
+    "data": {
+      "name": "brochure",
+      "template": [
+        {
+          "format": "TEXT",
+          "text": "Kisan Suvidha Program Follow-up",
+          "type": "HEADER"
+        },
+        {
+          "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+          "type": "BODY"
+        },
+        {
+          "text": "reply with STOP to unsubscribe",
+          "type": "FOOTER"
+        },
+        {
+          "buttons": [
+            {
+              "text": "Connect to Agronomist",
+              "type": "QUICK_REPLY"
+            }
+          ],
+          "type": "BUTTONS"
+        }
+      ],
+      "template_params": [
+        {
+          "type": "header",
+          "parameters": [
+            {
+              "type": "document",
+              "document": {
+                "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                "filename": "Brochure.pdf"
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 ]

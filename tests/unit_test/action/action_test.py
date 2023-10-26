@@ -1,9 +1,9 @@
 import ujson as json
 import os
-import mock
 import re
 from unittest import mock
 
+import mock
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
@@ -1439,7 +1439,7 @@ class TestActions:
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
 
-        mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+        mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, 'url': None}}}
 
         with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
             mock_trigger_lambda.return_value = \
@@ -1626,7 +1626,7 @@ class TestActions:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run_with_params(self, monkeypatch):
+    async def test_run_with_params(self, monkeypatch, aioresponses):
         http_url = "http://www.google.com/$SENDER_ID?id=$param2"
         http_response = "This should be response"
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
@@ -1645,8 +1645,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
             url="http://www.google.com/sender_test_run_with_params?id=param2value&"+urlencode({'key1': 'value1', 'key2': 'value2'}),
             body=http_response,
@@ -1681,8 +1680,8 @@ class TestActions:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run_with_dynamic_params(self, monkeypatch):
-        http_url = "http://localhost:8080/mock"
+    async def test_run_with_dynamic_params(self, monkeypatch, aioresponses):
+        http_url = "http://kairon.com/mock"
         http_response = "This should be response"
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
@@ -1709,9 +1708,9 @@ class TestActions:
             json={"success": True, "data": resp_msg},
             status=200,
         )
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
-            url="http://localhost:8080/mock",
+            url=f"{http_url}?sender_id=default_sender&user_message=get%20intents&intent=test_run",
             body=http_response,
             status=200,
         )
@@ -1741,13 +1740,13 @@ class TestActions:
         assert log['bot_response']
         assert log['api_response']
         assert log['status']
-        assert log['url'] == "http://localhost:8080/mock"
+        assert log['url'] == http_url
         assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
                                          'intent': 'test_run'}
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run_with_post(self, monkeypatch):
+    async def test_run_with_post(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_post",
             response=HttpActionResponse(value="Data added successfully, id:${data}"),
@@ -1764,9 +1763,7 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
-
-
-        responses.add(
+        aioresponses.add(
             method=responses.POST,
             url=http_url,
             body=resp_msg,
@@ -1789,7 +1786,7 @@ class TestActions:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run_with_post_and_parameters(self, monkeypatch):
+    async def test_run_with_post_and_parameters(self, monkeypatch, aioresponses):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
@@ -1809,9 +1806,7 @@ class TestActions:
 
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
-
-
-        responses.add(
+        aioresponses.add(
             method=responses.POST,
             url=http_url,
             body=resp_msg,
@@ -1845,7 +1840,7 @@ class TestActions:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run_with_post_and_dynamic_params(self, monkeypatch):
+    async def test_run_with_post_and_dynamic_params(self, monkeypatch, aioresponses):
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
         action = HttpActionConfig(
@@ -1864,15 +1859,15 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
 
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
-        responses.add(
+        aioresponses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": resp_msg},
+            payload={"success": True, "data": resp_msg},
             status=200,
         )
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
-        responses.add(
+        aioresponses.add(
             method=responses.POST,
             url=http_url,
             body=resp_msg,
@@ -1907,7 +1902,7 @@ class TestActions:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run_with_get(self, monkeypatch):
+    async def test_run_with_get(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_get",
             response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
@@ -1935,7 +1930,7 @@ class TestActions:
                 }
             }
         })
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
             url=http_url,
             body=resp_msg,
@@ -1957,7 +1952,7 @@ class TestActions:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run_with_get_dispatch_type_text_with_json_response(self, monkeypatch):
+    async def test_run_with_get_dispatch_type_text_with_json_response(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_get_with_json_response",
             response=HttpActionResponse(value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
@@ -1989,7 +1984,7 @@ class TestActions:
                 }
             }
         })
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
             url=http_url,
             body=resp_msg,
@@ -2028,7 +2023,6 @@ class TestActions:
         log = ActionServerLogs.objects(sender="default_sender",
                                        action="test_run_with_get_with_json_response",
                                        status="SUCCESS").get()
-        print(log.to_mongo().to_dict())
         assert not log['exception']
         assert log['timestamp']
         assert log['intent'] == "test_run"
@@ -2038,7 +2032,7 @@ class TestActions:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run_with_get_with_dynamic_params(self, monkeypatch):
+    async def test_run_with_get_with_dynamic_params(self, monkeypatch, aioresponses):
         dynamic_params = "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "\
                          "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}"
         KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -2085,9 +2079,9 @@ class TestActions:
                 }
             }
         })
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
-            url=http_url,
+            url=f"{http_url}?sender_id=default_sender&user_message=get%20intents&intent=test_run&EMAIL=uditpandey@digite.com",
             body=resp_msg,
             status=200,
         )
@@ -2303,13 +2297,13 @@ class TestActions:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run_get_with_parameters(self, monkeypatch):
+    async def test_run_get_with_parameters(self, monkeypatch, aioresponses):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
             action_name="test_run_get_with_parameters",
             response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
-            http_url="http://localhost:8081/mock",
+            http_url="http://kairon.com/mock",
             request_method="GET",
             params_list=request_params,
             bot="5f50fd0a56b698ca10d35d2e",
@@ -2320,7 +2314,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        http_url = 'http://localhost:8081/mock'
+        http_url = 'http://kairon.com/mock'
         resp_msg = {
             "a": {
                 "b": {
@@ -2332,8 +2326,8 @@ class TestActions:
             }
         }
 
-        responses.add(
-            responses.GET, http_url+"?"+urlencode({'key1': 'value1', 'key2': 'value2'}), json=resp_msg,
+        aioresponses.add(
+            method=responses.GET, url="http://kairon.com/mock?key1=value1&key2=value2", payload=resp_msg, status=200
         )
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
@@ -2350,13 +2344,12 @@ class TestActions:
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
-    @responses.activate
     @pytest.mark.asyncio
-    async def test_run_get_with_parameters_2(self, monkeypatch):
+    async def test_run_get_with_parameters_2(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_get_with_parameters_2",
             response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
-            http_url="http://localhost:8081/mock",
+            http_url="http://kairon.com/mock",
             request_method="GET",
             params_list=None,
             bot="5f50fd0a56b698ca10d35d2e",
@@ -2367,7 +2360,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        http_url = 'http://localhost:8081/mock'
+        http_url = 'http://kairon.com/mock'
         resp_msg = {
             "a": {
                 "b": {
@@ -2379,8 +2372,8 @@ class TestActions:
             }
         }
 
-        responses.add(
-            responses.GET, http_url, json=resp_msg
+        aioresponses.add(
+            method=responses.GET, url=http_url, payload=resp_msg, status=200
         )
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
@@ -2686,12 +2679,14 @@ class TestActions:
         actual_config.pop("status")
         actual_config.pop("user")
         assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
-                          'similarity_threshold': 0.7,
-                          'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                          'bot': 'test_action_server', 'enable_response_cache': False,
-                          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                              'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
-                                              'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                                 'user_question': {'type': 'from_user_message'},
+                                 'similarity_threshold': 0.7,
+                                 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                                 'bot': 'test_action_server', 'enable_response_cache': False,
+                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                     'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                     'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}
+                                                     },
                                  'dispatch_response': True, 'set_slots': [], 'llm_prompts': llm_prompts,
                                  'instructions': []}
         bot_settings.pop("_id")
@@ -2704,15 +2699,18 @@ class TestActions:
                                 'force_import': False,
                                 'ignore_utterances': False,
                                 'llm_settings': {'enable_faq': True, 'provider': 'openai'},
+                                'analytics': {'fallback_intent': 'nlu_fallback'},
                                 'multilingual_limit_per_day': 2,
                                 'notification_scheduling_limit': 4,
                                 'refresh_token_expiry': 60,
                                 'rephrase_response': False,
                                 'test_limit_per_day': 5,
                                 'training_limit_per_day': 5,
-                                'user': 'test_user',
+                                'user': 'test_user', 'dynamic_broadcast_execution_timeout': 21600,
                                 'website_data_generator_depth_search_limit': 2,
-                                'whatsapp': 'meta'}
+                                'whatsapp': 'meta',
+                                'cognition_collections_limit': 3,
+                              'cognition_columns_per_collection_limit': 5}
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3124,7 +3122,9 @@ class TestActions:
         }]
             }
         }
-        result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
+        with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+            result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
         assert result == [{
             'title': 'Data Science Introduction - W3Schools',
             'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
@@ -3177,7 +3177,9 @@ class TestActions:
         }
         }
 
-        result = ActionUtility.perform_web_search(search_term, topn=topn)
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
+        with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+            result = ActionUtility.perform_web_search(search_term, topn=topn)
         assert result == [
             {'title': 'Artificial intelligence - Wikipedia',
              'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
@@ -3225,15 +3227,21 @@ class TestActions:
             }
         }
         mock_trigger_lambda.return_value = response
-        with pytest.raises(ActionFailure, match=re.escape(f"{response}")):
-            ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
+        with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+            with pytest.raises(ActionFailure, match='The requested resource was not found on the server.'):
+                ActionUtility.perform_web_search(search_term, topn=topn, website=website)
 
     def test_public_search_action_error(self):
         search_term = "What is science?"
         website = "www.google.com"
         topn = 1
+
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}, 'events': {'executor': {"region": "us-east-1"}, 'task_definition': {"web_search": None}}}
         with pytest.raises(ActionFailure, match="Parameter validation failed:\nInvalid type for parameter FunctionName, value: None, type: <class 'NoneType'>, valid types: <class 'str'>"):
-            ActionUtility.perform_web_search(search_term, website=website, topn=topn)
+            with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+                ActionUtility.perform_web_search(search_term, website=website, topn=topn)
 
     @responses.activate
     def test_public_search_with_url(self):
@@ -3255,7 +3263,7 @@ class TestActions:
                 })],
         )
 
-        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+        with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             result = ActionUtility.perform_web_search(search_term, topn=topn)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
@@ -3284,7 +3292,7 @@ class TestActions:
                 })],
         )
 
-        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+        with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
@@ -3308,7 +3316,7 @@ class TestActions:
                 })],
         )
 
-        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+        with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             with pytest.raises(ActionFailure, match=re.escape('Failed to execute the url: Got non-200 status code: 500 {"data": []}')):
                 ActionUtility.perform_web_search(search_term, topn=topn)
 
@@ -3329,7 +3337,7 @@ class TestActions:
                 })],
         )
 
-        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+        with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             with pytest.raises(ActionFailure, match=re.escape(f"{result}")):
                 ActionUtility.perform_web_search(search_term, topn=topn)
 
@@ -3369,8 +3377,11 @@ class TestActions:
             }
         }
 
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
+
         with pytest.raises(ActionFailure, match="No response retrieved!"):
-            ActionUtility.perform_web_search(search_term, topn=topn)
+            with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+                ActionUtility.perform_web_search(search_term, topn=topn)
 
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'
@@ -3922,21 +3933,24 @@ class TestActions:
         bot_settings = ActionUtility.get_bot_settings(bot=bot)
         bot_settings.pop('timestamp')
         assert bot_settings == {'bot': 'test_bot',
-                          'chat_token_expiry': 30,
-                          'data_generation_limit_per_day': 3,
-                          'data_importer_limit_per_day': 5,
-                          'force_import': False,
-                          'ignore_utterances': False,
-                          'llm_settings': {'enable_faq': False, 'provider': 'openai'},
-                          'multilingual_limit_per_day': 2,
-                          'notification_scheduling_limit': 4,
-                          'refresh_token_expiry': 60,
-                          'rephrase_response': False,
-                          'status': True,
-                          'test_limit_per_day': 5,
-                          'training_limit_per_day': 5,
-                          'website_data_generator_depth_search_limit': 2,
-                          'whatsapp': 'meta'}
+                                'chat_token_expiry': 30,
+                                'data_generation_limit_per_day': 3,
+                                'data_importer_limit_per_day': 5,
+                                'force_import': False,
+                                'ignore_utterances': False,
+                                'llm_settings': {'enable_faq': False, 'provider': 'openai'},
+                                'analytics': {'fallback_intent': 'nlu_fallback'},
+                                'multilingual_limit_per_day': 2,
+                                'notification_scheduling_limit': 4,
+                                'refresh_token_expiry': 60,
+                                'rephrase_response': False,
+                                'status': True, 'dynamic_broadcast_execution_timeout': 21600,
+                                'test_limit_per_day': 5,
+                                'training_limit_per_day': 5,
+                                'website_data_generator_depth_search_limit': 2,
+                                'whatsapp': 'meta',
+                                'cognition_collections_limit': 3,
+                                'cognition_columns_per_collection_limit': 5}
 
     def test_get_prompt_action_config_2(self):
         bot = "test_bot_action_test"
@@ -3950,7 +3964,8 @@ class TestActions:
         assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
                                        'similarity_threshold': 0.7,
                                        'enable_response_cache': False,
-                'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                                       'user_question': {'type': 'from_user_message'},
+                                       'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                        'bot': 'test_bot_action_test', 'user': 'test_user_action_test',
                                        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                            'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,

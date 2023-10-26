@@ -87,6 +87,7 @@ from kairon.shared.actions.models import (
     ActionParameterType,
     DbQueryValueType,
 )
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -101,7 +102,6 @@ from kairon.shared.models import (
 )
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
-from .base_data import AuditLogData
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -163,6 +163,7 @@ from .data_objects import (
     Synonyms,
     Lookup,
     CognitionMetadata,
+    Analytics
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots, PluginTypes
@@ -3893,26 +3894,20 @@ class MongoProcessor:
         """
 
         if not Utility.is_exist(
-            DatabaseAction,
-            raise_error=False,
-            name=request_data.get("name"),
-            bot=bot,
-            status=True,
+                DatabaseAction, 
+                raise_error=False, 
+                name=request_data.get('name'), 
+                bot=bot,
+                status=True
         ):
-            raise AppException(
-                f'Action with name "{request_data.get("name")}" not found'
-            )
-        self.__validate_payload(request_data.get("payload"), bot)
-        action = DatabaseAction.objects(
-            name=request_data.get("name"), bot=bot, status=True
-        ).get()
-        action.query = DbOperation(**request_data["query"])
-        action.payload = DbQuery(**request_data["payload"])
-        action.response = HttpActionResponse(**request_data.get("response", {}))
-        action.set_slots = [
-            SetSlotsFromResponse(**slot).to_mongo().to_dict()
-            for slot in request_data.get("set_slots")
-        ]
+            raise AppException(f'Action with name "{request_data.get("name")}" not found')
+        self.__validate_payload(request_data.get('payload'), bot)
+        action = DatabaseAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        action.query_type = request_data['query_type']
+        action.payload = DbQuery(**request_data['payload'])
+        action.response = HttpActionResponse(**request_data.get('response', {}))
+        action.set_slots = [SetSlotsFromResponse(**slot).to_mongo().to_dict() for slot in
+                            request_data.get('set_slots')]
         action.user = user
         action.timestamp = datetime.utcnow()
         action_id = action.save().id.__str__()
@@ -3926,35 +3921,23 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
-        self.__validate_payload(vector_db_action_config.get("payload"), bot)
-        Utility.is_valid_action_name(
-            vector_db_action_config.get("name"), bot, DatabaseAction
-        )
-        set_slots = [
-            SetSlotsFromResponse(**slot)
-            for slot in vector_db_action_config.get("set_slots")
-        ]
-        action_id = (
-            DatabaseAction(
-                name=vector_db_action_config["name"],
-                query=DbOperation(**vector_db_action_config.get("query")),
-                payload=DbQuery(**vector_db_action_config.get("payload")),
-                response=HttpActionResponse(
-                    **vector_db_action_config.get("response", {})
-                ),
-                set_slots=set_slots,
-                bot=bot,
-                user=user,
-            )
-            .save()
-            .id.__str__()
-        )
+        self.__validate_payload(vector_db_action_config.get('payload'), bot)
+        Utility.is_valid_action_name(vector_db_action_config.get("name"), bot, DatabaseAction)
+        set_slots = [SetSlotsFromResponse(**slot) for slot in vector_db_action_config.get('set_slots')]
+        action_id = DatabaseAction(
+            name=vector_db_action_config['name'],
+            query_type=vector_db_action_config.get('query_type'),
+            payload=DbQuery(**vector_db_action_config.get('payload')),
+            response=HttpActionResponse(**vector_db_action_config.get('response', {})),
+            set_slots=set_slots,
+            bot=bot,
+            user=user,
+        ).save().id.__str__()
         self.add_action(
-            vector_db_action_config["name"],
-            bot,
-            user,
+            vector_db_action_config['name'],
+            bot, user, 
             action_type=ActionType.database_action.value,
-            raise_exception=False,
+            raise_exception=False
         )
         return action_id
 
@@ -4330,8 +4313,9 @@ class MongoProcessor:
         """
         query = {"bot": bot}
         if document.__name__ == "AuditLogData":
-            query = {"audit__Bot_id": bot}
-        kwargs.update(query)
+            query = {
+                "attributes__key": bot}
+        kwargs.update(__raw__=query)
         return document.objects(**kwargs).count()
 
     @staticmethod
@@ -4889,29 +4873,7 @@ class MongoProcessor:
 
         self.add_default_fallback_data(bot, user, True, True)
 
-    @staticmethod
-    def fetch_nlu_fallback_action(bot: Text):
-        action = None
-        event = StoryEvents(
-            name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name
-        )
-        try:
-            rule = Rules.objects(bot=bot, status=True, events__match=event).get()
-            for event in rule.events:
-                if "action" == event.type and event.name != RULE_SNIPPET_ACTION_NAME:
-                    action = event.name
-                    break
-        except DoesNotExist as e:
-            logging.info(e)
-        return action
-
-    def add_default_fallback_data(
-        self,
-        bot: Text,
-        user: Text,
-        nlu_fallback: bool = True,
-        action_fallback: bool = True,
-    ):
+    def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
         if nlu_fallback:
             if not Utility.is_exist(
                 Responses,
@@ -5308,6 +5270,22 @@ class MongoProcessor:
             logging.info(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
+
+    @staticmethod
+    def edit_bot_settings(bot_settings: dict, bot: Text, user: Text):
+        """
+        Update bot settings with new values.
+        :param bot_settings: bot settings values
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(BotSettings, raise_error=False, bot=bot, status=True):
+            raise AppException(f'Bot Settings for the bot not found')
+
+        settings = BotSettings.objects(bot=bot, status=True).get()
+        analytics = Analytics(**bot_settings.get('analytics'))
+        settings.update(set__analytics=analytics, set__user=user, set__timestamp=datetime.utcnow())
 
     @staticmethod
     def enable_llm_faq(bot: Text, user: Text):
@@ -6988,6 +6966,7 @@ class MongoProcessor:
         action = PromptAction.objects(id=prompt_action_id, bot=bot, status=True).get()
         action.name = request_data.get("name")
         action.failure_message = request_data.get("failure_message")
+        action.user_question = UserQuestion(**request_data.get("user_question"))
         action.top_results = request_data.get("top_results")
         action.enable_response_cache = request_data.get("enable_response_cache", False)
         action.similarity_threshold = request_data.get("similarity_threshold")
@@ -6999,6 +6978,7 @@ class MongoProcessor:
             LlmPrompt(**prompt) for prompt in request_data.get("llm_prompts", [])
         ]
         action.instructions = request_data.get("instructions", [])
+        action.collection = request_data.get('collection')
         action.set_slots = request_data.get("set_slots", [])
         action.dispatch_response = request_data.get("dispatch_response", True)
         action.timestamp = datetime.utcnow()
@@ -7068,7 +7048,7 @@ class MongoProcessor:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
         data_filter = {
-            "audit__Bot_id": bot,
+            "attributes__key": 'bot', "attributes__value": bot,
             "timestamp__gte": from_date,
             "timestamp__lte": to_date,
         }
@@ -7077,7 +7057,7 @@ class MongoProcessor:
             .skip(start_idx)
             .limit(page_size)
             .exclude("id")
-            .to_json()
+            .order_by('-timestamp').to_json()
         )
         return json.loads(auditlog_data)
 
@@ -7114,19 +7094,23 @@ class MongoProcessor:
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time,
             }
+            query = logs[logtype].objects(**filter_query).to_json()
         elif logtype == LogType.audit_logs.value:
             filter_query = {
-                "audit__Bot_id": bot,
+                'attributes__key': 'bot',
+                'attributes__value': bot,
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time,
             }
+            query = logs[logtype].objects(**filter_query).order_by('-timestamp').to_json()
         else:
             filter_query = {
                 "bot": bot,
                 "start_timestamp__gte": start_time,
                 "start_timestamp__lte": end_time,
             }
-        value = json.loads(logs[logtype].objects(**filter_query).to_json())
+            query = logs[logtype].objects(**filter_query).to_json()
+        value = json.loads(query)
         return value
 
     def delete_audit_logs(self):
@@ -7455,130 +7439,3 @@ class MongoProcessor:
             action.pop("user")
 
             yield action
-
-    def save_content(self, content: Text, user: Text, bot: Text):
-        bot_settings = self.get_bot_settings(bot=bot, user=user)
-        if not bot_settings["llm_settings"]["enable_faq"]:
-            raise AppException(
-                "Faq feature is disabled for the bot! Please contact support."
-            )
-        if len(content.split()) < 10:
-            raise AppException("Content should contain atleast 10 words.")
-
-        content_obj = CognitionData()
-        content_obj.data = content
-        content_obj.user = user
-        content_obj.bot = bot
-        id = content_obj.save().id.__str__()
-        return id
-
-    def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
-        if len(content.split()) < 10:
-            raise AppException("Content should contain atleast 10 words.")
-
-        Utility.is_exist(
-            CognitionData,
-            bot=bot,
-            id__ne=content_id,
-            data=content,
-            content_type__ne=CognitionDataType.json.value,
-            exp_message="Text already exists!",
-        )
-
-        try:
-            content_obj = CognitionData.objects(bot=bot, id=content_id).get()
-            content_obj.data = content
-            content_obj.user = user
-            content_obj.timestamp = datetime.utcnow()
-            content_obj.save()
-        except DoesNotExist:
-            raise AppException("Content with given id not found!")
-
-    def delete_content(self, content_id: str, user: Text, bot: Text):
-        try:
-            content = CognitionData.objects(bot=bot, id=content_id).get()
-            content.delete()
-        except DoesNotExist:
-            raise AppException("Text does not exists!")
-
-    def get_content(self, bot: Text):
-        """
-        fetches content
-
-        :param bot: bot id
-        :return: yield dict
-        """
-        for value in CognitionData.objects(bot=bot):
-            final_data = {}
-            item = value.to_mongo().to_dict()
-            data = item.pop("data")
-            final_data["_id"] = item["_id"].__str__()
-            final_data["content"] = data
-            yield final_data
-
-    def save_cognition_data(self, payload: Dict, user: Text, bot: Text):
-        bot_settings = self.get_bot_settings(bot=bot, user=user)
-        if not bot_settings["llm_settings"]["enable_faq"]:
-            raise AppException(
-                "Faq feature is disabled for the bot! Please contact support."
-            )
-        payload_obj = CognitionData()
-        payload_obj.data = payload.get("data")
-        payload_obj.content_type = payload.get("content_type")
-        payload_obj.metadata = [
-            CognitionMetadata(**meta) for meta in payload.get("metadata", [])
-        ]
-        payload_obj.user = user
-        payload_obj.bot = bot
-        payload_id = payload_obj.save().to_mongo().to_dict()["_id"].__str__()
-        return payload_id
-
-    def update_cognition_data(
-        self, payload_id: str, payload: Dict, user: Text, bot: Text
-    ):
-        data = payload["data"]
-        content_type = payload["content_type"]
-        Utility.is_exist(
-            CognitionData,
-            bot=bot,
-            id__ne=payload_id,
-            data=data,
-            content_type__ne=CognitionDataType.json.value,
-            exp_message="Payload data already exists!",
-        )
-
-        try:
-            payload_obj = CognitionData.objects(bot=bot, id=payload_id).get()
-            payload_obj.data = data
-            payload_obj.content_type = content_type
-            payload_obj.user = user
-            payload_obj.timestamp = datetime.utcnow()
-            payload_obj.save()
-        except DoesNotExist:
-            raise AppException("Payload with given id not found!")
-
-    def delete_cognition_data(self, payload_id: str, bot: Text):
-        try:
-            payload = CognitionData.objects(bot=bot, id=payload_id).get()
-            payload.delete()
-        except DoesNotExist:
-            raise AppException("Payload does not exists!")
-
-    def list_cognition_data(self, bot: Text):
-        """
-        fetches content
-
-        :param bot: bot id
-        :return: yield dict
-        """
-        for value in CognitionData.objects(bot=bot):
-            final_data = {}
-            item = value.to_mongo().to_dict()
-            data = item.pop("data")
-            data_type = item.pop("content_type")
-            metadata = item.pop("metadata")
-            final_data["_id"] = item["_id"].__str__()
-            final_data["content"] = data
-            final_data["content_type"] = data_type
-            final_data["metadata"] = metadata
-            yield final_data

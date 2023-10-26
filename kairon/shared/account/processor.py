@@ -11,6 +11,7 @@ from pydantic import SecretStr
 from starlette.requests import Request
 from validators.utils import ValidationError as ValidationFailure
 from validators import email as mail_check
+
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import (
@@ -23,7 +24,7 @@ from kairon.shared.account.data_objects import (
     MailTemplates,
     SystemProperties,
     BotAccess,
-    UserActivityLog,
+    
     BotMetaData,
     TrustedDevice,
 )
@@ -35,11 +36,9 @@ from kairon.shared.actions.data_objects import (
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import UserActivityType, PluginTypes
-from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
-from kairon.shared.metering.constants import MetricType
-from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
 
@@ -486,8 +485,8 @@ class AccountProcessor:
         )
         AccountProcessor.__change_bot_account(bot, to_user)
         UserActivityLogger.add_log(
-            account,
             UserActivityType.transfer_ownership.value,
+            account,
             current_owner,
             bot,
             [f"Ownership transferred to {to_user}"],
@@ -721,8 +720,8 @@ class AccountProcessor:
         except Exception as e:
             logging.error(e)
             if is_login_request:
-                MeteringProcessor.add_log(
-                    metric_type=MetricType.invalid_login.value, **{"username": email}
+                UserActivityLogger.add_log(
+                    a_type=UserActivityType.invalid_login.value, email=email, data={"username": email}
                 )
             raise DoesNotExist("User does not exist!")
 
@@ -737,28 +736,22 @@ class AccountProcessor:
         """
         user = AccountProcessor.get_user(email, is_login_request)
         AccountProcessor.check_email_confirmation(user, is_login_request)
-        kwargs = {"username": email}
         if not user["status"]:
             if is_login_request:
-                kwargs.update({"error": "Inactive User please contact admin!"})
-                MeteringProcessor.add_metrics(
-                    bot=None,
-                    metric_type=MetricType.invalid_login.value,
-                    account=user["account"],
-                    **kwargs,
+                message = ["Inactive User please contact admin!"]
+                UserActivityLogger.add_log(
+                    a_type=UserActivityType.invalid_login.value, account=user["account"],
+                    email=email,
+                    message=message, data={"username": email}
                 )
             raise ValidationError("Inactive User please contact admin!")
         account = AccountProcessor.get_account(user["account"])
         if not account["status"]:
             if is_login_request:
-                kwargs.update(
-                    {"error": "Inactive Account Please contact system admin!"}
-                )
-                MeteringProcessor.add_metrics(
-                    bot=None,
-                    metric_type=MetricType.invalid_login.value,
-                    account=user["account"],
-                    **kwargs,
+                message = ["Inactive Account Please contact system admin!"]
+                UserActivityLogger.add_log(
+                    a_type=UserActivityType.invalid_login.value, account=user["account"], email=email,
+                    message=message, data={"username": email}
                 )
             raise ValidationError("Inactive Account Please contact system admin!")
         return user
@@ -1017,15 +1010,10 @@ class AccountProcessor:
                 AccountProcessor.is_user_confirmed(user_info["email"])
             except Exception as e:
                 if is_login_request:
-                    kwargs = {
-                        "username": user_info["email"],
-                        "error": "Please verify your mail",
-                    }
-                    MeteringProcessor.add_metrics(
-                        bot=None,
-                        metric_type=MetricType.invalid_login.value,
-                        account=user_info["account"],
-                        **kwargs,
+                    message = ["Please verify your mail"]
+                    UserActivityLogger.add_log(
+                        a_type=UserActivityType.invalid_login.value, account=user_info["account"],
+                        message=message, data={"username": user_info["email"]}
                     )
                 raise e
 
@@ -1065,17 +1053,17 @@ class AccountProcessor:
                 {"mail_id": mail, "uuid": uuid_value}, token_expiry * 60
             )
             user = AccountProcessor.get_user(mail)
-            link = Utility.email_conf["app"]["url"] + "/reset_password/" + token
+            link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
             UserActivityLogger.add_log(
-                account=user["account"],
-                email=mail,
                 a_type=UserActivityType.reset_password_request.value,
+                account=user['account'],
+                email=mail
             )
             data = {"status": "pending", "uuid": uuid_value}
             UserActivityLogger.add_log(
-                account=user["account"],
+                a_type=UserActivityType.link_usage.value, account=user["account"],
                 email=mail,
-                a_type=UserActivityType.link_usage.value,
+                
                 message=["Send Reset Link"],
                 data=data,
             )
@@ -1092,51 +1080,30 @@ class AccountProcessor:
         :param password: new password entered by the user
         :return: mail id, mail subject and mail body
         """
+
         if Utility.check_empty_string(password):
             raise AppException("password cannot be empty or blank")
         decoded_jwt = Utility.verify_token(token)
         email = decoded_jwt.get("mail_id")
         uuid_value = decoded_jwt.get("uuid")
-        if uuid_value is not None and Utility.is_exist(
-            UserActivityLog,
-            raise_error=False,
-            user=email,
-            type=UserActivityType.link_usage.value,
-            data={"status": "done", "uuid": uuid_value},
-            check_base_fields=False,
-        ):
-            raise AppException("Link is already being used, Please raise new request")
+        UserActivityLogger.is_token_already_used(uuid_value, email)
         user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
         previous_passwrd = user.password
         if Utility.verify_password(password.strip(), previous_passwrd):
-            raise AppException("You have already used that password, try another")
-        user_act_log = UserActivityLog.objects(
-            user=email, type=UserActivityType.reset_password.value
-        )
-        if any(
-            act_log.data is not None
-            and act_log.data.get("password") is not None
-            and Utility.verify_password(password.strip(), act_log.data.get("password"))
-            for act_log in user_act_log
-        ):
-            raise AppException("You have already used that password, try another")
+            raise AppException("You have already used this password, try another!")
+        UserActivityLogger.is_password_used_before(email, password)
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
         user.save()
         data = {"password": previous_passwrd}
         UserActivityLogger.add_log(
-            account=user["account"],
-            email=email,
             a_type=UserActivityType.reset_password.value,
-            data=data,
+            account=user['account'],
+            email=email,
+            data=data
         )
-        if uuid_value is not None:
-            UserActivityLog.objects(
-                user=email,
-                type=UserActivityType.link_usage.value,
-                data={"status": "pending", "uuid": uuid_value},
-            ).update_one(set__data__status="done")
+        UserActivityLogger.update_reset_password_link_usage(uuid_value, email)
         return email, user.first_name
 
     @staticmethod
@@ -1237,9 +1204,9 @@ class AccountProcessor:
         for bot in account_bots:
             AccountProcessor.delete_bot(bot["_id"])
             UserActivityLogger.add_log(
-                account=account_id,
+                
                 a_type=UserActivityType.delete_bot.value,
-                bot=bot["_id"],
+               account=account_id, bot=bot["_id"],
             )
 
         # Delete all Users for Account
@@ -1250,16 +1217,16 @@ class AccountProcessor:
             user.status = False
             user.save()
             UserActivityLogger.add_log(
-                account=account_id,
-                email=user.email,
                 a_type=UserActivityType.delete_user.value,
+                account=account_id,
+                email=user.email
             )
 
         account_obj.status = False
         account_obj.save()
         UserActivityLogger.add_log(
-            account=account_id, a_type=UserActivityType.delete_account.value
-        )
+             a_type=UserActivityType.delete_account.value
+        , account=account_id)
 
     @staticmethod
     def get_location_and_add_trusted_device(
@@ -1365,7 +1332,7 @@ class AccountProcessor:
             .skip(start_idx)
             .limit(page_size)
             .exclude("id")
-            .to_json()
+            .order_by('-timestamp').to_json()
         )
         return json.loads(auditlog_data)
 

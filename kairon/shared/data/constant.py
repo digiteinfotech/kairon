@@ -214,6 +214,7 @@ class AuditlogActions(str, Enum):
     BULK_DELETE = "bulk_delete"
     BULK_INSERT = "bulk_insert"
     BULK_UPDATE = "bulk_update"
+    ACTIVITY = "activity"
 
 
 class LogType(str, Enum):

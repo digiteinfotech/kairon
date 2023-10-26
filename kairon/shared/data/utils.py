@@ -16,6 +16,7 @@ from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
     REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS
 from .constant import RESPONSE
+from .data_objects import MultiflowStories
 from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
 from ...shared.models import StoryStepType
@@ -318,14 +319,13 @@ class DataUtility:
                     f"""Found rules '{name}' that contain more than user event.\nPlease use stories for this case""")
 
     @staticmethod
-    def load_fallback_actions(bot: Text):
-        from .processor import MongoProcessor
+    def get_fallback_intent(bot: Text, user: Text):
+        from kairon.shared.data.processor import MongoProcessor
 
-        mongo_processor = MongoProcessor()
-        config = mongo_processor.load_config(bot)
-        fallback_action = DataUtility.parse_fallback_action(config)
-        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
-        return fallback_action, nlu_fallback_action
+        bot_settings = MongoProcessor.get_bot_settings(bot=bot, user=user)
+        bot_settings = bot_settings.to_mongo().to_dict()
+        fallback_intent = bot_settings['analytics']['fallback_intent']
+        return fallback_intent
 
     @staticmethod
     def parse_fallback_action(config: Dict):
@@ -334,12 +334,6 @@ class DataUtility:
         if action_fallback:
             fallback_action = action_fallback.get("core_fallback_action_name", fallback_action)
         return fallback_action
-
-    @staticmethod
-    def load_default_actions():
-        from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
-
-        return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
 
     @staticmethod
     def get_template_type(story):
@@ -420,8 +414,9 @@ class DataUtility:
         intent_count = Intents.objects(bot=bot, status=True).count()
         stories_count = Stories.objects(bot=bot, status=True).count()
         rule_count = Rules.objects(bot=bot, status=True).count()
+        multiflow_count = MultiflowStories.objects(bot=bot, status=True).count()
 
-        if intent_count < 2 or (stories_count < 2 and rule_count < 2):
+        if intent_count < 2 or (stories_count + rule_count + multiflow_count) < 2:
             raise AppException('Please add at least 2 flows and 2 intents before training the bot!')
 
     @staticmethod

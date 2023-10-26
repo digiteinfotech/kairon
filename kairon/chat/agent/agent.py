@@ -15,6 +15,7 @@ from kairon.chat.agent.message_processor import KaironMessageProcessor
 
 
 class KaironAgent(Agent):
+    model_ver: Text
 
     @classmethod
     def load(

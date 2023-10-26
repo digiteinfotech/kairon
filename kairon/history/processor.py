@@ -37,7 +37,7 @@ class HistoryProcessor:
         events, message = HistoryProcessor.fetch_user_history(
             collection, sender, from_date=from_date, to_date=to_date
         )
-        return list(HistoryProcessor.__prepare_data(events)), message
+        return events, message
 
     @staticmethod
     def fetch_chat_users(collection: Text,
@@ -59,10 +59,11 @@ class HistoryProcessor:
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
+            time_filter = {"$gte": Utility.get_timestamp_from_date(from_date), "$lte": Utility.get_timestamp_from_date(to_date)}
             try:
-                values = conversations.distinct(key="sender_id",
-                                                filter={"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                            "$lte": Utility.get_timestamp_from_date(to_date)}})
+                values = conversations.distinct(
+                    key="sender_id", filter={"$or": [{"event.timestamp": time_filter}, {"timestamp": time_filter}]}
+                )
                 return values, None
             except ServerSelectionTimeoutError as e:
                 logger.error(e)
@@ -70,41 +71,6 @@ class HistoryProcessor:
             except Exception as e:
                 logger.error(e)
                 raise AppException(e)
-
-    @staticmethod
-    def __prepare_data(events):
-        bot_action = None
-        if events:
-            event_list = ["user", "bot"]
-            for i in range(events.__len__()):
-                event = events[i]
-                if event["event"] in event_list:
-                    result = {
-                        "event": event["event"],
-                        "time": datetime.fromtimestamp(event["timestamp"]).time(),
-                        "date": datetime.fromtimestamp(event["timestamp"]).date(),
-                    }
-
-                    if event.get("text"):
-                        result["text"] = event.get("text")
-
-                    if event["event"] == "user":
-                        parse_data = event["parse_data"]
-                        result["intent"] = parse_data["intent"]["name"]
-                        result["confidence"] = parse_data["intent"]["confidence"]
-                    elif event["event"] == "bot":
-                        result['data'] = event['data']
-                        if event.get('metadata') and event["metadata"].get("utter_action"):
-                            result["action"] = event['metadata']['utter_action']
-                        else:
-                            result["action"] = bot_action
-
-                    if result:
-                        yield result
-                else:
-                    bot_action = (
-                        event["name"] if event["event"] == "action" else None
-                    )
 
     @staticmethod
     def fetch_user_history(collection: Text, sender_id: Text,
@@ -129,18 +95,14 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 values = list(conversations
-                              .aggregate([{"$match": {"sender_id": sender_id, "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                                                  "$lte": Utility.get_timestamp_from_date(to_date)}}},
-                                          {"$match": {"event.event": {"$in": ["user", "bot", "action"]}}},
-                                          {"$sort": {"event.timestamp": 1}},
-                                          {"$group": {"_id": None, "events": {"$push": "$event"}}},
-                                          {"$project": {"_id": 0, "events": 1}}])
+                              .aggregate([{"$match": {"sender_id": sender_id, "type": {"$in": ["flattened", "broadcast"]},
+                                                      "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                    "$lte": Utility.get_timestamp_from_date(to_date)}}},
+                                          {"$sort": {"timestamp": 1}},
+                                          {"$project": {"_id": 0, "sender_id": 1, "conversation_id": 1, "data": 1, "timestamp": 1}}])
                               )
                 if values:
-                    return (
-                        values[0]['events'],
-                        message
-                    )
+                    return values, message
                 return [], message
         except ServerSelectionTimeoutError as e:
             logger.error(e)
@@ -153,8 +115,7 @@ class HistoryProcessor:
     def visitor_hit_fallback(collection: Text,
                              from_date: date = (datetime.utcnow() - timedelta(30)).date(),
                              to_date: date = datetime.utcnow().date(),
-                             fallback_action: str = 'action_default_fallback',
-                             nlu_fallback_action: str = None):
+                             fallback_intent: str = 'nlu_fallback'):
 
         """
         Fallback count for bot.
@@ -164,8 +125,7 @@ class HistoryProcessor:
         :param collection: collection to connect to
         :param from_date: default is last month date
         :param to_date: default is current month today date
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
+        :param fallback_intent: fallback_intent configured for bot
         :return: list of visitor fallback
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -173,32 +133,31 @@ class HistoryProcessor:
         message = None
         try:
             client = HistoryProcessor.get_mongo_connection()
-            default_actions = Utility.load_default_actions()
             with client as clt:
                 db = clt.get_database()
                 conversations = db.get_collection(collection)
                 fallback_counts = list(conversations.aggregate([
-                                                                {"$match": {"event.event": "action",
-                                                                            "event.name": {"$in": [fallback_action, nlu_fallback_action]},
-                                                                            "event.timestamp": {
-                                                                                "$gte": Utility.get_timestamp_from_date(from_date),
-                                                                                "$lte": Utility.get_timestamp_from_date(to_date)}
-                                                                            }
-                                                                 },
-                                                                {"$group": {"_id": None, "fallback_count": {"$sum": 1}}},
-                                                                {"$project": {"fallback_count": 1, "_id": 0}}
-                                                                ], allowDiskUse=True))
+                    {"$match": {"type": "flattened",
+                                "data.intent": fallback_intent,
+                                "timestamp": {
+                                    "$gte": Utility.get_timestamp_from_date(from_date),
+                                    "$lte": Utility.get_timestamp_from_date(to_date)}
+                                }
+                     },
+                    {"$group": {"_id": None, "fallback_count": {"$sum": 1}}},
+                    {"$project": {"fallback_count": 1, "_id": 0}}
+                ], allowDiskUse=True))
 
-                total_counts = list(conversations.aggregate([
-                                                             {"$match": {"event.event": "user",
-                                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                                             "$lte": Utility.get_timestamp_from_date(to_date)
-                                                                                             }
-                                                                         }
-                                                              },
-                                                             {"$group": {"_id": None, "total_count": {"$sum": 1}}},
-                                                             {"$project": {"total_count": 1, "_id": 0}}
-                                                             ], allowDiskUse=True))
+                total_counts = list(conversations.aggregate(
+                    [
+                        {"$match": {"type": "flattened",
+                                    "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                  "$lte": Utility.get_timestamp_from_date(to_date)}
+                                    }
+                         },
+                        {"$group": {"_id": None, "total_count": {"$sum": 1}}},
+                        {"$project": {"total_count": 1, "_id": 0}}
+                    ], allowDiskUse=True))
 
         except Exception as e:
             logger.error(e)
@@ -274,6 +233,7 @@ class HistoryProcessor:
         :return: list of users with step and time in conversation
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
+        time_filter = {"$gte": Utility.get_timestamp_from_date(from_date), "$lte": Utility.get_timestamp_from_date(to_date)}
         users = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -282,14 +242,10 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 users = list(
-                    conversations.aggregate([{"$match": {"event.event": "user",
-                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                             "$lte": Utility.get_timestamp_from_date(to_date)}}},
-                                             {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id",
-                                                         "latest_event_time": {"$last": "$event.timestamp"},
-                                                         "steps": {"$sum": 1},}
-                                              },
+                    conversations.aggregate([{"$match": {"timestamp": time_filter}},
+                                             {"$sort": {"timestamp": 1}},
+                                             {"$group": {"_id": "$sender_id", "latest_event_time": {"$last": "$timestamp"},
+                                                         "steps": {"$sum": 1}}},
                                              {"$sort": {"latest_event_time": -1}},
                                              {"$project": {
                                                  "sender_id": "$_id",
@@ -411,8 +367,7 @@ class HistoryProcessor:
     def successful_conversations(collection: Text,
                                  from_date: date = (datetime.utcnow() - timedelta(30)).date(),
                                  to_date: date = datetime.utcnow().date(),
-                                 fallback_action: str = 'action_default_fallback',
-                                 nlu_fallback_action: str = 'nlu_fallback'):
+                                 fallback_intent: str = 'nlu_fallback'):
 
         """
         Counts the number of successful conversations of the bot
@@ -420,8 +375,7 @@ class HistoryProcessor:
         :param collection: collection to connect to
         :param from_date: default is last month date
         :param to_date: default is current month today date
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
+        :param fallback_intent: fallback intent configured for bot
         :return: number of successful conversations
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -433,23 +387,23 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                total = list(
-                    conversations.aggregate([{"$match": {
-                                                        "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                            "$lte": Utility.get_timestamp_from_date(to_date)},
-                                                        "event.event": "user"
-                                                        }
-                                             },
-                                             {"$group": {"_id": None, "count": {"$sum": 1}}},
-                                             {"$project": {"_id": 0, "count": 1}}
-                                             ]))
+                total = list(conversations.aggregate([
+                    {"$match": {
+                        "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                      "$lte": Utility.get_timestamp_from_date(to_date)},
+                        "type": "flattened"}
+                    },
+                    {"$group": {"_id": None, "count": {"$sum": 1}}},
+                    {"$project": {"_id": 0, "count": 1}}
+                ]))
 
                 fallback_count = list(
                     conversations.aggregate([
                         {"$match": {
-                            "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                "$lte": Utility.get_timestamp_from_date(to_date)},
-                            "event.name": {"$in": [fallback_action, nlu_fallback_action]}
+                            "type": "flattened",
+                            "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                          "$lte": Utility.get_timestamp_from_date(to_date)},
+                            "data.intent": fallback_intent
                         }
                         },
                         {"$group": {"_id": None, "count": {"$sum": 1}}},
@@ -644,8 +598,7 @@ class HistoryProcessor:
     def successful_conversation_range(collection: Text,
                                       from_date: date = (datetime.utcnow() - timedelta(30)).date(),
                                       to_date: date = datetime.utcnow().date(),
-                                      fallback_action: str = 'action_default_fallback',
-                                      nlu_fallback_action: str = 'nlu_fallback'):
+                                      fallback_intent: str = 'nlu_fallback'):
 
         """
         Computes the trend for successful conversation count
@@ -653,8 +606,7 @@ class HistoryProcessor:
         :param collection: collection to connect to
         :param from_date: default is last month date
         :param to_date: default is current month today date
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
+        :param fallback_intent: fallback intent configured for bot
         :return: dictionary of counts of successful bot conversations for the previous months
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -670,12 +622,12 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {"$match":
                             {
-                            "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                "$lte": Utility.get_timestamp_from_date(to_date)},
-                            "event.event": "user"
-                        }
+                                "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                              "$lte": Utility.get_timestamp_from_date(to_date)},
+                                "type": "flattened"
+                            }
                         },
-                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
                         {"$group": {"_id": "$month", "count": {"$sum": 1}}},
                         {"$project": {"_id": 1, "count": 1}}
                     ], allowDiskUse=True))
@@ -683,21 +635,22 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {"$match":
                             {
+                                "type": "flattened",
                                 "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                     "$lte": Utility.get_timestamp_from_date(to_date)},
-                                "event.event": {"$in": [fallback_action, nlu_fallback_action]}
+                                "data.intent": fallback_intent
                             }
                         },
-                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
                         {"$group": {"_id": "$month", "count": {"$sum": 1}}},
                         {"$project": {"_id": 1, "count": 1}}
                     ], allowDiskUse=True))
         except Exception as e:
             logger.error(e)
             message = str(e)
-        unsuccess_dict = {item["_id"]: item["count"]   for item in total_unsuccess}
+        unsuccess_dict = {item["_id"]: item["count"] for item in total_unsuccess}
         total_dict = {item["_id"]: item["count"] for item in total_unsuccess}
-        successful = [{key: value - unsuccess_dict[key]}  for key, value in total_dict.items()]
+        successful = [{key: value - unsuccess_dict[key]} for key, value in total_dict.items()]
         return (
             {"successful": successful, "total": total},
             message
@@ -764,20 +717,18 @@ class HistoryProcessor:
     def fallback_count_range(collection: Text,
                              from_date: date = (datetime.utcnow() - timedelta(30)).date(),
                              to_date: date = datetime.utcnow().date(),
-                             fallback_action: str = 'action_default_fallback',
-                             nlu_fallback_action: str = 'nlu_fallback'):
+                             fallback_intent: str = 'nlu_fallback'):
 
         """
         Computes the trend for fallback counts
         :param collection: collection to connect to
         :param from_date: default is last month date
         :param to_date: default is current month today date
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
+        :param fallback_intent: fallback intent configured for bot
         :return: dictionary of fallback counts for the previous months
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
-        action_counts = []
+        total_counts = []
         fallback_counts = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -785,37 +736,34 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                fallback_counts = list(
-                    conversations.aggregate([{"$match": {"event.event": "action",
-                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
-                                                         "event.name": {"$in": [fallback_action, nlu_fallback_action]}
-                                                         }
-                                              },
-                                             {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
-                                             {"$group": {"_id": "$month", "count": {"$sum": 1}}},
-                                             {"$project": {"_id": 1, "count": 1}}
-                                             ]))
-                action_counts = list(
-                    conversations.aggregate([{"$match": {"$and":
-                                                             [
-                                                                 {"event.event": "action"},
-                                                                 {"event.name": {"$nin": ['action_listen', 'action_session_start']}},
-                                                                 {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                                      "$lte": Utility.get_timestamp_from_date(to_date)}}
-                                                             ],
-                                                        }
-                                             },
-                                             {"$addFields": {"month": { "$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
-                                             {"$group": {"_id": "$month", "total_count": {"$sum": 1}}},
-                                             {"$project": {"_id": 1, "total_count": 1}}
-                                             ]))
+                fallback_counts = list(conversations.aggregate([
+                    {"$match": {"type": "flattened",
+                                "timestamp": {
+                                    "$gte": Utility.get_timestamp_from_date(from_date),
+                                    "$lte": Utility.get_timestamp_from_date(to_date)
+                                },
+                                "data.intent": fallback_intent}},
+                    {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
+                    {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                    {"$project": {"_id": 1, "count": 1}}
+                ]))
+                total_counts = list(conversations.aggregate([{"$match": {"$and": [
+                    {"type": "flattened"},
+                    {"timestamp": {
+                        "$gte": Utility.get_timestamp_from_date(from_date),
+                        "$lte": Utility.get_timestamp_from_date(to_date)
+                    }}]}},
+                    {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
+                    {"$group": {"_id": "$month", "total_count": {"$sum": 1}}},
+                    {"$project": {"_id": 1, "total_count": 1}}
+                ]))
+
         except Exception as e:
             logger.error(e)
             message = str(e)
-        action_count = {d['_id']: d['total_count'] for d in action_counts}
+        total_count = {d['_id']: d['total_count'] for d in total_counts}
         fallback_count = {d['_id']: d['count'] for d in fallback_counts}
-        final_trend = {k: 100 * (fallback_count.get(k) / action_count.get(k)) for k in list(fallback_count.keys())}
+        final_trend = {k: 100 * (fallback_count.get(k) / total_count.get(k)) for k in list(fallback_count.keys())}
         return (
             {"fallback_count_rate": final_trend, "total_fallback_count": fallback_count},
             message
@@ -842,18 +790,21 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 user_data = list(
                     conversations.aggregate(
-                        [{"$match": {"type": "flattened",
+                        [{"$match": {"type": {"$in": ["flattened", "broadcast"]},
                                      "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                    "$lte": Utility.get_timestamp_from_date(to_date)}}},
                             {"$project": {"user_input": "$data.user_input", "intent": "$data.intent",
                                           "confidence": "$data.confidence", "action": "$data.action",
                                           "timestamp": {"$toDate": {"$multiply": ["$timestamp", 1000]}},
-                                          "bot_response": "$data.bot_response", "sender_id": "$sender_id"
+                                          "bot_response": "$data.bot_response", "sender_id": "$sender_id",
+                                          "template_name": "$data.name", "template": "$data.template",
+                                          "template_params": "$data.template_params"
                                           }},
                             {"$sort": {"timestamp": -1}},
                             {"$project": {"_id": "$sender_id", "user_input": 1, "intent": 1, "confidence": 1,
                                           "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}},
-                                          "action": 1, "bot_response": 1}}
+                                          "action": 1, "bot_response": 1, "template_name": 1, "template": 1,
+                                          "template_params": 1}}
                          ], allowDiskUse=True))
 
         except Exception as e:
@@ -1146,17 +1097,15 @@ class HistoryProcessor:
     def user_fallback_dropoff(collection: Text,
                               from_date: date = (datetime.utcnow() - timedelta(30)).date(),
                               to_date: date = datetime.utcnow().date(),
-                              fallback_action: str = 'action_default_fallback',
-                              nlu_fallback_action: str = 'nlu_fallback'):
+                              fallback_intent: str = 'nlu_fallback'):
 
         """
         Computes the list of users that dropped off after encountering fallback
 
         :param collection: collection to connect to
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
         :param from_date: default is last month date
         :param to_date: default is current month today date
+        :param fallback_intent: fallback intent configured for bot
         :return: dictionary of users and their dropoff counts
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -1172,49 +1121,47 @@ class HistoryProcessor:
                         "$gte": Utility.get_timestamp_from_date(from_date),
                         "$lte": Utility.get_timestamp_from_date(to_date)
                     },
-                                                 "event.name": {"$ne": "action_listen"},
-                                                 "event.event": {
-                                                     "$nin": ["session_started", "restart", "bot"]}}},
-                                            {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
-                                                         "allevents": {"$push": "$event"}}},
-                                             {"$unwind": "$events"},
-                                             {"$project": {
-                                                 "_id": 1,
-                                                 "events": 1,
-                                                 "following_events": {
-                                                     "$arrayElemAt": [
-                                                         "$allevents",
-                                                         {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
-                                                     ]
-                                                 }
-                                             }},
-                                             {"$match": {'$or': [{"events.name": fallback_action},
-                                                                 {"events.name": nlu_fallback_action}],
-                                                         "following_events.name": "action_session_start"}},
-                                             {"$group": {"_id": "$_id", "count": {"$sum": 1}}},
-                                             {"$sort": {"count": -1}}
-                                             ], allowDiskUse=True)
+                        "event.name": {"$ne": "action_listen"},
+                        "event.event": {
+                            "$nin": ["session_started", "restart", "bot"]}}},
+                        {"$sort": {"event.timestamp": 1}},
+                        {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
+                                    "allevents": {"$push": "$event"}}},
+                        {"$unwind": "$events"},
+                        {"$project": {
+                            "_id": 1,
+                            "events": 1,
+                            "following_events": {
+                                "$arrayElemAt": [
+                                    "$allevents",
+                                    {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                ]
+                            }
+                        }},
+                        {"$match": {"events.name": fallback_intent,
+                                    "following_events.name": "action_session_start"}},
+                        {"$group": {"_id": "$_id", "count": {"$sum": 1}}},
+                        {"$sort": {"count": -1}}
+                    ], allowDiskUse=True)
                 )
 
                 single_session = list(
                     conversations.aggregate([
-                                             {"$match": {"event.timestamp": {
-                                                 "$gte": Utility.get_timestamp_from_date(from_date),
-                                                 "$lte": Utility.get_timestamp_from_date(to_date)
-                                            },
-                                                 "event.name": {"$ne": "action_listen"},
-                                                 "event.event": {
-                                                     "$nin": ["session_started", "restart", "bot"]}}},
-                                            {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
-                                             {"$addFields": {"last_event": {"$last": "$events"}}},
-                                             {"$match": {'$or': [{"last_event.name": fallback_action},
-                                                                 {"last_event.name": nlu_fallback_action}]}},
-                                             {"$addFields": {"count": 1}},
-                                             {"$project": {"_id": 1, "count": 1}}
-                                             ], allowDiskUse=True)
-            )
+                        {"$match": {"event.timestamp": {
+                            "$gte": Utility.get_timestamp_from_date(from_date),
+                            "$lte": Utility.get_timestamp_from_date(to_date)
+                        },
+                            "event.name": {"$ne": "action_listen"},
+                            "event.event": {
+                                "$nin": ["session_started", "restart", "bot"]}}},
+                        {"$sort": {"event.timestamp": 1}},
+                        {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
+                        {"$addFields": {"last_event": {"$last": "$events"}}},
+                        {"$match": {"last_event.name": fallback_intent}},
+                        {"$addFields": {"count": 1}},
+                        {"$project": {"_id": 1, "count": 1}}
+                    ], allowDiskUse=True)
+                )
         except Exception as e:
             logger.error(e)
             message = str(e)
@@ -1329,17 +1276,15 @@ class HistoryProcessor:
     def unsuccessful_session(collection: Text,
                              from_date: date = (datetime.utcnow() - timedelta(30)).date(),
                              to_date: date = datetime.utcnow().date(),
-                             fallback_action: str = 'action_default_fallback',
-                             nlu_fallback_action: str = 'nlu_fallback'):
+                             fallback_intent: str = 'nlu_fallback'):
 
         """
         Computes the count of sessions for a user that had a fallback
 
         :param collection: collection to connect to
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
         :param from_date: default is last month date
         :param to_date: default is current month today date
+        :param fallback_intent: fallback intent configured for bot
         :return: dictionary of users and their unsuccessful session counts
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -1352,54 +1297,49 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 new_session = list(
                     conversations.aggregate([
-                                             {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
-                                                         "event.name": {
-                                                             "$in": ["action_session_start", fallback_action,
-                                                                     nlu_fallback_action]}
-                                                         }
+                        {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                        "$lte": Utility.get_timestamp_from_date(to_date)},
+                                    "event.name": {
+                                        "$in": ["action_session_start", fallback_intent]}
+                                    }
+                         },
+                        {"$sort": {"event.timestamp": 1}},
+                        {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
+                                    "allevents": {"$push": "$event"}}},
+                        {"$unwind": "$events"},
+                        {"$project": {
+                            "_id": 1,
+                            "events": 1,
+                            "following_events": {
+                                "$arrayElemAt": [
+                                    "$allevents",
+                                    {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                                ]
+                            }
+                        }},
+                        {"$match": {"events.name": fallback_intent,
+                                    "following_events.name": "action_session_start"}},
+                        {"$group": {"_id": "$_id", "count": {"$sum": 1}}},
+                        {"$sort": {"count": -1}}
 
-                                             },
-                                            {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
-                                                         "allevents": {"$push": "$event"}}},
-                                             {"$unwind": "$events"},
-                                             {"$project": {
-                                                 "_id": 1,
-                                                 "events": 1,
-                                                 "following_events": {
-                                                     "$arrayElemAt": [
-                                                         "$allevents",
-                                                         {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
-                                                     ]
-                                                 }
-                                             }},
-                                             {"$match": {'$or': [{"events.name": fallback_action},
-                                                                 {"events.name": nlu_fallback_action}],
-                                                         "following_events.name": "action_session_start"}},
-                                             {"$group": {"_id": "$_id", "count": {"$sum": 1}}},
-                                             {"$sort": {"count": -1}}
-
-                                             ], allowDiskUse=True))
+                    ], allowDiskUse=True))
 
                 single_session = list(
-                    conversations.aggregate([{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
-                                                         "event.name": {
-                                                             "$in": ["action_session_start", fallback_action,
-                                                                     nlu_fallback_action]}
-                                                         }
-
-                                             },
-                                             {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
-                                             {"$addFields": {"last_event": {"$last": "$events"}}},
-                                             {"$match": {'$or': [{"last_event.name": fallback_action},
-                                                                 {"last_event.name": nlu_fallback_action}]}},
-                                             {"$addFields": {"count": 1}},
-                                             {"$project": {"_id": 1, "count": 1}}
-                                             ], allowDiskUse=True)
-                    )
+                    conversations.aggregate(
+                        [{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                         "$lte": Utility.get_timestamp_from_date(to_date)},
+                                     "event.name": {
+                                         "$in": ["action_session_start", fallback_intent]}
+                                     }
+                          },
+                         {"$sort": {"event.timestamp": 1}},
+                         {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
+                         {"$addFields": {"last_event": {"$last": "$events"}}},
+                         {"$match": {"last_event.name": fallback_intent}},
+                         {"$addFields": {"count": 1}},
+                         {"$project": {"_id": 1, "count": 1}}
+                         ], allowDiskUse=True)
+                )
         except Exception as e:
             logger.error(e)
             message = str(e)
@@ -1515,10 +1455,12 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                conversations.aggregate([{"$match": {"sender_id": sender_id}},
-                                         {"$match": {"event.timestamp": {"$lte": till_date_timestamp}}},
-                                         {"$sort": {"event.timestamp": 1}},
-                                         {"$project": {"_id":0}},
+                conversations.aggregate([{"$match": {"sender_id": sender_id,
+                                                     "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
+                                                             {"timestamp": {"$lte": till_date_timestamp}}]
+                                                     }
+                                          },
+                                         {"$project": {"_id": 0}},
                                          {"$merge": {"into": {"db": archive_db, "coll": archive_collection},
                                                      "on": "_id",
                                                      "whenMatched": "keepExisting",
@@ -1548,7 +1490,8 @@ class HistoryProcessor:
 
                 # Remove Archived Events
                 conversations.delete_many(filter={'sender_id': sender_id,
-                                                  "event.timestamp": {'$lte': till_date_timestamp}})
+                                                  "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
+                                                          {"timestamp": {"$lte": till_date_timestamp}}]})
         except Exception as e:
             logger.error(e)
             raise AppException(e)

@@ -84,9 +84,9 @@ class ActionHTTP(ActionsBase):
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
-            http_response = ActionUtility.execute_http_request(headers=headers, http_url=http_url,
-                                                               request_method=request_method, request_body=body,
-                                                               content_type=http_action_config['content_type'])
+            http_response = await ActionUtility.execute_request_async(headers=headers, http_url=http_url,
+                                                                      request_method=request_method, request_body=body,
+                                                                      content_type=http_action_config['content_type'])
             logger.info("http response: " + str(http_response))
             response_context = self.__add_user_context_to_http_response(http_response, tracker_data)
             bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'],

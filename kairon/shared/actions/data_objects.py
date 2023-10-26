@@ -29,7 +29,7 @@ from kairon.shared.actions.models import (
     DbActionOperationType,
 )
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
-from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     FALLBACK_MESSAGE,
@@ -210,21 +210,6 @@ class HttpActionConfig(Auditlog):
                     param.value = Utility.encrypt_message(param.value)
 
 
-class DbOperation(EmbeddedDocument):
-    type = StringField(
-        required=True, choices=[op_type.value for op_type in DbQueryValueType]
-    )
-    value = StringField(
-        required=True, choices=[payload.value for payload in DbActionOperationType]
-    )
-
-    def validate(self, clean=True):
-        if Utility.check_empty_string(self.type):
-            raise ValidationError("query type is required")
-        if not self.value or self.value is None:
-            raise ValidationError("query value is required")
-
-
 class DbQuery(EmbeddedDocument):
     type = StringField(
         required=True, choices=[op_type.value for op_type in DbQueryValueType]
@@ -243,7 +228,7 @@ class DbQuery(EmbeddedDocument):
 class DatabaseAction(Auditlog):
     name = StringField(required=True)
     collection = StringField(required=True)
-    query = EmbeddedDocumentField(DbOperation, required=True)
+    query_type = StringField(required=True, choices=[payload.value for payload in DbActionOperationType])
     payload = EmbeddedDocumentField(DbQuery, default=DbQuery())
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
@@ -260,9 +245,10 @@ class DatabaseAction(Auditlog):
 
         if self.name is None or not self.name.strip():
             raise ValidationError("Action name cannot be empty")
+        if not self.query_type or self.query_type is None:
+            raise ValidationError("query type is required")
         self.response.validate()
         self.payload.validate()
-        self.query.validate()
 
     def clean(self):
         self.name = self.name.strip().lower()
@@ -761,6 +747,12 @@ class LlmPrompt(EmbeddedDocument):
             raise ValidationError("System prompt must have static source!")
 
 
+class UserQuestion(EmbeddedDocument):
+    type = StringField(default=UserMessageType.from_user_message.value,
+                       choices=[p_type.value for p_type in UserMessageType])
+    value = StringField(default=None)
+
+
 @auditlogger.log
 @push_notification.apply
 class PromptAction(Auditlog):
@@ -770,12 +762,14 @@ class PromptAction(Auditlog):
     similarity_threshold = FloatField(default=0.70)
     enable_response_cache = BooleanField(default=False)
     failure_message = StringField(default=DEFAULT_NLU_FALLBACK_RESPONSE)
+    user_question = EmbeddedDocumentField(UserQuestion, default=UserQuestion())
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
     instructions = ListField(StringField())
+    collection = StringField(default=None)
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)

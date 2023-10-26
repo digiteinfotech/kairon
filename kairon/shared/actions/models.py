@@ -24,6 +24,11 @@ class EvaluationType(str, Enum):
     script = "script"
 
 
+class UserMessageType(str, Enum):
+    from_user_message = "from_user_message"
+    from_slot = "from_slot"
+
+
 class ActionType(str, Enum):
     http_action = "http_action"
     slot_set_action = "slot_set_action"

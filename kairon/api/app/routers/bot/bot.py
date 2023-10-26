@@ -16,7 +16,7 @@ from kairon.api.models import (
     BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
-    TextDataLowerCase, SlotMappingRequest, EventConfig, MultiFlowStoryRequest
+    TextDataLowerCase, SlotMappingRequest, EventConfig, MultiFlowStoryRequest, BotSettingsRequest
 )
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
@@ -28,7 +28,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     VIEW_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
-from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
     TrainingDataSourceType
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
@@ -929,13 +929,8 @@ async def add_slots(
     :param current_user:
     :return: Success message with slot id
     """
-    try:
-        slot_value = request_data.dict()
-        slot_id = mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(),
-                                           user=current_user.get_bot(), raise_exception_if_exists=True)
-    except AppException as ae:
-        raise AppException(str(ae))
-
+    slot_id = mongo_processor.add_slot(slot_value=request_data.dict(), bot=current_user.get_bot(),
+                                       user=current_user.get_user(), raise_exception_if_exists=True)
     return {"message": "Slot added successfully!", "data": {"_id": slot_id}}
 
 
@@ -1517,7 +1512,7 @@ async def upload_bot_assets(
     """
     data = {"url": await AssetsProcessor.add_asset(current_user.get_bot(), current_user.get_user(), asset, asset_type)}
     UserActivityLogger.add_log(
-        current_user.account, UserActivityType.add_asset, current_user.get_user(), current_user.get_bot(),
+        UserActivityType.add_asset, current_user.account, current_user.get_user(), current_user.get_bot(),
         [f"asset_type={asset_type}"]
     )
     return Response(message='Asset added', data=data)
@@ -1532,7 +1527,7 @@ async def delete_bot_assets(
     """
     AssetsProcessor.delete_asset(current_user.get_bot(), current_user.get_user(), asset_type)
     UserActivityLogger.add_log(
-        current_user.account, UserActivityType.delete_asset, current_user.get_user(), current_user.get_bot(),
+        UserActivityType.delete_asset, current_user.account, current_user.get_user(), current_user.get_bot(),
         [f"asset_type={asset_type}"]
     )
     return Response(message='Asset deleted')
@@ -1624,3 +1619,13 @@ async def get_bot_settings(
     bot_settings = bot_settings.to_mongo().to_dict()
     bot_settings.pop("_id")
     return Response(data=bot_settings)
+
+
+@router.put("/settings", response_model=Response)
+async def update_bot_settings(
+        bot_settings: BotSettingsRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
+):
+    """Updates bot settings"""
+    MongoProcessor.edit_bot_settings(bot_settings.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Bot Settings updated')

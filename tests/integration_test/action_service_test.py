@@ -16,8 +16,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction
-from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
+    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
+from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -525,7 +525,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url(mock_trigger_l
         bot="5f50fd0a56b698ca10d35d2z",
         user="user"
     ).save()
-    mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+    mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, "url": None}}}
 
     request_object = {
         "next_action": action_name,
@@ -602,7 +602,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exceptio
         bot="5f50fd0a56b698ca10d35d2z",
         user="user"
     ).save()
-    mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+    mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, "url": None}}}
 
     request_object = {
         "next_action": action_name,
@@ -643,7 +643,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exceptio
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': "I have failed to process your request"}]
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-        assert log['exception'] == "{'Payload': {'body': 'Failed to evaluated the pyscript'}, 'StatusCode': 422}"
+        assert log['exception'] == "Failed to evaluated the pyscript"
 
 
 @responses.activate
@@ -792,8 +792,7 @@ def test_pyscript_action_execution_with_invalid_response():
     assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
 
 
-@responses.activate
-def test_http_action_execution():
+def test_http_action_execution(aioresponses):
     action_name = "test_http_action_execution"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -831,12 +830,12 @@ def test_http_action_execution():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
              "name": "udit"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
 
     request_object = {
@@ -905,8 +904,7 @@ def test_http_action_execution():
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
 
-@responses.activate
-def test_http_action_execution_returns_custom_json():
+def test_http_action_execution_returns_custom_json(aioresponses):
     action_name = "test_http_action_execution_returns_custom_json"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -943,7 +941,7 @@ def test_http_action_execution_returns_custom_json():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
              "name": "udit"}),
@@ -993,8 +991,7 @@ def test_http_action_execution_returns_custom_json():
         'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
 
 
-@responses.activate
-def test_http_action_execution_custom_json_with_invalid_json_response():
+def test_http_action_execution_custom_json_with_invalid_json_response(aioresponses):
     action_name = "test_http_action_execution_custom_json_with_invalid_json_response"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1031,12 +1028,12 @@ def test_http_action_execution_custom_json_with_invalid_json_response():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
              "name": "udit"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
 
     request_object = {
@@ -1082,7 +1079,7 @@ def test_http_action_execution_custom_json_with_invalid_json_response():
 
 
 @responses.activate
-def test_http_action_execution_return_custom_json_with_script_evaluation():
+def test_http_action_execution_return_custom_json_with_script_evaluation(aioresponses):
     action_name = "test_http_action_execution_return_custom_json_with_script_evaluation"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1117,12 +1114,12 @@ def test_http_action_execution_return_custom_json_with_script_evaluation():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
              "name": "udit"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -1182,7 +1179,7 @@ def test_http_action_execution_return_custom_json_with_script_evaluation():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_json_response():
+def test_http_action_execution_script_evaluation_with_json_response(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_json_response"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2d", user="user").save()
     HttpActionConfig(
@@ -1217,12 +1214,12 @@ def test_http_action_execution_script_evaluation_with_json_response():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
                                                        "tag": "from_bot"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -1279,7 +1276,7 @@ def test_http_action_execution_script_evaluation_with_json_response():
 
 
 @responses.activate
-def test_http_action_execution_no_response_dispatch():
+def test_http_action_execution_no_response_dispatch(aioresponses):
     action_name = "test_http_action_execution_no_response_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1312,11 +1309,11 @@ def test_http_action_execution_no_response_dispatch():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode( {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
 
     request_object = {
@@ -1384,7 +1381,7 @@ def test_http_action_execution_no_response_dispatch():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation():
+def test_http_action_execution_script_evaluation(aioresponses):
     action_name = "test_http_action_execution_script_evaluation"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1418,11 +1415,11 @@ def test_http_action_execution_script_evaluation():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -1515,7 +1512,7 @@ def test_http_action_execution_script_evaluation():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_dynamic_params():
+def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1567,11 +1564,11 @@ def test_http_action_execution_script_evaluation_with_dynamic_params():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -1696,7 +1693,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json():
+def test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1748,11 +1745,11 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
 
     responses.add(
@@ -1848,7 +1845,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch():
+def test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1900,11 +1897,11 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -1997,7 +1994,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch():
+def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -2049,11 +2046,11 @@ def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2227,7 +2224,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_failure():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list():
+def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -2284,12 +2281,12 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run",
              "user_details": "email"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2415,7 +2412,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_failure_no_dispatch():
+def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_no_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -2449,11 +2446,11 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2530,7 +2527,7 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_failure_and_dispatch():
+def test_http_action_execution_script_evaluation_failure_and_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_and_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -2564,11 +2561,11 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2645,7 +2642,7 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_failure_and_dispatch_2():
+def test_http_action_execution_script_evaluation_failure_and_dispatch_2(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_and_dispatch_2"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -2679,11 +2676,11 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
-        status=200,
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2889,7 +2886,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="embedding_search"),
+        query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -2980,7 +2977,7 @@ def test_vectordb_action_execution_payload_search_from_value():
     }
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="payload_search"),
+        query_type=DbActionOperationType.payload_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
@@ -3055,7 +3052,7 @@ def test_vectordb_action_execution_embedding_search_from_slot():
 
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="embedding_search"),
+        query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_slot", value='name'),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -3140,7 +3137,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
 
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="payload_search"),
+        query_type=DbActionOperationType.payload_search.value,
         payload=DbQuery(type="from_slot", value='color'),
         response=HttpActionResponse(value="The name of the city with id ${data.0.id} is ${data.0.city}"),
         set_slots=[SetSlotsFromResponse(name="city_name", value="${data.0.city}")],
@@ -3212,7 +3209,7 @@ def test_vectordb_action_execution_no_response_dispatch():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="embedding_search"),
+        query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
                                     dispatch=False),
@@ -3296,7 +3293,7 @@ def test_vectordb_action_execution_invalid_operation_type():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="vector_search"),
+        query_type="vector_search",
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
                                     dispatch=False),
@@ -3356,7 +3353,7 @@ def test_vectordb_action_failed_execution(mock_action_config, mock_action):
                      user="user")
     action_config = DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="embedding_search"),
+        query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector"),
         bot="5f50fd0a56b697ca10d35d2e",
@@ -6428,7 +6425,7 @@ def test_process_web_search_action_with_search_engine_url():
         },
         "version": "version"
     }
-    with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+    with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200
@@ -9538,7 +9535,88 @@ def test_action_handler_exceptions():
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
+def test_prompt_action_response_action_with_prompt_question_from_slot(mock_search, mock_embedding, mock_completion):
+    from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+    from uuid6 import uuid7
+
+    action_name = "test_prompt_action_response_action_with_prompt_question_from_slot"
+    bot = "5f50fd0a56b698ca10d35d2l"
+    user = "udit.pandey"
+    value = "keyvalue"
+    user_msg = "What kind of language is python?"
+    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+    generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    llm_prompts = [
+        {'name': 'System Prompt',
+         'data': 'You are a personal assistant. Answer question based on the context below.',
+         'type': 'system', 'source': 'static', 'is_enabled': True},
+        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+         'type': 'query', 'source': 'static', 'is_enabled': False},
+        {'name': 'Similarity Prompt',
+         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+         'type': 'user', 'source': 'bot_content',
+         'is_enabled': True}
+    ]
+
+    embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+    mock_embedding.return_value = embedding
+    mock_completion.return_value = generated_text
+    mock_search.return_value = {
+        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
+                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+    request_object["tracker"]["slots"] = {"bot": bot, "prompt_question": user_msg}
+    request_object["next_action"] = action_name
+    request_object["tracker"]["sender_id"] = user
+    request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}},
+                                           {'event': 'bot', "text": "how are you",
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}}]
+
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [
+        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+         'response': None, 'image': None, 'attachment': None}
+        ]
+
+    assert mock_completion.call_args.args[1] == 'What kind of language is python?'
+    assert mock_completion.call_args.args[
+               2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    assert mock_completion.call_args.args[
+               3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
+    print(mock_completion.call_args.kwargs)
+    assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
+                                                'enable_response_cache': False,
+                                                'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
+                                                                    'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                                                    'stream': False, 'stop': None,
+                                                                    'presence_penalty': 0.0,
+                                                                    'frequency_penalty': 0.0, 'logit_bias': {}},
+                                                'query_prompt': '', 'use_query_prompt': False,
+                                                'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
+                                                                           {'role': 'assistant',
+                                                                            'content': 'how are you'}],
+                                                'use_similarity_prompt': True,
+                                                'similarity_prompt_name': 'Similarity Prompt',
+                                                'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                                'instructions': [], 'collection': None}
+
+
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from uuid6 import uuid7
@@ -9614,12 +9692,12 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
                                                 'use_similarity_prompt': True,
                                                 'similarity_prompt_name': 'Similarity Prompt',
                                                 'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                'instructions': []}
+                                                'instructions': [], 'collection': None}
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_action_response_action_with_bot_responses_with_instructions(mock_search, mock_embedding,
                                                                             mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
@@ -9698,12 +9776,13 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
                                                 'use_similarity_prompt': True,
                                                 'similarity_prompt_name': 'Similarity Prompt',
                                                 'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                'instructions': ['Answer in a short way.', 'Keep it simple.']}
+                                                'instructions': ['Answer in a short way.', 'Keep it simple.'],
+                                                'collection': None}
 
 
 @mock.patch.object(GPT3Resources, "invoke", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from uuid6 import uuid7
@@ -9779,7 +9858,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_response_action(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from uuid6 import uuid7
@@ -9825,7 +9904,7 @@ def test_prompt_response_action(mock_search, mock_embedding, mock_completion):
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_response_action_with_instructions(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from uuid6 import uuid7
@@ -9872,7 +9951,7 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
 
 @mock.patch.object(GPT3Resources, "invoke", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from uuid6 import uuid7
@@ -9930,7 +10009,7 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
 
 @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
 @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_response_action_failure(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from openai.util import convert_to_openai_object
@@ -9967,165 +10046,6 @@ def test_prompt_response_action_failure(mock_search, mock_embedding, mock_comple
         {'text': DEFAULT_NLU_FALLBACK_RESPONSE, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
         ]
-
-
-@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-def test_prompt_response_action_connection_error_response_cached(mock_search, mock_embedding):
-    from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-    from openai import error
-    from uuid6 import uuid7
-
-    action_name = GPT_LLM_FAQ
-    failure_msg = "Did you mean any of the following?"
-    bot = "5f50fd0a56b698ca10d35d2eik"
-    user = "udit.pandey"
-    user_msg = "What kind of language is python?"
-    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
-    embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
-    ]
-
-    mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), embedding]
-    mock_search.return_value = {'result': [
-        {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': user_msg, "response": bot_content}},
-        {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "python?", "response": bot_content}},
-        {'id': uuid7().__str__(), 'score': 0.80,
-         'payload': {'query': "what is python?", "response": "It is a programming language."}}]}
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts,
-                 enable_response_cache=True).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
-
-    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
-    request_object["tracker"]["slots"]["bot"] = bot
-    request_object["next_action"] = action_name
-    request_object["tracker"]["sender_id"] = user
-    request_object["tracker"]["latest_message"]['text'] = user_msg
-
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': failure_msg}]
-    assert response_json['responses'] == [{'text': failure_msg, 'buttons': [
-        {'text': user_msg, 'payload': user_msg},
-        {'text': 'python?', 'payload': 'python?'},
-        {'text': 'what is python?', 'payload': 'what is python?'}],
-                                           'elements': [], 'custom': {}, 'template': None, 'response': None,
-                                           'image': None, 'attachment': None}]
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
-    assert log.exception == 'Connection reset by peer!'
-    assert log.is_from_cache
-    assert log.llm_logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'},
-                            {
-                                'message': 'Searching recommendations from cache as `enable_response_cache` is enabled.'}]
-
-
-@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-def test_prompt_response_action_exact_match_cached_query(mock_search, mock_embedding):
-    from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-    from uuid6 import uuid7
-
-    action_name = GPT_LLM_FAQ
-    failure_msg = "Did you mean any of the following?"
-    bot = "5f50fd0a56b698ca10d35d2eikjh"
-    user = "udit.pandey"
-    user_msg = "What kind of language is python?"
-    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
-    embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
-    ]
-
-    mock_embedding.return_value = embedding
-    mock_search.return_value = {'result': [
-        {'id': uuid7().__str__(), 'score': 1, 'payload': {'query': user_msg, "response": bot_content}}]}
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts,
-                 enable_response_cache=True).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
-
-    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
-    request_object["tracker"]["slots"]["bot"] = bot
-    request_object["next_action"] = action_name
-    request_object["tracker"]["sender_id"] = user
-    request_object["tracker"]["latest_message"]['text'] = user_msg
-
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': bot_content}]
-    assert response_json['responses'] == [
-        {'text': bot_content, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
-         'image': None, 'attachment': None}]
-
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value).get()
-    assert log.llm_logs == [{'message': 'Searching exact match in cache as `enable_response_cache` is enabled.'},
-                            {'message': 'Found exact query match in cache.'}]
-
-
-@mock.patch.object(GPT3Resources, "invoke", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-def test_prompt_response_action_connection_error_caching_not_present(mock_search, mock_embedding):
-    from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-    from openai import error
-
-    action_name = GPT_LLM_FAQ
-    bot = "5f50fd0a56b698ca10d35d2eikh"
-    user = "udit.pandey"
-    user_msg = "What kind of language is python?"
-    embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
-    ]
-
-    def __mock_get_embedding(*args, **kwargs):
-        return embedding, {'data': [{'embedding': embedding}]}
-
-    mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
-    mock_search.return_value = {'result': []}
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, failure_message="Did you mean any of the following?",
-                 llm_prompts=llm_prompts, enable_response_cache=True).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
-
-    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
-    request_object["tracker"]["slots"]["bot"] = bot
-    request_object["next_action"] = action_name
-    request_object["tracker"]["sender_id"] = user
-    request_object["tracker"]["latest_message"]['text'] = user_msg
-
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "Did you mean any of the following?"}]
-    assert response_json['responses'] == [{'text': "Did you mean any of the following?", 'buttons': [],
-                                           'elements': [], 'custom': {}, 'template': None, 'response': None,
-                                           'image': None, 'attachment': None}]
-
-    mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
-    mock_search.return_value = {'result': []}
-
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value).get()
-    assert log.exception == "Connection reset by peer!"
-    assert log.llm_logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'},
-                            {
-                                'message': 'Searching recommendations from cache as `enable_response_cache` is enabled.'}]
 
 
 def test_prompt_response_action_disabled():
@@ -10178,7 +10098,7 @@ def test_prompt_action_response_action_does_not_exists():
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from openai.util import convert_to_openai_object
@@ -10258,8 +10178,8 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
 @responses.activate
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embedding, mock_completion):
+@patch("kairon.shared.llm.gpt3.GPT3FAQEmbedding.__collection_search__", autospec=True)
+def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embedding, mock_completion, aioresponses):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from openai.util import convert_to_openai_object
     from openai.openai_response import OpenAIResponse
@@ -10299,11 +10219,11 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
 
     http_url = 'http://localhost:8081/mock'
     resp_msg = "Python is a scripting language because it uses an interpreter to translate and run its code."
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5u08kd0a56b698ca10d98e6s", "user": "1011", "tag": "from_bot",
              "name": "nupur", "contact": "9876543219"}),
-        json=resp_msg,
+        payload=resp_msg,
         status=200,
     )
     llm_prompts = [
@@ -10366,8 +10286,7 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
          'image': None, 'attachment': None}]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
-    assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
-                               {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
+    assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What kind of language is python?'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     with open('tests/testing_data/actions/action_prompt.txt', 'r') as file:
@@ -10447,8 +10366,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                                            'response': None, 'image': None,
                                            'attachment': None}]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
-    assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
-                               {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
+    assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What is kanban'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     print(mock_completion.call_args.args[3])
@@ -10487,7 +10405,7 @@ def test_prompt_response_action_with_action_not_found():
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from openai.util import convert_to_openai_object
@@ -10550,8 +10468,7 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
     assert response_json['responses'] == []
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
-    assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
-                               {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
+    assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
@@ -10562,7 +10479,7 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
 @patch("kairon.shared.actions.utils.ActionUtility.compose_response", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding, mock_completion):
     from openai.util import convert_to_openai_object
     from openai.openai_response import OpenAIResponse
@@ -10630,15 +10547,14 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
                                         'value': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'}]
     assert response_json['responses'] == []
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
-    assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
-                               {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
+    assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == user_msg
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from openai.util import convert_to_openai_object
@@ -10704,8 +10620,7 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
          'response': None, 'image': None, 'attachment': None}
         ]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
-    assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
-                               {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
+    assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
@@ -10715,7 +10630,7 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_completion):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from openai.util import convert_to_openai_object

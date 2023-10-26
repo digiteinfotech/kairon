@@ -340,8 +340,7 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
 
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={{'id': '{template_id}'}}&sort=business_templates.name"
-        url = f"{base_url}{template_endpoint}"
+        url = f"{base_url}/api/v2/partners/new_partner_id/waba_accounts/Cyih7GWA/waba_templates?filters=%7B%22id%22:%20%22test_id%22%7D&sort=business_templates.name"
         responses.add("GET", json=api_resp, url=url)
         template = BSP360Dialog(bot, "test").get_template(template_id)
         assert template == [{'category': 'MARKETING', 'components': [{'example': {'body_text': [['Peter']]},
@@ -364,8 +363,7 @@ class TestBusinessServiceProvider:
 
         monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={{'id': '{template_id}'}}&sort=business_templates.name"
-        url = f"{base_url}{template_endpoint}"
+        url = f"{base_url}/api/v2/partners/new_partner_id/waba_accounts/Cyih7GWA/waba_templates?filters=%7B%22id%22:%20%22test_id%22%7D&sort=business_templates.name"
         responses.add("GET", json={}, url=url, status=500)
 
         with pytest.raises(AppException, match=r"Failed to get template: *"):

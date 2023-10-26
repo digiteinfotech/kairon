@@ -75,15 +75,14 @@ from .constants import (
     ChannelTypes,
     PluginTypes,
 )
-from .data.base_data import AuditLogData
 from .data.constant import (
     TOKEN_TYPE,
-    AuditlogActions,
+
     KAIRON_TWO_STAGE_FALLBACK,
     SLOT_TYPE,
 )
 from .data.dto import KaironStoryStep
-from .models import StoryStepType, LlmPromptType, LlmPromptSource, CognitionMetadataType
+from .models import StoryStepType, LlmPromptType, LlmPromptSource
 from ..exceptions import AppException
 
 
@@ -94,7 +93,7 @@ class Utility:
     email_conf = {}
     system_metadata = {}
     password_policy = PasswordPolicy.from_names(
-        length=8,  # min length: 8
+        length=10,  # min length: 8
         uppercase=1,  # need min. 1 uppercase letters
         numbers=1,  # need min. 1 digits
         special=1,  # need min. 1 special characters
@@ -155,33 +154,19 @@ class Utility:
             return False
 
     @staticmethod
-    def retrieve_data(data: Any, metadata: Dict):
-        if metadata and isinstance(data, dict):
-            data_type = metadata["data_type"]
-            column_name = metadata["column_name"]
-            if (
-                column_name in data
-                and data[column_name]
-                and data_type == CognitionMetadataType.int.value
-            ):
-                try:
-                    return int(data[column_name])
-                except ValueError:
-                    raise AppException("Invalid data type")
-            else:
-                return data[column_name]
+    def retrieve_search_payload_and_embedding_payload(data: Any, metadata: Dict):
+        from .cognition.processor import CognitionDataProcessor
 
-    @staticmethod
-    def get_embeddings_and_payload(data: Any, metadata: Dict):
         search_payload = {}
         create_embedding_data = {}
-        for metadata_item in metadata:
-            column_name = metadata_item["column_name"]
-            converted_value = Utility.retrieve_data(data, metadata_item)
-            if converted_value and metadata_item["enable_search"]:
-                search_payload[column_name] = converted_value
-            if converted_value and metadata_item["create_embeddings"]:
-                create_embedding_data[column_name] = converted_value
+        for metadata_dict in metadata["metadata"]:
+            column_name = metadata_dict["column_name"]
+            if column_name in data.keys():
+                converted_value = CognitionDataProcessor.validate_column_values(data, metadata_dict)
+                if converted_value and metadata_dict["enable_search"]:
+                    search_payload[column_name] = converted_value
+                if converted_value and metadata_dict["create_embeddings"]:
+                    create_embedding_data[column_name] = converted_value
         create_embedding_data = json.dumps(create_embedding_data)
         return search_payload, create_embedding_data
 
@@ -979,6 +964,9 @@ class Utility:
                 Utility.environment["security"]["secret_key"],
                 algorithms=[Utility.environment["security"]["algorithm"]],
             )
+            if decoded_jwt.get("version") == "2.0":
+                claims_str = Utility.decrypt_message(decoded_jwt["sub"])
+                decoded_jwt = json.loads(claims_str)
             return decoded_jwt
         except PyJWTError:
             raise PyJWTError("Invalid token")
@@ -1316,14 +1304,6 @@ class Utility:
         encoded_msg = msg.encode("utf-8")
         decrypted_msg = fernet.decrypt(encoded_msg)
         return decrypted_msg.decode("utf-8")
-
-    @staticmethod
-    def load_default_actions():
-        from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
-
-        return list(
-            DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"}
-        )
 
     @staticmethod
     def get_latest_model(bot: Text):
@@ -1876,63 +1856,6 @@ class Utility:
                 masked_value = "*" * str_len
 
         return masked_value
-
-    @staticmethod
-    def save_and_publish_auditlog(document, name, **kwargs):
-        try:
-            action = kwargs.get("action")
-            if not document.status:
-                action = AuditlogActions.SOFT_DELETE.value
-        except AttributeError:
-            action = kwargs.get("action")
-
-        audit = Utility.get_auditlog_id_and_mapping(document)
-
-        audit_log = AuditLogData(
-            audit=audit,
-            user=document.user,
-            action=action,
-            entity=name,
-            data=document.to_mongo().to_dict(),
-        )
-        Utility.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
-        audit_log.save()
-
-    @staticmethod
-    def get_auditlog_id_and_mapping(document):
-        try:
-            auditlog_id = document.bot.__str__()
-            mapping = "Bot_id"
-        except AttributeError:
-            auditlog_id = document.id.__str__()
-            mapping = f"{document._class_name.__str__()}_id"
-
-        return {mapping: auditlog_id}
-
-    @staticmethod
-    def publish_auditlog(auditlog, **kwargs):
-        from .data.data_objects import EventConfig
-        from mongoengine.errors import DoesNotExist
-
-        try:
-            if auditlog.audit.get("Bot_id") is None:
-                logger.debug("Only bot level event config is supported as of")
-                return
-            event_config = EventConfig.objects(bot=auditlog.audit.get("Bot_id")).get()
-
-            headers = json.loads(Utility.decrypt_message(event_config.headers))
-            ws_url = event_config.ws_url
-            method = event_config.method
-            if ws_url:
-                Utility.execute_http_request(
-                    request_method=method,
-                    http_url=ws_url,
-                    request_body=auditlog.to_mongo().to_dict(),
-                    headers=headers,
-                    timeout=5,
-                )
-        except (DoesNotExist, AppException):
-            return
 
     @staticmethod
     def is_reserved_keyword(keyword: Text):

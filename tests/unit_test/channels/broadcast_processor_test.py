@@ -208,13 +208,13 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         settings[1].pop("timestamp")
-        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
+        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
                              "broadcast_type": "dynamic",
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *',
                                                   "timezone": "Asia/Kolkata"},
                              "pyscript": "send_msg('template_name', '9876543210')", "template_config": [],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True},
-                            {'name': 'second_scheduler', 'connector_type': 'slack',  'pyscript_timeout': 10,
+                            {'name': 'second_scheduler', 'connector_type': 'slack',
                             'recipients_config': {'recipients': '918958030541,'},
                              "broadcast_type": "static", 'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
@@ -222,7 +222,7 @@ class TestMessageBroadcastProcessor:
         setting = MessageBroadcastProcessor.get_settings(config_id, bot)
         assert isinstance(setting.pop("_id"), str)
         setting.pop("timestamp")
-        assert setting == {'name': 'second_scheduler', 'connector_type': 'slack',  'pyscript_timeout': 10,
+        assert setting == {'name': 'second_scheduler', 'connector_type': 'slack',
                              'recipients_config': {'recipients': '918958030541,'}, 'broadcast_type': 'static',
                              'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}
@@ -243,7 +243,7 @@ class TestMessageBroadcastProcessor:
         config_id = settings[0].pop("_id")
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
-        assert settings == [{'name': 'second_scheduler', 'connector_type': 'slack',  'pyscript_timeout': 10,
+        assert settings == [{'name': 'second_scheduler', 'connector_type': 'slack',
                              "broadcast_type": "static",
                              'recipients_config': {'recipients': '918958030541,'},
                              'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
@@ -253,7 +253,7 @@ class TestMessageBroadcastProcessor:
         config_id = settings[0].pop("_id")
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
-        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',  'pyscript_timeout': 10,
+        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
                              "broadcast_type": "dynamic", "template_config": [],
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *', "timezone": "Asia/Kolkata"},
                              "pyscript": "send_msg('template_name', '9876543210')",
