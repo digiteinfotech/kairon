@@ -1662,7 +1662,7 @@ def test_content_update_api():
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
         json={
-            "cognition_id": pytest.content_id_text,
+            "row_id": pytest.content_id_text,
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
                        "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
                        "you can focus on developing and deploying your applications rather than managing the infrastructure.",
@@ -1682,7 +1682,7 @@ def test_content_update_api_collection_does_not_exist():
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
         json={
-            "cognition_id": pytest.content_id_text,
+            "row_id": pytest.content_id_text,
             "data": "Docker containers without having to manage the underlying EC2 instances.",
             "collection": "test_content_update_api_collection_does_not_exist",
             "content_type": "text"
@@ -1700,7 +1700,7 @@ def test_content_update_api_invalid():
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
         json={
-            "cognition_id": pytest.content_id_text,
+            "row_id": pytest.content_id_text,
             "data": "AWS Fargate is a serverless compute engine.",
             "collection": "details",
             "content_type": "text"
@@ -1720,7 +1720,7 @@ def test_content_update_api_already_exist():
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/{content_id}",
         json={
-            "cognition_id": content_id,
+            "row_id": content_id,
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
                        "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
                        "you can focus on developing and deploying your applications rather than managing the infrastructure.",
@@ -1742,7 +1742,7 @@ def test_content_update_api_id_not_found():
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/{content_id}",
         json={
-            "cognition_id": content_id,
+            "row_id": content_id,
             "data": "Artificial intelligence (AI) involves using computers to do things that traditionally require human "
                     "intelligence. AI can process large amounts of data in ways that humans cannot. The goal for AI is "
                     "to be able to do things like recognize patterns, make decisions, and judge like humans.",
@@ -1792,16 +1792,15 @@ def test_get_content_without_data():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-    assert actual["data"][0]['collection'] == 'details'
-    assert actual["data"][0]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
-    assert actual["data"][1]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+    assert actual["data"][0]['collection'] == None
+    assert actual["data"][0]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
 
 
 def test_delete_content():
     response_one = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_no_collection}",
         json={
-            "cognition_id": pytest.content_id_no_collection,
+            "row_id": pytest.content_id_no_collection,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1814,7 +1813,7 @@ def test_delete_content():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
         json={
-            "cognition_id": pytest.content_id_text,
+            "row_id": pytest.content_id_text,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1830,7 +1829,7 @@ def test_delete_content_does_not_exist():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{content_id}",
         json={
-            "cognition_id": content_id,
+            "row_id": content_id,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1973,7 +1972,7 @@ def test_payload_updated_api_collection_does_not_exists():
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
         json={
-            "cognition_id": pytest.payload_id,
+            "row_id": pytest.payload_id,
             "data": {"details": "data science"},
             "collection": "test_payload_updated_api_collection_does_not_exists",
             "content_type": "json"
@@ -2010,7 +2009,7 @@ def test_payload_updated_api():
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
         json={
-            "cognition_id": pytest.payload_id,
+            "row_id": pytest.payload_id,
             "data": {"details": "data science"},
             "collection": "Details",
             "content_type": "json"
@@ -2033,7 +2032,7 @@ def test_payload_content_update_api_already_exists(monkeypatch):
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
         json={
-            "cognition_id": payload_id,
+            "row_id": payload_id,
             "data": {"details": "data science"},
             "content_type": "json",
         },
@@ -2053,7 +2052,7 @@ def test_payload_content_update_api_id_not_found():
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
         json={
-            "cognition_id": payload_id,
+            "row_id": payload_id,
             "data": {"details": "data"},
             "content_type": "json",
             },
@@ -2070,7 +2069,7 @@ def test_payload_content_update_api_id_not_found():
 
 def test_get_payload_content():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/cognition",
+        url=f"/api/bot/{pytest.bot}/data/cognition?collection=Details",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -2086,7 +2085,7 @@ def test_delete_payload_content():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
         json={
-            "cognition_id": pytest.payload_id,
+            "row_id": pytest.payload_id,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -2103,7 +2102,7 @@ def test_delete_payload_content_does_not_exist():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
         json={
-            "cognition_id": payload_id,
+            "row_id": payload_id,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )

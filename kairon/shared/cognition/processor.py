@@ -142,19 +142,19 @@ class CognitionDataProcessor:
         payload_id = payload_obj.save().to_mongo().to_dict()["_id"].__str__()
         return payload_id
 
-    def update_cognition_data(self, payload_id: str, payload: Dict, user: Text, bot: Text):
+    def update_cognition_data(self, row_id: str, payload: Dict, user: Text, bot: Text):
         from kairon import Utility
 
         data = payload['data']
         content_type = payload['content_type']
         if payload.get('content_type') == CognitionDataType.text.value and len(payload.get('data').split()) < 10:
             raise AppException("Content should contain atleast 10 words.")
-        Utility.is_exist(CognitionData, bot=bot, id__ne=payload_id, data=data,
+        Utility.is_exist(CognitionData, bot=bot, id__ne=row_id, data=data,
                          exp_message="Payload data already exists!")
         if payload.get('collection') and not Utility.is_exist(CognitionSchema, bot=bot, collection_name=payload.get('collection'), raise_error=False):
             raise AppException('Collection does not exist!')
         try:
-            payload_obj = CognitionData.objects(bot=bot, id=payload_id).get()
+            payload_obj = CognitionData.objects(bot=bot, id=row_id).get()
             if content_type == CognitionDataType.json.value:
                 CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
             payload_obj.data = data
@@ -166,9 +166,9 @@ class CognitionDataProcessor:
         except DoesNotExist:
             raise AppException("Payload with given id not found!")
 
-    def delete_cognition_data(self, payload_id: str, bot: Text):
+    def delete_cognition_data(self, row_id: str, bot: Text):
         try:
-            payload = CognitionData.objects(bot=bot, id=payload_id).get()
+            payload = CognitionData.objects(bot=bot, id=row_id).get()
             payload.delete()
         except DoesNotExist:
             raise AppException("Payload does not exists!")
@@ -186,10 +186,11 @@ class CognitionDataProcessor:
         search = kwargs.pop('data', None)
         kwargs.pop('start_idx', None)
         kwargs.pop('page_size', None)
-        cognition_data = CognitionData.objects(**kwargs)
+        collection = kwargs.pop('collection', None)
+        cognition_data = CognitionData.objects(**kwargs).filter(Q(collection=collection))
         if search:
             cognition_data = cognition_data.search_text(search)
-        for value in cognition_data.skip(start_idx).limit(page_size):
+        for value in cognition_data.skip(start_idx).limit(page_size).order_by('-id'):
             final_data = {}
             item = value.to_mongo().to_dict()
             data = item.pop("data")
