@@ -184,8 +184,6 @@ class CognitionDataProcessor:
         """
         kwargs["bot"] = bot
         search = kwargs.pop('data', None)
-        kwargs.pop('start_idx', None)
-        kwargs.pop('page_size', None)
         cognition_data = CognitionData.objects(**kwargs)
         if search:
             cognition_data = cognition_data.search_text(search)

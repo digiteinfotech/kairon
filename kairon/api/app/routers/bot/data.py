@@ -7,9 +7,9 @@ from starlette.responses import FileResponse
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
+from kairon.shared.cognition.data_objects import CognitionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import DESIGNER_ACCESS
-from kairon.shared.data.data_objects import CognitionData
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
@@ -164,4 +164,11 @@ async def list_cognition_data(
     Fetches cognition content of the bot
     """
     kwargs = request.query_params._dict.copy()
-    return {"data": list(cognition_processor.list_cognition_data(current_user.get_bot(), start_idx, page_size, **kwargs))}
+    kwargs.pop('start_idx', None)
+    kwargs.pop('page_size', None)
+    row_cnt = processor.get_row_count(CognitionData, current_user.get_bot())
+    data = {
+        "logs": list(cognition_processor.list_cognition_data(current_user.get_bot(), start_idx, page_size, **kwargs)),
+        "total": row_cnt
+    }
+    return {"data": data}

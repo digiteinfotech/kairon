@@ -1792,9 +1792,9 @@ def test_get_content_without_data():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-    assert actual["data"]["logs"][0]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
-    assert actual["data"]["logs"][1]['collection'] == 'details'
-    assert actual["data"]["logs"][1]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
+    assert actual["data"]["logs"][1]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+    assert actual["data"]["logs"][0]['collection'] == 'details'
+    assert actual["data"]["logs"][0]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
     assert actual["data"]["total"] == 2
 
 
@@ -2078,9 +2078,9 @@ def test_get_payload_content():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"][0]['data'] == {'details': 'data science'}
+    assert actual["data"]["logs"][0]['data'] == {'details': 'data science'}
 
-    assert actual["data"][0]['collection'] == 'Details'
+    assert actual["data"]["logs"][0]['collection'] == 'Details'
 
 
 def test_delete_payload_content():
@@ -2124,7 +2124,7 @@ def test_get_payload_content_not_exists():
     assert actual["success"]
     assert actual["message"] is None
     assert actual["error_code"] == 0
-    assert actual["data"] == []
+    assert actual["data"] == {"logs": [], "total": 0}
 
 
 def test_get_kairon_faq_action_with_no_actions():
