@@ -14594,15 +14594,23 @@ class TestMongoProcessor:
         assert list(processor.list_cognition_data(bot, **kwargs)) == []
 
     @patch("kairon.shared.cognition.processor.CognitionDataProcessor.list_cognition_data", autospec=True)
-    def test_list_cognition_data(self, mock_list_cognition_data):
-        def _list_cognition_data(*args, **kwargs):
-            return [{'vector_id': 1,
-                     '_id': '65266ff16f0190ca4fd09898',
+    @patch("kairon.shared.cognition.processor.CognitionDataProcessor.get_cognition_data", autospec=True)
+    def test_list_cognition_data(self, mock_get_cognition_data, mock_list_cognition_data):
+        cognition_data = [{'vector_id': 1,
+                     'row_id': '65266ff16f0190ca4fd09898',
                      'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
                      'content_type': 'text',
                      'collection': 'testing', 'user': 'testUser', 'bot': 'test'}]
+        row_count = 1
+        def _list_cognition_data(*args, **kwargs):
+            return cognition_data
 
         mock_list_cognition_data.return_value = _list_cognition_data()
+
+        def _get_cognition_data(*args, **kwargs):
+            return cognition_data, row_count
+
+        mock_get_cognition_data.return_value = _get_cognition_data()
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
@@ -14614,20 +14622,36 @@ class TestMongoProcessor:
             "content_type": "text",
             "collection": collection}
         pytest.content_id_unit = processor.save_cognition_data(payload, user, bot)
-        kwargs = {'data': 'Unit testing'}
+        kwargs = {'collection': 'testing', 'data': 'Unit testing'}
         data = list(processor.list_cognition_data(bot, **kwargs))
+        print(data)
         assert data[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                                  'software application are tested in isolation to ensure that each unit functions as expected. '
-        assert data[0]['_id']
+        assert data[0]['row_id']
         assert data[0]['collection'] == 'testing'
+        log, count = processor.get_cognition_data(bot, **kwargs)
+        assert log[0][
+                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                              'software application are tested in isolation to ensure that each unit functions as expected. '
+        assert log[0]['row_id']
+        assert log[0]['collection'] == 'testing'
+        assert count == 1
         kwargs = {}
         actual = list(processor.list_cognition_data(bot, **kwargs))
+        print(actual)
         assert actual[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                               'software application are tested in isolation to ensure that each unit functions as expected. '
-        assert actual[0]['_id']
+        assert actual[0]['row_id']
         assert actual[0]['collection'] == 'testing'
+        cognition_data, row_count = processor.get_cognition_data(bot, **kwargs)
+        assert cognition_data[0][
+                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                              'software application are tested in isolation to ensure that each unit functions as expected. '
+        assert cognition_data[0]['row_id']
+        assert cognition_data[0]['collection'] == 'testing'
+        assert row_count == 1
 
     def test_delete_content_for_action(self):
         processor = CognitionDataProcessor()
@@ -14790,11 +14814,13 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        data = list(processor.list_cognition_data(bot))
+        kwargs = {'collection': 'test_save_payload_content'}
+        data, row_count = list(processor.get_cognition_data(bot, **kwargs))
         print(data)
+        assert row_count == 1
         assert data[0][
                    'data'] == {"name": "Digite", "city": "Mumbai"}
-        assert data[0]['_id']
+        assert data[0]['row_id']
         assert data[0]['collection'] == 'test_save_payload_content'
 
     def test_delete_payload_content(self):

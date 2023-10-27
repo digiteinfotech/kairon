@@ -7,7 +7,6 @@ from starlette.responses import FileResponse
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
-from kairon.shared.cognition.data_objects import CognitionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import DESIGNER_ACCESS
 from kairon.shared.data.processor import MongoProcessor
@@ -118,9 +117,9 @@ async def save_cognition_data(
     }
 
 
-@router.put("/cognition/{cognition_id}", response_model=Response)
+@router.put("/cognition/{row_id}", response_model=Response)
 async def update_cognition_data(
-        cognition_id: str,
+        row_id: str,
         cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -131,7 +130,7 @@ async def update_cognition_data(
         "message": "Record updated!",
         "data": {
             "_id": cognition_processor.update_cognition_data(
-                cognition_id,
+                row_id,
                 cognition.dict(),
                 current_user.get_user(),
                 current_user.get_bot(),
@@ -140,15 +139,15 @@ async def update_cognition_data(
     }
 
 
-@router.delete("/cognition/{cognition_id}", response_model=Response)
+@router.delete("/cognition/{row_id}", response_model=Response)
 async def delete_cognition_data(
-        cognition_id: str,
+        row_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Deletes cognition content of the bot
     """
-    cognition_processor.delete_cognition_data(cognition_id, current_user.get_bot())
+    cognition_processor.delete_cognition_data(row_id, current_user.get_bot())
     return {
         "message": "Record deleted!"
     }
@@ -164,11 +163,9 @@ async def list_cognition_data(
     Fetches cognition content of the bot
     """
     kwargs = request.query_params._dict.copy()
-    kwargs.pop('start_idx', None)
-    kwargs.pop('page_size', None)
-    row_cnt = processor.get_row_count(CognitionData, current_user.get_bot())
+    cognition_data, row_cnt = cognition_processor.get_cognition_data(current_user.get_bot(), start_idx, page_size, **kwargs)
     data = {
-        "logs": list(cognition_processor.list_cognition_data(current_user.get_bot(), start_idx, page_size, **kwargs)),
+        "rows": cognition_data,
         "total": row_cnt
     }
-    return {"data": data}
+    return Response(data=data)
