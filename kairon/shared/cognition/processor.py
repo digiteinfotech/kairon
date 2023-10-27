@@ -206,8 +206,7 @@ class CognitionDataProcessor:
     def get_cognition_data(self, bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
         processor = MongoProcessor()
         cognition_data = list(self.list_cognition_data(bot, start_idx, page_size, **kwargs))
-        collection = kwargs.get('collection', None)
-        row_cnt = processor.get_row_count(CognitionData, bot, collection=collection)
+        row_cnt = processor.get_row_count(CognitionData, bot, **kwargs)
         return cognition_data, row_cnt
 
     @staticmethod

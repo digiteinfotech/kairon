@@ -1800,7 +1800,7 @@ def test_get_content_without_data():
     assert actual["error_code"] == 0
     assert actual["data"]['data'][0]['collection'] == None
     assert actual["data"]['data'][0]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
-    assert actual["data"]['row_count'] == 1
+    assert actual["data"]['row_count'] == 2
 
 
 def test_delete_content():
