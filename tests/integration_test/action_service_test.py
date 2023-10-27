@@ -2284,7 +2284,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run",
-             "user_details": "email"}),
+             "user_details": {"email": "uditpandey@digite.com"}}),
         body=resp_msg,
         status=200
     )

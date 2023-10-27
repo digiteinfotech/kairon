@@ -76,10 +76,9 @@ from kairon.shared.actions.data_objects import (
     LlmPrompt,
     FormSlotSet,
     DatabaseAction,
-    DbOperation,
     DbQuery,
     PyscriptActionConfig,
-    WebSearchAction,
+    WebSearchAction, UserQuestion,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -98,7 +97,6 @@ from kairon.shared.models import (
     HttpContentType,
     StoryType,
     LlmPromptSource,
-    CognitionDataType,
 )
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
@@ -158,11 +156,9 @@ from .data_objects import (
     TrainingDataGenerator,
     MultiflowStories,
     MultiflowStoryEvents,
-    CognitionData,
     MultiFlowStoryMetadata,
     Synonyms,
     Lookup,
-    CognitionMetadata,
     Analytics
 )
 from .utils import DataUtility

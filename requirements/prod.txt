@@ -41,3 +41,4 @@ AccessControl==6.2
 timeout-decorator==0.5.0
 googlesearch-python==1.2.3
 elasticsearch==8.10.1
+aiohttp-retry==2.8.3

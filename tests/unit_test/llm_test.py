@@ -213,13 +213,13 @@ class TestLLM:
                                                                                  'vectors': gpt3.vector_config}
 
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": '{"country": "Spain", "lang": "spanish"}'}
+                                                                                 "input": '{"country":"Spain","lang":"spanish"}'}
             assert list(aioresponses.requests.values())[3][0].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": '{"lang": "spanish", "role": "ds"}'}
+                                                                                 'input': '{"lang":"spanish","role":"ds"}'}
             assert list(aioresponses.requests.values())[3][1].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[3][2].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": '{"name": "Nupur", "city": "Pune"}'}
+                                                                                 "input": '{"name":"Nupur","city":"Pune"}'}
             assert list(aioresponses.requests.values())[3][2].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {'points': [{'id': test_content_two.vector_id,
                                                                                              'vector': embedding,

@@ -11,3 +11,4 @@ locust
 deepdiff
 pytest-cov
 pytest-html
+pytest-aioresponses

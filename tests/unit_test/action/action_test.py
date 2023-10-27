@@ -1859,10 +1859,10 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
 
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
-        aioresponses.add(
+        responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
-            payload={"success": True, "data": resp_msg},
+            json={"success": True, "data": resp_msg},
             status=200,
         )
         http_url = 'http://localhost:8080/mock'

@@ -1338,10 +1338,11 @@ class TestEventExecution:
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
 
-        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):event = MessageBroadcastEvent(bot, user)
-        event.validate()
-        event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id)
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         print(logs)
@@ -1753,10 +1754,11 @@ class TestEventExecution:
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
 
-        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):event = MessageBroadcastEvent(bot, user)
-        event.validate()
-        event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id)
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 

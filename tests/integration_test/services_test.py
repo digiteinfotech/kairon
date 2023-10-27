@@ -1487,16 +1487,10 @@ def test_metadata_upload_api(monkeypatch):
 
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id_one}",
-        json={
-            "metadata_id": pytest.schema_id_one,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id_two}",
-        json={
-            "metadata_id": pytest.schema_id_two,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
@@ -1593,9 +1587,6 @@ def test_get_payload_metadata():
 def test_delete_payload_content_metadata():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id}",
-        json={
-            "metadata_id": pytest.schema_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1632,9 +1623,6 @@ def test_metadata_upload_api_and_delete_with_no_cognition_data(monkeypatch):
 
     response_one = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id}",
-        json={
-            "metadata_id": pytest.schema_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_one = response_one.json()
@@ -1648,9 +1636,6 @@ def test_delete_payload_content_metadata_does_not_exist():
     schema_id = '61f3a2c0aef98d5b4c58e90f'
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{schema_id}",
-        json={
-            "schema_id": schema_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1955,9 +1940,6 @@ def test_get_content_without_data():
 def test_delete_content():
     response_one = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_no_collection}",
-        json={
-            "cognition_id": pytest.content_id_no_collection,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_one = response_one.json()
@@ -1968,9 +1950,6 @@ def test_delete_content():
 
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
-        json={
-            "cognition_id": pytest.content_id_text,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1984,9 +1963,6 @@ def test_delete_content_does_not_exist():
     content_id = "635981f6e40f61599e000064"
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{content_id}",
-        json={
-            "cognition_id": content_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -2254,9 +2230,6 @@ def test_get_payload_content():
 def test_delete_payload_content():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
-        json={
-            "cognition_id": pytest.payload_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -2271,9 +2244,6 @@ def test_delete_payload_content_does_not_exist():
     payload_id = "61f3a2c0aef88d5b4c58e90f"
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
-        json={
-            "cognition_id": payload_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
