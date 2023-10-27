@@ -163,4 +163,9 @@ async def list_cognition_data(
     Fetches cognition content of the bot
     """
     kwargs = request.query_params._dict.copy()
-    return {"data": list(cognition_processor.list_cognition_data(current_user.get_bot(), start_idx, page_size, **kwargs))}
+    cognition_data, row_cnt = cognition_processor.get_cognition_data(current_user.get_bot(), start_idx, page_size, **kwargs)
+    data = {
+        "data": cognition_data,
+        "row_count": row_cnt
+    }
+    return Response(data=data)

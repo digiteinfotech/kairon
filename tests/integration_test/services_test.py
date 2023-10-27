@@ -1760,15 +1760,22 @@ def test_content_update_api_id_not_found():
 
 
 @mock.patch('kairon.shared.cognition.processor.CognitionDataProcessor.list_cognition_data', autospec=True)
-def test_list_cognition_data(mock_list_cognition_data):
-    def _list_cognition_data(*args, **kwargs):
-        return [{'vector_id': 1,
-                '_id': '65266ff16f0190ca4fd09898',
+@mock.patch('kairon.shared.cognition.processor.CognitionDataProcessor.get_cognition_data', autospec=True)
+def test_list_cognition_data(mock_get_cognition_data, mock_list_cognition_data):
+    cognition_data = [{'vector_id': 1,
+                'row_id': '65266ff16f0190ca4fd09898',
                  'data': 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.',
                  'content_type': 'text',
-                 'collection': 'aws', 'user': '"integration@demo.ai"', 'bot': pytest.bot,}]
-
+                 'collection': 'aws', 'user': '"integration@demo.ai"', 'bot': pytest.bot}]
+    row_count = 1
+    def _list_cognition_data(*args, **kwargs):
+        return cognition_data
     mock_list_cognition_data.return_value = _list_cognition_data()
+
+    def _get_cognition_data(*args, **kwargs):
+        return cognition_data, row_count
+    mock_get_cognition_data.return_value = _get_cognition_data()
+
     filter_query = 'without having to manage'
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/cognition?data={filter_query}",
@@ -1778,8 +1785,8 @@ def test_list_cognition_data(mock_list_cognition_data):
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]
-    assert actual["data"][0]['collection']
+    assert actual["data"]['data'][0]['collection'] == 'aws'
+    assert actual["data"]['row_count'] == 1
 
 
 def test_get_content_without_data():
@@ -1791,9 +1798,9 @@ def test_get_content_without_data():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]
-    assert actual["data"][0]['collection'] == None
-    assert actual["data"][0]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+    assert actual["data"]['data'][0]['collection'] == None
+    assert actual["data"]['data'][0]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+    assert actual["data"]['row_count'] == 1
 
 
 def test_delete_content():
@@ -1850,7 +1857,8 @@ def test_get_content_not_exists():
     assert actual["success"]
     assert actual["message"] is None
     assert actual["error_code"] == 0
-    assert actual["data"] == []
+    assert actual["data"]['data'] == []
+    assert actual["data"]['row_count'] == 0
 
 
 def test_payload_upload_api_with_gpt_feature_disabled():
@@ -2076,9 +2084,9 @@ def test_get_payload_content():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"][0]['data'] == {'details': 'data science'}
-
-    assert actual["data"][0]['collection'] == 'Details'
+    assert actual["data"]['data'][0]['data'] == {'details': 'data science'}
+    assert actual["data"]['data'][0]['collection'] == 'Details'
+    assert actual["data"]['row_count'] == 1
 
 
 def test_delete_payload_content():
@@ -2122,7 +2130,8 @@ def test_get_payload_content_not_exists():
     assert actual["success"]
     assert actual["message"] is None
     assert actual["error_code"] == 0
-    assert actual["data"] == []
+    assert actual["data"]['data'] == []
+    assert actual["data"]['row_count'] == 0
 
 
 def test_get_kairon_faq_action_with_no_actions():
