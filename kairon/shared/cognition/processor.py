@@ -186,8 +186,7 @@ class CognitionDataProcessor:
         search = kwargs.pop('data', None)
         kwargs.pop('start_idx', None)
         kwargs.pop('page_size', None)
-        collection = kwargs.pop('collection', None)
-        cognition_data = CognitionData.objects(**kwargs).filter(Q(collection=collection))
+        cognition_data = CognitionData.objects(**kwargs)
         if search:
             cognition_data = cognition_data.search_text(search)
         for value in cognition_data.skip(start_idx).limit(page_size).order_by('-id'):
@@ -205,6 +204,8 @@ class CognitionDataProcessor:
 
     def get_cognition_data(self, bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
         processor = MongoProcessor()
+        collection = kwargs.pop('collection', None)
+        kwargs['collection'] = collection
         cognition_data = list(self.list_cognition_data(bot, start_idx, page_size, **kwargs))
         row_cnt = processor.get_row_count(CognitionData, bot, **kwargs)
         return cognition_data, row_cnt
