@@ -2129,7 +2129,7 @@ def test_get_payload_content_not_exists():
     assert actual["success"]
     assert actual["message"] is None
     assert actual["error_code"] == 0
-    assert actual["data"] == {"logs": [], "total": 0}
+    assert actual["data"] == {"rows": [], "total": 0}
 
 
 def test_get_kairon_faq_action_with_no_actions():
