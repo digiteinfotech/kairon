@@ -108,9 +108,7 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         )
         self.recaptcha_response = recaptcha_response
         self.remote_ip = remote_ip
-        if Utility.environment["user"][
-            "validate_trusted_device"
-        ] and Utility.check_empty_string(fingerprint):
+        if Utility.environment["user"]["validate_trusted_device"] and Utility.check_empty_string(fingerprint):
             raise AppException("fingerprint is required")
         self.fingerprint = fingerprint
 
@@ -201,9 +199,7 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     def validate_fingerprint(cls, values):
         from kairon.shared.utils import Utility
 
-        if Utility.environment["user"][
-            "validate_trusted_device"
-        ] and Utility.check_empty_string(values.get("fingerprint")):
+        if Utility.environment["user"]["validate_trusted_device"] and Utility.check_empty_string(values.get("fingerprint")):
             raise ValueError("fingerprint is required")
         return values
 
@@ -413,23 +409,6 @@ class HttpActionConfigRequest(BaseModel):
         if v.upper() not in ("GET", "POST", "PUT", "DELETE"):
             raise ValueError("Invalid HTTP method")
         return v.upper()
-
-
-class QueryConfig(BaseModel):
-    type: DbQueryValueType
-    value: DbActionOperationType
-
-    @root_validator
-    def check(cls, values):
-        from kairon.shared.utils import Utility
-
-        if Utility.check_empty_string(values.get("type")):
-            raise ValueError("type cannot be empty")
-
-        if Utility.check_empty_string(values.get("value")):
-            raise ValueError("value cannot be empty")
-
-        return values
 
 
 class PayloadConfig(BaseModel):
