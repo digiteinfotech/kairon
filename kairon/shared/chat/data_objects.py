@@ -5,6 +5,7 @@ from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
+from mongoengine import ListField
 
 
 @auditlogger.log
@@ -36,3 +37,14 @@ class Channels(Auditlog):
             })
             Utility.register_telegram_webhook(Utility.decrypt_message(self.config['access_token']), webhook_url)
 
+
+@auditlogger.log
+@push_notification.apply
+class WhatsappAuditLog(Auditlog):
+    data = ListField(DictField(default=[]))
+    status = StringField(required=True)
+    message_id = StringField(required=True)
+    errors = ListField(DictField(default=[]))
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
