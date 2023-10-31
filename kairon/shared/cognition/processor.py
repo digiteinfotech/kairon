@@ -4,6 +4,7 @@ from typing import Text, Dict, Any
 from loguru import logger
 from mongoengine import DoesNotExist, Q
 
+from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import PromptAction
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata
@@ -65,6 +66,9 @@ class CognitionDataProcessor:
         return len(unique_column_names) < len(column_names)
 
     def save_cognition_schema(self, schema: Dict, user: Text, bot: Text):
+        Utility.is_exist(
+            CognitionSchema, exp_message="Collection already exists!",
+            collection_name__iexact=schema.get('collection_name'), bot=bot)
         if CognitionDataProcessor.is_collection_limit_exceeded(bot, user, schema.get('collection_name')):
             raise AppException('Collection limit exceeded!')
         if schema.get('metadata') and CognitionDataProcessor.is_column_collection_limit_exceeded(bot, user, schema.get('metadata')):
@@ -80,7 +84,7 @@ class CognitionDataProcessor:
     def delete_cognition_schema(self, schema_id: str, bot: Text):
         try:
             metadata = CognitionSchema.objects(bot=bot, id=schema_id).get()
-            CognitionDataProcessor.get_attached_collection(bot, metadata['collection_name'])
+            CognitionDataProcessor.validate_collection_name(bot, metadata['collection_name'])
             cognition_data = list(CognitionData.objects(Q(collection=metadata['collection_name']) &
                                                         Q(bot=bot)))
             if cognition_data:
@@ -126,11 +130,11 @@ class CognitionDataProcessor:
             raise AppException("Content should contain atleast 10 words.")
 
         if payload.get('collection'):
-            if not Utility.is_exist(CognitionSchema, bot=bot, collection_name=payload.get('collection'), raise_error=False):
+            if not Utility.is_exist(CognitionSchema, bot=bot, collection_name__iexact=payload.get('collection'), raise_error=False):
                 raise AppException('Collection does not exist!')
             if payload.get('content_type') == CognitionDataType.text.value and \
                     not Utility.is_exist(CognitionSchema, bot=bot, metadata=[],
-                                         collection_name=payload.get('collection'), raise_error=False):
+                                         collection_name__iexact=payload.get('collection'), raise_error=False):
                 raise AppException('Text content type does not have schema!')
         if payload.get('content_type') == CognitionDataType.json.value:
             CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
@@ -153,7 +157,7 @@ class CognitionDataProcessor:
             raise AppException("Content should contain atleast 10 words.")
         Utility.is_exist(CognitionData, bot=bot, id__ne=row_id, data=data,
                          exp_message="Payload data already exists!")
-        if payload.get('collection') and not Utility.is_exist(CognitionSchema, bot=bot, collection_name=payload.get('collection'), raise_error=False):
+        if payload.get('collection') and not Utility.is_exist(CognitionSchema, bot=bot, collection_name__iexact=payload.get('collection'), raise_error=False):
             raise AppException('Collection does not exist!')
         try:
             payload_obj = CognitionData.objects(bot=bot, id=row_id).get()
@@ -238,7 +242,7 @@ class CognitionDataProcessor:
             raise AppException("Columns do not exist in the schema!")
 
     @staticmethod
-    def get_attached_collection(bot: Text, collection: Text):
-        prompt_action = list(PromptAction.objects(bot=bot, collection__exact=collection))
+    def validate_collection_name(bot: Text, collection: Text):
+        prompt_action = list(PromptAction.objects(bot=bot, collection__iexact=collection))
         if prompt_action:
             raise AppException(f'Cannot remove collection {collection} linked to action "{prompt_action[0].name}"!')

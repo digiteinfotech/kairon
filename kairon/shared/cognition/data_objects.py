@@ -51,6 +51,9 @@ class CognitionSchema(Auditlog):
             for metadata_dict in self.metadata:
                 metadata_dict.validate()
 
+    def clean(self):
+        self.collection_name = self.collection_name.strip().lower()
+
 
 @auditlogger.log
 @push_notification.apply

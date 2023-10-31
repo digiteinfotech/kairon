@@ -1346,6 +1346,22 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
+    response_four = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "details"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_four = response_four.json()
+    print(actual)
+    assert not actual_four["success"]
+    assert actual_four["message"] == "Collection already exists!"
+    assert actual_four["data"] is None
+    assert actual_four["error_code"] == 422
+
 
 def test_metadata_upload_api_column_limit_exceeded():
     response = client.post(
@@ -1535,7 +1551,7 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
                                'instructions': 'Answer according to the context', 'type': 'query',
                                'source': 'static', 'is_enabled': True}],
               'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-              'collection': 'Python',
+              'collection': 'python',
               'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
@@ -1567,7 +1583,7 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
     actual_two = response_two.json()
     print(actual_two)
     assert not actual_two["success"]
-    assert actual_two["message"] == 'Cannot remove collection Python linked to action "test_delete_schema_attached_to_prompt_action"!'
+    assert actual_two["message"] == 'Cannot remove collection python linked to action "test_delete_schema_attached_to_prompt_action"!'
     assert actual_two["data"] is None
     assert actual_two["error_code"] == 422
 
@@ -1622,6 +1638,8 @@ def test_content_upload_api(monkeypatch):
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
+    actual_one = response_one.json()
+    pytest.content_collection_id = actual_one["data"]["_id"]
     payload = {
         "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
                 "used to inform decision-making. Data can take many forms, including text, numbers, images, "
@@ -1938,6 +1956,22 @@ def test_get_content_not_exists():
     assert actual["data"]['row_count'] == 0
 
 
+def test_delete_payload_content_collection():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.content_collection_id}",
+        json={
+            "metadata_id": pytest.content_collection_id,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["message"] == "Schema deleted!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 0
+
+
 def test_payload_upload_api_with_gpt_feature_disabled():
     payload = {
             "data": {"name": "Nupur", "age": 25, "city": "Bengaluru"},
@@ -1970,7 +2004,7 @@ def test_payload_upload_api(monkeypatch):
     payload = {
             "data": {"details": "AWS"},
             "content_type": "json",
-            "collection": "Details"
+            "collection": "details"
     }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -1978,6 +2012,7 @@ def test_payload_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     pytest.payload_id = actual["data"]["_id"]
     assert actual["message"] == "Record saved!"
     assert actual["data"]["_id"]
@@ -2012,7 +2047,7 @@ def test_payload_upload_metadata_missing(monkeypatch):
     payload = {
             "data": {"city": "Pune", "color": "red"},
             "content_type": "json",
-            "collection": "Details"
+            "collection": "details"
         }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -2031,7 +2066,7 @@ def test_payload_upload_metadata_invalid_data_type(monkeypatch):
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     metadata = {
         "metadata": [{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
-        "collection_name": "Details"
+        "collection_name": "test_payload_upload_metadata_invalid_data_type"
     }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -2041,7 +2076,7 @@ def test_payload_upload_metadata_invalid_data_type(monkeypatch):
     payload = {
             "data": {"age": "Twenty-Three"},
             "content_type": "json",
-            "collection": "Details"
+            "collection": "test_payload_upload_metadata_invalid_data_type"
         }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -2096,7 +2131,7 @@ def test_payload_updated_api():
         json={
             "row_id": pytest.payload_id,
             "data": {"details": "data science"},
-            "collection": "Details",
+            "collection": "details",
             "content_type": "json"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -2154,7 +2189,7 @@ def test_payload_content_update_api_id_not_found():
 
 def test_get_payload_content():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/cognition?collection=Details",
+        url=f"/api/bot/{pytest.bot}/data/cognition?collection=details",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -2162,7 +2197,7 @@ def test_get_payload_content():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]['data'][0]['data'] == {'details': 'data science'}
-    assert actual["data"]['data'][0]['collection'] == 'Details'
+    assert actual["data"]['data'][0]['collection'] == 'details'
     assert actual["data"]['row_count'] == 1
 
 
