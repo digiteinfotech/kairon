@@ -5,6 +5,7 @@ from loguru import logger
 from mongoengine import DoesNotExist, Q
 
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import PromptAction
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import CognitionDataType, CognitionMetadataType
@@ -79,6 +80,7 @@ class CognitionDataProcessor:
     def delete_cognition_schema(self, schema_id: str, bot: Text):
         try:
             metadata = CognitionSchema.objects(bot=bot, id=schema_id).get()
+            CognitionDataProcessor.get_attached_collection(bot, metadata['collection_name'])
             cognition_data = list(CognitionData.objects(Q(collection=metadata['collection_name']) &
                                                         Q(bot=bot)))
             if cognition_data:
@@ -234,3 +236,9 @@ class CognitionDataProcessor:
         except DoesNotExist as e:
             logger.exception(e)
             raise AppException("Columns do not exist in the schema!")
+
+    @staticmethod
+    def get_attached_collection(bot: Text, collection: Text):
+        prompt_action = list(PromptAction.objects(bot=bot, collection__exact=collection))
+        if prompt_action:
+            raise AppException(f'Cannot remove collection {collection} linked to action "{prompt_action[0].name}"!')

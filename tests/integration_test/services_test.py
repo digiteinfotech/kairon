@@ -1515,7 +1515,84 @@ def test_get_payload_content_metadata_not_exists():
     assert actual["data"] == []
 
 
-def test_content_upload_api_with_gpt_feature_disabled():
+def test_delete_schema_attached_to_prompt_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    action = {'name': 'test_delete_schema_attached_to_prompt_action',
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'If there is no specific query, assume that user is aking about java programming.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}],
+              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'collection': 'Python',
+              'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    response_one = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": None,
+            "collection_name": "Python"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response_one.json()
+    print(actual)
+    pytest.delete_schema_id = actual["data"]["_id"]
+
+    response_two = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.delete_schema_id}",
+        json={
+            "schema_id": pytest.delete_schema_id,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_two = response_two.json()
+    print(actual_two)
+    assert not actual_two["success"]
+    assert actual_two["message"] == 'Cannot remove collection Python linked to action "test_delete_schema_attached_to_prompt_action"!'
+    assert actual_two["data"] is None
+    assert actual_two["error_code"] == 422
+
+    response_three = client.delete(
+        f"/api/bot/{pytest.bot}/action/test_delete_schema_attached_to_prompt_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual_three = response_three.json()
+    assert actual_three['message'] == 'Action deleted'
+
+    response_four = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.delete_schema_id}",
+        json={
+            "schema_id": pytest.delete_schema_id,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_four = response_four.json()
+    assert actual_four['message'] == 'Schema deleted!'
+
+def test_content_upload_api_with_gpt_feature_disabled(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=False))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     payload = {
         "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
                     "used to inform decision-making. Data can take many forms, including text, numbers, images, "

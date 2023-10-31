@@ -14415,6 +14415,48 @@ class TestMongoProcessor:
         bot = 'testing'
         assert list(processor.list_cognition_schema(bot)) == []
 
+    def test_delete_schema_attached_to_prompt_action(self):
+        processor = CognitionDataProcessor()
+        processor_two = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        settings = BotSettings.objects(bot=bot).get()
+        settings.llm_settings = LLMSettings(enable_faq=True)
+        settings.save()
+        schema = {
+            "metadata": None,
+            "collection_name": "Python",
+            "bot": bot,
+            "user": user
+        }
+        pytest.delete_schema_id = processor.save_cognition_schema(schema, user, bot)
+        request = {'name': 'test_delete_schema_attached_to_prompt_action',
+                   'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                   'llm_prompts': [
+                       {'name': 'System Prompt',
+                        'data': 'You are a personal assistant. Answer question based on the context below.',
+                        'type': 'system', 'source': 'static', 'is_enabled': True},
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Query Prompt', 'data': "What kind of language is python?",
+                        'instructions': 'Rephrase the query.',
+                        'type': 'query', 'source': 'static', 'is_enabled': False},
+                       {'name': 'Similarity Prompt',
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content',
+                        'is_enabled': True}
+                   ],
+                   'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+                   'collection': 'Python',
+                   "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
+                                 {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+                   "dispatch_response": False
+                   }
+        processor_two.add_prompt_action(request, bot, user)
+        with pytest.raises(AppException, match='Cannot remove collection Python linked to action "test_delete_schema_attached_to_prompt_action"!'):
+            processor.delete_cognition_schema(pytest.delete_schema_id, bot)
+        processor_two.delete_action('test_delete_schema_attached_to_prompt_action', bot, user)
+        processor.delete_cognition_schema(pytest.delete_schema_id, bot)
+
     def test_save_content_with_gpt_feature_disabled(self):
         processor = CognitionDataProcessor()
         bot = 'test'
