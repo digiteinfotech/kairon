@@ -136,7 +136,7 @@ class ChatDataProcessor:
         """
         WhatsappAuditLog(
             status=status_data.get('status'),
-            data=status_data.get('conversation', []),
+            data=status_data.get('conversation'),
             message_id=status_data.get('id'),
             errors=status_data.get('errors', []),
             bot=bot,

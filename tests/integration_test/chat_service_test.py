@@ -27,7 +27,6 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import UserActivityType
-from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.data.constant import INTEGRATION_STATUS
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.data_objects import BotSettings
@@ -1413,6 +1412,62 @@ def test_whatsapp_valid_order_message_request():
                         'channel_type': 'whatsapp', 'bsp_type': 'meta', 'tabname': 'default',
                         'display_phone_number': '919876543210', 'phone_number_id': '108578266683441'}
     assert whatsapp_msg_handler.call_args[0][4] == bot
+
+
+@responses.activate
+def test_whatsapp_valid_statuses_request():
+    from kairon.shared.chat.data_objects import WhatsappAuditLog
+
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+        response = client.post(
+            f"/api/bot/whatsapp/{bot}/{token}",
+            headers={"hub.verify_token": "valid"},
+            json={
+                "object": "whatsapp_business_account",
+                "entry": [{
+                    "id": "108103872212677",
+                    "changes": [{
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "919876543210",
+                                "phone_number_id": "108578266683441"
+                            },
+                            "contacts": [{
+                                "profile": {
+                                    "name": "Hitesh"
+                                },
+                                "wa_id": "919876543210"
+                            }],
+                            "statuses": [{
+                                "id": "wamid.ID",
+                                "recipient_id": "PHONE_NUMBER",
+                                "status": "sent",
+                                "timestamp": "1691548112",
+                                "conversation": {
+                                    "id": "CONVERSATION_ID",
+                                    "expiration_timestamp": "1691598412",
+                                    "origin": {
+                                        "type": "business_initated"
+                                    }
+                                },
+                                "pricing": {
+                                    "pricing_model": "CBP",
+                                    "billable": "True",
+                                    "category": "business_initated"
+                                }
+                            }]
+                        },
+                        "field": "messages"
+                    }]
+                }]
+            })
+    actual = response.json()
+    assert actual == 'success'
+    assert WhatsappAuditLog.objects(bot=bot, user='919876543210')
 
 
 @responses.activate
