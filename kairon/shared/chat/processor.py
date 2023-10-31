@@ -142,4 +142,3 @@ class ChatDataProcessor:
             bot=bot,
             user=user
         ).save()
-
