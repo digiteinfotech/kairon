@@ -1471,6 +1471,64 @@ def test_whatsapp_valid_statuses_request():
 
 
 @responses.activate
+def test_whatsapp_valid_statuses_with_errors_request():
+    from kairon.shared.chat.data_objects import WhatsappAuditLog
+
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+        response = client.post(
+            f"/api/bot/whatsapp/{bot}/{token}",
+            headers={"hub.verify_token": "valid"},
+            json={
+                "object": "whatsapp_business_account",
+                "entry": [{
+                    "id": "108103872212677",
+                    "changes": [{
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "919876543219",
+                                "phone_number_id": "108578266683441"
+                            },
+                            "contacts": [{
+                                "profile": {
+                                    "name": "Hitesh"
+                                },
+                                "wa_id": "919876543210"
+                            }],
+                            "statuses": [
+                              {
+                                "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIA",
+                                "status": "failed",
+                                "timestamp": "1689380458",
+                                "recipient_id": "15551234567",
+                                "errors": [
+                                  {
+                                    "code": 130472,
+                                    "title": "User's number is part of an experiment",
+                                    "message": "User's number is part of an experiment",
+                                    "error_data": {
+                                      "details": "Failed to send message because this user's phone number is part of an experiment"
+                                    },
+                                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                                  }
+                                ]
+                              }
+                            ]
+                        },
+                        "field": "messages"
+                    }]
+                }]
+            })
+    actual = response.json()
+    assert actual == 'success'
+    print(WhatsappAuditLog.objects(bot=bot, user='919876543219').get().to_mongo().to_dict())
+    assert WhatsappAuditLog.objects(bot=bot, user='919876543219')
+
+
+@responses.activate
 def test_whatsapp_valid_unsupported_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
