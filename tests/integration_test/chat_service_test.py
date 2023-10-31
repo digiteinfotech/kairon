@@ -1581,7 +1581,6 @@ def test_whatsapp_valid_statuses_with_read_request():
     assert actual == 'success'
     log = WhatsappAuditLog.objects(
         bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIC').get().to_mongo().to_dict()
-
     assert log.get('data') is None
     assert log.get('initiator') is None
     assert log.get('status') == 'read'
