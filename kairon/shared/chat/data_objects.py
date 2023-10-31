@@ -45,6 +45,7 @@ class WhatsappAuditLog(Auditlog):
     status = StringField(required=True)
     message_id = StringField(required=True)
     errors = ListField(DictField(default=[]))
+    initiator = StringField(default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
