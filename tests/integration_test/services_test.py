@@ -34,7 +34,6 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData
 from kairon.shared.constants import EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
@@ -46,7 +45,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
-from kairon.shared.models import StoryEventType, CognitionDataType
+from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.utils.translator import Translator
@@ -1273,10 +1272,15 @@ def test_metadata_upload_api(monkeypatch):
     assert actual["data"]["_id"]
     assert actual["error_code"] == 0
 
-    cognition_schema = CognitionSchema.objects(bot=pytest.bot, id=pytest.schema_id).get()
-    assert cognition_schema['collection_name'] == 'details'
-    assert cognition_schema['metadata'][0]['column_name'] == 'details'
-    assert cognition_schema['metadata'][0]['data_type'] == "str"
+    response_schema = client.get(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_schema = response_schema.json()
+    print(actual_schema)
+    assert actual_schema["data"][0]['collection_name'] == 'details'
+    assert actual_schema["data"][0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True, 'create_embeddings': True}
+    assert actual_schema["error_code"] == 0
 
     payload = {
         "data": {"details": "Nupur"},
@@ -1292,10 +1296,18 @@ def test_metadata_upload_api(monkeypatch):
     assert payload_actual["message"] == "Record saved!"
     assert payload_actual["error_code"] == 0
 
-    cognition_data = CognitionData.objects(bot=pytest.bot, id=pytest.cognition_id).get()
-    assert cognition_data['data'] == {"details": "Nupur"}
-    assert cognition_data['collection'] == 'details'
-    assert cognition_data['content_type'] == CognitionDataType.json.value
+    response_payload = client.get(
+        url=f"/api/bot/{pytest.bot}/data/cognition?collection=Details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_payload = response_payload.json()
+    print(actual_payload)
+    assert actual_payload["success"]
+    assert actual_payload["message"] is None
+    assert actual_payload["error_code"] == 0
+    assert actual_payload["data"]['data'][0]['collection'] == 'details'
+    assert actual_payload["data"]['data'][0]['data'] == {'details': 'Nupur'}
+    assert actual_payload["data"]['row_count'] == 1
 
     response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
