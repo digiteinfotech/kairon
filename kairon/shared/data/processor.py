@@ -78,7 +78,8 @@ from kairon.shared.actions.data_objects import (
     DatabaseAction,
     DbQuery,
     PyscriptActionConfig,
-    WebSearchAction, UserQuestion,
+    WebSearchAction,
+    UserQuestion,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -159,7 +160,7 @@ from .data_objects import (
     MultiFlowStoryMetadata,
     Synonyms,
     Lookup,
-    Analytics
+    Analytics,
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots, PluginTypes
@@ -3555,7 +3556,6 @@ class MongoProcessor:
         bot: Text,
         user: Text,
         is_integration: bool,
-        delete_dependencies=True,
     ):
         """
         deletes intent including dependencies
@@ -3590,12 +3590,10 @@ class MongoProcessor:
 
         try:
             intent_obj.user = user
+            Utility.hard_delete_document(
+                [TrainingExamples], bot=bot, intent__iexact=intent
+            )
             intent_obj.delete()
-
-            if delete_dependencies:
-                Utility.hard_delete_document(
-                    [TrainingExamples], bot=bot, intent__iexact=intent
-                )
         except Exception as ex:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
@@ -3890,20 +3888,26 @@ class MongoProcessor:
         """
 
         if not Utility.is_exist(
-                DatabaseAction, 
-                raise_error=False, 
-                name=request_data.get('name'), 
-                bot=bot,
-                status=True
+            DatabaseAction,
+            raise_error=False,
+            name=request_data.get("name"),
+            bot=bot,
+            status=True,
         ):
-            raise AppException(f'Action with name "{request_data.get("name")}" not found')
-        self.__validate_payload(request_data.get('payload'), bot)
-        action = DatabaseAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
-        action.query_type = request_data['query_type']
-        action.payload = DbQuery(**request_data['payload'])
-        action.response = HttpActionResponse(**request_data.get('response', {}))
-        action.set_slots = [SetSlotsFromResponse(**slot).to_mongo().to_dict() for slot in
-                            request_data.get('set_slots')]
+            raise AppException(
+                f'Action with name "{request_data.get("name")}" not found'
+            )
+        self.__validate_payload(request_data.get("payload"), bot)
+        action = DatabaseAction.objects(
+            name=request_data.get("name"), bot=bot, status=True
+        ).get()
+        action.query_type = request_data["query_type"]
+        action.payload = DbQuery(**request_data["payload"])
+        action.response = HttpActionResponse(**request_data.get("response", {}))
+        action.set_slots = [
+            SetSlotsFromResponse(**slot).to_mongo().to_dict()
+            for slot in request_data.get("set_slots")
+        ]
         action.user = user
         action.timestamp = datetime.utcnow()
         action_id = action.save().id.__str__()
@@ -3917,23 +3921,35 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
-        self.__validate_payload(vector_db_action_config.get('payload'), bot)
-        Utility.is_valid_action_name(vector_db_action_config.get("name"), bot, DatabaseAction)
-        set_slots = [SetSlotsFromResponse(**slot) for slot in vector_db_action_config.get('set_slots')]
-        action_id = DatabaseAction(
-            name=vector_db_action_config['name'],
-            query_type=vector_db_action_config.get('query_type'),
-            payload=DbQuery(**vector_db_action_config.get('payload')),
-            response=HttpActionResponse(**vector_db_action_config.get('response', {})),
-            set_slots=set_slots,
-            bot=bot,
-            user=user,
-        ).save().id.__str__()
+        self.__validate_payload(vector_db_action_config.get("payload"), bot)
+        Utility.is_valid_action_name(
+            vector_db_action_config.get("name"), bot, DatabaseAction
+        )
+        set_slots = [
+            SetSlotsFromResponse(**slot)
+            for slot in vector_db_action_config.get("set_slots")
+        ]
+        action_id = (
+            DatabaseAction(
+                name=vector_db_action_config["name"],
+                query_type=vector_db_action_config.get("query_type"),
+                payload=DbQuery(**vector_db_action_config.get("payload")),
+                response=HttpActionResponse(
+                    **vector_db_action_config.get("response", {})
+                ),
+                set_slots=set_slots,
+                bot=bot,
+                user=user,
+            )
+            .save()
+            .id.__str__()
+        )
         self.add_action(
-            vector_db_action_config['name'],
-            bot, user, 
+            vector_db_action_config["name"],
+            bot,
+            user,
             action_type=ActionType.database_action.value,
-            raise_exception=False
+            raise_exception=False,
         )
         return action_id
 
@@ -4309,8 +4325,7 @@ class MongoProcessor:
         """
         query = {"bot": bot}
         if document.__name__ == "AuditLogData":
-            query = {
-                "attributes__key": bot}
+            query = {"attributes__key": bot}
         kwargs.update(__raw__=query)
         return document.objects(**kwargs).count()
 
@@ -4869,7 +4884,13 @@ class MongoProcessor:
 
         self.add_default_fallback_data(bot, user, True, True)
 
-    def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
+    def add_default_fallback_data(
+        self,
+        bot: Text,
+        user: Text,
+        nlu_fallback: bool = True,
+        action_fallback: bool = True,
+    ):
         if nlu_fallback:
             if not Utility.is_exist(
                 Responses,
@@ -5277,11 +5298,13 @@ class MongoProcessor:
         :return: None
         """
         if not Utility.is_exist(BotSettings, raise_error=False, bot=bot, status=True):
-            raise AppException(f'Bot Settings for the bot not found')
+            raise AppException(f"Bot Settings for the bot not found")
 
         settings = BotSettings.objects(bot=bot, status=True).get()
-        analytics = Analytics(**bot_settings.get('analytics'))
-        settings.update(set__analytics=analytics, set__user=user, set__timestamp=datetime.utcnow())
+        analytics = Analytics(**bot_settings.get("analytics"))
+        settings.update(
+            set__analytics=analytics, set__user=user, set__timestamp=datetime.utcnow()
+        )
 
     @staticmethod
     def enable_llm_faq(bot: Text, user: Text):
@@ -6095,23 +6118,33 @@ class MongoProcessor:
             )
             if action.type == ActionType.slot_set_action.value:
                 Utility.hard_delete_document(
-                    [SlotSetAction], name__iexact=name, bot=bot,
+                    [SlotSetAction],
+                    name__iexact=name,
+                    bot=bot,
                 )
             elif action.type == ActionType.form_validation_action.value:
                 Utility.hard_delete_document(
-                    [FormValidationAction], name__iexact=name, bot=bot,
+                    [FormValidationAction],
+                    name__iexact=name,
+                    bot=bot,
                 )
             elif action.type == ActionType.email_action.value:
                 Utility.hard_delete_document(
-                    [EmailActionConfig], action_name__iexact=name, bot=bot,
+                    [EmailActionConfig],
+                    action_name__iexact=name,
+                    bot=bot,
                 )
             elif action.type == ActionType.google_search_action.value:
                 Utility.hard_delete_document(
-                    [GoogleSearchAction], name__iexact=name, bot=bot,
+                    [GoogleSearchAction],
+                    name__iexact=name,
+                    bot=bot,
                 )
             elif action.type == ActionType.jira_action.value:
                 Utility.hard_delete_document(
-                    [JiraAction], name__iexact=name, bot=bot,
+                    [JiraAction],
+                    name__iexact=name,
+                    bot=bot,
                 )
             elif action.type == ActionType.http_action.value:
                 Utility.hard_delete_document(
@@ -6131,9 +6164,7 @@ class MongoProcessor:
                 )
             elif action.type == ActionType.two_stage_fallback.value:
                 Utility.hard_delete_document(
-                    [KaironTwoStageFallbackAction],
-                    name__iexact=name,
-                    bot=bot
+                    [KaironTwoStageFallbackAction], name__iexact=name, bot=bot
                 )
             elif action.type == ActionType.razorpay_action.value:
                 Utility.hard_delete_document(
@@ -6148,9 +6179,7 @@ class MongoProcessor:
                     [WebSearchAction], name__iexact=name, bot=bot
                 )
             elif action.type == ActionType.prompt_action.value:
-                Utility.hard_delete_document(
-                    [PromptAction], name__iexact=name, bot=bot
-                )
+                Utility.hard_delete_document([PromptAction], name__iexact=name, bot=bot)
             elif action.type == ActionType.pyscript_action.value:
                 Utility.hard_delete_document(
                     [PyscriptActionConfig], name__iexact=name, bot=bot
@@ -6974,7 +7003,7 @@ class MongoProcessor:
             LlmPrompt(**prompt) for prompt in request_data.get("llm_prompts", [])
         ]
         action.instructions = request_data.get("instructions", [])
-        action.collection = request_data.get('collection')
+        action.collection = request_data.get("collection")
         action.set_slots = request_data.get("set_slots", [])
         action.dispatch_response = request_data.get("dispatch_response", True)
         action.timestamp = datetime.utcnow()
@@ -7044,7 +7073,8 @@ class MongoProcessor:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
         data_filter = {
-            "attributes__key": 'bot', "attributes__value": bot,
+            "attributes__key": "bot",
+            "attributes__value": bot,
             "timestamp__gte": from_date,
             "timestamp__lte": to_date,
         }
@@ -7053,7 +7083,8 @@ class MongoProcessor:
             .skip(start_idx)
             .limit(page_size)
             .exclude("id")
-            .order_by('-timestamp').to_json()
+            .order_by("-timestamp")
+            .to_json()
         )
         return json.loads(auditlog_data)
 
@@ -7093,12 +7124,14 @@ class MongoProcessor:
             query = logs[logtype].objects(**filter_query).to_json()
         elif logtype == LogType.audit_logs.value:
             filter_query = {
-                'attributes__key': 'bot',
-                'attributes__value': bot,
+                "attributes__key": "bot",
+                "attributes__value": bot,
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time,
             }
-            query = logs[logtype].objects(**filter_query).order_by('-timestamp').to_json()
+            query = (
+                logs[logtype].objects(**filter_query).order_by("-timestamp").to_json()
+            )
         else:
             filter_query = {
                 "bot": bot,

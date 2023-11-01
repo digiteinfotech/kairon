@@ -82,12 +82,9 @@ async def add_intents(
     return {"message": "Intent added successfully!", "data": {"_id": intent_id}}
 
 
-@router.delete("/intents/{intent}/{delete_dependencies}", response_model=Response)
+@router.delete("/intents/{intent}", response_model=Response)
 async def delete_intent(
         intent: str = Path(description="intent name", examples=["greet"]),
-        delete_dependencies: bool = Path(
-            description="""if True delete bot data related to this intent otherwise only delete intent""",
-        ),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
@@ -95,7 +92,6 @@ async def delete_intent(
     """
     mongo_processor.delete_intent(
         intent, current_user.get_bot(), current_user.get_user(), current_user.get_integration_status(),
-        delete_dependencies
     )
     return {"message": "Intent deleted!"}
 

@@ -7890,7 +7890,7 @@ def test_delete_intent():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response = client.delete(
-        f"/api/bot/{pytest.bot}/intents/happier/True",
+        f"/api/bot/{pytest.bot}/intents/happier",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -9027,7 +9027,7 @@ def test_add_and_delete_intents_by_integration_user():
     assert actual["message"] == "Intent added successfully!"
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/intents/integration_intent/True",
+        f"/api/bot/{pytest.bot}/intents/integration_intent",
         headers={
             "Authorization": token["data"]["token_type"]
             + " "
@@ -9071,7 +9071,7 @@ def test_add_non_integration_intent_and_delete_intent_by_integration_user():
     assert actual["message"] == "Intent added successfully!"
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/intents/non_integration_intent/True",
+        f"/api/bot/{pytest.bot}/intents/non_integration_intent",
         headers={
             "Authorization": token["data"]["token_type"]
             + " "

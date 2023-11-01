@@ -9376,8 +9376,7 @@ class TestMongoProcessor:
     def test_delete_valid_intent_only(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False,
-                                delete_dependencies=False)
+        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         with pytest.raises(Exception):
             intent = Intents.objects(bot="tests", status=True).get(name="TestingDelGreeting")
 
@@ -12384,19 +12383,19 @@ class TestMongoProcessor:
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         with pytest.raises(Exception):
             processor.delete_intent("TestingDelGreeting", "tests", "testUser1", is_integration=True,
-                                    delete_dependencies=False)
+                                    )
 
     def test_add_and_delete_integration_intent_by_same_integration_user(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting1", "tests", "testUser", is_integration=True)
         processor.delete_intent("TestingDelGreeting1", "tests", "testUser", is_integration=True,
-                                delete_dependencies=False)
+                                )
 
     def test_add_and_delete_integration_intent_by_different_integration_user(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting2", "tests", "testUser", is_integration=True)
         processor.delete_intent("TestingDelGreeting2", "tests", "testUser2", is_integration=True,
-                                delete_dependencies=False)
+                                )
 
     def test_add_rule(self):
         processor = MongoProcessor()

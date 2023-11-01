@@ -23,23 +23,23 @@ logger = logging.getLogger(__name__)
 if typing.TYPE_CHECKING:
     pass
 
+
 @DefaultV1Recipe.register(
     DefaultV1Recipe.ComponentType.INTENT_CLASSIFIER, is_trainable=False
 )
 class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
     """Intent and Entity classifier using the OpenAI Completion framework"""
 
-    system_prompt = "You are an intent classifier. Based on the users text, you will classify the text to one of the intent if it is not from one of the intent you will classify it as nlu_fallback, also provide the explanation for the classification. Provide output in json format with the following keys intent, explanation, text."
+    system_prompt = "You will be provided with a text, and your task is to classify its intent as {0}. Provide output in json format with the following keys intent, explanation, text."
 
     def __init__(
-            self,
-            config: Optional[Dict[Text, Any]],
-            model_storage: ModelStorage,
-            resource: Resource,
-            execution_context: ExecutionContext,
-            vector: Optional[faiss.IndexFlatIP] = None,
-            data: Optional[Dict[Text, Any]] = None,
-
+        self,
+        config: Optional[Dict[Text, Any]],
+        model_storage: ModelStorage,
+        resource: Resource,
+        execution_context: ExecutionContext,
+        vector: Optional[faiss.IndexFlatIP] = None,
+        data: Optional[Dict[Text, Any]] = None,
     ) -> None:
         """Construct a new intent classifier using the OpenAI Completion framework."""
         self.component_config = config
@@ -69,14 +69,17 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
             "top_k": 5,
             "temperature": 0.0,
             "max_tokens": 50,
-            "retry": 3
+            "retry": 3,
         }
 
     def load_api_key(self, bot_id: Text):
         if bot_id:
             from kairon.shared.admin.processor import Sysadmin
             from kairon.shared.admin.constants import BotSecretType
-            self.api_key = Sysadmin.get_bot_secret(bot_id, BotSecretType.gpt_key.value, raise_err=True)
+
+            self.api_key = Sysadmin.get_bot_secret(
+                bot_id, BotSecretType.gpt_key.value, raise_err=True
+            )
         elif os.environ.get("OPENAI_API_KEY"):
             self.api_key = os.environ.get("OPENAI_API_KEY")
         else:
@@ -86,10 +89,8 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
 
     def get_embeddings(self, text):
         embedding = openai.Embedding.create(
-            model="text-embedding-ada-002",
-            input=text,
-            api_key=self.api_key
-        )['data'][0]['embedding']
+            model="text-embedding-ada-002", input=text, api_key=self.api_key
+        )["data"][0]["embedding"]
         return embedding
 
     def process_training_data(self, training_data: TrainingData) -> TrainingData:
@@ -98,7 +99,7 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
         vector_map = []
         for example in tqdm(training_data.intent_examples):
             vector_map.append(self.get_embeddings(example.get(TEXT)))
-            data_map.append({'text': example.get(TEXT), 'intent': example.get(INTENT)})
+            data_map.append({"text": example.get(TEXT), "intent": example.get(INTENT)})
         np_vector = np.asarray(vector_map, dtype=np.float32)
         faiss.normalize_L2(np_vector)
         self.vector.add(np_vector)
@@ -106,12 +107,24 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
         return training_data
 
     def prepare_context(self, embeddings, text):
-        dist, indx = self.vector.search(np.asarray([embeddings], dtype=np.float32), k=self.component_config.get("top_k", 5))
+        dist, indx = self.vector.search(
+            np.asarray([embeddings], dtype=np.float32),
+            k=self.component_config.get("top_k", 5),
+        )
+        labels = ",".join(set(self.data[i]["intent"] for i in indx[0]))
         messages = [
-            {"role": "system", "content": self.system_prompt},
+            {"role": "system", "content": self.system_prompt.format(labels)},
         ]
-        context = "\n\n".join( f"text: {self.data[i]['text']}\nintent: {self.data[i]['intent']}" for i in indx[0])
-        messages.append({"role": "user", "content": f"{self.system_prompt}\n\n{context}\n\ntext: {text}"})
+        context = "\n\n".join(
+            f"\n\ntext: {self.data[i]['text']}\nintent: {self.data[i]['intent']}"
+            for i in indx[0]
+        )
+        messages.append(
+            {
+                "role": "user",
+                "content": f"##{self.system_prompt}\n\n##Based on the below sample generate the intent.If text does not belongs to the labels then classify it as nlu_fallback\n\n{context}\n\ntext: {text}",
+            }
+        )
         return messages
 
     def predict(self, text):
@@ -123,7 +136,7 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
         while retry < self.component_config.get("retry", 3):
             try:
                 response = openai.ChatCompletion.create(
-                    model=self.component_config.get("prediction_model", "gpt-4"),
+                    model=self.component_config.get("prediction_model", "gpt-3.5-turbo"),
                     messages=messages,
                     temperature=self.component_config.get("temperature", 0.0),
                     max_tokens=self.component_config.get("max_tokens", 50),
@@ -131,12 +144,16 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
                     frequency_penalty=0,
                     presence_penalty=0,
                     stop=["\n\n"],
-                    api_key=self.api_key
+                    api_key=self.api_key,
                 )
                 logger.debug(response)
-                responses = json.loads(response.choices[0]['message']['content'])
-                intent = responses['intent'] if "intent" in responses.keys() else None
-                explanation = responses['explanation'] if "explanation" in responses.keys() else None
+                responses = json.loads(response.choices[0]["message"]["content"])
+                intent = responses["intent"] if "intent" in responses.keys() else None
+                explanation = (
+                    responses["explanation"]
+                    if "explanation" in responses.keys()
+                    else None
+                )
                 break
             except TimeoutError as e:
                 logger.error(e)
@@ -190,7 +207,9 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
                 if os.path.exists(vector_file):
                     vector = faiss.read_index(vector_file)
                     data = io_utils.json_unpickle(data_file)
-                    return cls(config, model_storage, resource, execution_context, vector, data)
+                    return cls(
+                        config, model_storage, resource, execution_context, vector, data
+                    )
                 else:
                     return cls(config, model_storage, resource, execution_context)
         except ValueError:
@@ -200,7 +219,6 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
             )
         return cls(config, model_storage, resource, execution_context)
 
-
     def persist(self) -> None:
         """Persist this model into the passed directory."""
         with self._model_storage.write_to(self._resource) as model_path:
@@ -208,7 +226,9 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
             vector_file_name = file_name + "_vector.db"
             data_file_name = file_name + "_data.pkl"
             if self.vector and self.data:
-                faiss.write_index(self.vector, os.path.join(model_path, vector_file_name))
+                faiss.write_index(
+                    self.vector, os.path.join(model_path, vector_file_name)
+                )
                 io_utils.json_pickle(
                     os.path.join(model_path, data_file_name), self.data
                 )

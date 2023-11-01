@@ -145,7 +145,7 @@ class KaironMessageProcessor(MessageProcessor):
 
         return tracker, predictions
 
-    async def handle_message(self, message: UserMessage):
+    async def handle_message(self, message: UserMessage, enable_metering=True):
         """Handle a single message with this processor."""
         if message.metadata:
             tabname = message.metadata.get("tabname", "default")
@@ -195,13 +195,14 @@ class KaironMessageProcessor(MessageProcessor):
             else MetricType.test_chat
         )
         if metadata:
-            MeteringProcessor.add_metrics(
-                metadata.get("bot"),
-                metadata.get("account"),
-                metric_type,
-                user_id=message.sender_id,
-                channel_type=metadata.get("channel_type"),
-            )
+            if enable_metering:
+                MeteringProcessor.add_metrics(
+                    metadata.get("bot"),
+                    metadata.get("account"),
+                    metric_type,
+                    user_id=message.sender_id,
+                    channel_type=metadata.get("channel_type"),
+                )
         if isinstance(message.output_channel, CollectingOutputChannel):
             response["response"] = message.output_channel.messages
             return response
