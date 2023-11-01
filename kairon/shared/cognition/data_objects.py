@@ -51,6 +51,9 @@ class CognitionSchema(Auditlog):
             for metadata_dict in self.metadata:
                 metadata_dict.validate()
 
+    def clean(self):
+        self.collection_name = self.collection_name.strip().lower()
+
 
 @auditlogger.log
 @push_notification.apply
@@ -76,3 +79,7 @@ class CognitionData(Auditlog):
             raise ValidationError("content type and type of data do not match!")
         if not self.data or (isinstance(self.data, str) and Utility.check_empty_string(self.data)):
             raise ValidationError("data cannot be empty")
+
+    def clean(self):
+        if self.collection:
+            self.collection = self.collection.strip().lower()
