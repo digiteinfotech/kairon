@@ -2,7 +2,7 @@ from typing import Dict, Text
 
 from mongoengine import DoesNotExist
 from loguru import logger
-from .data_objects import Channels
+from .data_objects import Channels, WhatsappAuditLog
 from datetime import datetime
 from kairon.shared.utils import Utility
 from ..constants import ChannelTypes
@@ -125,3 +125,21 @@ class ChatDataProcessor:
         except DoesNotExist:
             raise AppException('Channel not configured')
 
+    @staticmethod
+    def save_whatsapp_audit_log(status_data: Dict, bot: Text, user: Text):
+        """
+        save or updates channel configuration
+        :param status_data: status_data dict
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        WhatsappAuditLog(
+            status=status_data.get('status'),
+            data=status_data.get('conversation'),
+            initiator=status_data.get('conversation', {}).get('origin', {}).get('type'),
+            message_id=status_data.get('id'),
+            errors=status_data.get('errors', []),
+            bot=bot,
+            user=user
+        ).save()
