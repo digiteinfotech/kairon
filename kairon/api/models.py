@@ -955,7 +955,7 @@ class CognitionSchemaRequest(BaseModel):
 class CognitiveDataRequest(BaseModel):
     data: Any
     content_type: CognitionDataType = CognitionDataType.text.value
-    collection: str = None
+    collection: constr(to_lower=True, strip_whitespace=True) = None
 
     @root_validator
     def check(cls, values):

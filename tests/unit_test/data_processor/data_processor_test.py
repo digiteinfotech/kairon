@@ -14551,7 +14551,7 @@ class TestMongoProcessor:
         payload = {
             "data": content,
             "content_type": "text",
-            "collection": 'bot'}
+            "collection": collection}
         metadata = {
             "metadata": None,
             "collection_name": collection,
@@ -14568,7 +14568,7 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        collection = 'bot'
+        collection = 'Bot'
         content = 'Bots are commonly used in various industries.'
         payload = {
             "data": content,
@@ -14594,7 +14594,7 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        collection = 'bot'
+        collection = 'Bot'
         content = 'Bots are commonly used in various industries, such as e-commerce, customer service, gaming, ' \
                   'and social media. Some bots are designed to interact with humans in a conversational manner and are ' \
                   'called chatbots or virtual assistants.'
@@ -14609,7 +14609,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'testUser'
         content_id = '5349b4ddd2781d08c09890f3'
-        collection = 'bot'
+        collection = 'Bot'
         content = 'MongoDB is a source-available cross-platform document-oriented database program. ' \
                   'Classified as a NoSQL database program, MongoDB uses JSON-like documents with optional schemas. ' \
                   'MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License which is ' \
@@ -14671,7 +14671,7 @@ class TestMongoProcessor:
         payload = {
             "data": content,
             "content_type": "text",
-            "collection": "bot"}
+            "collection": "Bot"}
         pytest.content_id_unit = processor.save_cognition_data(payload, user, bot)
         kwargs = {'collection': 'bot', 'data': 'Unit testing'}
         data = list(processor.list_cognition_data(bot, **kwargs))
@@ -14681,6 +14681,7 @@ class TestMongoProcessor:
                                  'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['row_id']
         assert data[0]['collection'] == 'bot'
+        kwargs = {'collection': 'Bot', 'data': 'Unit testing'}
         log, count = processor.get_cognition_data(bot, **kwargs)
         assert log[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \

@@ -2004,7 +2004,7 @@ def test_payload_upload_api(monkeypatch):
     payload = {
             "data": {"details": "AWS"},
             "content_type": "json",
-            "collection": "details"
+            "collection": "Details"
     }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -2047,7 +2047,7 @@ def test_payload_upload_metadata_missing(monkeypatch):
     payload = {
             "data": {"city": "Pune", "color": "red"},
             "content_type": "json",
-            "collection": "details"
+            "collection": "Details"
         }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -2131,7 +2131,7 @@ def test_payload_updated_api():
         json={
             "row_id": pytest.payload_id,
             "data": {"details": "data science"},
-            "collection": "details",
+            "collection": "Details",
             "content_type": "json"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -2189,7 +2189,7 @@ def test_payload_content_update_api_id_not_found():
 
 def test_get_payload_content():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/cognition?collection=details",
+        url=f"/api/bot/{pytest.bot}/data/cognition?collection=Details",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
