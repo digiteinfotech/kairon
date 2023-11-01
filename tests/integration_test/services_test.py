@@ -1266,7 +1266,6 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     pytest.schema_id = actual["data"]["_id"]
     assert actual["message"] == "Schema saved!"
     assert actual["data"]["_id"]
@@ -1277,7 +1276,6 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_schema = response_schema.json()
-    print(actual_schema)
     assert actual_schema["data"][0]['collection_name'] == 'details'
     assert actual_schema["data"][0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True, 'create_embeddings': True}
     assert actual_schema["error_code"] == 0
@@ -1301,7 +1299,6 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_payload = response_payload.json()
-    print(actual_payload)
     assert actual_payload["success"]
     assert actual_payload["message"] is None
     assert actual_payload["error_code"] == 0
@@ -1319,7 +1316,6 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_one = response_one.json()
-    print(actual_one)
     pytest.schema_id_one = actual_one["data"]["_id"]
     assert actual_one["message"] == "Schema saved!"
     assert actual_one["data"]["_id"]
@@ -1335,7 +1331,6 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_two = response_two.json()
-    print(actual_two)
     pytest.schema_id_two = actual_two["data"]["_id"]
     assert actual_two["message"] == "Schema saved!"
     assert actual_two["data"]["_id"]
@@ -1380,7 +1375,6 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_four = response_four.json()
-    print(actual)
     assert not actual_four["success"]
     assert actual_four["message"] == "Collection already exists!"
     assert actual_four["data"] is None
