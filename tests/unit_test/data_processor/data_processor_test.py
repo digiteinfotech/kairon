@@ -80,7 +80,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
-from kairon.shared.models import StoryEventType, HttpContentType
+from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
@@ -14267,17 +14267,27 @@ class TestMongoProcessor:
         schema = {
             "metadata": [
                 {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_collection",
+            "collection_name": "Details_collection",
             "bot": bot,
             "user": user
         }
         pytest.schema_id = processor.save_cognition_schema(schema, user, bot)
 
+        cognition_schema = CognitionSchema.objects(bot=bot, id=pytest.schema_id).get()
+        assert cognition_schema['collection_name'] == 'details_collection'
+        assert cognition_schema['metadata'][0]['column_name'] == 'details'
+        assert cognition_schema['metadata'][0]['data_type'] == "str"
+
         payload = {
             "data": {"details": "Pune"},
-            "collection": "details_collection",
+            "collection": "Details_collection",
             "content_type": "json"}
-        processor.save_cognition_data(payload, user, bot)
+        pytest.cognition_id = processor.save_cognition_data(payload, user, bot)
+
+        cognition_data = CognitionData.objects(bot=bot, id=pytest.cognition_id).get()
+        assert cognition_data['data'] == {"details": "Pune"}
+        assert cognition_data['collection'] == 'details_collection'
+        assert cognition_data['content_type'] == CognitionDataType.json.value
 
         schema_one = {
             "metadata": [

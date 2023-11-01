@@ -235,7 +235,7 @@ class CognitionDataProcessor:
         columns = list(data.keys())
         try:
             matching_metadata = CognitionSchema.objects(Q(metadata__column_name__in=columns) &
-                                                        Q(collection_name=collection) &
+                                                        Q(collection_name__iexact=collection) &
                                                         Q(bot=bot)).get()
             return matching_metadata
         except DoesNotExist as e:

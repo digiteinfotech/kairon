@@ -34,6 +34,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData
 from kairon.shared.constants import EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
@@ -45,7 +46,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
-from kairon.shared.models import StoryEventType
+from kairon.shared.models import StoryEventType, CognitionDataType
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.utils.translator import Translator
@@ -1261,7 +1262,7 @@ def test_metadata_upload_api(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [{"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details"
+            "collection_name": "Details"
     },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1272,9 +1273,14 @@ def test_metadata_upload_api(monkeypatch):
     assert actual["data"]["_id"]
     assert actual["error_code"] == 0
 
+    cognition_schema = CognitionSchema.objects(bot=pytest.bot, id=pytest.schema_id).get()
+    assert cognition_schema['collection_name'] == 'details'
+    assert cognition_schema['metadata'][0]['column_name'] == 'details'
+    assert cognition_schema['metadata'][0]['data_type'] == "str"
+
     payload = {
         "data": {"details": "Nupur"},
-        "collection": "details",
+        "collection": "Details",
         "content_type": "json"}
     payload_response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -1282,15 +1288,21 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     payload_actual = payload_response.json()
+    pytest.cognition_id = payload_actual["data"]["_id"]
     assert payload_actual["message"] == "Record saved!"
     assert payload_actual["error_code"] == 0
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, id=pytest.cognition_id).get()
+    assert cognition_data['data'] == {"details": "Nupur"}
+    assert cognition_data['collection'] == 'details'
+    assert cognition_data['content_type'] == CognitionDataType.json.value
 
     response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [
                 {"column_name": "details_one", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_one"
+            "collection_name": "Details_one"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1306,7 +1318,7 @@ def test_metadata_upload_api(monkeypatch):
         json={
             "metadata": [
                 {"column_name": "details_two", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_two"
+            "collection_name": "Details_two"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1322,7 +1334,7 @@ def test_metadata_upload_api(monkeypatch):
         json={
             "metadata": [
                 {"column_name": "details_three", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_three"
+            "collection_name": "Details_three"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1351,7 +1363,7 @@ def test_metadata_upload_api(monkeypatch):
         json={
             "metadata": [
                 {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details"
+            "collection_name": "Details"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1478,7 +1490,7 @@ def test_metadata_upload_api_and_delete_with_no_cognition_data(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details"
+            "collection_name": "Details"
     },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1614,7 +1626,7 @@ def test_content_upload_api_with_gpt_feature_disabled(monkeypatch):
                     "used to inform decision-making. Data can take many forms, including text, numbers, images, "
                     "audio, and video.",
         "content_type": "text",
-        "collection": "data_details"}
+        "collection": "Data_details"}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -1634,7 +1646,7 @@ def test_content_upload_api(monkeypatch):
     response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
-            "collection_name": "details"
+            "collection_name": "Details"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1645,7 +1657,7 @@ def test_content_upload_api(monkeypatch):
                 "used to inform decision-making. Data can take many forms, including text, numbers, images, "
                 "audio, and video.",
         "content_type": "text",
-        "collection": "details"}
+        "collection": "Details"}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -1761,7 +1773,7 @@ def test_content_update_api():
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
                        "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
                        "you can focus on developing and deploying your applications rather than managing the infrastructure.",
-            "collection": "details",
+            "collection": "Details",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1797,7 +1809,7 @@ def test_content_update_api_invalid():
         json={
             "row_id": pytest.content_id_text,
             "data": "AWS Fargate is a serverless compute engine.",
-            "collection": "details",
+            "collection": "Details",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1819,7 +1831,7 @@ def test_content_update_api_already_exist():
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
                        "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
                        "you can focus on developing and deploying your applications rather than managing the infrastructure.",
-            "collection": "details",
+            "collection": "Details",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1841,7 +1853,7 @@ def test_content_update_api_id_not_found():
             "data": "Artificial intelligence (AI) involves using computers to do things that traditionally require human "
                     "intelligence. AI can process large amounts of data in ways that humans cannot. The goal for AI is "
                     "to be able to do things like recognize patterns, make decisions, and judge like humans.",
-            "collection": "details",
+            "collection": "Details",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
