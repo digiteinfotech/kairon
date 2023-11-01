@@ -14675,7 +14675,6 @@ class TestMongoProcessor:
         pytest.content_id_unit = processor.save_cognition_data(payload, user, bot)
         kwargs = {'collection': 'bot', 'data': 'Unit testing'}
         data = list(processor.list_cognition_data(bot, **kwargs))
-        print(data)
         assert data[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                                  'software application are tested in isolation to ensure that each unit functions as expected. '
@@ -14691,7 +14690,6 @@ class TestMongoProcessor:
         assert count == 1
         kwargs = {}
         actual = list(processor.list_cognition_data(bot, **kwargs))
-        print(actual)
         assert actual[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                               'software application are tested in isolation to ensure that each unit functions as expected. '
