@@ -1261,7 +1261,7 @@ def test_metadata_upload_api(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [{"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details"
+            "collection_name": "Details"
     },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1272,9 +1272,19 @@ def test_metadata_upload_api(monkeypatch):
     assert actual["data"]["_id"]
     assert actual["error_code"] == 0
 
+    response_schema = client.get(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_schema = response_schema.json()
+    assert actual_schema["data"][0]['collection_name'] == 'details'
+    assert actual_schema["data"][0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str',
+                                                       'enable_search': True, 'create_embeddings': True}
+    assert actual_schema["error_code"] == 0
+
     payload = {
         "data": {"details": "Nupur"},
-        "collection": "details",
+        "collection": "Details",
         "content_type": "json"}
     payload_response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -1282,15 +1292,28 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     payload_actual = payload_response.json()
+    pytest.cognition_id = payload_actual["data"]["_id"]
     assert payload_actual["message"] == "Record saved!"
     assert payload_actual["error_code"] == 0
+
+    response_payload = client.get(
+        url=f"/api/bot/{pytest.bot}/data/cognition?collection=Details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_payload = response_payload.json()
+    assert actual_payload["success"]
+    assert actual_payload["message"] is None
+    assert actual_payload["error_code"] == 0
+    assert actual_payload["data"]['data'][0]['collection'] == 'details'
+    assert actual_payload["data"]['data'][0]['data'] == {'details': 'Nupur'}
+    assert actual_payload["data"]['row_count'] == 1
 
     response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [
                 {"column_name": "details_one", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_one"
+            "collection_name": "Details_one"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1306,7 +1329,7 @@ def test_metadata_upload_api(monkeypatch):
         json={
             "metadata": [
                 {"column_name": "details_two", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_two"
+            "collection_name": "Details_two"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1322,7 +1345,7 @@ def test_metadata_upload_api(monkeypatch):
         json={
             "metadata": [
                 {"column_name": "details_three", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_three"
+            "collection_name": "Details_three"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1333,18 +1356,27 @@ def test_metadata_upload_api(monkeypatch):
 
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id_one}",
-        json={
-            "metadata_id": pytest.schema_id_one,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id_two}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    response_four = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
-            "metadata_id": pytest.schema_id_two,
+            "metadata": [
+                {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "Details"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
+    actual_four = response_four.json()
+    assert not actual_four["success"]
+    assert actual_four["message"] == "Collection already exists!"
+    assert actual_four["data"] is None
+    assert actual_four["error_code"] == 422
 
 
 def test_metadata_upload_api_column_limit_exceeded():
@@ -1439,9 +1471,6 @@ def test_get_payload_metadata():
 def test_delete_payload_content_metadata():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id}",
-        json={
-            "metadata_id": pytest.schema_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1462,7 +1491,7 @@ def test_metadata_upload_api_and_delete_with_no_cognition_data(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details"
+            "collection_name": "Details"
     },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1475,9 +1504,6 @@ def test_metadata_upload_api_and_delete_with_no_cognition_data(monkeypatch):
 
     response_one = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id}",
-        json={
-            "metadata_id": pytest.schema_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_one = response_one.json()
@@ -1491,9 +1517,6 @@ def test_delete_payload_content_metadata_does_not_exist():
     schema_id = '61f3a2c0aef98d5b4c58e90f'
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{schema_id}",
-        json={
-            "schema_id": schema_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1515,13 +1538,81 @@ def test_get_payload_content_metadata_not_exists():
     assert actual["data"] == []
 
 
+def test_delete_schema_attached_to_prompt_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    action = {'name': 'test_delete_schema_attached_to_prompt_action',
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'If there is no specific query, assume that user is aking about java programming.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}],
+              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'collection': 'python',
+              'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    response_one = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": None,
+            "collection_name": "Python"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response_one.json()
+    print(actual)
+    pytest.delete_schema_id = actual["data"]["_id"]
+
+    response_two = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.delete_schema_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_two = response_two.json()
+    print(actual_two)
+    assert not actual_two["success"]
+    assert actual_two["message"] == 'Cannot remove collection python linked to action "test_delete_schema_attached_to_prompt_action"!'
+    assert actual_two["data"] is None
+    assert actual_two["error_code"] == 422
+
+    response_three = client.delete(
+        f"/api/bot/{pytest.bot}/action/test_delete_schema_attached_to_prompt_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual_three = response_three.json()
+    assert actual_three['message'] == 'Action deleted'
+
+    response_four = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.delete_schema_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_four = response_four.json()
+    assert actual_four['message'] == 'Schema deleted!'
+
+
 def test_content_upload_api_with_gpt_feature_disabled():
     payload = {
         "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
                     "used to inform decision-making. Data can take many forms, including text, numbers, images, "
                     "audio, and video.",
         "content_type": "text",
-        "collection": "data_details"}
+        "collection": "Data_details"}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -1541,16 +1632,18 @@ def test_content_upload_api(monkeypatch):
     response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
-            "collection_name": "details"
+            "collection_name": "Details"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
+    actual_one = response_one.json()
+    pytest.content_collection_id = actual_one["data"]["_id"]
     payload = {
         "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
                 "used to inform decision-making. Data can take many forms, including text, numbers, images, "
                 "audio, and video.",
         "content_type": "text",
-        "collection": "details"}
+        "collection": "Details"}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -1666,7 +1759,7 @@ def test_content_update_api():
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
                        "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
                        "you can focus on developing and deploying your applications rather than managing the infrastructure.",
-            "collection": "details",
+            "collection": "Details",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1702,7 +1795,7 @@ def test_content_update_api_invalid():
         json={
             "row_id": pytest.content_id_text,
             "data": "AWS Fargate is a serverless compute engine.",
-            "collection": "details",
+            "collection": "Details",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1724,7 +1817,7 @@ def test_content_update_api_already_exist():
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
                        "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
                        "you can focus on developing and deploying your applications rather than managing the infrastructure.",
-            "collection": "details",
+            "collection": "Details",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1746,7 +1839,7 @@ def test_content_update_api_id_not_found():
             "data": "Artificial intelligence (AI) involves using computers to do things that traditionally require human "
                     "intelligence. AI can process large amounts of data in ways that humans cannot. The goal for AI is "
                     "to be able to do things like recognize patterns, make decisions, and judge like humans.",
-            "collection": "details",
+            "collection": "Details",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1806,9 +1899,6 @@ def test_get_content_without_data():
 def test_delete_content():
     response_one = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_no_collection}",
-        json={
-            "row_id": pytest.content_id_no_collection,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_one = response_one.json()
@@ -1819,9 +1909,6 @@ def test_delete_content():
 
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
-        json={
-            "row_id": pytest.content_id_text,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1835,9 +1922,6 @@ def test_delete_content_does_not_exist():
     content_id = '635981f6e40f61599e000064'
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{content_id}",
-        json={
-            "row_id": content_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1858,6 +1942,19 @@ def test_get_content_not_exists():
     assert actual["message"] is None
     assert actual["error_code"] == 0
     assert actual["data"] == {'rows': [], 'total': 0}
+
+
+def test_delete_payload_content_collection():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.content_collection_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["message"] == "Schema deleted!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 0
 
 
 def test_payload_upload_api_with_gpt_feature_disabled():
@@ -1953,7 +2050,7 @@ def test_payload_upload_metadata_invalid_data_type(monkeypatch):
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     metadata = {
         "metadata": [{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
-        "collection_name": "Details"
+        "collection_name": "test_payload_upload_metadata_invalid_data_type"
     }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -1963,7 +2060,7 @@ def test_payload_upload_metadata_invalid_data_type(monkeypatch):
     payload = {
             "data": {"age": "Twenty-Three"},
             "content_type": "json",
-            "collection": "Details"
+            "collection": "test_payload_upload_metadata_invalid_data_type"
         }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -2084,16 +2181,13 @@ def test_get_payload_content():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]['rows'][0]['data'] == {'details': 'data science'}
-    assert actual["data"]['rows'][0]['collection'] == 'Details'
+    assert actual["data"]['rows'][0]['collection'] == 'details'
     assert actual["data"]['total'] == 1
 
 
 def test_delete_payload_content():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
-        json={
-            "row_id": pytest.payload_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -2108,9 +2202,6 @@ def test_delete_payload_content_does_not_exist():
     payload_id = '61f3a2c0aef88d5b4c58e90f'
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
-        json={
-            "row_id": payload_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()

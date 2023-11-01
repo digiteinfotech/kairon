@@ -165,42 +165,42 @@ class TestLLM:
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
                 method="GET",
-                payload={"time": 0, "status": "ok", "result": {"collections": [{"name": "test_embed_faq_text_Swift_faq_embd"},
-                        {"name": "example_bot_Swift_faq_embd"}]}}
+                payload={"time": 0, "status": "ok", "result": {"collections": [{"name": "test_embed_faq_text_swift_faq_embd"},
+                        {"name": "example_bot_swift_faq_embd"}]}}
             )
 
             aioresponses.add(
                 method="DELETE",
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Swift{gpt3.suffix}"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_swift{gpt3.suffix}"),
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_User_details{gpt3.suffix}"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_user_details{gpt3.suffix}"),
                 method="PUT",
                 status=200
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_User_details{gpt3.suffix}/points"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_user_details{gpt3.suffix}/points"),
                 method="PUT",
                 payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Country_details{gpt3.suffix}"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_country_details{gpt3.suffix}"),
                 method="PUT",
                 status=200
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Country_details{gpt3.suffix}/points"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_country_details{gpt3.suffix}/points"),
                 method="PUT",
                 payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/test_embed_faq_text_Country_details_faq_embd/points"),
+                            f"/collections/test_embed_faq_text_country_details_faq_embd/points"),
                 method="PUT",
                 payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
@@ -208,7 +208,7 @@ class TestLLM:
             response = await gpt3.train()
             assert response['faq'] == 3
 
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'name': f"{gpt3.bot}_Country_details{gpt3.suffix}",
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'name': f"{gpt3.bot}_country_details{gpt3.suffix}",
                                                                                  'vectors': gpt3.vector_config}
 
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {"model": "text-embedding-ada-002",
@@ -222,17 +222,17 @@ class TestLLM:
             assert list(aioresponses.requests.values())[3][2].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {'points': [{'id': test_content_two.vector_id,
                                                                                              'vector': embedding,
-                                                                                             'payload': {'collection_name': f"{gpt3.bot}_Country_details{gpt3.suffix}",
+                                                                                             'payload': {'collection_name': f"{gpt3.bot}_country_details{gpt3.suffix}",
                                                                                                          'country': 'Spain'}}]}
             assert list(aioresponses.requests.values())[4][1].kwargs['json'] == {'points': [{'id': test_content_three.vector_id,
                                                                                              'vector': embedding,
-                                                                                             'payload': {'collection_name': f"{gpt3.bot}_Country_details{gpt3.suffix}", 'role': 'ds'}}]}
+                                                                                             'payload': {'collection_name': f"{gpt3.bot}_country_details{gpt3.suffix}", 'role': 'ds'}}]}
 
-            assert list(aioresponses.requests.values())[5][0].kwargs['json'] == {'name': f"{gpt3.bot}_User_details{gpt3.suffix}",
+            assert list(aioresponses.requests.values())[5][0].kwargs['json'] == {'name': f"{gpt3.bot}_user_details{gpt3.suffix}",
                                                                                  'vectors': gpt3.vector_config}
             assert list(aioresponses.requests.values())[6][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
                                                                                              'vector': embedding,
-                                                                                             'payload': {'collection_name': f"{gpt3.bot}_User_details{gpt3.suffix}",
+                                                                                             'payload': {'collection_name': f"{gpt3.bot}_user_details{gpt3.suffix}",
                                                                                                          'name': 'Nupur'}}]}
             assert response['faq'] == 3
 
