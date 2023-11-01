@@ -1042,13 +1042,13 @@ class ColumnMetadata(BaseModel):
 
 class CognitionSchemaRequest(BaseModel):
     metadata: List[ColumnMetadata] = None
-    collection_name: str
+    collection_name: constr(to_lower=True, strip_whitespace=True)
 
 
 class CognitiveDataRequest(BaseModel):
     data: Any
     content_type: CognitionDataType = CognitionDataType.text.value
-    collection: str = None
+    collection: constr(to_lower=True, strip_whitespace=True) = None
 
     @root_validator
     def check(cls, values):
