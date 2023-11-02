@@ -1460,7 +1460,7 @@ def test_metadata_upload_api(monkeypatch):
     assert actual_payload["error_code"] == 0
     assert actual_payload["data"]['rows'][0]['collection'] == 'details'
     assert actual_payload["data"]['rows'][0]['data'] == {'details': 'Nupur'}
-    assert actual_payload["data"]['row_count'] == 1
+    assert actual_payload["data"]['total'] == 1
 
     response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
