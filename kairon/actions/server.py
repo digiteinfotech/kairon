@@ -43,6 +43,7 @@ from kairon.api.models import Response
 from kairon.exceptions import AppException
 from ..shared.utils import Utility
 from ..shared.account.processor import AccountProcessor
+from contextlib import asynccontextmanager
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
@@ -142,7 +143,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-@action.on_event("startup")
+@asynccontextmanager
 async def startup():
     """MongoDB is connected on the bot trainer startup"""
     config: dict = Utility.mongoengine_connection(
@@ -150,11 +151,7 @@ async def startup():
     )
     connect(**config)
     AccountProcessor.load_system_properties()
-
-
-@action.on_event("shutdown")
-async def shutdown():
-    """MongoDB is disconnected when bot trainer is shut down"""
+    yield
     disconnect()
 
 

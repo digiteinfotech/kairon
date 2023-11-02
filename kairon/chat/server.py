@@ -1,4 +1,3 @@
-import logging
 from time import time
 
 from elasticapm.contrib.starlette import ElasticAPM
@@ -29,6 +28,7 @@ from kairon.api.models import Response
 from kairon.chat.routers import web_client, channels
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
+from contextlib import asynccontextmanager
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
@@ -100,16 +100,12 @@ async def add_secure_headers(request: Request, call_next):
     return response
 
 
-@app.on_event("startup")
+@asynccontextmanager
 async def startup():
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """ MongoDB is disconnected when bot trainer is shut down """
+    yield
     disconnect()
 
 

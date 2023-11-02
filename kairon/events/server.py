@@ -16,6 +16,8 @@ from kairon.events.scheduler.kscheduler import KScheduler
 from kairon.events.utility import EventUtility
 from kairon.shared.constants import EventClass
 from kairon.shared.utils import Utility
+from contextlib import asynccontextmanager
+
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
@@ -94,16 +96,12 @@ async def catch_exceptions_middleware(request: Request, call_next):
         )
 
 
-@app.on_event("startup")
+@asynccontextmanager
 async def startup():
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """ MongoDB is disconnected when bot trainer is shut down """
+    yield
     disconnect()
 
 
