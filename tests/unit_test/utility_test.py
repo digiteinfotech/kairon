@@ -1,4 +1,3 @@
-import ujson as json
 import os
 import re
 import shutil
@@ -8,30 +7,33 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from io import BytesIO
 from unittest.mock import patch, MagicMock
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode
 
 import numpy as np
 import pandas as pd
 import pytest
 import requests
 import responses
+import ujson as json
 from fastapi import UploadFile
 from mongoengine import connect
 from mongoengine.queryset.visitor import Q
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
+from rasa.shared.core.training_data.structures import StoryStep, Checkpoint, RuleStep
 from websockets import InvalidStatusCode
 
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
+from kairon.chat.converters.channels.telegram import TelegramResponseConverter
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
-from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
-from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots, LLMSettings
+from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, STORY_EVENT
+from kairon.shared.data.data_objects import EventConfig, Slots, LLMSettings
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.llm.clients.azure import AzureGPT3Resources
 from kairon.shared.llm.clients.factory import LLMClientFactory
@@ -40,7 +42,6 @@ from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.verification.email import QuickEmailVerification
-from kairon.chat.converters.channels.telegram import TelegramResponseConverter
 
 
 class TestUtility:
@@ -1817,7 +1818,7 @@ class TestUtility:
         assert DataUtility.get_template_type(story) == TemplateType.QNA.value
 
         story["type"] = "STORY"
-        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
 
     def test_get_templates_type_rule_dict(self):
         story = {
@@ -1841,59 +1842,42 @@ class TestUtility:
         assert DataUtility.get_template_type(story) == TemplateType.QNA.value
 
         story["type"] = "STORY"
-        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
-
-
-    def test_get_templates_type_story_step(self):
-        story = [
-            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
-            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
-        ]
-        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
-
-    def test_get_templates_type_rule_step_without_rule_snippet_action(self):
-        story = [
-            StoryEvents(type=ActionExecuted.type_name, name=RULE_SNIPPET_ACTION_NAME),
-            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
-            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
-        ]
-        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
-
-        story = [
-            StoryEvents(type=ActionExecuted.type_name, name="action_share_ticket_count_323"),
-            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
-            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
-        ]
         assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
 
-        story = [
-            StoryEvents(type=ActionExecuted.type_name, name=RULE_SNIPPET_ACTION_NAME),
-            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
-            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
-            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_324"),
-        ]
-        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+    def test_get_templates_type_story_step_and_rule_step(self):
+        intent = {
+            STORY_EVENT.NAME.value: "share_ticket_count_323",
+            STORY_EVENT.CONFIDENCE.value: 1.0,
+        }
+        events = [UserUttered(text=None, intent=intent),
+                  ActionExecuted(action_name="utter_share_ticket_count_323")]
+        story = RuleStep(block_name='ticket_count', start_checkpoints=[Checkpoint("START")], end_checkpoints=[],
+                          events=events)
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+        story_one = StoryStep(block_name='ticket_count', start_checkpoints=[Checkpoint("START")], end_checkpoints=[],
+                         events=events)
+        assert DataUtility.get_template_type(story_one) == TemplateType.CUSTOM.value
+
+    def test_get_templates_type_rule_step_with_rule_snippet_action(self):
+        intent = {
+            STORY_EVENT.NAME.value: "share_ticket_count_323",
+            STORY_EVENT.CONFIDENCE.value: 1.0,
+        }
+        events = [ActionExecuted(action_name=RULE_SNIPPET_ACTION_NAME),
+                  UserUttered(text=None, intent=intent),
+                  ActionExecuted(action_name="utter_share_ticket_count_323")]
+        story = RuleStep(block_name='ticket_count', start_checkpoints=[Checkpoint("START")], end_checkpoints=[],
+                         events=events)
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+        events_two = [UserUttered(text=None, intent=intent),
+                      ActionExecuted(action_name="utter_share_ticket_count_323")]
+        story_two = StoryStep(block_name='ticket_count_two', start_checkpoints=[Checkpoint("START")], end_checkpoints=[],
+                         events=events_two)
+        assert DataUtility.get_template_type(story_two) == TemplateType.CUSTOM.value
 
     def test_get_templates_type_custom(self):
-        story = {
-            "name": "share_ticket_count_323",
-            "steps": [
-                {
-                    "name": "share_ticket_count_323",
-                    "type": "INTENT"
-                },
-                {
-                    "name": "action_share_ticket_count_323",
-                    "type": "ACTION"
-                }
-            ],
-            "type": "RULE"
-        }
-        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
-
-        story["type"] = "STORY"
-        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
-
         story = {
             "name": "share_ticket_count_323",
             "steps": [
@@ -1910,11 +1894,8 @@ class TestUtility:
                     "type": "BOT"
                 }
             ],
-            "type": "RULE"
+            "type": "STORY"
         }
-        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
-
-        story["type"] = "STORY"
         assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
 
     def test_getConcreteInstance_msteams(self):

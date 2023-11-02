@@ -1338,7 +1338,7 @@ class MongoProcessor:
                 and story_step.block_name.strip().lower() not in saved_stories
             ):
                 story_events = list(self.__extract_story_events(story_step.events))
-                template_type = DataUtility.get_template_type(story_events)
+                template_type = DataUtility.get_template_type(story_step)
                 story = Stories(
                     block_name=story_step.block_name,
                     start_checkpoints=[
@@ -4347,7 +4347,7 @@ class MongoProcessor:
 
     def __extract_rule_events(self, rule_step, bot: Text, user: Text):
         rule_events = list(self.__extract_story_events(rule_step.events))
-        template_type = DataUtility.get_template_type(rule_events)
+        template_type = DataUtility.get_template_type(rule_step)
         rule = Rules(
             block_name=rule_step.block_name,
             condition_events_indices=list(rule_step.condition_events_indices),
