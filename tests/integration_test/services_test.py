@@ -22,7 +22,7 @@ from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
 from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
-from slack.web.slack_response import SlackResponse
+from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
@@ -77,6 +77,12 @@ refresh_token = None
 token_type = None
 
 
+@pytest.fixture(scope='class', autouse=True)
+def mock_apm():
+    with patch('elasticapm.base.Client', create=True) as mock_apm_fixture:
+        yield mock_apm_fixture
+
+
 @pytest.fixture(autouse=True, scope="class")
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -94,7 +100,6 @@ def pytest_configure():
         "bot": None,
         "content_id": None,
     }
-
 
 async def mock_smtp(*args, **kwargs):
     return None
@@ -324,6 +329,14 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
         f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890",
         json={"success": False},
     )
+
+    responses.add(
+        "POST",
+        f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=987654321",
+        json={"success": True},
+        status=204,
+    )
+
     response = client.post(
         "/api/account/registration",
         json={
@@ -345,12 +358,6 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
         "error_code": 422,
     }
 
-    responses.add(
-        "POST",
-        f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=987654321",
-        json={"success": True},
-        status=204,
-    )
     response = client.post(
         "/api/account/registration",
         json={
@@ -17427,7 +17434,7 @@ def test_add_channel_config(monkeypatch):
             "client_secret": "cf92180a7634d90bf42a217408376878",
         },
     }
-    with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+    with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
         mock_slack_resp.return_value = SlackResponse(
             client=None,
             http_verb="POST",
@@ -17444,7 +17451,6 @@ def test_add_channel_config(monkeypatch):
             },
             headers=dict(),
             status_code=200,
-            use_sync_aiohttp=False,
         ).validate()
         response = client.post(
             f"/api/bot/{pytest.bot}/channels/add",

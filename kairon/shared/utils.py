@@ -1441,8 +1441,8 @@ class Utility:
 
     @staticmethod
     def get_slack_team_info(token: Text):
-        from slack import WebClient
-        from slack.errors import SlackApiError
+        from slack_sdk.web.client import WebClient
+        from slack_sdk.errors import SlackApiError
 
         try:
             response = WebClient(token).team_info()

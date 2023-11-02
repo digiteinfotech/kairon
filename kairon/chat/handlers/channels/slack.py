@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Text
 import rasa.shared.utils.io
 from fastapi import HTTPException
 from rasa.core.channels.channel import InputChannel, OutputChannel, UserMessage
-from slack import WebClient
+from slack_sdk.web.client import WebClient
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import RedirectResponse

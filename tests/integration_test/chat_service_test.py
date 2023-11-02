@@ -10,7 +10,7 @@ import responses
 from mock import patch
 from mongoengine import connect
 from rasa.utils.endpoints import EndpointConfig
-from slack.web.slack_response import SlackResponse
+from slack_sdk.web.slack_response import SlackResponse
 from starlette.exceptions import HTTPException
 from starlette.testclient import TestClient
 
@@ -97,7 +97,7 @@ bot3 = AccountProcessor.add_bot("testChat3", user["account"], "test@chat.com")[
     "_id"
 ].__str__()
 
-with patch("slack.web.client.WebClient.team_info") as mock_slack_team_info:
+with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_team_info:
     mock_slack_team_info.return_value = SlackResponse(
         client=None,
         http_verb="POST",
@@ -114,7 +114,6 @@ with patch("slack.web.client.WebClient.team_info") as mock_slack_team_info:
         },
         headers=dict(),
         status_code=200,
-        use_sync_aiohttp=False,
     ).validate()
     ChatDataProcessor.save_channel_config(
         {
@@ -883,8 +882,8 @@ def test_slack_auth_bot_challenge(mock_slack):
     assert actual == "sjYDB2ccaT5wpcGyawz6BTDbiujZCBiVwSQR87t3Q3yqgoHFkkTy"
 
 
-@patch("slack.web.client.WebClient.team_info")
-@patch("slack.web.client.WebClient.oauth_v2_access")
+@patch("slack_sdk.web.client.WebClient.team_info")
+@patch("slack_sdk.web.client.WebClient.oauth_v2_access")
 def test_slack_install_app_using_oauth(mock_slack_oauth, mock_slack_team_info_):
     mock_slack_team_info_.return_value = SlackResponse(
         client=client,
@@ -902,7 +901,6 @@ def test_slack_install_app_using_oauth(mock_slack_oauth, mock_slack_team_info_):
         },
         headers=dict(),
         status_code=200,
-        use_sync_aiohttp=False,
     ).validate()
     mock_slack_oauth.return_value = SlackResponse(
         client=client,
@@ -921,7 +919,6 @@ def test_slack_install_app_using_oauth(mock_slack_oauth, mock_slack_team_info_):
         },
         headers=dict(),
         status_code=200,
-        use_sync_aiohttp=False,
     ).validate()
     encoded_url_ = urlencode(
         {"code": "98765432109765432asdfghjkl", "state": ""}, quote_via=quote_plus
