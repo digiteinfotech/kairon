@@ -1420,11 +1420,14 @@ async def update_slot_mapping(request: SlotMappingRequest,
 
 @router.get("/slots/mapping", response_model=Response)
 async def get_slot_mapping(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        form: str = None,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Retrieves slot mapping.
+    If form name is given as `form` query parameter, then slot mappings for that particular form will be retrieved.
     """
-    return Response(data=list(mongo_processor.get_slot_mappings(current_user.get_bot())))
+    return Response(data=list(mongo_processor.get_slot_mappings(current_user.get_bot(), form)))
 
 
 @router.delete("/slots/mapping/{name}", response_model=Response)

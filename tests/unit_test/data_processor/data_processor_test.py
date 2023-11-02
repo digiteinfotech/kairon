@@ -6662,7 +6662,8 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
 
         expected_slot = {"slot": "age",
-                         'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]}
+                         'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18',
+                                      "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}]}
         processor.add_or_update_slot_mapping(expected_slot, bot, user)
         slot = Slots.objects(name__iexact='age', bot=bot, user=user).get()
         assert slot['name'] == 'age'
@@ -6670,7 +6671,8 @@ class TestMongoProcessor:
         assert slot['initial_value'] is None
         assert slot['influence_conversation']
         slot = SlotMapping.objects(slot='age', bot=bot, user=user).get()
-        assert slot.mapping == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert slot.mapping == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18',
+                                 "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}]
 
     def test_remove_slot_mapping(self):
         processor = MongoProcessor()
@@ -6679,7 +6681,7 @@ class TestMongoProcessor:
         processor.add_slot({"name": "occupation", "type": "text", "influence_conversation": True}, bot, user)
         expected_slot = {"slot": "occupation",
                          'mapping': [{'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
-                                     {'type': 'from_text', 'value': 'engineer'},
+                                     {'type': 'from_text', 'value': 'engineer', "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
                                      {'type': 'from_entity', 'entity': 'occupation'},
                                      {'type': 'from_trigger_intent', 'value': 'tester',
                                       'intent': ['get_business', 'is_engineer', 'is_tester'],
@@ -6695,7 +6697,7 @@ class TestMongoProcessor:
             SlotMapping.objects(slot='occupation', bot=bot, status=True).get()
         expected_slot = {"slot": "occupation", 'mapping': [
             {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
-            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_text', 'value': 'engineer', "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
             {'type': 'from_entity', 'entity': 'occupation'},
             {'type': 'from_trigger_intent', 'value': 'tester',
              'intent': ['get_business', 'is_engineer', 'is_tester'],

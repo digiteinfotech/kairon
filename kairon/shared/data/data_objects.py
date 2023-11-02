@@ -360,6 +360,13 @@ class SlotMapping(Auditlog):
                 for intent in slot_mapping["not_intent"]:
                     not_intents.append(intent.lower())
                 mapping_info["not_intent"] = not_intents
+            if slot_mapping.get("conditions"):
+                mapping_conditions = []
+                for condition in slot_mapping["conditions"]:
+                    if not Utility.check_empty_string(condition.get("active_loop")):
+                        mapping_conditions.append({"active_loop": condition["active_loop"], "requested_slot": condition["requested_slot"]})
+                if mapping_conditions:
+                    mapping_info["conditions"] = mapping_conditions
             mapping.append(mapping_info)
         self.mapping = mapping
 

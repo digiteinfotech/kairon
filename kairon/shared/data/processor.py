@@ -5971,14 +5971,19 @@ class MongoProcessor:
         for mapping in mappings:
             yield {mapping["slot"]: mapping["mapping"]}
 
-    def get_slot_mappings(self, bot: Text):
+    def get_slot_mappings(self, bot: Text, form: Text = None):
         """
         Fetches existing slot mappings.
 
         :param bot: bot id
+        :param form: retrieve slot mappings for a particular form
         :return: list of slot mappings
         """
-        for slot_mapping in SlotMapping.objects(bot=bot, status=True):
+        if Utility.check_empty_string(form):
+            mappings = SlotMapping.objects(bot=bot, status=True)
+        else:
+            mappings = SlotMapping.objects(bot=bot, mapping__conditions__active_loop=form, status=True)
+        for slot_mapping in mappings:
             slot_mapping = slot_mapping.to_mongo().to_dict()
             slot_mapping.pop("bot")
             slot_mapping.pop("user")

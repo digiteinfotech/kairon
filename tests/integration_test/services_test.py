@@ -13995,6 +13995,18 @@ def test_add_empty_slot_mapping():
             "type": "value_error.missing",
         }
     ]
+    
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={"slot": "num_people", "mapping": [{"type": "from_text", "conditions": [{"requested_slot": "num_people"}]}]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["message"] == [{'loc': ['body', 'mapping', 0, 'conditions', 0],
+                                  'msg': 'active_loop is required to add requested_slot as condition!',
+                                  'type': 'value_error'}]
 
 
 def test_add_form_with_invalid_slot_set_type():
@@ -14108,7 +14120,7 @@ def test_add_form():
         json={
             "slot": "preferences",
             "mapping": [
-                {"type": "from_text", "not_intent": ["affirm"]},
+                {"type": "from_text", "not_intent": ["affirm"], "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
                 {
                     "type": "from_intent",
                     "intent": ["affirm"],
@@ -15124,7 +15136,7 @@ def test_get_slot_mapping():
             {
                 "slot": "preferences",
                 "mapping": [
-                    {"type": "from_text", "not_intent": ["affirm"]},
+                    {"type": "from_text", "not_intent": ["affirm"], "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
                     {
                         "type": "from_intent",
                         "value": "no additional preferences",
@@ -15177,6 +15189,26 @@ def test_get_slot_mapping():
         ],
         ignore_order=True,
     )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/slots/mapping?form=booking",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["data"] == [
+        {
+            "slot": "preferences",
+            "mapping": [
+                {"type": "from_text", "not_intent": ["affirm"], "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
+                {
+                    "type": "from_intent",
+                    "value": "no additional preferences",
+                    "intent": ["affirm"]
+                },
+            ],
+        }
+    ]
     assert actual["error_code"] == 0
 
 
