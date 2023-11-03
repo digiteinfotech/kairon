@@ -11,7 +11,7 @@ from kairon.shared.utils import Utility
 
 with patch.dict(
         os.environ, {"DATABASE_URL": "mongodb://local:27035", "system_file": "./tests/testing_data/system.yaml",
-                     'ASYNC_TEST_TIMEOUT': "360", "ENABLE_APM": "True", "APM_SERVER_URL": "http://localhost:8082"}
+                     'ASYNC_TEST_TIMEOUT': "360", "ENABLE_APM": "True", "APM_SERVER_URL": "http://localhost:8800"}
 ):
     with patch("pymongo.collection.Collection.create_index"):
         with patch('elasticapm.base.Client', create=True) as mock_apm_client:

@@ -391,10 +391,10 @@ class TestUtility:
             assert Utility.initiate_apm_client_config() is None
 
     def test_initiate_apm_client_with_url_present(self):
-        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8082', 'secret_token': "12345"}):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8800', 'secret_token': "12345"}):
             client = Utility.initiate_apm_client_config()
 
-            assert client == {"SERVER_URL": "http://localhost:8082",
+            assert client == {"SERVER_URL": "http://localhost:8800",
                               "SERVICE_NAME": "kairon",
                               'ENVIRONMENT': "development",
                               "SECRET_TOKEN": "12345"}

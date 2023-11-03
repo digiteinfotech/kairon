@@ -2385,7 +2385,7 @@ class TestMongoProcessor:
 
     @patch('elasticapm.base.Client', create=True)
     def test_start_training_done_with_intrumentation(self, mock_apm):
-        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8082'}):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8800'}):
             processor = MongoProcessor()
             loop = asyncio.get_event_loop()
             loop.run_until_complete(processor.save_from_path(
