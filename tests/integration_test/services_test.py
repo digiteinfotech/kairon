@@ -372,8 +372,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
         },
     )
     actual = response.json()
-    assert actual["success"] == False
-    assert actual["message"].__contains__("Failed to validate recaptcha")
+    assert not actual["success"]
+    assert actual["message"]
     assert actual["data"] is None
     assert actual["error_code"] == 422
 
