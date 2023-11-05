@@ -1,5 +1,7 @@
 import ujson as json
 import os
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+
 from datetime import datetime, date, timedelta
 import responses
 from fastapi.testclient import TestClient
@@ -15,7 +17,6 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.history.processor import HistoryProcessor
 from kairon.shared.utils import Utility
-from mongomock import MongoClient
 
 client = TestClient(app)
 

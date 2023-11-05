@@ -375,23 +375,23 @@ class TestUtility:
         assert not Utility.initiate_apm_client_config()
 
     def test_initiate_apm_client_enabled(self):
-        with patch.dict(Utility.environment["elasticsearch"], {"enable": False, 'service_name': 'kairon', 'apm_server_url': None}):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": False, 'service_name': 'kairon', 'apm_server_url': None}, clear=True):
             assert not Utility.initiate_apm_client_config()
 
     def test_initiate_apm_client_server_url_not_present(self):
-        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': None}):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': None}, clear=True):
             assert not Utility.initiate_apm_client_config()
 
     def test_initiate_apm_client_service_url_not_present(self):
-        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': None, 'apm_server_url': None}):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': None, 'apm_server_url': None}, clear=True):
             assert not Utility.initiate_apm_client_config()
 
     def test_initiate_apm_client_env_not_present(self):
-        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': None, 'apm_server_url': None, 'env_type': None}):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': None, 'apm_server_url': None, 'env_type': None}, clear=True):
             assert Utility.initiate_apm_client_config() is None
 
     def test_initiate_apm_client_with_url_present(self):
-        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8800', 'secret_token': "12345"}):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8800', 'secret_token': "12345"}, clear=True):
             client = Utility.initiate_apm_client_config()
 
             assert client == {"SERVER_URL": "http://localhost:8800",
