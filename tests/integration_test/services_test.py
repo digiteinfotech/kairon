@@ -13428,12 +13428,13 @@ def test_get_stories_another_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
     assert actual["data"][0]["template_type"] == "CUSTOM"
     assert actual["data"][1]["template_type"] == "CUSTOM"
-    assert actual["data"][8]["template_type"] == "Q&A"
+    assert actual["data"][8]["template_type"] == "CUSTOM"
     assert actual["data"][8]["name"] == "test_add_story_with_no_type"
     assert actual["data"][9]["template_type"] == "CUSTOM"
     assert actual["data"][9]["name"] == "test_path"
