@@ -1,8 +1,9 @@
 import os
 import shutil
 import tempfile
-from typing import Text, List, Dict
 import uuid
+from typing import Text, List, Dict
+from urllib.parse import urljoin
 
 import pandas as pd
 import requests
@@ -11,6 +12,7 @@ from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 from mongoengine.errors import ValidationError
 from pandas import DataFrame
+from rasa.shared.core.training_data.structures import RuleStep
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
@@ -21,7 +23,6 @@ from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
 from ...shared.models import StoryStepType
 from ...shared.utils import Utility
-from urllib.parse import urljoin
 
 
 class DataUtility:
@@ -339,7 +340,7 @@ class DataUtility:
     def get_template_type(story):
         """
         Retrieve template type(either QnA or Custom) from events in the flow.
-        Receives a dict or list and returns its type.
+        Receives a dict or instance of RuleStep or StoryStep and returns its type.
         """
         from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
         from rasa.shared.core.events import UserUttered, ActionExecuted
@@ -349,10 +350,12 @@ class DataUtility:
             steps = story['steps']
             if (
                     len(steps) == 2 and
+                    story["type"] == 'RULE' and
                     steps[0]['type'] == StoryStepType.intent and
                     steps[1]['type'] == StoryStepType.bot
             ) or (
                     len(steps) == 3 and
+                    story["type"] == 'RULE' and
                     steps[0]['name'] == RULE_SNIPPET_ACTION_NAME and
                     steps[0]['type'] == StoryStepType.action and
                     steps[1]['type'] == StoryStepType.intent and
@@ -360,18 +363,21 @@ class DataUtility:
             ):
                 template_type = 'Q&A'
         else:
+            events = story.events
             if (
-                    len(story) == 2 and
-                    story[0].type == UserUttered.type_name and
-                    story[1].type == ActionExecuted.type_name and
-                    story[1].name.startswith("utter_")
+                    len(events) == 2 and
+                    isinstance(story, RuleStep) and
+                    isinstance(events[0], UserUttered) and
+                    isinstance(events[1], ActionExecuted) and
+                    events[1].action_name.startswith("utter_")
             ) or (
-                    len(story) == 3 and
-                    story[0].name == RULE_SNIPPET_ACTION_NAME and
-                    story[0].type == ActionExecuted.type_name and
-                    story[1].type == UserUttered.type_name and
-                    story[2].type == ActionExecuted.type_name and
-                    story[2].name.startswith("utter_")
+                    len(events) == 3 and
+                    isinstance(story, RuleStep) and
+                    isinstance(events[0], ActionExecuted) and
+                    events[0].action_name == RULE_SNIPPET_ACTION_NAME and
+                    isinstance(events[1], UserUttered) and
+                    isinstance(events[2], ActionExecuted) and
+                    events[2].action_name.startswith("utter_")
             ):
                 template_type = 'Q&A'
         return template_type

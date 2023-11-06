@@ -1339,7 +1339,7 @@ class MongoProcessor:
                 and story_step.block_name.strip().lower() not in saved_stories
             ):
                 story_events = list(self.__extract_story_events(story_step.events))
-                template_type = DataUtility.get_template_type(story_events)
+                template_type = DataUtility.get_template_type(story_step)
                 story = Stories(
                     block_name=story_step.block_name,
                     start_checkpoints=[
@@ -4362,7 +4362,7 @@ class MongoProcessor:
 
     def __extract_rule_events(self, rule_step, bot: Text, user: Text):
         rule_events = list(self.__extract_story_events(rule_step.events))
-        template_type = DataUtility.get_template_type(rule_events)
+        template_type = DataUtility.get_template_type(rule_step)
         rule = Rules(
             block_name=rule_step.block_name,
             condition_events_indices=list(rule_step.condition_events_indices),
@@ -5994,14 +5994,19 @@ class MongoProcessor:
         for mapping in mappings:
             yield {mapping["slot"]: mapping["mapping"]}
 
-    def get_slot_mappings(self, bot: Text):
+    def get_slot_mappings(self, bot: Text, form: Text = None):
         """
         Fetches existing slot mappings.
 
         :param bot: bot id
+        :param form: retrieve slot mappings for a particular form
         :return: list of slot mappings
         """
-        for slot_mapping in SlotMapping.objects(bot=bot, status=True):
+        if Utility.check_empty_string(form):
+            mappings = SlotMapping.objects(bot=bot, status=True)
+        else:
+            mappings = SlotMapping.objects(bot=bot, mapping__conditions__active_loop=form, status=True)
+        for slot_mapping in mappings:
             slot_mapping = slot_mapping.to_mongo().to_dict()
             slot_mapping.pop("bot")
             slot_mapping.pop("user")

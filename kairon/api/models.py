@@ -700,15 +700,31 @@ class LookupTablesRequest(BaseModel):
         return v
 
 
+class MappingCondition(BaseModel):
+    active_loop: str = None
+    requested_slot: str = None
+
+    @root_validator
+    def validate(cls, values):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(values.get("active_loop")) and not Utility.check_empty_string(values.get("requested_slot")):
+            raise ValueError("active_loop is required to add requested_slot as condition!")
+
+        return values
+
+
 class SlotMapping(BaseModel):
     entity: constr(to_lower=True, strip_whitespace=True) = None
     type: SLOT_MAPPING_TYPE
     value: Any = None
     intent: List[constr(to_lower=True, strip_whitespace=True)] = None
     not_intent: List[constr(to_lower=True, strip_whitespace=True)] = None
+    conditions: List[MappingCondition] = None
 
     class Config:
         use_enum_values = True
+
 
 class SlotMappingRequest(BaseModel):
     slot: constr(to_lower=True, strip_whitespace=True)
@@ -1042,13 +1058,13 @@ class ColumnMetadata(BaseModel):
 
 class CognitionSchemaRequest(BaseModel):
     metadata: List[ColumnMetadata] = None
-    collection_name: str
+    collection_name: constr(to_lower=True, strip_whitespace=True)
 
 
 class CognitiveDataRequest(BaseModel):
     data: Any
     content_type: CognitionDataType = CognitionDataType.text.value
-    collection: str = None
+    collection: constr(to_lower=True, strip_whitespace=True) = None
 
     @root_validator
     def check(cls, values):

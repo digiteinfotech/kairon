@@ -79,7 +79,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
-from kairon.shared.models import StoryEventType, HttpContentType
+from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
@@ -6662,7 +6662,8 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
 
         expected_slot = {"slot": "age",
-                         'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]}
+                         'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18',
+                                      "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}]}
         processor.add_or_update_slot_mapping(expected_slot, bot, user)
         slot = Slots.objects(name__iexact='age', bot=bot, user=user).get()
         assert slot['name'] == 'age'
@@ -6670,7 +6671,8 @@ class TestMongoProcessor:
         assert slot['initial_value'] is None
         assert slot['influence_conversation']
         slot = SlotMapping.objects(slot='age', bot=bot, user=user).get()
-        assert slot.mapping == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert slot.mapping == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18',
+                                 "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}]
 
     def test_remove_slot_mapping(self):
         processor = MongoProcessor()
@@ -6679,7 +6681,7 @@ class TestMongoProcessor:
         processor.add_slot({"name": "occupation", "type": "text", "influence_conversation": True}, bot, user)
         expected_slot = {"slot": "occupation",
                          'mapping': [{'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
-                                     {'type': 'from_text', 'value': 'engineer'},
+                                     {'type': 'from_text', 'value': 'engineer', "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
                                      {'type': 'from_entity', 'entity': 'occupation'},
                                      {'type': 'from_trigger_intent', 'value': 'tester',
                                       'intent': ['get_business', 'is_engineer', 'is_tester'],
@@ -6695,7 +6697,7 @@ class TestMongoProcessor:
             SlotMapping.objects(slot='occupation', bot=bot, status=True).get()
         expected_slot = {"slot": "occupation", 'mapping': [
             {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
-            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_text', 'value': 'engineer', "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
             {'type': 'from_entity', 'entity': 'occupation'},
             {'type': 'from_trigger_intent', 'value': 'tester',
              'intent': ['get_business', 'is_engineer', 'is_tester'],
@@ -14217,17 +14219,28 @@ class TestMongoProcessor:
         schema = {
             "metadata": [
                 {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_collection",
+            "collection_name": "Details_collection",
             "bot": bot,
             "user": user
         }
         pytest.schema_id = processor.save_cognition_schema(schema, user, bot)
 
+        cognition_schema = CognitionSchema.objects(bot=bot, id=pytest.schema_id).get()
+        assert cognition_schema['collection_name'] == 'details_collection'
+        assert cognition_schema['metadata'][0]['column_name'] == 'details'
+        assert cognition_schema['metadata'][0]['data_type'] == "str"
+
         payload = {
             "data": {"details": "Pune"},
-            "collection": "details_collection",
+            "collection": "Details_collection",
             "content_type": "json"}
         processor.save_cognition_data(payload, user, bot)
+        pytest.cognition_id = processor.save_cognition_data(payload, user, bot)
+
+        cognition_data = CognitionData.objects(bot=bot, id=pytest.cognition_id).get()
+        assert cognition_data['data'] == {"details": "Pune"}
+        assert cognition_data['collection'] == 'details_collection'
+        assert cognition_data['content_type'] == CognitionDataType.json.value
 
         schema_one = {
             "metadata": [
@@ -14258,6 +14271,15 @@ class TestMongoProcessor:
             processor.save_cognition_schema(schema_three, user, bot)
         processor.delete_cognition_schema(pytest.schema_id_one, bot)
         processor.delete_cognition_schema(pytest.schema_id_two, bot)
+        schema_four = {
+            "metadata": [
+                {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "details_collection",
+            "bot": bot,
+            "user": user
+        }
+        with pytest.raises(AppException, match="Collection already exists!"):
+            processor.save_cognition_schema(schema, user, bot)
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=False)
         settings.save()
@@ -14289,7 +14311,7 @@ class TestMongoProcessor:
             "metadata": [
                 {"column_name": "tech", "data_type": "str", "enable_search": True, "create_embeddings": True},
                 {"column_name": "tech", "data_type": "int", "enable_search": True, "create_embeddings": False}],
-            "collection_name": "details_collection",
+            "collection_name": "details_collect",
             "bot": bot,
             "user": user
         }
@@ -14316,6 +14338,7 @@ class TestMongoProcessor:
         schema = {
             "metadata": [{"column_name": "name", "data_type": "bool", "enable_search": True,
                           "create_embeddings": True}],
+            "collection_name": "test_save_payload_metadata_data_type_invalid",
             "bot": bot,
             "user": user
         }
@@ -14364,6 +14387,49 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'testing'
         assert list(processor.list_cognition_schema(bot)) == []
+
+    def test_delete_schema_attached_to_prompt_action(self):
+        processor = CognitionDataProcessor()
+        processor_two = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        settings = BotSettings.objects(bot=bot).get()
+        settings.llm_settings = LLMSettings(enable_faq=True)
+        settings.save()
+        schema = {
+            "metadata": None,
+            "collection_name": "Python",
+            "bot": bot,
+            "user": user
+        }
+        pytest.delete_schema_id = processor.save_cognition_schema(schema, user, bot)
+        request = {'name': 'test_delete_schema_attached_to_prompt_action',
+                   'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                   'llm_prompts': [
+                       {'name': 'System Prompt',
+                        'data': 'You are a personal assistant. Answer question based on the context below.',
+                        'type': 'system', 'source': 'static', 'is_enabled': True},
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Query Prompt', 'data': "What kind of language is python?",
+                        'instructions': 'Rephrase the query.',
+                        'type': 'query', 'source': 'static', 'is_enabled': False},
+                       {'name': 'Similarity Prompt',
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content',
+                        'is_enabled': True}
+                   ],
+                   'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+                   'collection': 'python',
+                   "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
+                                 {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+                   "dispatch_response": False
+                   }
+        processor_two.add_prompt_action(request, bot, user)
+        with pytest.raises(AppException,
+                           match='Cannot remove collection python linked to action "test_delete_schema_attached_to_prompt_action"!'):
+            processor.delete_cognition_schema(pytest.delete_schema_id, bot)
+        processor_two.delete_action('test_delete_schema_attached_to_prompt_action', bot, user)
+        processor.delete_cognition_schema(pytest.delete_schema_id, bot)
 
     def test_save_content_with_gpt_feature_disabled(self):
         processor = CognitionDataProcessor()
@@ -14456,7 +14522,7 @@ class TestMongoProcessor:
             "bot": bot,
             "user": user
         }
-        processor.save_cognition_schema(metadata, user, bot)
+        pytest.save_content_collection = processor.save_cognition_schema(metadata, user, bot)
         pytest.content_id = processor.save_cognition_data(payload, user, bot)
         content_id = '5349b4ddd2791d08c09890f3'
         with pytest.raises(AppException, match="Payload data already exists!"):
@@ -14550,7 +14616,7 @@ class TestMongoProcessor:
                      'row_id': '65266ff16f0190ca4fd09898',
                      'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
                      'content_type': 'text',
-                     'collection': 'testing', 'user': 'testUser', 'bot': 'test'}]
+                     'collection': 'bot', 'user': 'testUser', 'bot': 'test'}]
         row_count = 1
         def _list_cognition_data(*args, **kwargs):
             return cognition_data
@@ -14564,28 +14630,28 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        collection = 'Bot'
         content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
                   'application are tested in isolation to ensure that each unit functions as expected. '
         payload = {
             "data": content,
             "content_type": "text",
-            "collection": collection}
+            "collection": "Bot"}
         pytest.content_id_unit = processor.save_cognition_data(payload, user, bot)
-        kwargs = {'collection': 'testing', 'data': 'Unit testing'}
+        kwargs = {'collection': 'bot', 'data': 'Unit testing'}
         data = list(processor.list_cognition_data(bot, **kwargs))
         print(data)
         assert data[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                                  'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['row_id']
-        assert data[0]['collection'] == 'testing'
+        assert data[0]['collection'] == 'bot'
+        kwargs = {'collection': 'Bot', 'data': 'Unit testing'}
         log, count = processor.get_cognition_data(bot, **kwargs)
         assert log[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                               'software application are tested in isolation to ensure that each unit functions as expected. '
         assert log[0]['row_id']
-        assert log[0]['collection'] == 'testing'
+        assert log[0]['collection'] == 'bot'
         assert count == 1
         kwargs = {}
         actual = list(processor.list_cognition_data(bot, **kwargs))
@@ -14594,19 +14660,25 @@ class TestMongoProcessor:
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                               'software application are tested in isolation to ensure that each unit functions as expected. '
         assert actual[0]['row_id']
-        assert actual[0]['collection'] == 'testing'
+        assert actual[0]['collection'] == 'bot'
         cognition_data, row_count = processor.get_cognition_data(bot, **kwargs)
         assert cognition_data[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                               'software application are tested in isolation to ensure that each unit functions as expected. '
         assert cognition_data[0]['row_id']
-        assert cognition_data[0]['collection'] == 'testing'
+        assert cognition_data[0]['collection'] == 'bot'
         assert row_count == 1
 
     def test_delete_content_for_action(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         processor.delete_cognition_data(pytest.content_id_unit, bot)
+
+    def test_delete_payload_content_collection(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        processor.delete_cognition_schema(pytest.save_content_collection, bot)
 
     def test_save_payload_content_with_gpt_feature_disabled(self):
         processor = CognitionDataProcessor()
@@ -14681,7 +14753,7 @@ class TestMongoProcessor:
         metadata = {
             "metadata": [
                 {"column_name": "number", "data_type": "int", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "Bot",
+            "collection_name": "test_save_payload_content_invalid_data_type",
             "bot": bot,
             "user": user
         }
@@ -14689,7 +14761,7 @@ class TestMongoProcessor:
         payload = {
             "data": {"number": "Twenty-three"},
             "content_type": "json",
-            "collection": "Bot"}
+            "collection": "test_save_payload_content_invalid_data_type"}
         with pytest.raises(AppException, match="Invalid data type!"):
             processor.save_cognition_data(payload, user, bot)
 
