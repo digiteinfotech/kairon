@@ -50,7 +50,17 @@ secure_headers = Secure(
     content=content
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """ MongoDB is connected on the bot trainer startup """
+    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
+    connect(**config)
+    yield
+    disconnect()
+
+
+app = FastAPI(lifespan=lifespan)
 allowed_origins = Utility.environment['cors']['origin']
 app.add_middleware(
     CORSMiddleware,
@@ -94,16 +104,6 @@ async def catch_exceptions_middleware(request: Request, call_next):
                 success=False, error_code=422, message=str(exc)
             ).dict()
         )
-
-
-@asynccontextmanager
-async def startup():
-    """ MongoDB is connected on the bot trainer startup """
-    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
-    connect(**config)
-    yield
-    disconnect()
-
 
 @app.get("/", response_model=Response)
 def index():

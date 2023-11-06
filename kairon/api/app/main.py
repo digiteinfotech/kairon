@@ -62,7 +62,19 @@ secure_headers = Secure(
     content=content
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """ MongoDB is connected on the bot trainer startup """
+    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
+    connect(**config)
+    await AccountProcessor.default_account_setup()
+    AccountProcessor.load_system_properties()
+    yield
+    disconnect()
+
+
+app = FastAPI(lifespan=lifespan)
 allowed_origins = Utility.environment['cors']['origin']
 app.add_middleware(
     CORSMiddleware,
@@ -89,17 +101,6 @@ async def add_secure_headers(request: Request, call_next):
     requested_origin = request.headers.get("origin")
     response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else allowed_origins[0]
     return response
-
-
-@asynccontextmanager
-async def startup():
-    """ MongoDB is connected on the bot trainer startup """
-    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
-    connect(**config)
-    await AccountProcessor.default_account_setup()
-    AccountProcessor.load_system_properties()
-    yield
-    disconnect()
 
 
 @app.exception_handler(StarletteHTTPException)

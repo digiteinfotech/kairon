@@ -91,7 +91,20 @@ secure_headers = Secure(
     content=content,
 )
 
-action = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """MongoDB is connected on the bot trainer startup"""
+    config: dict = Utility.mongoengine_connection(
+        Utility.environment["database"]["url"]
+    )
+    connect(**config)
+    AccountProcessor.load_system_properties()
+    yield
+    disconnect()
+
+
+action = FastAPI(lifespan=lifespan)
 Utility.load_environment()
 Utility.load_email_configuration()
 allowed_origins = Utility.environment["cors"]["origin"]
@@ -141,18 +154,6 @@ async def log_requests(request: Request, call_next):
         f"rid={param} request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}"
     )
     return response
-
-
-@asynccontextmanager
-async def startup():
-    """MongoDB is connected on the bot trainer startup"""
-    config: dict = Utility.mongoengine_connection(
-        Utility.environment["database"]["url"]
-    )
-    connect(**config)
-    AccountProcessor.load_system_properties()
-    yield
-    disconnect()
 
 
 @action.exception_handler(StarletteHTTPException)
