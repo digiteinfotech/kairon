@@ -6790,7 +6790,7 @@ class TestMongoProcessor:
                                         "value": "business",
                                         "intent": ["get_occupation"],
                                     },
-                                    {"type": "from_text", "value": "engineer"},
+                                    {"type": "from_text", "value": "engineer", "conditions":[{"active_loop":"booking", "requested_slot":"engineer"}]},
                                     {"type": "from_entity", "entity": "occupation"},
                                     {
                                         "type": "from_trigger_intent",
