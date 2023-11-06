@@ -49,6 +49,7 @@ RUN python -m pip install pydantic==1.10.11
 RUN python -m pip install tiktoken
 RUN python -m pip install validators==0.20.0
 RUN python -m pip install aiohttp-retry
+RUN python -m pip install pqdict
 
 RUN mkdir ssl
 RUN mkdir data_generator
