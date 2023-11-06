@@ -2213,7 +2213,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        http_url = 'http://localhost:8082/mock'
+        http_url = 'http://localhost:8800/mock'
         resp_msg = "This is string http response"
 
         responses.add(

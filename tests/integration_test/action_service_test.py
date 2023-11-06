@@ -2751,7 +2751,7 @@ def test_http_action_failed_execution(mock_action_config, mock_action):
     action_config = HttpActionConfig(
         action_name=action_name,
         response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
-        http_url="http://localhost:8082/mock",
+        http_url="http://localhost:8800/mock",
         request_method="GET",
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"

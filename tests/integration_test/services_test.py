@@ -22,7 +22,7 @@ from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
 from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
-from slack.web.slack_response import SlackResponse
+from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
@@ -77,6 +77,12 @@ refresh_token = None
 token_type = None
 
 
+@pytest.fixture(scope='class', autouse=True)
+def mock_apm():
+    with patch('elasticapm.base.Client', create=True) as mock_apm_fixture:
+        yield mock_apm_fixture
+
+
 @pytest.fixture(autouse=True, scope="class")
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -94,7 +100,6 @@ def pytest_configure():
         "bot": None,
         "content_id": None,
     }
-
 
 async def mock_smtp(*args, **kwargs):
     return None
@@ -260,135 +265,137 @@ def test_account_registration_error():
     assert actual["data"] is None
 
 
+@responses.activate
 def test_recaptcha_verified_request(monkeypatch):
     monkeypatch.setitem(Utility.environment["security"], "validate_recaptcha", True)
     monkeypatch.setitem(
         Utility.environment["security"], "recaptcha_secret", "asdfghjkl1234567890"
     )
 
-    with responses.RequestsMock() as rsps:
-        rsps.add(
-            "POST",
-            f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890",
-            json={"success": True},
-        )
-        response = client.post(
-            "/api/account/registration",
-            json={
-                "recaptcha_response": "1234567890",
-                "email": "integration1234567890@demo.ai",
-                "first_name": "Demo",
-                "last_name": "User",
-                "password": "Welcome@10",
-                "confirm_password": "Welcome@10",
-                "account": "integration1234567890",
-                "bot": "integration",
-            },
-        )
-        actual = response.json()
-        assert actual["message"] == "Account Registered!"
+    responses.add(
+        "POST",
+        f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890",
+        json={"success": True},
+    )
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "recaptcha_response": "1234567890",
+            "email": "integration1234567890@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
+            "account": "integration1234567890",
+            "bot": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Account Registered!"
 
-        rsps.add(
-            "POST",
-            f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890&remoteip=58.0.127.89",
-            json={"success": True},
-        )
-        response = client.post(
-            "/api/account/registration",
-            json={
-                "recaptcha_response": "1234567890",
-                "remote_ip": "58.0.127.89",
-                "email": "integration1234567@demo.ai",
-                "first_name": "Demo",
-                "last_name": "User",
-                "password": "Welcome@10",
-                "confirm_password": "Welcome@10",
-                "account": "integration1234567",
-                "bot": "integration",
-                "add_trusted_device": True,
-            },
-        )
-        actual = response.json()
-        assert actual["message"] == "Account Registered!"
+    responses.add(
+        "POST",
+        f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890&remoteip=58.0.127.89",
+        json={"success": True},
+    )
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "recaptcha_response": "1234567890",
+            "remote_ip": "58.0.127.89",
+            "email": "integration1234567@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
+            "account": "integration1234567",
+            "bot": "integration",
+            "add_trusted_device": True,
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Account Registered!"
 
 
+@responses.activate
 def test_recaptcha_verified_request_invalid(monkeypatch):
     monkeypatch.setitem(Utility.environment["security"], "validate_recaptcha", True)
     monkeypatch.setitem(
         Utility.environment["security"], "recaptcha_secret", "asdfghjkl1234567890"
     )
 
-    with responses.RequestsMock() as rsps:
-        rsps.add(
-            "POST",
-            f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890",
-            json={"success": False},
-        )
-        response = client.post(
-            "/api/account/registration",
-            json={
-                "recaptcha_response": "1234567890",
-                "email": "integration1234567890@demo.ai",
-                "first_name": "Demo",
-                "last_name": "User",
-                "password": "Welcome@10",
-                "confirm_password": "Welcome@10",
-                "account": "integration",
-                "bot": "integration",
-            },
-        )
-        actual = response.json()
-        assert actual == {
-            "success": False,
-            "message": "Failed to validate recaptcha",
-            "data": None,
-            "error_code": 422,
-        }
+    responses.add(
+        "POST",
+        f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=1234567890",
+        json={"success": False},
+    )
 
-        rsps.add(
-            "POST",
-            f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=987654321",
-            json={"success": True},
-            status=204,
-        )
-        response = client.post(
-            "/api/account/registration",
-            json={
-                "recaptcha_response": "987654321",
-                "email": "integration1234567890@demo.ai",
-                "first_name": "Demo",
-                "last_name": "User",
-                "password": "Welcome@10",
-                "confirm_password": "Welcome@10",
-                "account": "integration",
-                "bot": "integration",
-            },
-        )
-        actual = response.json()
-        assert actual["success"] == False
-        assert actual["message"].__contains__("Failed to validate recaptcha")
-        assert actual["data"] is None
-        assert actual["error_code"] == 422
+    responses.add(
+        "POST",
+        f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl1234567890&response=987654321",
+        json={"success": True},
+        status=204,
+    )
 
-        response = client.post(
-            "/api/account/registration",
-            json={
-                "email": "integration1234567890@demo.ai",
-                "first_name": "Demo",
-                "last_name": "User",
-                "password": "Welcome@10",
-                "confirm_password": "Welcome@10",
-                "account": "integration",
-                "bot": "integration",
-            },
-        )
-        actual = response.json()
-        assert actual == {
-            "success": False,
-            "message": "recaptcha_response is required",
-            "data": None,
-            "error_code": 422,
-        }
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "recaptcha_response": "1234567890",
+            "email": "integration1234567890@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
+            "account": "integration",
+            "bot": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual == {
+        "success": False,
+        "message": "Failed to validate recaptcha",
+        "data": None,
+        "error_code": 422,
+    }
+
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "recaptcha_response": "987654321",
+            "email": "integration1234567890@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
+            "account": "integration",
+            "bot": "integration",
+        },
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": "integration1234567890@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
+            "account": "integration",
+            "bot": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual == {
+        "success": False,
+        "message": "recaptcha_response is required",
+        "data": None,
+        "error_code": 422,
+    }
 
 
 @responses.activate
@@ -648,6 +655,7 @@ def test_api_wrong_password():
     assert len(value) == 1
 
 
+@responses.activate
 def test_api_login_with_recaptcha(monkeypatch):
     email = "integration@demo.ai"
     monkeypatch.setitem(Utility.environment["security"], "validate_recaptcha", True)
@@ -655,29 +663,29 @@ def test_api_login_with_recaptcha(monkeypatch):
         Utility.environment["security"], "recaptcha_secret", "asdfghjkl123456"
     )
 
-    with responses.RequestsMock() as rsps:
-        rsps.add(
-            "POST",
-            f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl123456&response=asdfghjkl2345",
-            json={"success": True},
-        )
-        response = client.post(
-            "/api/auth/login",
-            data={
-                "username": email,
-                "password": "Welcome@10",
-                "recaptcha_response": "asdfghjkl2345",
-            },
-        )
-        actual = response.json()
-        assert all(
-            [
-                True if actual["data"][key] else False
-                for key in ["access_token", "token_type"]
-            ]
-        )
+    responses.add(
+        "POST",
+        f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl123456&response=asdfghjkl2345",
+        json={"success": True},
+    )
+    response = client.post(
+        "/api/auth/login",
+        data={
+            "username": email,
+            "password": "Welcome@10",
+            "recaptcha_response": "asdfghjkl2345",
+        },
+    )
+    actual = response.json()
+    assert all(
+        [
+            True if actual["data"][key] else False
+            for key in ["access_token", "token_type"]
+        ]
+    )
 
 
+@responses.activate
 def test_api_login_with_recaptcha_failed(monkeypatch):
     email = "integration@demo.ai"
     monkeypatch.setitem(Utility.environment["security"], "validate_recaptcha", True)
@@ -685,39 +693,38 @@ def test_api_login_with_recaptcha_failed(monkeypatch):
         Utility.environment["security"], "recaptcha_secret", "asdfghjkl123456"
     )
 
-    with responses.RequestsMock() as rsps:
-        rsps.add(
-            "POST",
-            f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl123456&response=asdfghjkl23",
-            json={"success": False},
-        )
-        response = client.post(
-            "/api/auth/login",
-            data={
-                "username": email,
-                "password": "Welcome@10",
-                "recaptcha_response": "asdfghjkl23",
-            },
-        )
-        actual = response.json()
-        assert actual == {
-            "success": False,
-            "message": "Failed to validate recaptcha",
-            "data": None,
-            "error_code": 422,
-        }
+    responses.add(
+        "POST",
+        f"{Utility.environment['security']['recaptcha_url']}?secret=asdfghjkl123456&response=asdfghjkl23",
+        json={"success": False},
+    )
+    response = client.post(
+        "/api/auth/login",
+        data={
+            "username": email,
+            "password": "Welcome@10",
+            "recaptcha_response": "asdfghjkl23",
+        },
+    )
+    actual = response.json()
+    assert actual == {
+        "success": False,
+        "message": "Failed to validate recaptcha",
+        "data": None,
+        "error_code": 422,
+    }
 
-        response = client.post(
-            "/api/auth/login",
-            data={"username": email, "password": "Welcome@10"},
-        )
-        actual = response.json()
-        assert actual == {
-            "success": False,
-            "message": "recaptcha_response is required",
-            "data": None,
-            "error_code": 422,
-        }
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@10"},
+    )
+    actual = response.json()
+    assert actual == {
+        "success": False,
+        "message": "recaptcha_response is required",
+        "data": None,
+        "error_code": 422,
+    }
 
 
 def test_api_login():
@@ -8011,7 +8018,7 @@ def test_delete_intent():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response = client.delete(
-        f"/api/bot/{pytest.bot}/intents/happier/True",
+        f"/api/bot/{pytest.bot}/intents/happier",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -9148,7 +9155,7 @@ def test_add_and_delete_intents_by_integration_user():
     assert actual["message"] == "Intent added successfully!"
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/intents/integration_intent/True",
+        f"/api/bot/{pytest.bot}/intents/integration_intent",
         headers={
             "Authorization": token["data"]["token_type"]
             + " "
@@ -9192,7 +9199,7 @@ def test_add_non_integration_intent_and_delete_intent_by_integration_user():
     assert actual["message"] == "Intent added successfully!"
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/intents/non_integration_intent/True",
+        f"/api/bot/{pytest.bot}/intents/non_integration_intent",
         headers={
             "Authorization": token["data"]["token_type"]
             + " "
@@ -17580,7 +17587,7 @@ def test_add_channel_config(monkeypatch):
             "client_secret": "cf92180a7634d90bf42a217408376878",
         },
     }
-    with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+    with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
         mock_slack_resp.return_value = SlackResponse(
             client=None,
             http_verb="POST",
@@ -17597,7 +17604,6 @@ def test_add_channel_config(monkeypatch):
             },
             headers=dict(),
             status_code=200,
-            use_sync_aiohttp=False,
         ).validate()
         response = client.post(
             f"/api/bot/{pytest.bot}/channels/add",
@@ -21665,7 +21671,7 @@ def test_get_custom_widget_post_update():
             "timeout": 5,
             "request_method": "GET",
             "request_parameters": [],
-            "_id": pytest.bot,
+            #"_id": pytest.bot,
             "headers": [],
             "bot": pytest.bot,
             "_id": pytest.widget_id,

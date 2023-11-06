@@ -9,7 +9,7 @@ import pytest
 import responses
 from mongoengine import connect, ValidationError
 from pymongo.collection import Collection
-from slack.web.slack_response import SlackResponse
+from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.chat.utils import ChatUtils
@@ -23,7 +23,6 @@ from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 import mock
 from pymongo.errors import ServerSelectionTimeoutError
-from mongomock import MongoClient
 
 
 class TestChat:
@@ -50,7 +49,7 @@ class TestChat:
                 "test", "test"
             )
 
-        with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -67,7 +66,6 @@ class TestChat:
                 },
                 headers=dict(),
                 status_code=200,
-                use_sync_aiohttp=False,
             ).validate()
             with pytest.raises(ValidationError,
                                match=escape("Missing ['bot_user_oAuth_token', 'slack_signing_secret', 'client_id', 'client_secret'] all or any in config")):
@@ -110,7 +108,7 @@ class TestChat:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -127,7 +125,6 @@ class TestChat:
                 },
                 headers=dict(),
                 status_code=200,
-                use_sync_aiohttp=False,
             ).validate()
             ChatDataProcessor.save_channel_config({
                 "connector_type": "slack", "config": {
@@ -152,7 +149,7 @@ class TestChat:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -169,7 +166,6 @@ class TestChat:
                 },
                 headers=dict(),
                 status_code=200,
-                use_sync_aiohttp=False,
             ).validate()
             ChatDataProcessor.save_channel_config({
                 "connector_type": "slack", "config": {
@@ -194,7 +190,6 @@ class TestChat:
                 },
                 headers=dict(),
                 status_code=200,
-                use_sync_aiohttp=False,
             ).validate()
             ChatDataProcessor.save_channel_config({
                 "connector_type": "slack", "config": {
@@ -257,7 +252,7 @@ class TestChat:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -274,7 +269,6 @@ class TestChat:
                 },
                 headers=dict(),
                 status_code=200,
-                use_sync_aiohttp=False,
             ).validate()
             ChatDataProcessor.save_channel_config({
                 "connector_type": "slack", "config": {
@@ -323,7 +317,7 @@ class TestChat:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -340,7 +334,6 @@ class TestChat:
                 },
                 headers=dict(),
                 status_code=200,
-                use_sync_aiohttp=False,
             ).validate()
             ChatDataProcessor.save_channel_config({
                 "connector_type": "slack", "config": {
@@ -365,7 +358,6 @@ class TestChat:
                 },
                 headers=dict(),
                 status_code=200,
-                use_sync_aiohttp=False,
             ).validate()
             ChatDataProcessor.save_channel_config({
                 "connector_type": "slack", "config": {

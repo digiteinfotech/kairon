@@ -2385,7 +2385,7 @@ class TestMongoProcessor:
 
     @patch('elasticapm.base.Client', create=True)
     def test_start_training_done_with_intrumentation(self, mock_apm):
-        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8082'}):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8800'}, clear=True):
             processor = MongoProcessor()
             loop = asyncio.get_event_loop()
             loop.run_until_complete(processor.save_from_path(
@@ -9378,8 +9378,7 @@ class TestMongoProcessor:
     def test_delete_valid_intent_only(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False,
-                                delete_dependencies=False)
+        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         with pytest.raises(Exception):
             intent = Intents.objects(bot="tests", status=True).get(name="TestingDelGreeting")
 
@@ -12386,19 +12385,19 @@ class TestMongoProcessor:
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         with pytest.raises(Exception):
             processor.delete_intent("TestingDelGreeting", "tests", "testUser1", is_integration=True,
-                                    delete_dependencies=False)
+                                    )
 
     def test_add_and_delete_integration_intent_by_same_integration_user(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting1", "tests", "testUser", is_integration=True)
         processor.delete_intent("TestingDelGreeting1", "tests", "testUser", is_integration=True,
-                                delete_dependencies=False)
+                                )
 
     def test_add_and_delete_integration_intent_by_different_integration_user(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting2", "tests", "testUser", is_integration=True)
         processor.delete_intent("TestingDelGreeting2", "tests", "testUser2", is_integration=True,
-                                delete_dependencies=False)
+                                )
 
     def test_add_rule(self):
         processor = MongoProcessor()
