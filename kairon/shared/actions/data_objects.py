@@ -162,17 +162,6 @@ class HttpActionConfig(Auditlog):
                     param.value = Utility.encrypt_message(param.value)
 
 
-class DbOperation(EmbeddedDocument):
-    type = StringField(required=True, choices=[op_type.value for op_type in DbQueryValueType])
-    value = StringField(required=True, choices=[payload.value for payload in DbActionOperationType])
-
-    def validate(self, clean=True):
-        if Utility.check_empty_string(self.type):
-            raise ValidationError("query type is required")
-        if not self.value or self.value is None:
-            raise ValidationError("query value is required")
-
-
 class DbQuery(EmbeddedDocument):
     type = StringField(required=True, choices=[op_type.value for op_type in DbQueryValueType])
     value = DynamicField(required=True)
@@ -189,7 +178,7 @@ class DbQuery(EmbeddedDocument):
 class DatabaseAction(Auditlog):
     name = StringField(required=True)
     collection = StringField(required=True)
-    query = EmbeddedDocumentField(DbOperation, required=True)
+    query_type = StringField(required=True, choices=[payload.value for payload in DbActionOperationType])
     payload = EmbeddedDocumentField(DbQuery, default=DbQuery())
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
@@ -206,9 +195,10 @@ class DatabaseAction(Auditlog):
 
         if self.name is None or not self.name.strip():
             raise ValidationError("Action name cannot be empty")
+        if not self.query_type or self.query_type is None:
+            raise ValidationError("query type is required")
         self.response.validate()
         self.payload.validate()
-        self.query.validate()
 
     def clean(self):
         self.name = self.name.strip().lower()
