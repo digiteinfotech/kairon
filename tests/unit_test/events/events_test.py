@@ -25,7 +25,7 @@ os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 
-from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent

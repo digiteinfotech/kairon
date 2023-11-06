@@ -7,7 +7,7 @@ from bson import ObjectId
 from mongoengine import connect, ValidationError
 
 from kairon.exceptions import AppException
-from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.utils import Utility
 
 

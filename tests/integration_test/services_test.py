@@ -14322,7 +14322,7 @@ def test_list_broadcast_():
 
 
 def test_list_broadcast_logs():
-    from kairon.shared.chat.notifications.data_objects import MessageBroadcastLogs
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 
     ref_id = ObjectId().__str__()
     timestamp = datetime.utcnow()

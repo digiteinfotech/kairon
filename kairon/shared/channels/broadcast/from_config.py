@@ -4,8 +4,8 @@ from typing import Text, Dict
 
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.base import MessageBroadcastBase
-from kairon.shared.chat.notifications.constants import MessageBroadcastLogType
-from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
+from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.data.constant import EVENT_STATUS
 
 

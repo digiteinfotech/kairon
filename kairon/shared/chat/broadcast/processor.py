@@ -8,8 +8,8 @@ from mongoengine import DoesNotExist
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.chat.data_objects import Channels
-from kairon.shared.chat.notifications.constants import MessageBroadcastLogType
-from kairon.shared.chat.notifications.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
+from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
+from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 
 

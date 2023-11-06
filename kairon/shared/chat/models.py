@@ -3,7 +3,7 @@ from datetime import datetime
 from croniter import croniter
 from pydantic import BaseModel, root_validator, validator
 
-from kairon.shared.chat.notifications.constants import MessageBroadcastType
+from kairon.shared.chat.broadcast.constants import MessageBroadcastType
 from kairon.shared.utils import Utility
 
 from typing import List, Text, Dict

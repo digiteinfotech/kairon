@@ -53,6 +53,7 @@ augmentation:
   paraphrase_gpt_url: ${PARAPHRASE_GPT_URL:"http://localhost:8000/paraphrases/gpt"}
 
 model:
+  cache_size: ${CHAT_SERVER_CACHE_SIZE:100}
   retention: ${MODEL_RETENTION_COUNT:4}
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
