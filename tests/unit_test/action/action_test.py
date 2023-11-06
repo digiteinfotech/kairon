@@ -2700,7 +2700,7 @@ class TestActions:
                                 'training_limit_per_day': 5,
                                 'user': 'test_user', 'dynamic_broadcast_execution_timeout': 21600,
                                 'website_data_generator_depth_search_limit': 2,
-                                'whatsapp': 'meta',
+                                'whatsapp': 'meta', 'is_billed': False,
                                 'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5}
 
@@ -3928,7 +3928,7 @@ class TestActions:
         bot = "test_bot"
         bot_settings = ActionUtility.get_bot_settings(bot=bot)
         bot_settings.pop('timestamp')
-        assert bot_settings == {'bot': 'test_bot',
+        assert bot_settings == {'is_billed': False, 'bot': 'test_bot',
                                 'chat_token_expiry': 30,
                                 'data_generation_limit_per_day': 3,
                                 'data_importer_limit_per_day': 5,
