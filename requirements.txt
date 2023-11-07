@@ -80,3 +80,4 @@ timeout-decorator
 anyio==3.7.1
 pytest-aioresponses
 aiohttp-retry
+pqdict

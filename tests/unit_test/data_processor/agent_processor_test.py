@@ -5,17 +5,18 @@ from unittest.mock import patch
 
 import bson
 import pytest
+from elasticmock import elasticmock
 from mongoengine import connect
 from rasa.core.lock_store import InMemoryLockStore
 from redis.client import Redis
 
+from kairon.chat.agent_processor import AgentProcessor
+from kairon.exceptions import AppException
+from kairon.shared.chat.cache.least_priority import LeastPriorityCache
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.model_processor import ModelProcessor
-from kairon.shared.utils import Utility
-from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.processor import MongoProcessor
-from kairon.exceptions import AppException
-from elasticmock import elasticmock
+from kairon.shared.utils import Utility
 
 
 class TestAgentProcessor:
@@ -157,3 +158,40 @@ class TestAgentProcessor:
         mock_get_latest_model_version.return_value = "v1.tar.zip"
         assert AgentProcessor.get_agent(pytest.bot)
         mock_reload.assert_called_once()
+    
+    def test_least_priority_cache_lookup_item_not_exists(self):
+        lp_cache = LeastPriorityCache(2)
+        pytest.lp_cache = lp_cache
+        assert not lp_cache.get("test")
+    
+    def test_least_priority_cache_add_agent(self):
+        model = AgentProcessor.cache_provider.get(pytest.bot)
+        pytest.lp_cache.put(pytest.bot, model, True)
+        assert pytest.lp_cache.get(pytest.bot)
+        assert pytest.lp_cache.agent_q[pytest.bot].is_billed
+    
+    def test_least_priority_cache_update_agent(self):
+        new_model = AgentProcessor.cache_provider.get(pytest.bot)
+        old_model = pytest.lp_cache.agent_q[pytest.bot]
+        pytest.lp_cache.put(pytest.bot, new_model, True)
+        assert pytest.lp_cache.get(pytest.bot)
+
+        assert pytest.lp_cache.agent_q[pytest.bot].is_billed
+        assert old_model.time < pytest.lp_cache.agent_q[pytest.bot].time
+
+    def test_least_priority_cache_item_pop(self):
+        bot1 = "new_bot1"
+        new_model = AgentProcessor.cache_provider.get(pytest.bot)
+        pytest.lp_cache.put(bot1, new_model)
+        assert pytest.lp_cache.get(bot1)
+        assert not pytest.lp_cache.agent_q[bot1].is_billed
+        assert pytest.lp_cache.len() == 2
+
+        assert pytest.lp_cache.get(pytest.bot)
+
+        bot2 = "new_bot2"
+        pytest.lp_cache.put(bot2, new_model)
+        assert pytest.lp_cache.get(bot2)
+        assert not pytest.lp_cache.agent_q[bot2].is_billed
+        assert pytest.lp_cache.len() == 2
+        assert set(pytest.lp_cache.keys()) == {pytest.bot, bot2}

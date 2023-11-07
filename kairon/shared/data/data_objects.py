@@ -830,6 +830,7 @@ class Analytics(EmbeddedDocument):
 @auditlogger.log
 @push_notification.apply
 class BotSettings(Auditlog):
+    is_billed = BooleanField(default=False)
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)
     rephrase_response = BooleanField(default=False)

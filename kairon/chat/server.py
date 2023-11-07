@@ -26,10 +26,14 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.models import Response
-from kairon.chat.routers import web_client, channels
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
+
+Utility.load_environment()
+
+
+from kairon.chat.routers import web_client, channels
 
 logging.basicConfig(level="DEBUG")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
@@ -64,7 +68,6 @@ secure_headers = Secure(
 )
 
 app = FastAPI()
-Utility.load_environment()
 allowed_origins = Utility.environment['cors']['origin']
 app.add_middleware(
     CORSMiddleware,
