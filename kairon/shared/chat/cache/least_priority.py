@@ -1,5 +1,8 @@
+import os
+from datetime import datetime
 from time import time
 from typing import Optional
+from loguru import logger
 
 from pqdict import pqdict as PriorityQueue
 from rasa.core.agent import Agent
@@ -36,6 +39,8 @@ class LeastPriorityCache:
             _, popped_agent = self.agent_q.popitem()
             print(f"popped agent: {popped_agent.bot} {popped_agent.is_billed} {popped_agent.time}")
             self.put(bot, agent, is_billed)
+        logger.debug(f"{self.agent_q.__len__()} bots in memory in process {os.getpid()}")
+        logger.debug(self.__str__())
 
     def get(self, bot: str) -> Optional[Agent]:
         agent_info = self.agent_q.get(bot)
@@ -49,5 +54,7 @@ class LeastPriorityCache:
     def len(self):
         return self.agent_q.__len__()
 
-    def __repr__(self) -> str:
-        return repr([(agent.bot, agent.is_billed, agent.time) for agent in self.agent_q.values()])
+    def __str__(self) -> str:
+        return str([{f"bot: {agent.bot}", f"is_billed: {agent.is_billed}",
+                     f"last_accessed: {datetime.fromtimestamp(agent.time).__str__()}"}
+                    for agent in self.agent_q.values()])
