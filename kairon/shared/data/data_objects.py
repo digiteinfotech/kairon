@@ -770,6 +770,7 @@ class ModelTraining(Auditlog):
     model_path = StringField(default=None)
     exception = StringField(default=None)
     model_config = DictField()
+    task_info = DictField()
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "-start_timestamp")]}]}
 
