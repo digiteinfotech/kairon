@@ -10,9 +10,9 @@ from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFacto
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.from_config import MessageBroadcastFromConfig
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
-from kairon.shared.chat.notifications.constants import MessageBroadcastLogType, MessageBroadcastType
-from kairon.shared.chat.notifications.data_objects import MessageBroadcastLogs
-from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
+from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, MessageBroadcastType
+from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.data.constant import EVENT_STATUS

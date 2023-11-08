@@ -6,9 +6,9 @@ from loguru import logger
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.factory import MessageBroadcastFactory
-from kairon.shared.chat.notifications.constants import MessageBroadcastLogType
-from kairon.shared.chat.notifications.data_objects import MessageBroadcastSettings
-from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
+from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
+from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.processor import MongoProcessor

@@ -22,7 +22,7 @@ from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.constants import EventClass, EventRequestType
 from kairon.shared.data.constant import EVENT_STATUS, TrainingDataSourceType
 from kairon.shared.data.data_objects import EndPointHistory, Endpoints, BotSettings

@@ -5,7 +5,7 @@ from kairon import Utility
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
 from datetime import datetime
-from kairon.shared.chat.notifications.constants import MessageBroadcastLogType, MessageBroadcastType
+from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, MessageBroadcastType
 from croniter import croniter
 
 

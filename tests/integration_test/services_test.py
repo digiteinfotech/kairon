@@ -18188,7 +18188,7 @@ def test_list_broadcast_():
 
 
 def test_list_broadcast_logs():
-    from kairon.shared.chat.notifications.data_objects import MessageBroadcastLogs
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 
     ref_id = ObjectId().__str__()
     timestamp = datetime.utcnow()
@@ -18324,7 +18324,7 @@ def test_get_bot_settings():
     actual["data"].pop("user")
     actual["data"].pop("timestamp")
     actual["data"].pop("status")
-    assert actual['data'] == {'chat_token_expiry': 30,
+    assert actual['data'] == {'is_billed': False, 'chat_token_expiry': 30,
                               'data_generation_limit_per_day': 3,
                               'data_importer_limit_per_day': 5,
                               'force_import': False,
@@ -18400,7 +18400,7 @@ def test_update_analytics_settings():
     actual["data"].pop("user")
     actual["data"].pop("timestamp")
     actual["data"].pop("status")
-    assert actual['data'] == {'chat_token_expiry': 30,
+    assert actual['data'] == {'is_billed': False, 'chat_token_expiry': 30,
                               'data_generation_limit_per_day': 3,
                               'data_importer_limit_per_day': 5,
                               'force_import': False,

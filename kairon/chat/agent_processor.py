@@ -5,12 +5,11 @@ from loguru import logger as logging
 from rasa.core.agent import Agent
 from rasa.core.lock_store import LockStore
 
-from kairon.chat.cache import AgentCache
+from kairon.shared.chat.cache.in_memory_agent import AgentCache
 from kairon.exceptions import AppException
 from kairon.shared.data.processor import MongoProcessor
 from .agent.agent import KaironAgent
-from .cache import InMemoryAgentCache
-from ..shared.data.model_processor import ModelProcessor
+from kairon.shared.chat.cache.in_memory_agent import InMemoryAgentCache
 from ..shared.utils import Utility
 
 
@@ -52,11 +51,12 @@ class AgentProcessor:
             lock_store_endpoint = Utility.get_lock_store(bot)
             model_path = Utility.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
+            bot_settings = AgentProcessor.mongo_processor.get_bot_settings(bot, "system")
             mongo_store = Utility.get_local_mongo_store(bot, domain)
             agent = KaironAgent.load(model_path, action_endpoint=action_endpoint, tracker_store=mongo_store,
                                      lock_store=lock_store_endpoint)
             agent.model_ver = model_path.split("/")[-1]
-            AgentProcessor.cache_provider.set(bot, agent)
+            AgentProcessor.cache_provider.set(bot, agent, is_billed=bot_settings.is_billed)
         except Exception as e:
             logging.exception(e)
             raise AppException("Bot has not been trained yet!")
