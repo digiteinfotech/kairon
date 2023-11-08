@@ -35,7 +35,7 @@ from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
-from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.constants import EventClass, EventRequestType
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.shared.data.data_objects import Configs, BotSettings

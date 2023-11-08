@@ -34,7 +34,6 @@ Utility.load_environment()
 
 from kairon.chat.routers import web_client, channels
 
-logging.basicConfig(level="DEBUG")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (
