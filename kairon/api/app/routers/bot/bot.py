@@ -511,6 +511,20 @@ async def train(
     return {"message": "Model training started."}
 
 
+@router.post("/retrain", response_model=Response)
+async def retrain(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Retrains the chatbot
+    """
+    ModelProcessor.handle_current_model_training(current_user.get_bot(), current_user.get_user())
+    event = ModelTrainingEvent(current_user.get_bot(), current_user.get_user())
+    event.validate()
+    event.enqueue()
+    return {"message": "Model training started."}
+
+
 @router.get("/model/reload", response_model=Response)
 async def reload_model(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),

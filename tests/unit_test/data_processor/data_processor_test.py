@@ -962,6 +962,27 @@ class TestMongoProcessor:
         assert updated_settings.analytics.to_mongo().to_dict() == {'fallback_intent': 'utter_please_rephrase'}
         assert updated_settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'openai'}
 
+    def test_handle_current_model_training(self):
+        bot = "test_bot"
+        user = "test_user"
+        ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
+        ModelProcessor.handle_current_model_training(bot=bot, user=user)
+        model_training_object = ModelTraining.objects(bot=bot).get()
+        assert model_training_object.status == EVENT_STATUS.FAIL.value
+
+    def test_handle_current_model_training_with_no_enqueued_model_training(self):
+        bot = "test_bot"
+        user = "test_user"
+        with pytest.raises(AppException, match="No Enqueued model training present for this bot."):
+            ModelProcessor.handle_current_model_training(bot=bot, user=user)
+
+    def test_handle_current_model_training_with_in_progress_model_training(self):
+        bot = "test_bot"
+        user = "test_user"
+        ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
+        with pytest.raises(AppException, match="Previous model training in progress. Please wait for sometime."):
+            ModelProcessor.handle_current_model_training(bot=bot, user=user)
+
     @pytest.mark.asyncio
     async def test_save_from_path_yml(self):
         processor = MongoProcessor()

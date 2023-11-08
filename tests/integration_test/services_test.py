@@ -11898,6 +11898,33 @@ def test_add_training_example_case_insensitivity():
     assert actual["error_code"] == 0
 
 
+@responses.activate
+@patch("kairon.shared.data.model_processor.ModelProcessor.is_daily_training_limit_exceeded", autospec=True)
+def test_retrain(mock_training_limit):
+
+    mock_training_limit.return_value = False
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    client.post(
+        f"/api/bot/{pytest.bot}/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/retrain",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Model training started."
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
+
+
 def test_add_utterances_case_insensitivity():
     response = client.post(
         f"/api/bot/{pytest.bot}/utterance",

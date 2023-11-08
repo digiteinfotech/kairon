@@ -55,6 +55,27 @@ class ModelProcessor:
         doc.save()
 
     @staticmethod
+    def handle_current_model_training(bot: Text, user: Text):
+        """
+        checks if there is any bot training in progress or enqueued
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        :raises: AppException
+        """
+        model_training = ModelTraining.objects(bot=bot).filter(
+            Q(status__ne=EVENT_STATUS.DONE.value) & Q(status__ne=EVENT_STATUS.FAIL.value))
+
+        if not model_training:
+            raise AppException("No Enqueued model training present for this bot.")
+        model_training_object = model_training.get()
+        if model_training_object.status == EVENT_STATUS.INPROGRESS.value:
+            raise AppException("Previous model training in progress. Please wait for sometime.")
+        if model_training_object.status == EVENT_STATUS.ENQUEUED.value:
+            ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.FAIL.value)
+
+    @staticmethod
     def is_training_inprogress(bot: Text, raise_exception=True):
         """
         checks if there is any bot training in progress
