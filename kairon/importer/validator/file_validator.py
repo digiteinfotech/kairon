@@ -349,6 +349,10 @@ class TrainingDataValidator(Validator):
                 utterances = events
             elif step_type != StoryStepType.intent.value and step_type != StoryStepType.slot.value:
                 actions.extend(events)
+                if step_type == StoryStepType.form_action.value:
+                    for event in events:
+                        if event in self.domain.form_names and f"validate_{event}" in user_actions:
+                            user_actions.add(event)
 
         for utterance in utterances:
             if utterance not in user_actions:

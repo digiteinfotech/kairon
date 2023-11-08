@@ -11,6 +11,20 @@ intents:
     use_entities: true
 - affirm:
     use_entities: true
+- query:
+    use_entities: true
+- priority:
+    use_entities: true
+- food:
+    use_entities: true
+entities:
+- var_image1
+slots:
+  var_image1:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    auto_fill: false
+    influence_conversation: false
 responses:
   utter_goodbye:
   - text: Bye
@@ -18,12 +32,24 @@ responses:
   - text: Hey! How are you?
   utter_affirm:
   - text: Your answer is yes!
+  utter_query:
+    - text: Your answer is yes!
+  utter_priority:
+    - text: Your answer is yes!
+  utter_food:
+    - text: Your answer is yes!
   utter_default:
     - text: Can you rephrase!
 
 actions:
+- validate_form_image
 - action_say_hello
 - action_say_goodbye
 - utter_greet
 - utter_goodbye
 - utter_affirm
+forms:
+  form_image:
+    required_slots:
+      var_image1:
+        - type: from_text

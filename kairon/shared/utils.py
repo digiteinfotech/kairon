@@ -1930,18 +1930,19 @@ class StoryValidator:
 
     @staticmethod
     def get_names_for_events(graph: DiGraph, step_type: str):
-        name = set()
+        name = []
         for story_node in graph.nodes():
             if story_node.step_type == step_type:
-                name.add(story_node.name)
+                name.append(story_node.name)
         return name
 
     @staticmethod
     def get_step_name_for_multiflow_stories(story_graph: list, step_type: str):
-        name = set()
+        name = []
         for graph in story_graph:
-            name = StoryValidator.get_names_for_events(graph, step_type)
-        return name
+            events = StoryValidator.get_names_for_events(graph, step_type)
+            name.extend(events)
+        return set(name)
 
 
 class MailUtility:
