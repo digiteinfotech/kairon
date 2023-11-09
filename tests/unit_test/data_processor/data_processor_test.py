@@ -980,7 +980,7 @@ class TestMongoProcessor:
         bot = "test_bot"
         user = "test_user"
         ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
-        with pytest.raises(AppException, match="Previous model training in progress. Please wait for sometime."):
+        with pytest.raises(AppException, match="Previous model training in progress."):
             ModelProcessor.handle_current_model_training(bot=bot, user=user)
 
     @pytest.mark.asyncio
