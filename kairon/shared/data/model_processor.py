@@ -71,7 +71,7 @@ class ModelProcessor:
             raise AppException("No Enqueued model training present for this bot.")
         model_training_object = model_training.get()
         if model_training_object.status == EVENT_STATUS.INPROGRESS.value:
-            raise AppException("Previous model training in progress. Please wait for sometime.")
+            raise AppException("Previous model training in progress.")
         if model_training_object.status == EVENT_STATUS.ENQUEUED.value:
             ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.FAIL.value)
 
