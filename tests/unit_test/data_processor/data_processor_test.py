@@ -965,51 +965,61 @@ class TestMongoProcessor:
     def test_abort_current_event_with_no_model_training_event(self):
         mongo_processor = MongoProcessor()
         bot = "test_bot"
+        user = "test_user"
         with pytest.raises(AppException, match="No Enqueued model_training present for this bot."):
-            mongo_processor.abort_current_event(bot=bot, event_type=EventClass.model_training)
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_training)
 
     def test_abort_current_event_with_no_model_testing_event(self):
         mongo_processor = MongoProcessor()
         bot = "test_bot"
+        user = "test_user"
         with pytest.raises(AppException, match="No Enqueued model_testing present for this bot."):
-            mongo_processor.abort_current_event(bot=bot, event_type=EventClass.model_testing)
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_testing)
 
     def test_abort_current_event_with_no_delete_history_event(self):
         mongo_processor = MongoProcessor()
         bot = "test_bot"
+        user = "test_user"
         with pytest.raises(AppException, match="No Enqueued delete_history present for this bot."):
-            mongo_processor.abort_current_event(bot=bot, event_type=EventClass.delete_history)
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.delete_history)
 
     def test_abort_current_event_with_no_data_importer_event(self):
         mongo_processor = MongoProcessor()
         bot = "test_bot"
+        user = "test_user"
         with pytest.raises(AppException, match="No Enqueued data_importer present for this bot."):
-            mongo_processor.abort_current_event(bot=bot, event_type=EventClass.data_importer)
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.data_importer)
 
-    def test_abort_current_event_with_model_training(self):
+    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+    def test_abort_current_event_with_model_training(self, mock_event_server):
         mongo_processor = MongoProcessor()
         bot = "test_bot"
         user = "test_user"
+        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
         ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
-        mongo_processor.abort_current_event(bot=bot, event_type=EventClass.model_training)
+        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_training)
         model_training_object = ModelTraining.objects(bot=bot).get()
         assert model_training_object.status == EVENT_STATUS.ABORTED.value
 
-    def test_abort_current_event_with_model_testing(self):
+    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+    def test_abort_current_event_with_model_testing(self, mock_event_server):
         mongo_processor = MongoProcessor()
         bot = "test_bot"
         user = "test_user"
+        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
         ModelTestingLogProcessor.log_test_result(bot=bot, user=user, event_status=EVENT_STATUS.ENQUEUED.value)
-        mongo_processor.abort_current_event(bot=bot, event_type=EventClass.model_testing)
+        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_testing)
         model_testing_object = ModelTestingLogs.objects(bot=bot).get()
         assert model_testing_object.event_status == EVENT_STATUS.ABORTED.value
 
-    def test_abort_current_event_with_data_generator(self):
+    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+    def test_abort_current_event_with_data_generator(self, mock_event_server):
         mongo_processor = MongoProcessor()
         bot = "test_bot"
         user = "test_user"
+        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
         TrainingDataGenerationProcessor.set_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
-        mongo_processor.abort_current_event(bot=bot, event_type=EventClass.data_generator)
+        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.data_generator)
         data_generator_object = TrainingDataGenerator.objects(bot=bot).get()
         assert data_generator_object.status == EVENT_STATUS.ABORTED.value
 

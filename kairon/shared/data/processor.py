@@ -3542,11 +3542,12 @@ class MongoProcessor:
             )
 
     @staticmethod
-    def abort_current_event(bot: Text, event_type: EventClass):
+    def abort_current_event(bot: Text, user: Text, event_type: EventClass):
         """
         sets event status to aborted if there is any event in progress or enqueued
 
         :param bot: bot id
+        :param user: user id
         :param event_type: type of the event
         :return: None
         :raises: AppException
@@ -3567,13 +3568,15 @@ class MongoProcessor:
         event_data_object = events_dict.get(event_type)
         if event_data_object:
             try:
-                filter_params = {'bot': bot,
-                                 f'{status_field}__in': [EVENT_STATUS.INPROGRESS.value, EVENT_STATUS.ENQUEUED.value]}
+                filter_params = {'bot': bot, f'{status_field}__in': [EVENT_STATUS.ENQUEUED.value]}
 
                 event_object = event_data_object.objects.get(**filter_params)
                 update_params = {f'set__{status_field}': EVENT_STATUS.ABORTED.value}
                 event_object.update(**update_params)
-                event_object.save()
+                event = event_object.save().to_mongo().to_dict()
+                event_id = event["_id"].__str__()
+                payload = {'bot': bot, 'user': user, 'event_id': event_id}
+                Utility.request_event_server(event_type, payload)
             except DoesNotExist:
                 raise AppException(f"No Enqueued {event_type} present for this bot.")
 
