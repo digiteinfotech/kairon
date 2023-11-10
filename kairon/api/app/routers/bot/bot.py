@@ -519,7 +519,7 @@ async def abort_event(
     """
     Aborts the event
     """
-    ModelProcessor.abort_current_event(current_user.get_bot(), event_type)
+    mongo_processor.abort_current_event(current_user.get_bot(), event_type)
 
     return {"message": f"{event_type} aborted."}
 

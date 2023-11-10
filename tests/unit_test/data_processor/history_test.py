@@ -107,6 +107,12 @@ class TestHistory:
     def test_is_event_in_progress(self, get_connection_delete_history):
         assert not HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3')
 
+    def test_is_event_in_progress_with_aborted(self, get_connection_delete_history):
+        till_date = datetime.utcnow().date()
+        HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user',
+                                            till_date, status='Aborted')
+        assert not HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3', False)
+
     def test_is_event_in_progress_failure(self, get_connection_delete_history):
         till_date = datetime.utcnow().date()
         HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user',

@@ -80,7 +80,8 @@ class ModelTestingLogProcessor:
         try:
             ModelTestingLogs.objects(bot=bot, type='common').filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
-                Q(event_status__ne=EVENT_STATUS.FAIL.value)).get()
+                Q(event_status__ne=EVENT_STATUS.FAIL.value) &
+                Q(event_status__ne=EVENT_STATUS.ABORTED.value)).get()
 
             if raise_exception:
                 raise AppException("Event already in progress! Check logs.")
