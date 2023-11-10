@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import uuid
+
 import pytest
 from mongoengine import connect
 
@@ -10,7 +11,6 @@ from kairon.shared.data.constant import REQUIREMENTS
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.importer.data_importer import DataImporter
-from mongomock import MongoClient
 
 
 def pytest_namespace():
@@ -136,11 +136,11 @@ class TestDataImporter:
         assert 'greet' in processor.fetch_intents(bot)
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
-        assert len(list(processor.fetch_training_examples(bot))) == 10
-        assert len(list(processor.fetch_responses(bot))) == 5
-        assert len(processor.fetch_actions(bot)) == 2
+        assert len(list(processor.fetch_training_examples(bot))) == 17
+        assert len(list(processor.fetch_responses(bot))) == 8
+        assert len(processor.fetch_actions(bot)) == 3
         assert len(processor.fetch_rule_block_names(bot)) == 4
-        assert len(processor.fetch_multiflow_stories(bot)) == 1
+        assert len(processor.fetch_multiflow_stories(bot)) == 2
 
     @pytest.mark.asyncio
     async def test_import_data_append(self):

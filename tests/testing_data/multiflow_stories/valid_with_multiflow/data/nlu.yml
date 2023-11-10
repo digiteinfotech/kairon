@@ -16,3 +16,16 @@ nlu:
     - yes
     - Yeah!
     - It's a yes
+- intent: query
+  examples: |
+    - I have a doubt
+    - Doubt!
+    - I have a question
+- intent: priority
+  examples: |
+    - low
+    - priority is low
+- intent: food
+  examples: |
+    - food suggestions
+    - Hungry!
