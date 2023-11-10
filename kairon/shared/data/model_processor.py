@@ -4,9 +4,13 @@ from typing import Text
 from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
-from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS
-from .data_objects import ModelTraining, BotSettings
+from .data_objects import ModelTraining, BotSettings, ConversationsHistoryDeleteLogs, TrainingDataGenerator
+from ..chat.broadcast.data_objects import MessageBroadcastLogs
+from ..constants import EventClass
+from ..importer.data_objects import ValidationLogs
+from ..multilingual.data_objects import BotReplicationLogs
+from ..test.data_objects import ModelTestingLogs
 
 
 class ModelProcessor:
@@ -55,25 +59,36 @@ class ModelProcessor:
         doc.save()
 
     @staticmethod
-    def handle_current_model_training(bot: Text, user: Text):
+    def abort_current_event(bot: Text, event_type: EventClass):
         """
-        checks if there is any bot training in progress or enqueued
+        sets event status to aborted if there is any event in progress or enqueued
 
         :param bot: bot id
-        :param user: user id
+        :param event_type: type of the event
         :return: None
         :raises: AppException
         """
-        model_training = ModelTraining.objects(bot=bot).filter(
-            Q(status__ne=EVENT_STATUS.DONE.value) & Q(status__ne=EVENT_STATUS.FAIL.value))
-
-        if not model_training:
-            raise AppException("No Enqueued model training present for this bot.")
-        model_training_object = model_training.get()
-        if model_training_object.status == EVENT_STATUS.INPROGRESS.value:
-            raise AppException("Previous model training in progress.")
-        if model_training_object.status == EVENT_STATUS.ENQUEUED.value:
-            ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.FAIL.value)
+        events_dict = {
+            EventClass.model_training: ModelTraining,
+            EventClass.model_testing: ModelTestingLogs,
+            EventClass.delete_history: ConversationsHistoryDeleteLogs,
+            EventClass.data_importer: ValidationLogs,
+            EventClass.multilingual: BotReplicationLogs,
+            EventClass.data_generator: TrainingDataGenerator,
+            EventClass.faq_importer: ValidationLogs,
+            EventClass.message_broadcast: MessageBroadcastLogs
+        }
+        event_data_object = events_dict.get(event_type)
+        if event_data_object:
+            try:
+                event_object = event_data_object.objects.get(
+                    bot=bot,
+                    status__in=[EVENT_STATUS.INPROGRESS.value, EVENT_STATUS.ENQUEUED.value]
+                )
+                event_object.status = EVENT_STATUS.ABORTED.value
+                event_object.save()
+            except DoesNotExist:
+                raise AppException(f"No Enqueued {event_type} present for this bot.")
 
     @staticmethod
     def is_training_inprogress(bot: Text, raise_exception=True):

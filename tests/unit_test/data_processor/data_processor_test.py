@@ -962,26 +962,41 @@ class TestMongoProcessor:
         assert updated_settings.analytics.to_mongo().to_dict() == {'fallback_intent': 'utter_please_rephrase'}
         assert updated_settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'openai'}
 
-    def test_handle_current_model_training(self):
+    def test_abort_current_event_with_no_model_training_event(self):
+        bot = "test_bot"
+        with pytest.raises(AppException, match="No Enqueued model_training present for this bot."):
+            ModelProcessor.abort_current_event(bot=bot, event_type="model_training")
+
+    def test_abort_current_event_with_no_model_testing_event(self):
+        bot = "test_bot"
+        with pytest.raises(AppException, match="No Enqueued model_testing present for this bot."):
+            ModelProcessor.abort_current_event(bot=bot, event_type="model_testing")
+
+    def test_abort_current_event_with_no_delete_history_event(self):
+        bot = "test_bot"
+        with pytest.raises(AppException, match="No Enqueued delete_history present for this bot."):
+            ModelProcessor.abort_current_event(bot=bot, event_type="delete_history")
+
+    def test_abort_current_event_with_no_data_importer_event(self):
+        bot = "test_bot"
+        with pytest.raises(AppException, match="No Enqueued data_importer present for this bot."):
+            ModelProcessor.abort_current_event(bot=bot, event_type="data_importer")
+
+    def test_abort_current_event_with_model_training(self):
         bot = "test_bot"
         user = "test_user"
         ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
-        ModelProcessor.handle_current_model_training(bot=bot, user=user)
+        ModelProcessor.abort_current_event(bot=bot, event_type="model_training")
         model_training_object = ModelTraining.objects(bot=bot).get()
-        assert model_training_object.status == EVENT_STATUS.FAIL.value
+        assert model_training_object.status == EVENT_STATUS.ABORTED.value
 
-    def test_handle_current_model_training_with_no_enqueued_model_training(self):
+    def test_abort_current_event_with_data_generator(self):
         bot = "test_bot"
         user = "test_user"
-        with pytest.raises(AppException, match="No Enqueued model training present for this bot."):
-            ModelProcessor.handle_current_model_training(bot=bot, user=user)
-
-    def test_handle_current_model_training_with_in_progress_model_training(self):
-        bot = "test_bot"
-        user = "test_user"
-        ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
-        with pytest.raises(AppException, match="Previous model training in progress."):
-            ModelProcessor.handle_current_model_training(bot=bot, user=user)
+        TrainingDataGenerationProcessor.set_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
+        ModelProcessor.abort_current_event(bot=bot, event_type="data_generator")
+        data_generator_object = TrainingDataGenerator.objects(bot=bot).get()
+        assert data_generator_object.status == EVENT_STATUS.ABORTED.value
 
     @pytest.mark.asyncio
     async def test_save_from_path_yml(self):

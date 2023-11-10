@@ -101,6 +101,7 @@ class EVENT_STATUS(str, Enum):
     COMPLETED = "Completed"
     DONE = "Done"
     FAIL = "Fail"
+    ABORTED = "Aborted"
 
 
 class ModelTestingLogType(str, Enum):

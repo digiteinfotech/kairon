@@ -11899,15 +11899,9 @@ def test_add_training_example_case_insensitivity():
 
 
 @responses.activate
-@patch("kairon.shared.data.model_processor.ModelProcessor.is_daily_training_limit_exceeded", autospec=True)
-def test_retrain_with_no_enqueued_model_training(mock_training_limit):
-    mock_training_limit.return_value = False
-    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
-    responses.add(
-        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
-    )
+def test_abort_event_with_no_enqueued_model_testing_events():
     response = client.post(
-        f"/api/bot/{pytest.bot}/retrain",
+        f"/api/bot/{pytest.bot}/abort/model_testing",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -11915,25 +11909,13 @@ def test_retrain_with_no_enqueued_model_training(mock_training_limit):
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "No Enqueued model training present for this bot."
+    assert actual["message"] == "No Enqueued model_testing present for this bot."
 
 
 @responses.activate
-@patch("kairon.shared.data.model_processor.ModelProcessor.handle_current_model_training", autospec=True)
-@patch("kairon.shared.data.model_processor.ModelProcessor.is_daily_training_limit_exceeded", autospec=True)
-def test_retrain_with_model_training_in_progress(mock_training_limit, mock_handle_current_model_training):
-    mock_handle_current_model_training.side_effect = AppException("Previous model training in progress.")
-    mock_training_limit.return_value = False
-    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
-    responses.add(
-        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
-    )
+def test_abort_event_with_no_enqueued_model_training_events():
     response = client.post(
-        f"/api/bot/{pytest.bot}/train",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    response = client.post(
-        f"/api/bot/{pytest.bot}/retrain",
+        f"/api/bot/{pytest.bot}/abort/model_training",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -11941,12 +11923,12 @@ def test_retrain_with_model_training_in_progress(mock_training_limit, mock_handl
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    assert actual["message"] == "Previous model training in progress."
+    assert actual["message"] == "No Enqueued model_training present for this bot."
 
 
 @responses.activate
 @patch("kairon.shared.data.model_processor.ModelProcessor.is_daily_training_limit_exceeded", autospec=True)
-def test_retrain(mock_training_limit):
+def test_abort_event(mock_training_limit):
     mock_training_limit.return_value = False
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
     responses.add(
@@ -11959,15 +11941,14 @@ def test_retrain(mock_training_limit):
     )
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/retrain",
+        f"/api/bot/{pytest.bot}/abort/model_training",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] is None
-    assert actual["message"] == "Model training started."
-    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
+    assert actual["message"] == "model_training aborted."
 
 
 def test_add_utterances_case_insensitivity():
