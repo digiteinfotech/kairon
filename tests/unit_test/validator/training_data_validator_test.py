@@ -272,10 +272,11 @@ class TestTrainingDataValidator:
         nlu_path = 'tests/testing_data/multiflow_stories/valid_with_multiflow/data'
         config_path = 'tests/testing_data/multiflow_stories/valid_with_multiflow/config.yml'
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
-        validator.validate_training_data()
+        validator.validate_training_data(False)
         assert not validator.summary.get('intents')
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
+        assert not validator.summary.get('form_validation_actions')
         assert not validator.summary.get('multiflow_stories')
         assert not validator.summary.get('training_examples')
         assert not validator.summary.get('domain')

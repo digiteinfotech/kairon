@@ -543,11 +543,11 @@ class TestEventExecution:
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
-        assert len(list(mongo_processor.fetch_training_examples(bot))) == 10
-        assert len(list(mongo_processor.fetch_responses(bot))) == 4
-        assert len(mongo_processor.fetch_actions(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 17
+        assert len(list(mongo_processor.fetch_responses(bot))) == 7
+        assert len(mongo_processor.fetch_actions(bot)) == 3
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
-        assert len(mongo_processor.fetch_multiflow_stories(bot)) == 1
+        assert len(mongo_processor.fetch_multiflow_stories(bot)) == 2
 
     def test_trigger_data_importer_stories_only(self, monkeypatch, get_training_data):
         bot = 'test_trigger_data_importer_stories_only'
@@ -1138,7 +1138,7 @@ class TestEventExecution:
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
     def test_trigger_history_deletion_for_bot(self):
-        from datetime import datetime, timedelta
+        from datetime import datetime
         bot = 'test_events_bot'
         user = 'test_user'
         till_date = datetime.utcnow().date()
