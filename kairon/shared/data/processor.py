@@ -3630,7 +3630,8 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([
             HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
-            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction, PromptAction
+            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction, PromptAction,
+            PyscriptActionConfig, RazorpayAction
         ], bot=bot)
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
 
@@ -3677,7 +3678,9 @@ class MongoProcessor:
             ActionType.slot_set_action.value: SlotSetAction, ActionType.google_search_action.value: GoogleSearchAction,
             ActionType.pipedrive_leads_action.value: PipedriveLeadsAction,
             ActionType.prompt_action.value: PromptAction,
-            ActionType.web_search_action.value: WebSearchAction
+            ActionType.web_search_action.value: WebSearchAction,
+            ActionType.razorpay_action.value: RazorpayAction,
+            ActionType.pyscript_action.value: PyscriptActionConfig
         }
         saved_actions = set(Actions.objects(bot=bot, status=True, type__ne=None).values_list('name'))
         for action_type, actions_list in actions.items():
@@ -3707,6 +3710,8 @@ class MongoProcessor:
         action_config.update(self.load_pipedrive_leads_action(bot))
         action_config.update(self.load_two_stage_fallback_action_config(bot))
         action_config.update(self.load_prompt_action(bot))
+        action_config.update(self.load_razorpay_action(bot))
+        action_config.update(self.load_pyscript_action(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -3740,6 +3745,8 @@ class MongoProcessor:
                 config['params_list'] = action['params_list']
             if action.get('set_slots'):
                 config['set_slots'] = action['set_slots']
+            if action.get('dynamic_params'):
+                config['dynamic_params'] = action['dynamic_params']
             http_actions.append(config)
         return {ActionType.http_action.value: http_actions}
 
@@ -3815,6 +3822,22 @@ class MongoProcessor:
         :return: dict
         """
         return {ActionType.prompt_action.value: list(self.get_prompt_action(bot, False))}
+
+    def load_razorpay_action(self, bot: Text):
+        """
+        Loads Razorpay actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.razorpay_action.value: list(self.get_razorpay_action_config(bot, False))}
+
+    def load_pyscript_action(self, bot: Text):
+        """
+        Loads Pyscript actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.pyscript_action.value: list(self.list_pyscript_actions(bot, False))}
 
     @staticmethod
     def get_existing_slots(bot: Text):

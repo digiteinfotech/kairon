@@ -3239,7 +3239,9 @@ def test_get_data_importer_logs():
                                              {'type': 'jira_actions', 'count': 0, 'data': []},
                                              {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                              {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
-                                             {'type': 'prompt_actions', 'count': 0, 'data': []}],
+                                             {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                             {'type': 'razorpay_actions', 'count': 0, 'data': []},
+                                             {'type': 'pyscript_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'user_actions': {'count': 7, 'data': []},
                                  'exception': '',
@@ -3282,7 +3284,10 @@ def test_get_data_importer_logs():
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
-                                            {'type': 'prompt_actions', 'count': 0, 'data': []}]
+                                            {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                            {'type': 'razorpay_actions', 'count': 0, 'data': []},
+                                            {'type': 'pyscript_actions', 'count': 0, 'data': []}
+                                            ]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config', 'multiflow_stories'}
@@ -9506,7 +9511,9 @@ def test_upload_actions_and_config():
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0},
-                                            {'type': 'prompt_actions', 'data': [], 'count': 0}]
+                                            {'type': 'prompt_actions', 'data': [], 'count': 0},
+                                            {'type': 'razorpay_actions', 'data': [], 'count': 0},
+                                            {'type': 'pyscript_actions', 'data': [], 'count': 0}]
     assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
