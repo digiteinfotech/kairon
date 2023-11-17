@@ -90,11 +90,15 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, MultiFlowStoryMetadata,
-    Synonyms, Lookup, Analytics
+    Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs
 )
 from .utils import DataUtility
-from ..constants import KaironSystemSlots, PluginTypes
+from ..chat.broadcast.data_objects import MessageBroadcastLogs
+from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
+from ..importer.data_objects import ValidationLogs
+from ..multilingual.data_objects import BotReplicationLogs
+from ..test.data_objects import ModelTestingLogs
 
 
 class MongoProcessor:
@@ -3536,6 +3540,45 @@ class MongoProcessor:
             raise AppException(
                 "Slot does not exist."
             )
+
+    @staticmethod
+    def abort_current_event(bot: Text, user: Text, event_type: EventClass):
+        """
+        sets event status to aborted if there is any event in progress or enqueued
+
+        :param bot: bot id
+        :param user: user id
+        :param event_type: type of the event
+        :return: None
+        :raises: AppException
+        """
+        events_dict = {
+            EventClass.model_training: ModelTraining,
+            EventClass.model_testing: ModelTestingLogs,
+            EventClass.delete_history: ConversationsHistoryDeleteLogs,
+            EventClass.data_importer: ValidationLogs,
+            EventClass.multilingual: BotReplicationLogs,
+            EventClass.data_generator: TrainingDataGenerator,
+            EventClass.faq_importer: ValidationLogs,
+            EventClass.message_broadcast: MessageBroadcastLogs
+        }
+        status_field = "status" if event_type in {EventClass.model_training,
+                                                  EventClass.delete_history,
+                                                  EventClass.data_generator} else "event_status"
+        event_data_object = events_dict.get(event_type)
+        if event_data_object:
+            try:
+                filter_params = {'bot': bot, f'{status_field}__in': [EVENT_STATUS.ENQUEUED.value]}
+
+                event_object = event_data_object.objects.get(**filter_params)
+                update_params = {f'set__{status_field}': EVENT_STATUS.ABORTED.value}
+                event_object.update(**update_params)
+                event = event_object.save().to_mongo().to_dict()
+                event_id = event["_id"].__str__()
+                payload = {'bot': bot, 'user': user, 'event_id': event_id}
+                Utility.request_event_server(event_type, payload)
+            except DoesNotExist:
+                raise AppException(f"No Enqueued {event_type} present for this bot.")
 
     @staticmethod
     def get_row_count(document: Document, bot: str, **kwargs):

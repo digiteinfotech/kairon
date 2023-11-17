@@ -51,7 +51,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.constants import SLOT_SET_TYPE, EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import ENDPOINT_TYPE
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
@@ -961,6 +961,67 @@ class TestMongoProcessor:
         assert updated_settings.bot
         assert updated_settings.analytics.to_mongo().to_dict() == {'fallback_intent': 'utter_please_rephrase'}
         assert updated_settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'openai'}
+
+    def test_abort_current_event_with_no_model_training_event(self):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        with pytest.raises(AppException, match="No Enqueued model_training present for this bot."):
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_training)
+
+    def test_abort_current_event_with_no_model_testing_event(self):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        with pytest.raises(AppException, match="No Enqueued model_testing present for this bot."):
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_testing)
+
+    def test_abort_current_event_with_no_delete_history_event(self):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        with pytest.raises(AppException, match="No Enqueued delete_history present for this bot."):
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.delete_history)
+
+    def test_abort_current_event_with_no_data_importer_event(self):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        with pytest.raises(AppException, match="No Enqueued data_importer present for this bot."):
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.data_importer)
+
+    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+    def test_abort_current_event_with_model_training(self, mock_event_server):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
+        ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
+        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_training)
+        model_training_object = ModelTraining.objects(bot=bot).get()
+        assert model_training_object.status == EVENT_STATUS.ABORTED.value
+
+    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+    def test_abort_current_event_with_model_testing(self, mock_event_server):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
+        ModelTestingLogProcessor.log_test_result(bot=bot, user=user, event_status=EVENT_STATUS.ENQUEUED.value)
+        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_testing)
+        model_testing_object = ModelTestingLogs.objects(bot=bot).get()
+        assert model_testing_object.event_status == EVENT_STATUS.ABORTED.value
+
+    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+    def test_abort_current_event_with_data_generator(self, mock_event_server):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
+        TrainingDataGenerationProcessor.set_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
+        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.data_generator)
+        data_generator_object = TrainingDataGenerator.objects(bot=bot).get()
+        assert data_generator_object.status == EVENT_STATUS.ABORTED.value
 
     @pytest.mark.asyncio
     async def test_save_from_path_yml(self):
@@ -15167,6 +15228,12 @@ class TestModelProcessor:
 
     def test_is_training_inprogress_False(self):
         actual_response = ModelProcessor.is_training_inprogress("tests")
+        assert actual_response is False
+
+    def test_is_training_inprogress_with_aborted(self):
+        ModelProcessor.set_training_status("testbot", "testuser", "Aborted")
+        model_training = ModelTraining.objects(bot="testbot", status="Aborted")
+        actual_response = ModelProcessor.is_training_inprogress("tests", False)
         assert actual_response is False
 
     def test_is_training_inprogress_True(self, test_set_training_status_inprogress):

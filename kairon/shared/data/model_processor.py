@@ -4,7 +4,6 @@ from typing import Text
 from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
-from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS
 from .data_objects import ModelTraining, BotSettings
 
@@ -66,7 +65,8 @@ class ModelProcessor:
         """
         if ModelTraining.objects(bot=bot).filter(
                 Q(status__ne=EVENT_STATUS.DONE.value) &
-                Q(status__ne=EVENT_STATUS.FAIL.value)).count():
+                Q(status__ne=EVENT_STATUS.FAIL.value) &
+                Q(status__ne=EVENT_STATUS.ABORTED.value)).count():
             if raise_exception:
                 raise AppException("Previous model training in progress.")
             else:
