@@ -454,7 +454,8 @@ class TestTrainingDataValidator:
         assert not is_data_invalid
         assert error_summary == {'http_actions': [], 'email_actions': [], 'form_validation_actions': [],
                                  'google_search_actions': [], 'jira_actions': [], 'slot_set_actions': [],
-                                 'zendesk_actions': [], 'pipedrive_leads_actions': [], 'prompt_actions': []}
+                                 'zendesk_actions': [], 'pipedrive_leads_actions': [], 'prompt_actions': [],
+                                 'razorpay_actions': [], 'pyscript_actions': []}
         assert component_count
 
     def test_validate_custom_actions_with_errors(self):
@@ -472,6 +473,8 @@ class TestTrainingDataValidator:
         assert len(error_summary['zendesk_actions']) == 2
         assert len(error_summary['pipedrive_leads_actions']) == 3
         assert len(error_summary['prompt_actions']) == 46
+        assert len(error_summary['razorpay_actions']) == 3
+        assert len(error_summary['pyscript_actions']) == 3
         required_fields_error = error_summary["prompt_actions"][18]
         assert re.match(r"Required fields .* not found in action: prompt_action_with_no_llm_prompts", required_fields_error)
         del error_summary["prompt_actions"][18]
@@ -504,7 +507,8 @@ class TestTrainingDataValidator:
             'Only one system prompt can be present', 'Only one history source can be present']
         assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 9,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
-                                   'zendesk_actions': 4, 'pipedrive_leads_actions': 5, 'prompt_actions': 8}
+                                   'zendesk_actions': 4, 'pipedrive_leads_actions': 5, 'prompt_actions': 8,
+                                   'razorpay_actions': 5, 'pyscript_actions': 5}
 
     def test_validate_multiflow_stories(self):
         with open('tests/testing_data/multiflow_stories/multiflow_test_data.json', 'r') as file:

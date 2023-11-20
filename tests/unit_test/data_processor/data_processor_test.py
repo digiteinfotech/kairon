@@ -1500,7 +1500,16 @@ class TestMongoProcessor:
              'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1',
                               'parameter_type': 'value', 'encrypt': False},
                              {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1',
-                              'parameter_type': 'slot', 'encrypt': False}]},
+                              'parameter_type': 'slot', 'encrypt': False}],
+             'dynamic_params': {
+                 "farmid": '120d37d6-6159-45f1-a3d0-edfead442971',
+                 "fields": [
+                     {
+                         "fieldid": '58ce899a-b5ad-4a76-905b-e615672c0c66',
+                         "duration_min": 2
+                     }
+                 ]
+             }},
             {'action_name': 'action_get_microsoft_application',
              'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'},
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET', 'content_type': 'json',
@@ -3024,7 +3033,7 @@ class TestMongoProcessor:
 
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
-        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
+        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action: []\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
             encoding='utf-8')
 
         def _mock_bot_info(*args, **kwargs):
@@ -3050,6 +3059,7 @@ class TestMongoProcessor:
         file_info = zip_file.getinfo('actions.yml')
         file_content = zip_file.read(file_info)
         actual_actions = file_content.decode(encoding='utf-8')
+        print(actual_actions)
         assert actual_actions == expected_actions
         zip_file.close()
 
@@ -3058,7 +3068,8 @@ class TestMongoProcessor:
         action_config = processor.load_action_configurations("tests")
         assert action_config == {'http_action': [], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
-                                 'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': []}
+                                 'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': [],
+                                 'razorpay_action': [], 'pyscript_action': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -5632,7 +5643,8 @@ class TestMongoProcessor:
                             'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [],
                             'email_actions': [],
                             'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': [],
-                            'pipedrive_leads_actions': [], 'prompt_actions': []
+                            'pipedrive_leads_actions': [], 'prompt_actions': [], 'razorpay_actions': [],
+                            'pyscript_actions': []
                         }
                         assert non_event_validation_summary['component_count']['http_actions'] == 4
                         assert non_event_validation_summary['component_count']['jira_actions'] == 2

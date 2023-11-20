@@ -25,6 +25,15 @@ http_action:
   request_method: GET
   response:
     value: json
+  dynamic_params: {
+  "farmid": '120d37d6-6159-45f1-a3d0-edfead442971',
+  "fields": [
+    {
+      "fieldid": '58ce899a-b5ad-4a76-905b-e615672c0c66',
+      "duration_min": 2
+    }
+  ]
+}
 - action_name: ACTION_GET_MICROSOFT_APPLICATION
   http_url: http://www.alphabet.com
   params_list:
