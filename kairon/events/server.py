@@ -121,7 +121,7 @@ def index():
 def add_event(
         request: EventRequest,
         is_scheduled: bool = Query(description="Whether the event is to be run once or scheduled"),
-        event_type: EventClass = Path(default=None, description="Event type", example=[e.value for e in EventClass])
+        event_type: EventClass = Path(description="Event type", example=[e.value for e in EventClass])
 ):
     request.validate_request(is_scheduled, event_type)
     response, message = EventUtility.add_job(event_type, request.dict(), is_scheduled)
@@ -132,7 +132,7 @@ def add_event(
 def update_scheduled_event(
         request: EventRequest,
         is_scheduled: bool = Query(description="Whether the event is to be run once or scheduled"),
-        event_type: EventClass = Path(default=None, description="Event type", example=[e.value for e in EventClass])
+        event_type: EventClass = Path(description="Event type", example=[e.value for e in EventClass])
 ):
     request.validate_request(is_scheduled, event_type)
     response, message = EventUtility.update_job(event_type, request.dict(), is_scheduled)
@@ -140,5 +140,5 @@ def update_scheduled_event(
 
 
 @app.delete("/api/events/{event_id}", response_model=Response)
-def delete_scheduled_event(event_id: Text = Path(default=None, description="Event id")):
+def delete_scheduled_event(event_id: Text = Path(description="Event id")):
     return {"data": KScheduler().delete_job(event_id), "message": "Scheduled event deleted!"}
