@@ -2794,6 +2794,15 @@ def test_http_action_failed_execution(mock_action_config, mock_action):
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': "I have failed to process your request"}]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    print(log)
+    assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
+                   'headers': {}, 'url': 'http://localhost:8082/mock', 'request_method': 'GET', 'request_params': {},
+                   'bot_response': 'I have failed to process your request',
+                   'exception': 'Request timed out in 10 seconds, try again!', 'messages': [],
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents'}
 
 
 def test_http_action_missing_action_name():
