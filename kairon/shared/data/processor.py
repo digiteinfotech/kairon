@@ -3591,7 +3591,13 @@ class MongoProcessor:
         query = {"bot": bot}
         if document.__name__ == "AuditLogData":
             query = {
-                "attributes__key": bot}
+                "attributes": {
+                    "$elemMatch": {
+                        "key": 'bot',
+                        "value": bot
+                    }
+                }
+            }
         kwargs.update(__raw__=query)
         return document.objects(**kwargs).count()
 
