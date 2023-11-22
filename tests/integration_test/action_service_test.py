@@ -2736,7 +2736,8 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2(aiorespo
 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")
 @patch("kairon.actions.definitions.http.ActionHTTP.retrieve_config")
-def test_http_action_failed_execution(mock_action_config, mock_action):
+@patch("kairon.shared.actions.utils.ActionUtility.execute_request_async")
+def test_http_action_failed_execution(mock_execute_request_async, mock_action_config, mock_action):
     action_name = "test_run_with_get"
     action = Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e",
                      user="user")
@@ -2754,6 +2755,9 @@ def test_http_action_failed_execution(mock_action_config, mock_action):
 
     def _get_action(*arge, **kwargs):
         return action.to_mongo().to_dict()
+
+    async def _execute_request_async(*args, **kwargs):
+        raise Exception(f"Request timed out: 408")
 
     request_object = {
         "next_action": action_name,
@@ -2785,6 +2789,7 @@ def test_http_action_failed_execution(mock_action_config, mock_action):
     }
     mock_action.side_effect = _get_action
     mock_action_config.side_effect = _get_action_config
+    mock_execute_request_async.side_effect = _execute_request_async
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
@@ -2801,7 +2806,7 @@ def test_http_action_failed_execution(mock_action_config, mock_action):
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8082/mock', 'request_method': 'GET', 'request_params': {},
                    'bot_response': 'I have failed to process your request',
-                   'exception': 'Request timed out in 10 seconds, try again!', 'messages': [],
+                   'exception': 'Request timed out: 408', 'messages': [],
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents'}
 
 
