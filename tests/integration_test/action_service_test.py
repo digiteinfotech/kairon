@@ -2737,7 +2737,7 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2(aiorespo
 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")
 @patch("kairon.actions.definitions.http.ActionHTTP.retrieve_config")
-@mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger_request", autospec=True)
+@mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger", autospec=True)
 def test_http_action_failed_execution(mock_trigger_request, mock_action_config, mock_action):
     action_name = "test_run_with_get"
     action = Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e",
@@ -2757,8 +2757,8 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     def _get_action(*arge, **kwargs):
         return action.to_mongo().to_dict()
 
-    async def _execute_request_async(*args, **kwargs):
-        raise asyncio.TimeoutError(f"Request timed out: 408")
+    # async def _execute_request_async(*args, **kwargs):
+    #     raise AppException(f"Request timed out: 408")
 
     request_object = {
         "next_action": action_name,
@@ -2790,7 +2790,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     }
     mock_action.side_effect = _get_action
     mock_action_config.side_effect = _get_action_config
-    mock_trigger_request.side_effect = _execute_request_async
+    mock_trigger_request.side_effect = asyncio.TimeoutError('408')
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
