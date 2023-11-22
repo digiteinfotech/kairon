@@ -1574,7 +1574,7 @@ class TestActions:
 
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", autospec=True)
-    async def test_run(self, mock_execute_request_async,monkeypatch):
+    async def test_run(self, mock_execute_request_async, monkeypatch):
         http_url = "http://www.google.com"
         http_response = "This should be response"
         action = HttpActionConfig(

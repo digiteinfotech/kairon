@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -53,16 +54,19 @@ class ActionUtility:
         })
         kwargs = {"content_type": content_type, "timeout": timeout, "return_json": False}
         client = AioRestClient()
-        response = await client.request(request_method, http_url, request_body, headers, **kwargs)
-        if response.status not in [200, 202, 201, 204]:
-            raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
         try:
-            http_response = await response.json()
-        except (ContentTypeError, ValueError) as e:
-            logging.error(str(e))
-            http_response = await response.text()
+            response = await client.request(request_method, http_url, request_body, headers, **kwargs)
+            if response.status not in [200, 202, 201, 204]:
+                raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
+            try:
+                http_response = await response.json()
+            except (ContentTypeError, ValueError) as e:
+                logging.error(str(e))
+                http_response = await response.text()
 
-        return http_response
+            return http_response
+        except asyncio.TimeoutError:
+            raise ActionFailure(f"Request timed out after {timeout} seconds. Try again!")
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
