@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC
 from typing import Union
 
@@ -79,6 +80,9 @@ class AioRestClient(RestClientBase):
             logger.exception(e)
             _, _, host, _, _, _, _ = parse_url(http_url)
             raise AppException(f"Failed to connect to service: {host}")
+        except asyncio.TimeoutError as e:
+            logger.exception(e)
+            raise AppException(f"Request timed out: {str(e)}")
         except Exception as e:
             logger.exception(e)
             raise AppException(f"Failed to execute the url: {str(e)}")

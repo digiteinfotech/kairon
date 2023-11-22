@@ -18,7 +18,6 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
     DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
-from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
@@ -2759,7 +2758,7 @@ def test_http_action_failed_execution(mock_execute_request_async, mock_action_co
         return action.to_mongo().to_dict()
 
     async def _execute_request_async(*args, **kwargs):
-        raise ActionFailure(f"Request timed out after 1 seconds. Try again!")
+        raise Exception(f"Request timed out: 408")
 
     request_object = {
         "next_action": action_name,
@@ -2808,7 +2807,7 @@ def test_http_action_failed_execution(mock_execute_request_async, mock_action_co
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8082/mock', 'request_method': 'GET', 'request_params': {},
                    'bot_response': 'I have failed to process your request',
-                   'exception': 'Request timed out after 1 seconds. Try again!', 'messages': [],
+                   'exception': 'Request timed out: 408', 'messages': [],
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents'}
 
 

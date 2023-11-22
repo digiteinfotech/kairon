@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import re
@@ -20,7 +19,7 @@ from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
-from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
+from ..data.constant import REQUEST_TIMESTAMP_HEADER
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..rest_client import AioRestClient
@@ -54,19 +53,16 @@ class ActionUtility:
         })
         kwargs = {"content_type": content_type, "timeout": timeout, "return_json": False}
         client = AioRestClient()
+        response = await client.request(request_method, http_url, request_body, headers, **kwargs)
+        if response.status not in [200, 202, 201, 204]:
+            raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
         try:
-            response = await client.request(request_method, http_url, request_body, headers, **kwargs)
-            if response.status not in [200, 202, 201, 204]:
-                raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
-            try:
-                http_response = await response.json()
-            except (ContentTypeError, ValueError) as e:
-                logging.error(str(e))
-                http_response = await response.text()
+            http_response = await response.json()
+        except (ContentTypeError, ValueError) as e:
+            logging.error(str(e))
+            http_response = await response.text()
 
-            return http_response
-        except asyncio.TimeoutError:
-            raise ActionFailure(f"Request timed out after {timeout} seconds. Try again!")
+        return http_response
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
