@@ -2757,9 +2757,6 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     def _get_action(*arge, **kwargs):
         return action.to_mongo().to_dict()
 
-    # async def _execute_request_async(*args, **kwargs):
-    #     raise AppException(f"Request timed out: 408")
-
     request_object = {
         "next_action": action_name,
         "tracker": {
