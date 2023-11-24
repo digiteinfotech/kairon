@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 
@@ -2736,7 +2737,8 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2(aiorespo
 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")
 @patch("kairon.actions.definitions.http.ActionHTTP.retrieve_config")
-def test_http_action_failed_execution(mock_action_config, mock_action):
+@mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger", autospec=True)
+def test_http_action_failed_execution(mock_trigger_request, mock_action_config, mock_action):
     action_name = "test_run_with_get"
     action = Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e",
                      user="user")
@@ -2785,6 +2787,7 @@ def test_http_action_failed_execution(mock_action_config, mock_action):
     }
     mock_action.side_effect = _get_action
     mock_action_config.side_effect = _get_action_config
+    mock_trigger_request.side_effect = asyncio.TimeoutError('408')
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
@@ -2801,7 +2804,7 @@ def test_http_action_failed_execution(mock_action_config, mock_action):
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8082/mock', 'request_method': 'GET', 'request_params': {},
                    'bot_response': 'I have failed to process your request',
-                   'exception': 'Request timed out in 10 seconds, try again!', 'messages': [],
+                   'exception': 'Request timed out: 408', 'messages': [],
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents'}
 
 

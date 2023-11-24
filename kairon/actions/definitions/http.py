@@ -5,7 +5,6 @@ from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, HttpActionConfig
 from kairon.shared.actions.exception import ActionFailure
@@ -99,7 +98,7 @@ class ActionHTTP(ActionsBase):
             filled_slots.update(slot_values)
             logger.info("response: " + str(bot_response))
         except Exception as e:
-            exception = f"Request timed out in {Utility.environment['actors']['default_timeout']} seconds, try again!"
+            exception = str(e)
             logger.exception(e)
             status = "FAILURE"
             bot_response = "I have failed to process your request"
