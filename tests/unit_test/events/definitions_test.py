@@ -4,6 +4,8 @@ from datetime import datetime
 from io import BytesIO
 from urllib.parse import urljoin
 
+import mock
+import mongomock
 import pytest
 import responses
 from fastapi import UploadFile
@@ -14,6 +16,7 @@ from augmentation.utils import WebsiteParser
 from kairon import Utility
 from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
+from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
@@ -26,20 +29,15 @@ from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.constants import EventClass, EventRequestType
 from kairon.shared.data.constant import EVENT_STATUS, TrainingDataSourceType
 from kairon.shared.data.data_objects import EndPointHistory, Endpoints, BotSettings
+from kairon.shared.data.data_objects import StoryEvents, Rules
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
-
-from kairon.shared.data.data_objects import StoryEvents, Rules
-from kairon.shared.data.processor import MongoProcessor
-import mock
-import mongomock
-
-from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 
 
 class TestEventDefinitions:
@@ -460,8 +458,8 @@ class TestEventDefinitions:
             return None
         monkeypatch.setattr(Utility, "is_model_file_exists", _mock_validation)
         ModelTestingEvent(bot, user).validate()
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 0
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 0
 
     @responses.activate
     def test_model_testing_enqueue(self):
@@ -482,8 +480,8 @@ class TestEventDefinitions:
         body = json.loads(body.decode())
         assert body["data"]['bot'] == bot
         assert body["data"]['user'] == user
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 1
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 1
         assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
         assert logs[0]['is_augmented'] is True
 
@@ -496,8 +494,8 @@ class TestEventDefinitions:
         monkeypatch.setattr(Utility, "is_model_file_exists", _mock_validation)
         with pytest.raises(AppException, match='Event already in progress! Check logs.'):
             ModelTestingEvent(bot, user).validate()
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 1
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 1
         assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
 
     def test_model_testing_presteps_event_limit_reached(self, monkeypatch):
@@ -512,8 +510,8 @@ class TestEventDefinitions:
         bot_settings.save()
         with pytest.raises(AppException, match='Daily limit exceeded.'):
             ModelTestingEvent(bot, user).validate()
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 0
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 0
 
     @responses.activate
     def test_model_testing_enqueue_event_server_failure(self):
@@ -525,8 +523,8 @@ class TestEventDefinitions:
         )
         with pytest.raises(AppException, match='Failed to trigger model_testing event: Failed'):
             ModelTestingEvent(bot, user).enqueue()
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 0
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 0
 
     def test_model_testing_enqueue_connection_failure(self, monkeypatch):
         bot = 'test_definitions'
@@ -537,13 +535,13 @@ class TestEventDefinitions:
 
         monkeypatch.setattr(Utility, "is_model_file_exists", _mock_validation)
         ModelTestingEvent(bot, user).validate()
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 0
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 0
 
         with pytest.raises(AppException, match='Failed to connect to service: *'):
             ModelTestingEvent(bot, user).enqueue()
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 0
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 0
 
     def test_delete_history_presteps_validate_endpoint(self):
         bot = 'test_definitions_unmanaged'

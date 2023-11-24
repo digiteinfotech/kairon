@@ -8,6 +8,7 @@ from mongoengine import Q, DoesNotExist
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS, ModelTestingLogType
 from kairon.shared.data.data_objects import BotSettings
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 
 
@@ -98,7 +99,6 @@ class ModelTestingLogProcessor:
         @param raise_exception: Raise exception if event is in progress.
         @return: boolean flag
         """
-        from kairon.shared.utils import Utility
 
         today = datetime.today()
         initiated_today = today.replace(hour=0, minute=0, second=0)
@@ -127,10 +127,10 @@ class ModelTestingLogProcessor:
         from kairon.shared.utils import Utility
 
         if not Utility.check_empty_string(log_type) and not Utility.check_empty_string(reference_id):
-            logs = ModelTestingLogProcessor.get_by_id_and_type(reference_id, bot, log_type, start_idx, page_size)
+            logs, row_count = ModelTestingLogProcessor.get_by_id_and_type(reference_id, bot, log_type, start_idx, page_size)
         else:
-            logs = ModelTestingLogProcessor.get_all(bot, start_idx, page_size)
-        return logs
+            logs, row_count = ModelTestingLogProcessor.get_all(bot, start_idx, page_size)
+        return logs, row_count
 
     @staticmethod
     def get_all(bot: str, start_idx: int = 0, page_size: int = 10):
@@ -141,7 +141,9 @@ class ModelTestingLogProcessor:
         @param start_idx: start index in list field
         @param page_size: number of rows from start index
         """
-        return list(ModelTestingLogs.objects(bot=bot).aggregate([
+        processor = MongoProcessor()
+        kwargs = {'type': 'common'}
+        logs = list(ModelTestingLogs.objects(bot=bot).aggregate([
             {"$set": {"data.type": "$type"}},
             {'$group': {'_id': '$reference_id', 'bot': {'$first': '$bot'}, 'user': {'$first': '$user'},
                         'status': {'$first': '$status'},
@@ -157,6 +159,8 @@ class ModelTestingLogProcessor:
                 'is_augmented': 1
             }},
             {"$sort": {"start_timestamp": -1}}]))[start_idx:start_idx+page_size]
+        row_count = processor.get_row_count(ModelTestingLogs, bot, **kwargs)
+        return logs, row_count
 
     @staticmethod
     def get_by_id_and_type(reference_id: str, bot: str, log_type: str, start_idx: int = 0, page_size: int = 10):
@@ -169,7 +173,9 @@ class ModelTestingLogProcessor:
         @param page_size: number of rows from start index
         @return: list of logs.
         """
+        processor = MongoProcessor()
         logs = []
+        kwargs = {'reference_id': reference_id, 'type': log_type}
         filter_log_type = 'stories' if log_type == 'stories' else 'nlu'
         filtered_data = ModelTestingLogs.objects(reference_id=reference_id, bot=bot, type=filter_log_type)
         if log_type == ModelTestingLogType.stories.value and filtered_data:
@@ -237,7 +243,8 @@ class ModelTestingLogProcessor:
             if response_selection_failure_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
-        return logs
+        row_count = processor.get_row_count(ModelTestingLogs, bot, **kwargs)
+        return logs, row_count
 
     @staticmethod
     def delete_enqueued_event_log(bot: str):
