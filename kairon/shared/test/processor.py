@@ -173,9 +173,8 @@ class ModelTestingLogProcessor:
         @param page_size: number of rows from start index
         @return: list of logs.
         """
-        processor = MongoProcessor()
         logs = []
-        kwargs = {'reference_id': reference_id, 'type': log_type}
+        row_count = 0
         filter_log_type = 'stories' if log_type == 'stories' else 'nlu'
         filtered_data = ModelTestingLogs.objects(reference_id=reference_id, bot=bot, type=filter_log_type)
         if log_type == ModelTestingLogType.stories.value and filtered_data:
@@ -188,6 +187,7 @@ class ModelTestingLogProcessor:
             if fail_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
+                row_count = fail_cnt
         elif log_type == ModelTestingLogType.nlu.value and filtered_data:
             intent_failures = []
             intent_failure_cnt, intent_success_cnt, intent_total_cnt = 0, 0, 0
@@ -205,6 +205,7 @@ class ModelTestingLogProcessor:
             if intent_failure_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
+                row_count = intent_failure_cnt
         elif log_type in {ModelTestingLogType.entity_evaluation_with_diet_classifier.value,
                           ModelTestingLogType.entity_evaluation_with_regex_entity_extractor.value} and filtered_data:
             entity_failures = []
@@ -223,6 +224,7 @@ class ModelTestingLogProcessor:
             if entity_failure_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
+                row_count = entity_failure_cnt
         elif log_type == ModelTestingLogType.response_selection_evaluation.value and filtered_data:
             response_selection_failures = []
             response_selection_failure_cnt, response_selection_success_cnt, response_selection_total_cnt = 0, 0, 0
@@ -243,7 +245,7 @@ class ModelTestingLogProcessor:
             if response_selection_failure_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
-        row_count = processor.get_row_count(ModelTestingLogs, bot, **kwargs)
+                row_count = response_selection_failure_cnt
         return logs, row_count
 
     @staticmethod
