@@ -6002,10 +6002,12 @@ class MongoProcessor:
         :param form: retrieve slot mappings for a particular form
         :return: list of slot mappings
         """
+        query = Q(bot=bot, status=True)
         if Utility.check_empty_string(form):
-            mappings = SlotMapping.objects(bot=bot, status=True)
+            mappings = SlotMapping.objects(query)
         else:
-            mappings = SlotMapping.objects(bot=bot, mapping__conditions__active_loop=form, status=True)
+            query &= Q(mapping__conditions__exists=True) & Q(mapping__conditions__elemMatch={"active_loop": form})
+            mappings = SlotMapping.objects(query)
         for slot_mapping in mappings:
             slot_mapping = slot_mapping.to_mongo().to_dict()
             slot_mapping.pop("bot")
