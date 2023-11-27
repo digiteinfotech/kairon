@@ -3588,7 +3588,6 @@ class MongoProcessor:
         :param bot: bot id
         :return: Count of rows
         """
-        query = {"bot": bot}
         if document.__name__ == "AuditLogData":
             query = {
                 "attributes": {
@@ -3598,7 +3597,9 @@ class MongoProcessor:
                     }
                 }
             }
-        kwargs.update(__raw__=query)
+            kwargs.update(__raw__=query)
+        else:
+            kwargs['bot'] = bot
         return document.objects(**kwargs).count()
 
     @staticmethod
