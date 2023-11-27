@@ -688,8 +688,7 @@ async def model_testing_logs(
     """
     List model testing logs.
     """
-    logs = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
-    row_cnt = mongo_processor.get_row_count(ModelTestingLogs, current_user.get_bot())
+    logs, row_cnt = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
     data = {
         "logs": logs,
         "total": row_cnt
