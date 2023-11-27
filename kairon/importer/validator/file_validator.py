@@ -395,6 +395,7 @@ class TrainingDataValidator(Validator):
         config_errors = []
         from rasa.engine.recipes.default_components import DEFAULT_COMPONENTS
         components = [item.__name__ for item in DEFAULT_COMPONENTS]
+        components = list(set(components).difference(set(Utility.environment['core']['deprecated-components'])))
         if config.get('pipeline'):
             for item in config['pipeline']:
                 component_cfg = item['name']
