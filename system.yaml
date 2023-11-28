@@ -70,6 +70,10 @@ model:
     url: ${AGENT_URL}
   config_properties:
     epoch_max_limit: ${EPOCH_MAX_LIMIT:200}
+  pipeline:
+    custom:
+      - kairon.shared.nlu.classifier.openai.OpenAIClassifier
+      - kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
 
 
 action:
