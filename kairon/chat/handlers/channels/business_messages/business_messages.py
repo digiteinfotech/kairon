@@ -126,7 +126,7 @@ class BusinessMessages:
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):
         response = await AgentProcessor.get_agent(bot).handle_message(user_message)
-        print("^" * 100)
+        print(">" * 100)
         print(response)
         return response
 
