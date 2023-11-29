@@ -1,5 +1,6 @@
 from typing import Text
 
+from kairon.chat.handlers.channels.business_messages.business_messages import BusinessMessagesHandler
 from kairon.chat.handlers.channels.hangouts import HangoutsHandler
 from kairon.chat.handlers.channels.messenger import MessengerHandler, InstagramHandler
 from kairon.chat.handlers.channels.msteams import MSTeamsHandler
@@ -18,7 +19,8 @@ class ChannelHandlerFactory:
         ChannelTypes.MESSENGER.value: MessengerHandler,
         ChannelTypes.MSTEAMS.value: MSTeamsHandler,
         ChannelTypes.TELEGRAM.value: TelegramHandler,
-        ChannelTypes.INSTAGRAM.value: InstagramHandler
+        ChannelTypes.INSTAGRAM.value: InstagramHandler,
+        ChannelTypes.BUSINESS_MESSAGES.value: BusinessMessagesHandler
     }
 
     @staticmethod
