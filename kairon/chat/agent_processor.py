@@ -34,9 +34,7 @@ class AgentProcessor:
         :return: Agent Object
         """
         if not AgentProcessor.cache_provider.is_exists(bot) or not AgentProcessor.is_latest_version_in_mem(bot):
-            if not account:
-                bot_details = Bot.objects(name=bot).get()
-                AgentProcessor.reload(bot, bot_details['account'])
+            account = account if account else Bot.objects(name=bot).get()['account']
             AgentProcessor.reload(bot, account)
 
         Utility.record_custom_metric_apm(num_models=AgentProcessor.cache_provider.len())

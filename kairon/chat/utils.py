@@ -37,7 +37,7 @@ class ChatUtils:
     @staticmethod
     def is_reload_model_in_progress(bot: str, raise_exception=True):
         """
-        Checks if event is in progress.
+        Checks if model reloading is in progress.
 
         @param bot: bot id
         @param raise_exception: Raise exception if event is in progress.
