@@ -82,3 +82,5 @@ pytest-aioresponses
 aiohttp-retry
 pqdict
 email_validator
+google-businessmessages==1.0.5
+google-apitools==0.5.32
