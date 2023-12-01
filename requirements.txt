@@ -81,3 +81,5 @@ anyio==3.7.1
 pytest-aioresponses
 aiohttp-retry
 pqdict
+google-businessmessages==1.0.5
+google-apitools==0.5.32
