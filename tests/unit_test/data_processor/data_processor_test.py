@@ -15161,7 +15161,9 @@ class TestAgentProcessor:
             return None
 
         monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-        agent = AgentProcessor.get_agent("tests")
+        account_response = AccountProcessor.add_account('test_agent_account', 'testAgent')
+        bot_response = AccountProcessor.add_bot("tests", account_response["_id"], "testAgent")
+        agent = AgentProcessor.get_agent("tests", account_response["_id"])
         assert isinstance(agent, Agent)
 
     def test_get_agent_from_cache(self):
@@ -15169,8 +15171,10 @@ class TestAgentProcessor:
         assert isinstance(agent, Agent)
 
     def test_get_agent_from_cache_does_not_exists(self):
+        account_response = AccountProcessor.add_account('test_from_cache_does_not_exists', 'testAgenttwo')
+        bot_response = AccountProcessor.add_bot("test", account_response["_id"], "testAgenttwo")
         with pytest.raises(AppException):
-            agent = AgentProcessor.get_agent("test")
+            agent = AgentProcessor.get_agent("test", account_response["_id"])
             assert isinstance(agent, Agent)
 
 

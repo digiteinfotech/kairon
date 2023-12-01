@@ -57,6 +57,9 @@ class UserActivityType(str, Enum):
     login = 'login'
     login_refresh_token = "login_refresh_token"
     invalid_login = 'invalid_login'
+    reload_model_enqueued = 'reload_model_enqueued'
+    reload_model_failure = 'reload_model_failure'
+    reload_model_completion = 'reload_model_completion'
 
 
 class EventClass(str, Enum):

@@ -12,6 +12,7 @@ from redis.client import Redis
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.chat.cache.least_priority import LeastPriorityCache
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.model_processor import ModelProcessor
@@ -30,6 +31,8 @@ class TestAgentProcessor:
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         bot = bson.ObjectId().__str__()
         pytest.bot = bot
+        pytest.email = 'testuser@gmail.com'
+        pytest.account = 1
         model_path = os.path.join('models', bot)
         if not os.path.exists(model_path):
             os.mkdir(model_path)
@@ -65,7 +68,7 @@ class TestAgentProcessor:
     def test_reload(self, mock_agent_properties):
         assert not AgentProcessor.cache_provider.get(pytest.bot)
 
-        AgentProcessor.reload(pytest.bot)
+        AgentProcessor.reload(pytest.bot, pytest.account, pytest.email)
         model = AgentProcessor.cache_provider.get(pytest.bot)
         assert model
         assert not Utility.check_empty_string(model.model_ver)
@@ -74,7 +77,7 @@ class TestAgentProcessor:
     def test_reload_model_with_lock_store_config(self, mock_agent_properties):
 
         with patch.dict(Utility.environment['lock_store'], {'url': 'rediscloud', "password": "password", "port": 6999, "db": 5}):
-            AgentProcessor.reload(pytest.bot)
+            AgentProcessor.reload(pytest.bot, pytest.account, pytest.email)
             model = AgentProcessor.cache_provider.get(pytest.bot)
             assert model
             assert not Utility.check_empty_string(model.model_ver)
@@ -96,7 +99,7 @@ class TestAgentProcessor:
                                                                                       'socket_keepalive_options': None}
 
         with patch.dict(Utility.environment['lock_store'], {'url': 'rediscloud'}):
-            AgentProcessor.reload(pytest.bot)
+            AgentProcessor.reload(pytest.bot, pytest.account, pytest.email)
             model = AgentProcessor.cache_provider.get(pytest.bot)
             assert model
             assert not Utility.check_empty_string(model.model_ver)
@@ -121,12 +124,23 @@ class TestAgentProcessor:
         assert not AgentProcessor.cache_provider.get('test_user')
 
         with pytest.raises(AppException) as e:
-            AgentProcessor.reload('test_user')
+            AgentProcessor.reload('test_user', 2, 'abc@gmail.com')
         assert str(e).__contains__("Bot has not been trained yet!")
 
     def test_get_agent_not_exists(self):
+        user_name = "test_user"
+        account = AccountProcessor.add_account("test_one", "test_user")
+        AccountProcessor.add_bot('test_user', account["_id"], user_name, True)
+        AccountProcessor.add_user(
+            email="nk1111@digite.com",
+            first_name="test_one",
+            last_name="test_one_two",
+            password="Welcome@109",
+            account=account['_id'],
+            user=user_name,
+        )
         with pytest.raises(AppException) as e:
-            AgentProcessor.get_agent('test_user')
+            AgentProcessor.get_agent('test_user', account['_id'])
         assert str(e).__contains__("Bot has not been trained yet!")
 
     def test_get_agent(self):
@@ -156,7 +170,7 @@ class TestAgentProcessor:
     @mock.patch("kairon.shared.utils.Utility.get_latest_model")
     def test_get_agent_after_new_model_training(self, mock_get_latest_model_version, mock_reload):
         mock_get_latest_model_version.return_value = "v1.tar.zip"
-        assert AgentProcessor.get_agent(pytest.bot)
+        assert AgentProcessor.get_agent(pytest.bot, pytest.account)
         mock_reload.assert_called_once()
     
     def test_least_priority_cache_lookup_item_not_exists(self):

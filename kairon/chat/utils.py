@@ -3,6 +3,7 @@ import json
 from typing import Text, Dict
 
 from loguru import logger
+from mongoengine import DoesNotExist
 from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
 from rasa.core.channels import UserMessage
@@ -10,8 +11,13 @@ from rasa.core.tracker_store import TrackerStore
 
 from .agent_processor import AgentProcessor
 from .. import Utility
+from ..exceptions import AppException
 from ..live_agent.factory import LiveAgentFactory
+from ..shared.account.activity_log import UserActivityLogger
 from ..shared.actions.utils import ActionUtility
+from ..shared.constants import UserActivityType
+from ..shared.data.audit.data_objects import AuditLogData
+from ..shared.data.constant import AuditlogActions
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
@@ -21,7 +27,7 @@ class ChatUtils:
 
     @staticmethod
     async def chat(data: Text, account: int, bot: Text, user: Text, is_integration_user: bool = False, metadata: Dict = None):
-        model = AgentProcessor.get_agent(bot)
+        model = AgentProcessor.get_agent(bot, account)
         metadata = ChatUtils.__get_metadata(account, bot, is_integration_user, metadata)
         msg = UserMessage(data, sender_id=user, metadata=metadata)
         chat_response = await model.handle_message(msg)
@@ -29,8 +35,32 @@ class ChatUtils:
         return chat_response
 
     @staticmethod
-    def reload(bot: Text):
-        AgentProcessor.reload(bot)
+    def is_reload_model_in_progress(bot: str, raise_exception=True):
+        """
+        Checks if event is in progress.
+
+        @param bot: bot id
+        @param raise_exception: Raise exception if event is in progress.
+        @return: boolean flag.
+        """
+        in_progress = False
+        try:
+            latest_log = AuditLogData.objects(attributes__key='bot', attributes__value=bot, action=AuditlogActions.ACTIVITY.value).filter(
+                entity=UserActivityType.reload_model_enqueued.value
+            ).order_by('-timestamp').first()
+            if latest_log:
+                if raise_exception:
+                    raise AppException("Model reload enqueued. Check logs.")
+                in_progress = True
+        except DoesNotExist as e:
+            logger.error(e)
+        return in_progress
+
+    @staticmethod
+    def reload(bot: Text, account: int, email: str):
+        UserActivityLogger.add_log(a_type=UserActivityType.reload_model_enqueued.value, account=account,
+                                   email=email, bot=bot, message=['Model reload enqueued!'], data={"username": email})
+        AgentProcessor.reload(bot, account, email)
 
     @staticmethod
     def __attach_agent_handoff_metadata(account: int, bot: Text, sender_id: Text, bot_predictions, tracker):

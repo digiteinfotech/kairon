@@ -26,6 +26,7 @@ from websockets import InvalidStatusCode
 
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
+from kairon.chat.converters.channels.telegram import TelegramResponseConverter
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
@@ -41,7 +42,6 @@ from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.verification.email import QuickEmailVerification
-from kairon.chat.converters.channels.telegram import TelegramResponseConverter
 
 
 class TestUtility:

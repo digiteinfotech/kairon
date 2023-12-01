@@ -5838,6 +5838,34 @@ def test_reload_model(monkeypatch):
     assert actual['success']
 
 
+@responses.activate
+def test_reload_model_in_progress(monkeypatch):
+    def mongo_store(*arge, **kwargs):
+        return None
+
+    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    monkeypatch.setitem(Utility.environment['action'], "url", None)
+    monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+
+    responses.add(
+        responses.GET,
+        f"http://localhost/api/bot/{pytest.bot}/reload",
+        status=200,
+        json={'success': False, 'error_code': 422, "data": None, 'message': "Model reload enqueued. Check logs."}
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/model/reload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Model reload enqueued. Check logs."
+    assert not actual['success']
+
+
 def test_get_config_templates():
     response = client.get(
         f"/api/bot/{pytest.bot}/templates/config",

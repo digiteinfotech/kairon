@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import time
+from datetime import datetime
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
 
@@ -27,7 +28,8 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import UserActivityType
-from kairon.shared.data.constant import INTEGRATION_STATUS
+from kairon.shared.data.audit.data_objects import AuditLogData
+from kairon.shared.data.constant import INTEGRATION_STATUS, AuditlogActions
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
@@ -621,7 +623,9 @@ def test_chat_limited_access_prevent_chat():
 
 
 @patch('kairon.shared.utils.Utility.get_local_mongo_store')
-def test_reload(mock_store):
+@patch('kairon.chat.utils.ChatUtils.is_reload_model_in_progress')
+def test_reload(mock_reload_model_in_progress, mock_store):
+    mock_reload_model_in_progress.return_value = False
     mock_store.return_value = None
     response = client.get(
         f"/api/bot/{bot}/reload",
@@ -661,6 +665,29 @@ def test_reload_exception():
     assert actual["error_code"] == 401
     assert actual["data"] is None
     assert actual["message"] == "Not authenticated"
+
+
+@patch('kairon.shared.utils.Utility.get_local_mongo_store')
+def test_reload_event_already_in_progress(mock_store):
+    mock_store.return_value = None
+    AuditLogData(
+        attributes=[{"key": "bot", "value": bot}], user="test", timestamp=datetime.utcnow(),
+        action=AuditlogActions.ACTIVITY.value,
+        entity=UserActivityType.reload_model_enqueued.value,
+        data={'message': 'Model reload enqueued!'}
+    ).save()
+    response = client.get(
+        f"/api/bot/{bot}/reload",
+        headers={
+            "Authorization": token_type + " " + token
+        },
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == 'Model reload enqueued. Check logs.'
 
 
 @patch('kairon.chat.handlers.channels.slack.SlackHandler.is_request_from_slack_authentic')
