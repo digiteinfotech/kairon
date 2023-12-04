@@ -1432,7 +1432,6 @@ def test_metadata_upload_invalid_data_type():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == [{'loc': ['body', 'metadata', 0, 'data_type'], 'msg': "value is not a valid enumeration member; permitted: 'str', 'int'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['str', 'int']}}, {'loc': ['body', 'metadata', 0, '__root__'], 'msg': 'Only str and int data types are supported', 'type': 'value_error'}]
     assert not actual["data"]
     assert actual["error_code"] == 422
