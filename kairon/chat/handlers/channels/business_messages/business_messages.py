@@ -41,9 +41,7 @@ class BusinessMessagesHandler(InputChannel):
                                                         digestmod=hashlib.sha512).digest()).decode('UTF-8')
         google_signature = self.request.headers.get('x-goog-signature')
 
-        if generated_signature == google_signature:
-            logger.debug("Signature match.")
-        else:
+        if generated_signature != google_signature:
             logger.debug("Signature mismatch, do not trust this message.")
 
     async def handle_message(self):
@@ -62,7 +60,6 @@ class BusinessMessagesHandler(InputChannel):
             "client_email": business_message_conf["config"]["client_email"],
             "client_id": business_message_conf["config"]["client_id"]
         }
-        print("*"*100)
         print(request_body)
         metadata = self.get_metadata(self.request) or {}
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account,
@@ -76,7 +73,7 @@ class BusinessMessagesHandler(InputChannel):
             await business_messages.handle_user_message(text=message, sender_id=self.user.email, metadata=metadata,
                                                         conversation_id=conversation_id, bot=self.bot,
                                                         message_id=message_id)
-        return ''
+        return {"status": "OK"}
 
 
 class BusinessMessages:
@@ -92,12 +89,8 @@ class BusinessMessages:
     def write_json_to_file(json_code, file_path):
         import json
 
-        try:
-            with open(file_path, 'w') as json_file:
-                json.dump(json_code, json_file, indent=2)
-            print(f"JSON code successfully written to {file_path}")
-        except Exception as e:
-            print(f"Error writing JSON to file: {e}")
+        with open(file_path, 'w') as json_file:
+            json.dump(json_code, json_file, indent=2)
 
     def get_business_message_credentials(self):
         self.write_json_to_file(self.credentials_json, path_to_service_account_key)
@@ -115,6 +108,7 @@ class BusinessMessages:
         message = "No Response"
         try:
             response = await self.process_message(bot, user_msg)
+            print(response)
             message = response['response'][0]['text']
         except Exception:
             logger.exception(
@@ -125,8 +119,6 @@ class BusinessMessages:
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):
         response = await AgentProcessor.get_agent(bot).handle_message(user_message)
-        print("^" * 100)
-        print(response)
         return response
 
     async def send_message(self, message: Text, conversation_id: Text):
@@ -169,7 +161,6 @@ class BusinessMessages:
         bm_client.BusinessmessagesV1.ConversationsMessagesService(
             client=client).Create(request=create_request)
 
-        # Send the typing stopped event
         create_request = BusinessmessagesConversationsEventsCreateRequest(
             eventId=str(uuid.uuid4().int),
             businessMessagesEvent=BusinessMessagesEvent(
