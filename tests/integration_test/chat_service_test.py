@@ -134,6 +134,16 @@ ChatDataProcessor.save_channel_config({"connector_type": "hangouts",
                                        },
                                       bot, user="test@chat.com")
 
+ChatDataProcessor.save_channel_config({"connector_type": "business_messages",
+                                       "config": {
+                                           "private_key_id": "fa006e13b1e17eddf3990eede45ca6111eb74945",
+                                           "private_key": "test_private_key",
+                                           "client_email": "solution-provider@gbc-mahesh-mxqtkk9.iam.testaccount.com",
+                                           "client_id": "102056160806575769486"
+                                       }
+                                       },
+                                      bot, user="test@chat.com")
+
 ChatDataProcessor.save_channel_config({"connector_type": "messenger",
                                        "config": {
                                            "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
@@ -255,6 +265,64 @@ def test_get_chat_client_config_with_invalid_domain():
         assert actual["data"] is None
         assert not Utility.check_empty_string(actual["message"])
         assert actual["message"] == "Domain not registered for kAIron client"
+
+
+def test_business_messages_invalid_auth():
+    response = client.post(
+        f"/api/bot/business_messages/{bot}/123",
+        json={"message": {
+            "name": "conversations/24ab463a-a6bf-4049-b49e-cc05fb1dc384/messages/5979C5-325C-4700-BF5A-0156C39C541",
+            "text": "Hello!",
+            "createTime": "2023-12-04T06:30:46.034290Z",
+            "messageId": "5979C547-325C-4700-BF5A-0156C39C5641"},
+            "context": {
+                "placeId": "",
+                "userInfo": {
+                    "displayName": "Mahesh Sattala",
+                    "userDeviceLocale": "en-IN"
+                },
+                "resolvedLocale": "en"
+            },
+            "sendTime": "2023-12-04T06:30:46.662594Z",
+            "conversationId": "24ab463a-a6bf-4056-b49e-aa05fb1dc384",
+            "requestId": "5979C547-325C-4700-BF5A-0156C45C1541",
+            "agent": "brands/bd7e3fe0-3c3e-4b3e-4759-6e46ac0412a5/agents/3cf91834-3b5e-4c4b-a632-9575f0cc3444"
+        })
+    actual = response.json()
+    assert actual == {"data": None, "success": False, "error_code": 401, "message": "Could not validate credentials"}
+
+
+@patch("kairon.chat.handlers.channels.business_messages.business_messages.BusinessMessages.process_message")
+@patch('oauth2client.service_account.ServiceAccountCredentials.from_json_keyfile_name')
+@patch('businessmessages.businessmessages_v1_client.BusinessmessagesV1')
+def test_business_messages_with_valid_data(mock_business_messages, mock_credentials, mock_process_message):
+    mock_credentials.return_value = {}
+    mock_business_messages.return_value = {}
+    mock_process_message.return_value = {'response': [{'text': 'How may I help you!'}]}
+    response = client.post(
+            f"/api/bot/business_messages/{bot}/{token}",
+            headers={"Authorization": "Bearer Test"},
+            json={"message": {
+                "name": "conversations/24ab463a-a6bf-4049-b49e-cc05fb1dc384/messages/5979C5-325C-4700-BF5A-0156C39C541",
+                "text": "Hello!",
+                "createTime": "2023-12-04T06:30:46.034290Z",
+                "messageId": "5979C547-325C-4700-BF5A-0156C39C5641"},
+                "context": {
+                    "placeId": "",
+                    "userInfo": {
+                        "displayName": "Mahesh Sattala",
+                        "userDeviceLocale": "en-IN"
+                    },
+                    "resolvedLocale": "en"
+                },
+                "sendTime": "2023-12-04T06:30:46.662594Z",
+                "conversationId": "24ab463a-a6bf-4056-b49e-aa05fb1dc384",
+                "requestId": "5979C547-325C-4700-BF5A-0156C45C1541",
+                "agent": "brands/bd7e3fe0-3c3e-4b3e-4759-6e46ac0412a5/agents/3cf91834-3b5e-4c4b-a632-9575f0cc3444"
+            }
+    )
+    actual = response.json()
+    assert actual == {"status": "OK"}
 
 
 def test_chat():
