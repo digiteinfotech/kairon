@@ -136,7 +136,7 @@ class TrainingDataGenerationProcessor:
         """
         if TrainingDataGenerator.objects(__raw__={
                 "bot": bot,
-                "status": {"$nin": [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]}
+                "status": {"$nin": [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value, EVENT_STATUS.ABORTED.value]}
         }).count():
             if raise_exception:
                 raise AppException("Event already in progress! Check logs.")

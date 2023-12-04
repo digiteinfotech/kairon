@@ -3239,7 +3239,9 @@ def test_get_data_importer_logs():
                                              {'type': 'jira_actions', 'count': 0, 'data': []},
                                              {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                              {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
-                                             {'type': 'prompt_actions', 'count': 0, 'data': []}],
+                                             {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                             {'type': 'razorpay_actions', 'count': 0, 'data': []},
+                                             {'type': 'pyscript_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'user_actions': {'count': 7, 'data': []},
                                  'exception': '',
@@ -3282,7 +3284,10 @@ def test_get_data_importer_logs():
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
-                                            {'type': 'prompt_actions', 'count': 0, 'data': []}]
+                                            {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                            {'type': 'razorpay_actions', 'count': 0, 'data': []},
+                                            {'type': 'pyscript_actions', 'count': 0, 'data': []}
+                                            ]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config', 'multiflow_stories'}
@@ -9506,7 +9511,9 @@ def test_upload_actions_and_config():
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0},
-                                            {'type': 'prompt_actions', 'data': [], 'count': 0}]
+                                            {'type': 'prompt_actions', 'data': [], 'count': 0},
+                                            {'type': 'razorpay_actions', 'data': [], 'count': 0},
+                                            {'type': 'pyscript_actions', 'data': [], 'count': 0}]
     assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
@@ -11896,6 +11903,59 @@ def test_add_training_example_case_insensitivity():
     assert "IS THIS CASE_INSENSITIVE_TRAINING_EX_INTENT?" in [t['text'] for t in actual["data"]]
     assert actual["success"]
     assert actual["error_code"] == 0
+
+
+@responses.activate
+def test_abort_event_with_no_enqueued_model_testing_events():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/abort/model_testing",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "No Enqueued model_testing present for this bot."
+
+
+@responses.activate
+def test_abort_event_with_no_enqueued_model_training_events():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/abort/model_training",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "No Enqueued model_training present for this bot."
+
+
+@responses.activate
+@patch("kairon.shared.data.model_processor.ModelProcessor.is_daily_training_limit_exceeded", autospec=True)
+def test_abort_event(mock_training_limit):
+    mock_training_limit.return_value = False
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    client.post(
+        f"/api/bot/{pytest.bot}/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/abort/model_training",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "model_training aborted."
 
 
 def test_add_utterances_case_insensitivity():

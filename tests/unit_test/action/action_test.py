@@ -1573,7 +1573,8 @@ class TestActions:
         assert log['exception'].__contains__('Failed to execute the url: Failed to connect to service: localhost')
 
     @pytest.mark.asyncio
-    async def test_run(self, monkeypatch):
+    @mock.patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", autospec=True)
+    async def test_run(self, mock_execute_request_async,monkeypatch):
         http_url = "http://www.google.com"
         http_response = "This should be response"
         action = HttpActionConfig(
@@ -1585,10 +1586,10 @@ class TestActions:
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
+        mock_execute_request_async.return_value = http_response
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.http_action.value}
-
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         responses.reset()
         responses.start()

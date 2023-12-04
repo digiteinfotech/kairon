@@ -19,3 +19,4 @@ coverage_html
 /models/
 /enable_gpt.py
 /sample.py
+/enable_gpt_uat.py

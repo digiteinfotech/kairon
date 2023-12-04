@@ -18,7 +18,8 @@ from rasa.validator import Validator
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, \
-    ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction, PromptAction
+    ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction, PromptAction, RazorpayAction, \
+    PyscriptActionConfig
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
@@ -349,6 +350,9 @@ class TrainingDataValidator(Validator):
                 utterances = events
             elif step_type != StoryStepType.intent.value and step_type != StoryStepType.slot.value:
                 actions.extend(events)
+                if step_type == StoryStepType.form_action.value:
+                    user_actions.update(event for event in events
+                                        if event in self.domain.form_names and f"validate_{event}" in user_actions)
 
         for utterance in utterances:
             if utterance not in user_actions:
@@ -500,12 +504,12 @@ class TrainingDataValidator(Validator):
         component_count = {
             'http_actions': 0, 'slot_set_actions': 0, 'form_validation_actions': 0, 'email_actions': 0,
             'google_search_actions': 0, 'jira_actions': 0, 'zendesk_actions': 0, 'pipedrive_leads_actions': 0,
-            'prompt_actions': 0
+            'prompt_actions': 0, 'razorpay_actions': 0, 'pyscript_actions': 0
         }
         error_summary = {
             'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [], 'email_actions': [],
             'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': [], 'pipedrive_leads_actions': [],
-            'prompt_actions': []
+            'prompt_actions': [], 'razorpay_actions': [], 'pyscript_actions': []
         }
         if not actions:
             return True, error_summary, component_count
@@ -519,7 +523,9 @@ class TrainingDataValidator(Validator):
                 'jira_actions': ['Invalid action configuration format. Dictionary expected.'],
                 'zendesk_actions': ['Invalid action configuration format. Dictionary expected.'],
                 'pipedrive_leads_actions': ['Invalid action configuration format. Dictionary expected.'],
-                'prompt_actions': ['Invalid action configuration format. Dictionary expected.']
+                'prompt_actions': ['Invalid action configuration format. Dictionary expected.'],
+                'razorpay_actions': ['Invalid action configuration format. Dictionary expected.'],
+                'pyscript_actions': ['Invalid action configuration format. Dictionary expected.']
             }
             return False, error_summary, component_count
         for action_type, actions_list in actions.items():
@@ -568,6 +574,16 @@ class TrainingDataValidator(Validator):
                 is_data_invalid = True if errors else False
                 error_summary['prompt_actions'] = errors
                 component_count['prompt_actions'] = len(actions_list)
+            elif action_type == ActionType.razorpay_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_razorpay_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['razorpay_actions'] = errors
+                component_count['razorpay_actions'] = len(actions_list)
+            elif action_type == ActionType.pyscript_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_pyscript_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['pyscript_actions'] = errors
+                component_count['pyscript_actions'] = len(actions_list)
 
         return is_data_invalid, error_summary, component_count
 
@@ -866,6 +882,52 @@ class TrainingDataValidator(Validator):
                 if action['action_name'] in actions_present:
                     data_error.append(f'Duplicate action found: {action["action_name"]}')
                 actions_present.add(action["action_name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_razorpay_actions(razorpay_actions: list):
+        """
+        Validates razorpay actions.
+        @param razorpay_actions: Razorpay actions.
+        """
+        data_error = []
+        actions_present = set()
+        required_fields = {k for k, v in RazorpayAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in razorpay_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_pyscript_actions(pyscript_actions: list):
+        """
+        Validates pyscript actions.
+        @param pyscript_actions: Pyscript actions.
+        """
+        data_error = []
+        actions_present = set()
+        required_fields = {k for k, v in PyscriptActionConfig._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in pyscript_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                actions_present.add(action["name"])
             else:
                 data_error.append('Invalid action configuration format. Dictionary expected.')
 

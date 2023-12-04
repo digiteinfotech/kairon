@@ -63,3 +63,77 @@ multiflow_story:
   start_checkpoints: [STORY_START]
   end_checkpoints: []
   template_type: CUSTOM
+- block_name: mf_two_w
+  events:
+    - step:
+        name: query
+        type: INTENT
+        node_id: "7"
+        component_id: "61m96mPvb2VexybDeVg1dLyH"
+      connections:
+        - name: utter_query
+          type: BOT
+          node_id: "8"
+          component_id: "61uaImwNrsJI1pVphc0mZh20"
+    - step:
+        name: utter_query
+        type: BOT
+        node_id: "8"
+        component_id: "61uaImwNrsJI1pVphc0mZh20"
+      connections:
+        - name: priority
+          type: INTENT
+          node_id: "9"
+          component_id: "62By0VXVazUNDNPqkr5vRRzm"
+        - name: food
+          type: INTENT
+          node_id: "10"
+          component_id: "62N9BCfSKVYOKoSixGhWDRHC"
+    - step:
+        name: priority
+        type: INTENT
+        node_id: "9"
+        component_id: "62By0VXVazUNDNPqkr5vRRzm"
+      connections:
+        - name: utter_priority
+          type: BOT
+          node_id: "11"
+          component_id: "62uzXd9Pj1q9tEbVBkMuVn3o"
+    - step:
+        name: utter_priority
+        type: BOT
+        node_id: "11"
+        component_id: "62uzXd9Pj1q9tEbVBkMuVn3o"
+      connections: null
+    - step:
+        name: food
+        type: INTENT
+        node_id: "10"
+        component_id: "62N9BCfSKVYOKoSixGhWDRHC"
+      connections:
+        - name: form_image
+          type: FORM_ACTION
+          node_id: "12"
+          component_id: "62ib6tlbgICth8vBSwSYFvbS"
+    - step:
+        name: form_image
+        type: FORM_ACTION
+        node_id: "12"
+        component_id: "62ib6tlbgICth8vBSwSYFvbS"
+      connections:
+        - name: utter_food
+          type: BOT
+          node_id: "13"
+          component_id: "62ib6tlbgIGth8vBSwSYFoPS"
+    - step:
+        name: utter_food
+        type: BOT
+        node_id: "13"
+        component_id: "62ib6tlbgIGth8vBSwSYFoPS"
+      connections: null
+  metadata:
+    - node_id: "13"
+      flow_type: STORY
+  start_checkpoints: [STORY_START]
+  end_checkpoints: []
+  template_type: CUSTOM

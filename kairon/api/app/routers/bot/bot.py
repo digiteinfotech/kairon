@@ -26,7 +26,7 @@ from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
-    VIEW_ACCESS
+    VIEW_ACCESS, EventClass
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
@@ -511,6 +511,19 @@ async def train(
     return {"message": "Model training started."}
 
 
+@router.post("/abort/{event_type}", response_model=Response)
+async def abort_event(
+        event_type: EventClass = Path(default=None, description="Event type", example=[e.value for e in EventClass]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Aborts the event
+    """
+    mongo_processor.abort_current_event(current_user.get_bot(), current_user.get_user(), event_type)
+
+    return {"message": f"{event_type} aborted."}
+
+
 @router.get("/model/reload", response_model=Response)
 async def reload_model(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
@@ -675,8 +688,7 @@ async def model_testing_logs(
     """
     List model testing logs.
     """
-    logs = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
-    row_cnt = mongo_processor.get_row_count(ModelTestingLogs, current_user.get_bot())
+    logs, row_cnt = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
     data = {
         "logs": logs,
         "total": row_cnt
