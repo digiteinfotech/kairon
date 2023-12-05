@@ -81,4 +81,4 @@ anyio==3.7.1
 pytest-aioresponses
 aiohttp-retry
 pqdict
-pydantic[email]
+pydantic==1.10.13
