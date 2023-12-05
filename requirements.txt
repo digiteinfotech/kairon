@@ -82,3 +82,4 @@ pytest-aioresponses
 aiohttp-retry
 pqdict
 pydantic==1.10.13
+pydantic[email]==1.10.13
