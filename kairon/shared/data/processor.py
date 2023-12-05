@@ -3588,17 +3588,7 @@ class MongoProcessor:
         :param bot: bot id
         :return: Count of rows
         """
-        if document.__name__ == "AuditLogData":
-            query = {
-                "attributes": {
-                    "$elemMatch": {
-                        "key": 'bot',
-                        "value": bot
-                    }
-                }
-            }
-            kwargs.update(__raw__=query)
-        else:
+        if document.__name__ != "AuditLogData":
             kwargs['bot'] = bot
         return document.objects(**kwargs).count()
 
@@ -5574,6 +5564,7 @@ class MongoProcessor:
 
     @staticmethod
     def get_auditlog_for_bot(bot, from_date=None, to_date=None, start_idx: int = 0, page_size: int = 10):
+        processor = MongoProcessor()
         if not from_date:
             from_date = datetime.utcnow().date()
         if not to_date:
@@ -5581,7 +5572,8 @@ class MongoProcessor:
         to_date = to_date + timedelta(days=1)
         data_filter = {"attributes__key": 'bot', "attributes__value": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
         auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by('-timestamp').to_json()
-        return json.loads(auditlog_data)
+        row_cnt = processor.get_row_count(AuditLogData, bot, **data_filter)
+        return json.loads(auditlog_data), row_cnt
 
     def get_logs(self, bot: Text, logtype: str, start_time: datetime, end_time: datetime):
         """
