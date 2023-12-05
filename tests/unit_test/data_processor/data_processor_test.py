@@ -15354,13 +15354,13 @@ class TestModelProcessor:
     def test_get_auditlog_for_invalid_bot(self):
         bot = "invalid"
         page_size = 100
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
         assert auditlog_data == []
 
     def test_get_auditlog_for_bot_top_n_default(self):
         bot = "test"
         page_size = 100
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_date_range(self):
@@ -15368,7 +15368,7 @@ class TestModelProcessor:
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
         page_size = 100
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
                                                             page_size=page_size)
         assert len(auditlog_data) > 90
 
@@ -15377,7 +15377,7 @@ class TestModelProcessor:
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
         page_size = 50
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
                                                             page_size=page_size)
         assert len(auditlog_data) == 50
 
@@ -15386,7 +15386,7 @@ class TestModelProcessor:
         from_date = None
         to_date = None
         page_size = 50
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
                                                             page_size=page_size)
         assert len(auditlog_data) == 50
 

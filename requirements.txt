@@ -81,3 +81,4 @@ anyio==3.7.1
 pytest-aioresponses
 aiohttp-retry
 pqdict
+email_validator
