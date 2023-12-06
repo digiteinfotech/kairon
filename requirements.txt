@@ -80,4 +80,6 @@ timeout-decorator
 anyio==3.7.1
 pytest-aioresponses
 aiohttp-retry
+pydantic[email]==1.10.13
 pqdict
+pydantic==1.10.13

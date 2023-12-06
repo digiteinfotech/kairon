@@ -48,6 +48,11 @@ class AuditDataProcessor:
         """
 
         action = kwargs.get("action")
+
+        if action == AuditlogActions.BULK_INSERT.value:
+            AuditDataProcessor.log_bulk_insert(document, name)
+            return
+
         if hasattr(document, 'status') and not document.status:
             action = AuditlogActions.SOFT_DELETE.value
 
@@ -60,6 +65,17 @@ class AuditDataProcessor:
                                  data=document.to_mongo().to_dict())
         audit_log.save()
         AuditDataProcessor.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
+
+    @staticmethod
+    def log_bulk_insert(documents, name):
+        action = AuditlogActions.BULK_INSERT.value
+        inserted_docs = []
+        for doc in documents:
+            attribute = AuditDataProcessor.get_attributes(doc)
+            inserted_docs.append(
+                AuditLogData(attributes=attribute, user=doc.user, action=action, entity=name, data=doc.to_mongo().to_dict())
+            )
+        AuditLogData.objects.insert(inserted_docs)
 
     @staticmethod
     def get_attributes(document):

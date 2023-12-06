@@ -461,7 +461,7 @@ class MongoProcessor:
                 self.__extract_training_examples(training_examples, bot, user)
             )
             if new_examples:
-                TrainingExamples.objects.insert(new_examples)
+                TrainingExamples.insert(new_examples)
 
     def check_training_example_exists(self, text: Text, bot: Text):
         try:
@@ -529,7 +529,7 @@ class MongoProcessor:
         if entity_synonyms:
             new_synonyms = list(self.__extract_synonyms(entity_synonyms, bot, user))
             if new_synonyms:
-                EntitySynonyms.objects.insert(new_synonyms)
+                EntitySynonyms.insert(new_synonyms)
 
     def fetch_synonyms(self, bot: Text, status=True):
         """
@@ -619,7 +619,7 @@ class MongoProcessor:
         if lookup_tables:
             new_lookup = list(self.__extract_lookup_tables(lookup_tables, bot, user))
             if new_lookup:
-                LookupTables.objects.insert(new_lookup)
+                LookupTables.insert(new_lookup)
 
     def fetch_lookup_tables(self, bot: Text, status=True):
         """
@@ -663,7 +663,7 @@ class MongoProcessor:
                 self.__extract_regex_features(regex_features, bot, user)
             )
             if new_regex_patterns:
-                RegexFeatures.objects.insert(new_regex_patterns)
+                RegexFeatures.insert(new_regex_patterns)
 
     def fetch_regex_features(self, bot: Text, status=True):
         """
@@ -701,7 +701,7 @@ class MongoProcessor:
         if intents:
             new_intents = list(self.__extract_intents(intents, bot, user))
             if new_intents:
-                Intents.objects.insert(new_intents)
+                Intents.insert(new_intents)
 
     def fetch_intents(self, bot: Text, status=True):
         """
@@ -741,7 +741,7 @@ class MongoProcessor:
         if entities:
             new_entities = list(self.__extract_domain_entities(entities, bot, user))
             if new_entities:
-                Entities.objects.insert(new_entities)
+                Entities.insert(new_entities)
 
     def fetch_domain_entities(self, bot: Text, status=True):
         """
@@ -789,7 +789,7 @@ class MongoProcessor:
         if forms:
             new_forms = list(self.__extract_forms(forms, bot, user))
             if new_forms:
-                Forms.objects.insert(new_forms)
+                Forms.insert(new_forms)
 
     def fetch_forms(self, bot: Text, status=True):
         """
@@ -827,7 +827,7 @@ class MongoProcessor:
         if actions:
             new_actions = list(self.__extract_actions(actions, bot, user))
             if new_actions:
-                Actions.objects.insert(new_actions)
+                Actions.insert(new_actions)
 
     def fetch_actions(self, bot: Text, status=True):
         """
@@ -934,7 +934,7 @@ class MongoProcessor:
         if responses:
             new_responses = self.__extract_response(responses, bot, user)
             if new_responses:
-                Responses.objects.insert(new_responses)
+                Responses.insert(new_responses)
 
     def save_utterances(self, utterances, bot: Text, user: Text):
         if utterances:
@@ -946,7 +946,7 @@ class MongoProcessor:
                     new_utter.clean()
                     new_utterances.append(new_utter)
             if new_utterances:
-                Utterances.objects.insert(new_utterances)
+                Utterances.insert(new_utterances)
 
     def __prepare_response_Text(self, texts: List[Dict]):
         for text in texts:
@@ -1015,7 +1015,7 @@ class MongoProcessor:
         if slots:
             new_slots = list(self.__extract_slots(slots, bot, user))
             if new_slots:
-                Slots.objects.insert(new_slots)
+                Slots.insert(new_slots)
 
     def add_system_required_slots(self, bot: Text, user: Text):
         for slot in [s for s in KaironSystemSlots if s.value == KaironSystemSlots.bot.value]:
@@ -1141,7 +1141,7 @@ class MongoProcessor:
         if story_steps:
             new_stories = list(self.__extract_story_step(story_steps, bot, user))
             if new_stories:
-                Stories.objects.insert(new_stories)
+                Stories.insert(new_stories)
 
     def __prepare_training_story_events(self, events, timestamp):
         for event in events:
@@ -1248,7 +1248,7 @@ class MongoProcessor:
     def __save_multiflow_stories(self, multiflow_stories, bot: Text, user: Text):
         new_multiflow_stories = list(self.__extract_multiflow_story_step(multiflow_stories, bot, user))
         if new_multiflow_stories:
-            MultiflowStories.objects.insert(new_multiflow_stories)
+            MultiflowStories.insert(new_multiflow_stories)
 
     def __prepare_training_multiflow_story_events(self, events, metadata, timestamp):
         roots = []
@@ -2086,7 +2086,7 @@ class MongoProcessor:
                 slots.append(slot)
 
         if slots:
-            Slots.objects.insert(slots)
+            Slots.insert(slots)
 
     def add_text_response(self, utterance: Text, name: Text, bot: Text, user: Text, form_attached: str = None):
         """
@@ -3588,17 +3588,7 @@ class MongoProcessor:
         :param bot: bot id
         :return: Count of rows
         """
-        if document.__name__ == "AuditLogData":
-            query = {
-                "attributes": {
-                    "$elemMatch": {
-                        "key": 'bot',
-                        "value": bot
-                    }
-                }
-            }
-            kwargs.update(__raw__=query)
-        else:
+        if document.__name__ != "AuditLogData":
             kwargs['bot'] = bot
         return document.objects(**kwargs).count()
 
@@ -3658,7 +3648,7 @@ class MongoProcessor:
         if story_steps:
             new_rules = list(self.__extract_rules(story_steps, bot, user))
             if new_rules:
-                Rules.objects.insert(new_rules)
+                Rules.insert(new_rules)
 
     def delete_rules(self, bot: Text, user: Text):
         """
@@ -5574,6 +5564,7 @@ class MongoProcessor:
 
     @staticmethod
     def get_auditlog_for_bot(bot, from_date=None, to_date=None, start_idx: int = 0, page_size: int = 10):
+        processor = MongoProcessor()
         if not from_date:
             from_date = datetime.utcnow().date()
         if not to_date:
@@ -5581,7 +5572,8 @@ class MongoProcessor:
         to_date = to_date + timedelta(days=1)
         data_filter = {"attributes__key": 'bot', "attributes__value": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
         auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by('-timestamp').to_json()
-        return json.loads(auditlog_data)
+        row_cnt = processor.get_row_count(AuditLogData, bot, **data_filter)
+        return json.loads(auditlog_data), row_cnt
 
     def get_logs(self, bot: Text, logtype: str, start_time: datetime, end_time: datetime):
         """

@@ -28,9 +28,9 @@ from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     VIEW_ACCESS, EventClass
 from kairon.shared.data.assets_processor import AssetsProcessor
-from kairon.shared.data.audit.data_objects import AuditLogData
+from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
-    TrainingDataSourceType
+    TrainingDataSourceType, AuditlogActions
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -39,7 +39,6 @@ from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import User, TemplateType
-from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
 
@@ -636,6 +635,9 @@ async def download_data(
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
     )
+    AuditDataProcessor.log("Training Data", current_user.account, current_user.get_bot(), current_user.get_user(),
+                           data={"download_multiflow_stories": download_multiflow_stories},
+                           action=AuditlogActions.DOWNLOAD.value)
     response.headers[
         "Content-Disposition"
     ] = "attachment; filename=" + os.path.basename(file)
@@ -657,6 +659,8 @@ async def download_model(
             filename=os.path.basename(model_path),
             background=background_tasks,
         )
+        AuditDataProcessor.log("Model", current_user.account, current_user.get_bot(), current_user.get_user(),
+                               action=AuditlogActions.DOWNLOAD.value)
         response.headers[
             "Content-Disposition"
         ] = "attachment; filename=" + os.path.basename(model_path)
@@ -1567,8 +1571,7 @@ async def get_auditlog_for_bot(
         to_date: date = Path(default=None, description="to date in yyyy-mm-dd format", example="1999-01-01"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
-    logs = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date, start_idx, page_size)
-    row_cnt = mongo_processor.get_row_count(AuditLogData, current_user.get_bot())
+    logs, row_cnt = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date, start_idx, page_size)
     data = {
         "logs": logs,
         "total": row_cnt
