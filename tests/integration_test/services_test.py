@@ -1225,6 +1225,27 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual['data'][0]['dispatch_response']
 
 
+def test_get_client_config_with_nudge_server_url():
+    expected_app_server_url = Utility.environment['app']['server_url']
+    expected_nudge_server_url = Utility.environment['nudge']['server_url']
+    expected_chat_server_url = Utility.environment['model']['agent']['url']
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    print(actual["data"])
+    assert actual["data"]["welcomeMessage"] == 'Hello! How are you?'
+    assert actual["data"]["name"] == 'kairon'
+    assert actual["data"]["buttonType"] == 'button'
+    assert actual["data"]["whitelist"] == ["*"]
+    assert actual["data"]["nudge_server_url"] == expected_nudge_server_url
+    assert actual["data"]["api_server_host_url"] == expected_app_server_url
+    assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
+
+
 def test_get_client_config_url_with_ip_info(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo_location:
@@ -3333,6 +3354,7 @@ def test_upload_with_chat_client_config_only():
     assert actual["success"]
     assert actual["error_code"] == 0
     actual['data'].pop('headers')
+    actual['data'].pop('nudge_server_url')
     assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
 
 
