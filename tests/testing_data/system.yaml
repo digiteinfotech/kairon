@@ -93,6 +93,9 @@ data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
   kairon_url: ${KAIRON_URL}
 
+nudge:
+  server_url: ${NUDGE_SERVER_URL:"http://nudgeserver"}
+
 elasticsearch:
   enable: ${ENABLE_APM:false}
   apm_server_url: ${APM_SERVER_URL}

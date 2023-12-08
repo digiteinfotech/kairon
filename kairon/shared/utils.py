@@ -2351,7 +2351,8 @@ class StoryValidator:
     def get_step_name_for_multiflow_stories(story_graph: list, step_type: str):
         name = set()
         for graph in story_graph:
-            name = StoryValidator.get_names_for_events(graph, step_type)
+            events = StoryValidator.get_names_for_events(graph, step_type)
+            name.update(events)
         return name
 
 

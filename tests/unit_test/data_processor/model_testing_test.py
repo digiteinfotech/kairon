@@ -9,11 +9,11 @@ from mongoengine import connect
 from rasa.shared.importers.rasa import RasaFileImporter
 
 from augmentation.paraphrase.paraphrasing import ParaPhrasing
-from kairon.shared.data.data_objects import BotSettings
-from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
+from kairon.shared.utils import Utility
 from kairon.test.test_models import ModelTester, TestDataGenerator
 
 
@@ -66,7 +66,8 @@ class TestModelTesting:
                                                  stories_result=result,
                                                  nlu_result={},
                                                  event_status='Completed')
-        logs = list(ModelTestingLogProcessor.get_logs('test_bot'))
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot')
+        print(logs)
         assert logs[0]['data'][0]['conversation_accuracy']['success_count'] == 3
         assert logs[0]['data'][0]['conversation_accuracy']['failure_count'] == 2
         assert logs[0]['data'][0]['conversation_accuracy']['total_count'] == 5
@@ -78,7 +79,7 @@ class TestModelTesting:
         assert logs[0].get('end_timestamp')
         assert logs[0].get('status') == 'FAILURE'
         assert logs[0]['event_status'] == 'Completed'
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'stories', logs[0]['reference_id'])
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'stories', logs[0]['reference_id'])
         assert len(logs['errors']) == 2
         assert logs['failure_count'] == 2
         assert logs['success_count'] == 3
@@ -121,7 +122,8 @@ class TestModelTesting:
                                                  stories_result={},
                                                  nlu_result=result,
                                                  event_status='Completed')
-        logs1 = list(ModelTestingLogProcessor.get_logs('test_bot'))
+        logs1, row_count = ModelTestingLogProcessor.get_logs('test_bot')
+        print(logs1)
         assert logs1[0]['data'][0]['intent_evaluation']['success_count'] == 29
         assert logs1[0]['data'][0]['intent_evaluation']['failure_count'] == 23
         assert logs1[0]['data'][0]['intent_evaluation']['total_count'] == 52
@@ -142,46 +144,46 @@ class TestModelTesting:
         assert logs1[0].get('end_timestamp')
         assert logs1[0].get('status') == 'FAILURE'
         assert logs1[0]['event_status'] == 'Completed'
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs1[0]['reference_id'])
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs1[0]['reference_id'])
         assert len(logs['intent_evaluation']['errors']) == 10
         assert logs['intent_evaluation']['failure_count'] == 23
         assert logs['intent_evaluation']['success_count'] == 29
         assert logs['intent_evaluation']['total_count'] == 52
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_diet_classifier',
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_diet_classifier',
                                                  logs1[0]['reference_id'])
         assert len(logs['entity_evaluation']['errors']) == 2
         assert logs['entity_evaluation']['failure_count'] == 2
         assert logs['entity_evaluation']['success_count'] == 2
         assert logs['entity_evaluation']['total_count'] == 4
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_regex_entity_extractor',
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_regex_entity_extractor',
                                                  logs1[0]['reference_id'])
         assert len(logs['entity_evaluation']['errors']) == 0
         assert logs['entity_evaluation']['failure_count'] == 0
         assert logs['entity_evaluation']['success_count'] == 0
         assert logs['entity_evaluation']['total_count'] == 0
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'response_selection_evaluation', logs1[0]['reference_id'])
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'response_selection_evaluation', logs1[0]['reference_id'])
         assert len(logs['response_selection_evaluation']['errors']) == 5
         assert logs['response_selection_evaluation']['failure_count'] == 5
         assert logs['response_selection_evaluation']['success_count'] == 0
         assert logs['response_selection_evaluation']['total_count'] == 5
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs1[0]['reference_id'], 10, 15)
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs1[0]['reference_id'], 10, 15)
         assert len(logs['intent_evaluation']['errors']) == 13
         assert logs['intent_evaluation']['failure_count'] == 23
         assert logs['intent_evaluation']['success_count'] == 29
         assert logs['intent_evaluation']['total_count'] == 52
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_diet_classifier',
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_diet_classifier',
                                                  logs1[0]['reference_id'], 10, 15)
         assert len(logs['entity_evaluation']['errors']) == 0
         assert logs['entity_evaluation']['failure_count'] == 2
         assert logs['entity_evaluation']['success_count'] == 2
         assert logs['entity_evaluation']['total_count'] == 4
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_regex_entity_extractor',
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_regex_entity_extractor',
                                                  logs1[0]['reference_id'], 10, 15)
         assert len(logs['entity_evaluation']['errors']) == 0
         assert logs['entity_evaluation']['failure_count'] == 0
         assert logs['entity_evaluation']['success_count'] == 0
         assert logs['entity_evaluation']['total_count'] == 0
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'response_selection_evaluation',
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'response_selection_evaluation',
                                                  logs1[0]['reference_id'], 10, 15)
         assert len(logs['response_selection_evaluation']['errors']) == 0
         assert logs['response_selection_evaluation']['failure_count'] == 5
@@ -194,19 +196,19 @@ class TestModelTesting:
                                                  stories_result={},
                                                  nlu_result=result,
                                                  event_status='Completed')
-        logs = ModelTestingLogProcessor.get_logs('test_bot')
-        logs2 = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs[0]['reference_id'])
+        logs, row_count = ModelTestingLogProcessor.get_logs('test_bot')
+        logs2, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs[0]['reference_id'])
         assert len(logs2['intent_evaluation']['errors']) == 10
         assert logs2['intent_evaluation']['failure_count'] == 23
         assert logs2['intent_evaluation']['success_count'] == 29
         assert logs2['intent_evaluation']['total_count'] == 52
-        logs2 = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_diet_classifier',
+        logs2, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_diet_classifier',
                                                   logs[0]['reference_id'])
         assert logs2['entity_evaluation'] == {'errors': [], 'failure_count': 0, 'success_count': 0, 'total_count': 0}
-        logs2 = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_regex_entity_extractor',
+        logs2, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_regex_entity_extractor',
                                                   logs[0]['reference_id'])
         assert logs2['entity_evaluation'] == {'errors': [], 'failure_count': 0, 'success_count': 0, 'total_count': 0}
-        logs2 = ModelTestingLogProcessor.get_logs('test_bot', 'response_selection_evaluation', logs[0]['reference_id'])
+        logs2, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'response_selection_evaluation', logs[0]['reference_id'])
         assert logs2['response_selection_evaluation'] == {'errors': [], 'failure_count': 0,
                                                           'success_count': 0, 'total_count': 0}
 

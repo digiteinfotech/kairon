@@ -22,3 +22,4 @@ coverage_html
 /testing_data/
 /training_data/
 /.rasa/
+/enable_gpt_uat.py

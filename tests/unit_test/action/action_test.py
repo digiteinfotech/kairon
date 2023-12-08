@@ -1574,7 +1574,8 @@ class TestActions:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_run(self, monkeypatch):
+    @mock.patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", autospec=True)
+    async def test_run(self, mock_execute_request_async,monkeypatch):
         http_url = "http://www.google.com"
         http_response = "This should be response"
         action = HttpActionConfig(
@@ -1586,10 +1587,10 @@ class TestActions:
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
+        mock_execute_request_async.return_value = http_response
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.http_action.value}
-
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
 
 
@@ -3907,7 +3908,7 @@ class TestActions:
                                 'Slot: percentage', 'evaluation_type: expression', 'expression: ${data.a.b.43}',
                                 "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
                                 'response: 30']
-    
+
     def test_retrieve_config_two_stage_fallback(self):
         bot = "test_bot"
         user = "test_user"

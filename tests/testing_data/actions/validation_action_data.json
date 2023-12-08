@@ -778,5 +778,80 @@
             ]
          }
       }
+   ],
+   "razorpay_action":[
+      {
+         "name":"razorpay_action",
+         "api_key":"1231234567",
+         "api_secret":"2345678",
+         "amount":"500",
+         "currency":"Indian rupee",
+         "username":"test",
+         "email":"abc@gmail.com",
+         "contact":"9087654321"
+      },
+      {
+         "name":"razorpay_action1",
+         "api_key":"1231234567",
+         "api_secret":"2345678",
+         "amount":"500"
+      },
+      {
+         "name":"razorpay_action2",
+         "api_key":"1231234567",
+         "api_secret":"2345678",
+         "amount":"500",
+         "currency":"Indian rupee",
+         "username":"test",
+         "email":"abc@gmail.com",
+         "contact":"9087654321"
+      },
+      {
+         "name":"razorpay_action",
+         "api_key":"1231234567",
+         "api_secret":"2345678",
+         "amount":"500",
+         "currency":"Indian rupee",
+         "username":"test",
+         "email":"abc@gmail.com",
+         "contact":"9087654321"
+      },
+      [
+         {
+            "action_name":"",
+            "smtp_url":"",
+            "smtp_port":"",
+            "smtp_userid":""
+         }
+      ]
+   ],
+   "pyscript_action":[
+      {
+         "name":"pyscript_action",
+         "source_code":"numbers = [1, 2, 3, 4, 5]\ntotal = 0\nfor i in numbers:\n    total += i\nprint(total)",
+         "dispatch_response":true
+      },
+      {
+         "name":"pyscript_action1",
+         "dispatch_response":true
+      },
+      {
+         "name":"pyscript_action2",
+         "source_code":"numbers = [1, 2, 3, 4, 5]\ntotal = 0\nfor i in numbers:\n    total += i\nprint(total)",
+         "dispatch_response":true
+      },
+      {
+         "name":"pyscript_action",
+         "source_code":"numbers = [1, 2, 3, 4, 5]\ntotal = 0\nfor i in numbers:\n    total += i\nprint(total)",
+         "dispatch_response":true
+      },
+      [
+         {
+            "action_name":"",
+            "smtp_url":"",
+            "smtp_port":"",
+            "smtp_userid":""
+         }
+      ]
    ]
 }

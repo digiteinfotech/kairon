@@ -548,11 +548,11 @@ class TestEventExecution:
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
-        assert len(list(mongo_processor.fetch_training_examples(bot))) == 10
-        assert len(list(mongo_processor.fetch_responses(bot))) == 4
-        assert len(mongo_processor.fetch_actions(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 17
+        assert len(list(mongo_processor.fetch_responses(bot))) == 7
+        assert len(mongo_processor.fetch_actions(bot)) == 3
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
-        assert len(mongo_processor.fetch_multiflow_stories(bot)) == 1
+        assert len(mongo_processor.fetch_multiflow_stories(bot)) == 2
 
     def test_trigger_data_importer_stories_only(self, monkeypatch, get_training_data):
         bot = 'test_trigger_data_importer_stories_only'
@@ -953,8 +953,8 @@ class TestEventExecution:
         bot = 'test_events_bot'
         user = 'test_user'
         ModelTestingEvent(bot, user).execute()
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 1
+        logs, count = ModelTestingLogProcessor.get_logs(bot)
+        assert count == 1
         assert logs[0].get('exception').__contains__('Model testing failed: Folder does not exists!')
         assert logs[0]['start_timestamp']
         assert not logs[0].get('stories')
@@ -1031,8 +1031,8 @@ class TestEventExecution:
             "failed_stories": [],
         }
         ModelTestingEvent(bot, user, run_e2e=False).execute()
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 2
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 2
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0].get('data')
@@ -1046,7 +1046,7 @@ class TestEventExecution:
         user = 'test_user'
         with pytest.raises(AppException, match='Failed to connect to service: *'):
             ModelTestingEvent(bot, user).enqueue()
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
     def test_trigger_model_testing(self, load_data, create_model, monkeypatch):
@@ -1076,8 +1076,8 @@ class TestEventExecution:
         stories_path = 'tests/testing_data/model_tester/test_stories_success/test_stories.yml'
         asyncio.run(load_data(config_path, domain_path, nlu_path, stories_path, bot, user))
 
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 3
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 3
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0].get('end_timestamp')
@@ -1101,8 +1101,8 @@ class TestEventExecution:
                       )
         ModelTestingEvent(bot, user).enqueue()
 
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 4
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 4
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert not logs[0].get('end_timestamp')
@@ -1126,8 +1126,8 @@ class TestEventExecution:
                       )
         ModelTestingEvent(bot, user, augment_data=False).enqueue()
 
-        logs = list(ModelTestingLogProcessor.get_logs(bot))
-        assert len(logs) == 1
+        logs, row_count = ModelTestingLogProcessor.get_logs(bot)
+        assert row_count == 1
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert not logs[0].get('end_timestamp')

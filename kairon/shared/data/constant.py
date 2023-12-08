@@ -100,6 +100,7 @@ class EVENT_STATUS(str, Enum):
     COMPLETED = "Completed"
     DONE = "Done"
     FAIL = "Fail"
+    ABORTED = "Aborted"
 
 
 class ModelTestingLogType(str, Enum):
@@ -215,6 +216,7 @@ class AuditlogActions(str, Enum):
     BULK_INSERT = "bulk_insert"
     BULK_UPDATE = "bulk_update"
     ACTIVITY = "activity"
+    DOWNLOAD = "download"
 
 
 class LogType(str, Enum):
