@@ -37,7 +37,7 @@ class ElementTransformerOps():
                                                               self.message_type)
             return response
         except Exception as ex:
-            raise AppException(f"Exception in ElementTransformerOps::Image_transformer: {str(ex)}")
+            raise AppException(f"Exception in ElementTransformerOps::Video_transformer: {str(ex)}")
 
     def link_transformer(self, message):
         try:
@@ -77,6 +77,13 @@ class ElementTransformerOps():
                 body = {}
                 for item in jsoniterator:
                     if item.get("type") == ElementTypes.VIDEO.value:
+                        body.update({"data": item.get("url"), "caption": item.get("alt") or ""})
+                        return body
+            elif message_type == ElementTypes.AUDIO.value:
+                jsoniterator = ElementTransformerOps.json_generator(json_message)
+                body = {}
+                for item in jsoniterator:
+                    if item.get("type") == ElementTypes.AUDIO.value:
                         body.update({"data": item.get("url")})
                         return body
                 return body

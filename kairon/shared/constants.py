@@ -114,6 +114,7 @@ class ElementTypes(str, Enum):
     LINK = "link"
     IMAGE = "image"
     VIDEO = "video"
+    AUDIO = "audio"
     BUTTON = "button"
     DROPDOWN = "dropdown"
 
