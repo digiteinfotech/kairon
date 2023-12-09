@@ -13942,6 +13942,107 @@ def test_add_channel_config(monkeypatch):
     assert actual["data"].startswith(f"http://localhost:5056/api/bot/slack/{pytest.bot}/e")
 
 
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+def test_add_template_error(mock_get_partner_auth_token):
+    mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+    data = {
+        "name": "Introduction template",
+        "category": "UTILITY",
+        "components": [
+            {
+                "format": "TEXT",
+                "text": "New request",
+                "type": "HEADER"
+            },
+            {
+                "type": "BODY",
+                "text": "Hi {{1}}, thanks for getting in touch with {{2}}. We will process your request get back to you shortly",
+                "example": {
+                    "body_text": [
+                        [
+                            "Nupur",
+                            "360dialog"
+                        ]
+                    ]
+                }
+            },
+            {
+                "text": "WhatsApp Business API provided by 360dialog",
+                "type": "FOOTER"
+            }
+        ],
+        "language": "es_ES",
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog",
+        json={'data': data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Channel not found!"
+    assert actual["data"] == None
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+def test_edit_template_error(mock_get_partner_auth_token):
+    mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+    data = {
+        "components": [
+            {
+                "format": "TEXT",
+                "text": "New request",
+                "type": "HEADER"
+            },
+            {
+                "type": "BODY",
+                "text": "Hi {{1}}, thanks for getting in touch with {{2}}. Let us know your queries!",
+                "example": {
+                    "body_text": [
+                        [
+                            "Nupur",
+                            "360dialog"
+                        ]
+                    ]
+                }
+            },
+            {
+                "text": "WhatsApp Business API provided by 360dialog",
+                "type": "FOOTER"
+            }
+        ],
+        "allow_category_change": False
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/test_one_id",
+        json={'data': data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Template status must be APPROVED, REJECTED, or PAUSED for editing!"
+    assert actual["data"] == None
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+def test_delete_template_error(mock_get_partner_auth_token):
+    mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/test_one_id",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Template not found!"
+    assert actual["data"] == None
+
+
 def test_list_whatsapp_templates_error():
     response = client.get(
         f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/list",
@@ -14055,6 +14156,123 @@ def test_post_process(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["message"] == 'Credentials refreshed!'
     assert actual["data"].startswith(f"http://kairon-api.digite.com/api/bot/whatsapp/{pytest.bot}/e")
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.add_template", autospec=True)
+def test_add_template(mock_add_template):
+    data = {
+            "name": "Introduction template",
+            "category": "MARKETING",
+            "components": [
+                {
+                    "format": "TEXT",
+                    "text": "New request",
+                    "type": "HEADER"
+                },
+                {
+                    "type": "BODY",
+                    "text": "Hi {{1}}, thanks for getting in touch with {{2}}. We will process your request get back to you shortly",
+                    "example": {
+                        "body_text": [
+                            [
+                                "Nupur",
+                                "360dialog"
+                            ]
+                        ]
+                    }
+                },
+                {
+                    "text": "WhatsApp Business API provided by 360dialog",
+                    "type": "FOOTER"
+                }
+            ],
+            "language": "es_ES",
+            "allow_category_change": True
+        }
+    api_resp = {
+        "id": "594425479261596",
+        "status": "PENDING",
+        "category": "MARKETING"
+    }
+    mock_add_template.return_value = api_resp
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog",
+        json={'data': data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == {'id': '594425479261596', 'status': 'PENDING', 'category': 'MARKETING'}
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.edit_template", autospec=True)
+def test_edit_template(mock_edit_template):
+    data = {
+        "components": [
+            {
+                "format": "TEXT",
+                "text": "New request",
+                "type": "HEADER"
+            },
+            {
+                "type": "BODY",
+                "text": "Hi {{1}}, thanks for getting in touch with {{2}}. Let us know your queries!",
+                "example": {
+                    "body_text": [
+                        [
+                            "Nupur",
+                            "360dialog"
+                        ]
+                    ]
+                }
+            },
+            {
+                "text": "WhatsApp Business API provided by 360dialog",
+                "type": "FOOTER"
+            }
+        ],
+        "allow_category_change": False
+    }
+    api_resp = {
+        "success": True
+    }
+    mock_edit_template.return_value = api_resp
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/test_id",
+        json={'data': data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'success': True}]
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.delete_template", autospec=True)
+def test_delete_template(mock_delete_template):
+    api_resp = {
+        "meta": {
+            "developer_message": "template name=Introduction template was deleted",
+            "http_code": 200,
+            "success": True
+        }
+    }
+    mock_delete_template.return_value = api_resp
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/test_id",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == api_resp
 
 
 @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.list_templates", autospec=True)
