@@ -14024,7 +14024,7 @@ def test_edit_template_error(mock_get_partner_auth_token):
     print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Template status must be APPROVED, REJECTED, or PAUSED for editing!"
+    assert actual["message"] == "Channel not found!"
     assert actual["data"] == None
 
 
@@ -14039,7 +14039,7 @@ def test_delete_template_error(mock_get_partner_auth_token):
     print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Template not found!"
+    assert actual["message"] == "Channel not found!"
     assert actual["data"] == None
 
 

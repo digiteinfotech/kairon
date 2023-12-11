@@ -2,18 +2,18 @@ from fastapi import APIRouter, Security, Path
 from starlette.requests import Request
 
 from kairon import Utility
-from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
-from kairon.shared.auth import Authentication
 from kairon.api.models import (
     Response, DictData,
 )
+from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
+from kairon.shared.auth import Authentication
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
-from kairon.shared.chat.models import ChannelRequest, MessageBroadcastRequest
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
+from kairon.shared.chat.models import ChannelRequest, MessageBroadcastRequest
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, WhatsappBSPTypes, EventRequestType
-from kairon.shared.models import User
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import User
 
 router = APIRouter()
 mongo_processor = MongoProcessor()
@@ -124,8 +124,8 @@ async def add_message_templates(
 
 @router.put("/whatsapp/templates/{bsp_type}/{template_id}", response_model=Response)
 async def edit_message_templates(
-        template_id: str,
         request_data: DictData,
+        template_id: str = Path(default=None, description="template id", example="594425479261596"),
         bsp_type: str = Path(default=None, description="Business service provider type",
                              example=WhatsappBSPTypes.bsp_360dialog.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
@@ -140,7 +140,7 @@ async def edit_message_templates(
 
 @router.delete("/whatsapp/templates/{bsp_type}/{template_id}", response_model=Response)
 async def delete_message_templates(
-        template_id: str,
+        template_id: str = Path(default=None, description="template id", example="594425479261596"),
         bsp_type: str = Path(default=None, description="Business service provider type",
                              example=WhatsappBSPTypes.bsp_360dialog.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)

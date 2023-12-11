@@ -84,12 +84,9 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
 
     def add_template(self, data: Dict, bot: Text, user: Text):
         try:
-            required_keys = ['name', 'category', 'components', 'language']
-            missing_keys = [key for key in required_keys if key not in data]
-            if missing_keys:
-                raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
+            Utility.validate_create_template_request(data)
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
-            partner_id = config.get("config", {}).get("partner_id", Utility.environment["channels"]["360dialog"]["partner_id"])
+            partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
             channel_id = config.get("config", {}).get("channel_id")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
             template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates'
@@ -105,28 +102,28 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
 
     def edit_template(self, data: Dict, template_id: str):
         try:
-            non_editable_keys = ['name', 'category', 'language']
-            if any(key in data for key in non_editable_keys):
-                raise AppException('Only "components" and "allow_category_change" fields can be edited!')
+            Utility.validate_edit_template_request(data)
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
-            partner_id = config.get("config", {}).get("partner_id",
-                                                      Utility.environment["channels"]["360dialog"]["partner_id"])
+            partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
             channel_id = config.get("config", {}).get("channel_id")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
             template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}'
             headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
             url = f"{base_url}{template_endpoint}"
-            resp = Utility.execute_http_request(request_method="PUT", http_url=url, request_body=data, headers=headers,
+            resp = Utility.execute_http_request(request_method="PATCH", http_url=url, request_body=data, headers=headers,
                                                 validate_status=True, err_msg="Failed to edit template: ")
             return resp
         except DoesNotExist as e:
             logger.exception(e)
-            raise AppException("Template status must be APPROVED, REJECTED, or PAUSED for editing!")
+            raise AppException("Channel not found!")
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(str(e))
 
     def delete_template(self, template_id: str):
         try:
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
-            partner_id = config.get("config", {}).get("partner_id", Utility.environment["channels"]["360dialog"]["partner_id"])
+            partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
             channel_id = config.get("config", {}).get("channel_id")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
             template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}'
@@ -137,7 +134,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             return resp
         except DoesNotExist as e:
             logger.exception(e)
-            raise AppException("Template not found!")
+            raise AppException("Channel not found!")
 
     def get_template(self, template_id: Text):
         return self.list_templates(id=template_id)
