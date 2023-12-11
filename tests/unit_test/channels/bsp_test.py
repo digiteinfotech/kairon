@@ -1,4 +1,6 @@
 import os
+from unittest import mock
+
 import pytest
 import responses
 from mongoengine import connect, ValidationError
@@ -10,6 +12,7 @@ from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
@@ -289,6 +292,346 @@ class TestBusinessServiceProvider:
                                     'api_key': 'kHCwksdsdsMVYVx0doabaDyRLUQJUAK', 'waba_account_id': 'Cyih7GWA'}
 
     @responses.activate
+    def test_add_template(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            responses.reset()
+            bot = "62bc24b493a0d6b7a46328ff"
+            partner_id = "new_partner_id"
+            channel_id = "dfghjkl"
+            data = {
+                "name": "Introduction template",
+                "category": "MARKETING",
+                "components": [
+                    {
+                        "format": "TEXT",
+                        "text": "New request",
+                        "type": "HEADER"
+                    },
+                    {
+                        "type": "BODY",
+                        "text": "Hi {{1}}, thanks for getting in touch with {{2}}. We will process your request get back to you shortly",
+                        "example": {
+                            "body_text": [
+                                [
+                                    "Nupur",
+                                    "360dialog"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "text": "WhatsApp Business API provided by 360dialog",
+                        "type": "FOOTER"
+                    }
+                ],
+                "language": "es_ES",
+                "allow_category_change": True
+            }
+            api_resp = {
+                "id": "594425479261596",
+                "status": "PENDING",
+                "category": "MARKETING"
+            }
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates"
+            responses.add("POST", json=api_resp, url=url)
+            template = BSP360Dialog(bot, "test").add_template(data, bot, "test")
+            assert template == {'category': 'MARKETING', 'id': '594425479261596', 'status': 'PENDING'}
+            count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user="test", action="activity").count()
+            assert count == 1
+
+    @responses.activate
+    def test_add_template_with_missing_keys(self):
+        bot = "62bc24b493a0d6b7a46328ff"
+        data = {
+            "name": "Introduction template",
+            "category": "UTILITY",
+            "language": "es_ES",
+            "allow_category_change": True
+        }
+        with pytest.raises(AppException, match="Missing components in request body!"):
+            BSP360Dialog(bot, "test").add_template(data, bot, "test")
+
+    def test_add_template_error(self, monkeypatch):
+        bot = "62bc24b493a0d6b7a46328fg"
+        data = {
+            "name": "Introduction template",
+            "category": "UTILITY",
+            "components": [
+                {
+                    "format": "TEXT",
+                    "text": "New request",
+                    "type": "HEADER"
+                },
+                {
+                    "type": "BODY",
+                    "text": "Hi {{1}}, thanks for getting in touch with {{2}}. We will process your request get back to you shortly",
+                    "example": {
+                        "body_text": [
+                            [
+                                "Nupur",
+                                "360dialog"
+                            ]
+                        ]
+                    }
+                },
+                {
+                    "text": "WhatsApp Business API provided by 360dialog",
+                    "type": "FOOTER"
+                }
+            ],
+            "language": "es_ES",
+        }
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").add_template(data, bot, "user")
+
+    @responses.activate
+    def test_add_template_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            partner_id = "new_partner_id"
+            channel_id = "dfghjkl"
+            data = {
+                "name": "Introduction template",
+                "category": "MARKETING",
+                "components": [
+                    {
+                        "format": "TEXT",
+                        "text": "New request",
+                        "type": "HEADER"
+                    },
+                    {
+                        "type": "BODY",
+                        "text": "Hi {{1}}, thanks for getting in touch with {{2}}. We will process your request get back to you shortly",
+                        "example": {
+                            "body_text": [
+                                [
+                                    "Nupur",
+                                    "360dialog"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "text": "WhatsApp Business API provided by 360dialog",
+                        "type": "FOOTER"
+                    }
+                ],
+                "language": "es_ES",
+                "allow_category_change": True
+            }
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates"
+            responses.add("POST", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to add template: *"):
+                BSP360Dialog(bot, "user").add_template(data, bot, "user")
+
+    @responses.activate
+    def test_edit_template(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            template_id = "test_id"
+            partner_id = "new_partner_id"
+            channel_id = "dfghjkl"
+            data = {
+                "components": [
+                    {
+                        "format": "TEXT",
+                        "text": "New request",
+                        "type": "HEADER"
+                    },
+                    {
+                        "type": "BODY",
+                        "text": "Hi {{1}}, thanks for getting in touch with {{2}}. Let us know your queries!",
+                        "example": {
+                            "body_text": [
+                                [
+                                    "Nupur",
+                                    "360dialog"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "text": "WhatsApp Business API provided by 360dialog",
+                        "type": "FOOTER"
+                    }
+                ],
+                "allow_category_change": False
+            }
+            api_resp = {
+                "success": True
+            }
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}"
+            responses.add("PATCH", json=api_resp, url=url)
+            template = BSP360Dialog(bot, "test").edit_template(data, template_id)
+            assert template == {'success': True}
+
+    @responses.activate
+    def test_edit_template_with_non_editable_keys(self):
+        bot = "62bc24b493a0d6b7a46328ff"
+        template_id = "test_id"
+        partner_id = "new_partner_id"
+        channel_id = "dfghjkl"
+        data = {
+            "name": "Introduction template",
+            "category": "UTILITY",
+            "language": "es_ES",
+        }
+        with pytest.raises(AppException, match='Only "components" and "allow_category_change" fields can be edited!'):
+            BSP360Dialog(bot, "test").edit_template(data, template_id)
+
+    @responses.activate
+    def test_edit_template_channel_not_found(self, monkeypatch):
+        bot = "62bc24b493a0d6b7a46328fg"
+        template_id = "test_id"
+        data = {
+            "components": [
+                {
+                    "format": "TEXT",
+                    "text": "New request",
+                    "type": "HEADER"
+                },
+                {
+                    "type": "BODY",
+                    "text": "Hi {{1}}, thanks for getting in touch with {{2}}. Let us know your queries!",
+                    "example": {
+                        "body_text": [
+                            [
+                                "Nupur",
+                                "360dialog"
+                            ]
+                        ]
+                    }
+                },
+                {
+                    "text": "WhatsApp Business API provided by 360dialog",
+                    "type": "FOOTER"
+                }
+            ],
+            "allow_category_change": False
+        }
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").edit_template(data, template_id)
+
+    @responses.activate
+    def test_edit_template_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            template_id = "test_id"
+            partner_id = "new_partner_id"
+            channel_id = "dfghjkl"
+            data = {
+                "components": [
+                    {
+                        "format": "TEXT",
+                        "text": "New request",
+                        "type": "HEADER"
+                    },
+                    {
+                        "type": "BODY",
+                        "text": "Hi {{1}}, thanks for getting in touch with {{2}}. Let us know your queries!",
+                        "example": {
+                            "body_text": [
+                                [
+                                    "Nupur",
+                                    "360dialog"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "text": "WhatsApp Business API provided by 360dialog",
+                        "type": "FOOTER"
+                    }
+                ],
+                "allow_category_change": True
+            }
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}"
+            responses.add("PATCH", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to edit template: Internal Server Error"):
+                BSP360Dialog(bot, "user").edit_template(data, template_id)
+
+    @responses.activate
+    def test_delete_template(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            template_id = "test_id"
+            partner_id = "new_partner_id"
+            channel_id = "dfghjkl"
+            api_resp = {
+                "meta": {
+                    "developer_message": "template name=Introduction template was deleted",
+                    "http_code": 200,
+                    "success": True
+                }
+            }
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}"
+            responses.add("DELETE", json=api_resp, url=url)
+            template = BSP360Dialog(bot, "test").delete_template(template_id)
+            assert template == {'meta': {'developer_message': 'template name=Introduction template was deleted', 'http_code': 200, 'success': True}}
+
+    @responses.activate
+    def test_delete_template_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            template_id = "test_id"
+            partner_id = "new_partner_id"
+            channel_id = "dfghjkl"
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}"
+            responses.add("DELETE", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to delete template: *"):
+                BSP360Dialog(bot, "user").delete_template(template_id)
+
+    def test_delete_template_error(self, monkeypatch):
+        bot = "62bc24b493a0d6b7a46328fg"
+        template_id = "test_id"
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").delete_template(template_id)
+
+    @responses.activate
     def test_get_template(self, monkeypatch):
         bot = "62bc24b493a0d6b7a46328ff"
         template_id = "test_id"
@@ -468,3 +811,12 @@ class TestBusinessServiceProvider:
 
         with pytest.raises(Exception):
             WhatsappBusinessServiceProviderBase().post_process()
+
+        with pytest.raises(Exception):
+            WhatsappBusinessServiceProviderBase.add_template()
+
+        with pytest.raises(Exception):
+            WhatsappBusinessServiceProviderBase.edit_template()
+
+        with pytest.raises(Exception):
+            WhatsappBusinessServiceProviderBase.delete_template()

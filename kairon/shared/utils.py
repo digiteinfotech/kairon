@@ -1066,6 +1066,19 @@ class Utility:
             raise AppException("Agent config not found!")
 
     @staticmethod
+    def validate_create_template_request(data: Dict):
+        required_keys = ['name', 'category', 'components', 'language']
+        missing_keys = [key for key in required_keys if key not in data]
+        if missing_keys:
+            raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
+
+    @staticmethod
+    def validate_edit_template_request(data: Dict):
+        non_editable_keys = ['name', 'category', 'language']
+        if any(key in data for key in non_editable_keys):
+            raise AppException('Only "components" and "allow_category_change" fields can be edited!')
+
+    @staticmethod
     def initiate_fastapi_apm_client():
         from elasticapm.contrib.starlette import make_apm_client
         config = Utility.initiate_apm_client_config()
@@ -1402,7 +1415,7 @@ class Utility:
                 response = requests.request(
                     request_method.upper(), http_url, params=request_body, headers=headers, timeout=kwargs.get('timeout')
                 )
-            elif request_method.lower() in ['post', 'put']:
+            elif request_method.lower() in ['post', 'put', 'patch']:
                 response = session.request(
                     request_method.upper(), http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout')
                 )

@@ -2,18 +2,18 @@ from fastapi import APIRouter, Security, Path
 from starlette.requests import Request
 
 from kairon import Utility
+from kairon.api.models import (
+    Response, DictData,
+)
 from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.shared.auth import Authentication
-from kairon.api.models import (
-    Response,
-)
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
-from kairon.shared.chat.models import ChannelRequest, MessageBroadcastRequest
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
+from kairon.shared.chat.models import ChannelRequest, MessageBroadcastRequest
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, WhatsappBSPTypes, EventRequestType
-from kairon.shared.models import User
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import User
 
 router = APIRouter()
 mongo_processor = MongoProcessor()
@@ -105,6 +105,52 @@ async def initiate_platform_onboarding(
     provider.validate()
     channel_endpoint = provider.save_channel_config(**request.query_params)
     return Response(message='Channel added', data=channel_endpoint)
+
+
+@router.post("/whatsapp/templates/{bsp_type}", response_model=Response)
+async def add_message_templates(
+        request_data: DictData,
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Adds message templates for configured bsp account.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.add_template(request_data.data, current_user.get_bot(), current_user.get_user())
+    return Response(data=response)
+
+
+@router.put("/whatsapp/templates/{bsp_type}/{template_id}", response_model=Response)
+async def edit_message_templates(
+        request_data: DictData,
+        template_id: str = Path(default=None, description="template id", example="594425479261596"),
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits message templates for configured bsp account.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.edit_template(request_data.data, template_id),
+    return Response(data=response)
+
+
+@router.delete("/whatsapp/templates/{bsp_type}/{template_id}", response_model=Response)
+async def delete_message_templates(
+        template_id: str = Path(default=None, description="template id", example="594425479261596"),
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes message templates for configured bsp account.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.delete_template(template_id)
+    return Response(data=response)
 
 
 @router.get("/whatsapp/templates/{bsp_type}/list", response_model=Response)
