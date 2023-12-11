@@ -4264,8 +4264,8 @@ def test_get_data_importer_logs():
     assert len(actual['data']["logs"][3]['rules']['data']) == 0
     assert actual['data']["logs"][3]['training_examples']['count'] == 305
     assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
-    assert actual['data']["logs"][3]['domain'] == {'intents_count': 32, 'actions_count': 41, 'slots_count': 10,
-                                           'utterances_count': 27, 'forms_count': 2, 'entities_count': 8, 'data': []}
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 32, 'actions_count': 41, 'slots_count': 11,
+                                           'utterances_count': 27, 'forms_count': 2, 'entities_count': 9, 'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
     assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
@@ -7849,7 +7849,6 @@ def test_get_config_templates():
         "long-answer",
         "rasa-default",
         "contextual",
-        "word-embedding",
         "kairon-default",
         "gpt-faq",
         "openai-classifier",

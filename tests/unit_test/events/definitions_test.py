@@ -5,7 +5,6 @@ from io import BytesIO
 from urllib.parse import urljoin
 
 import mock
-import mongomock
 import pytest
 import responses
 from fastapi import UploadFile
@@ -38,6 +37,7 @@ from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
+from mongomock import MongoClient
 
 
 class TestEventDefinitions:

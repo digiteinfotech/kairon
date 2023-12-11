@@ -517,7 +517,7 @@ async def train(
 
 @router.post("/abort/{event_type}", response_model=Response)
 async def abort_event(
-        event_type: EventClass = Path(default=None, description="Event type", example=[e.value for e in EventClass]),
+        event_type: EventClass = Path(description="Event type", examples=[e.value for e in EventClass]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """

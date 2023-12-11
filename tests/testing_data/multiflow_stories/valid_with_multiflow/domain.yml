@@ -23,8 +23,10 @@ slots:
   var_image1:
     type: rasa.shared.core.slots.TextSlot
     initial_value: null
-    auto_fill: false
     influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: file
 responses:
   utter_goodbye:
   - text: Bye
@@ -51,5 +53,4 @@ actions:
 forms:
   form_image:
     required_slots:
-      var_image1:
-        - type: from_text
+      - var_image1

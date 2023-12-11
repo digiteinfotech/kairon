@@ -4685,6 +4685,22 @@ class MongoProcessor:
             ActionType.prompt_action.value: list(self.get_prompt_action(bot, False))
         }
 
+    def load_razorpay_action(self, bot: Text):
+        """
+        Loads Razorpay actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.razorpay_action.value: list(self.get_razorpay_action_config(bot, False))}
+
+    def load_pyscript_action(self, bot: Text):
+        """
+        Loads Pyscript actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.pyscript_action.value: list(self.list_pyscript_actions(bot, False))}
+
     @staticmethod
     def get_existing_slots(bot: Text):
         """

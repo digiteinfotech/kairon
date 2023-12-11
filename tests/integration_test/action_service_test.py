@@ -2809,7 +2809,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     log.pop('timestamp')
     print(log)
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
-                   'headers': {}, 'url': 'http://localhost:8082/mock', 'request_method': 'GET', 'request_params': {},
+                   'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET', 'request_params': {},
                    'bot_response': 'I have failed to process your request',
                    'exception': 'Request timed out: 408', 'messages': [],
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents'}
