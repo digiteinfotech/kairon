@@ -1341,6 +1341,7 @@ def test_whatsapp_valid_attachment_message_request():
 
 @responses.activate
 def test_whatsapp_valid_order_message_request():
+    responses.reset()
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 

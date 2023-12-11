@@ -1,13 +1,15 @@
 import ast
-from typing import Text
+from typing import Text, Dict
+
 from loguru import logger
 from mongoengine import DoesNotExist
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
+from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
 
 
 class BSP360Dialog(WhatsappBusinessServiceProviderBase):
@@ -79,6 +81,60 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             }, "connector_type": ChannelTypes.WHATSAPP.value
         }
         return ChatDataProcessor.save_channel_config(conf, self.bot, self.user)
+
+    def add_template(self, data: Dict, bot: Text, user: Text):
+        try:
+            Utility.validate_create_template_request(data)
+            config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
+            partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
+            channel_id = config.get("config", {}).get("channel_id")
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates'
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{template_endpoint}"
+            resp = Utility.execute_http_request(request_method="POST", http_url=url, request_body=data, headers=headers,
+                                                validate_status=True, err_msg="Failed to add template: ")
+            UserActivityLogger.add_log(a_type=UserActivityType.template_creation.value, email=user, bot=bot, message=['Template created!'])
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+
+    def edit_template(self, data: Dict, template_id: str):
+        try:
+            Utility.validate_edit_template_request(data)
+            config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
+            partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
+            channel_id = config.get("config", {}).get("channel_id")
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}'
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{template_endpoint}"
+            resp = Utility.execute_http_request(request_method="PATCH", http_url=url, request_body=data, headers=headers,
+                                                validate_status=True, err_msg="Failed to edit template: ")
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(str(e))
+
+    def delete_template(self, template_id: str):
+        try:
+            config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
+            partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
+            channel_id = config.get("config", {}).get("channel_id")
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}'
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{template_endpoint}"
+            resp = Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
+                                                validate_status=True, err_msg="Failed to delete template: ")
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
 
     def get_template(self, template_id: Text):
         return self.list_templates(id=template_id)

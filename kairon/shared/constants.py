@@ -58,6 +58,7 @@ class UserActivityType(str, Enum):
     login_refresh_token = "login_refresh_token"
     invalid_login = 'invalid_login'
     download = "download"
+    template_creation = 'template_creation'
 
 
 class EventClass(str, Enum):
