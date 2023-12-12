@@ -7,8 +7,9 @@ from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.factory import MessageBroadcastFactory
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
-from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
+from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, MessageBroadcastLogs
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
+from kairon.shared.chat.data_objects import WhatsappAuditLog
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.processor import MongoProcessor
@@ -62,6 +63,17 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 self.bot, MessageBroadcastLogType.common.value, reference_id=reference_id, status=status,
                 broadcast_id=event_id, exception=exception
             )
+            message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
+                                                                  log_type=MessageBroadcastLogType.send.value)
+            for document in message_broadcast_logs:
+                api_response = document.api_response
+                messages = api_response.get('messages', [])
+                for message in messages:
+                    if message.get('id'):
+                        whatsapp_audit_log = WhatsappAuditLog.objects(status='sent', message_id=message['id']).get()
+                        errors = whatsapp_audit_log['errors']
+                        if errors:
+                            document.update(status='FAILURE', errors=errors)
             if config and not config.get("scheduler_config"):
                 MessageBroadcastProcessor.delete_task(event_id, self.bot, False)
 
