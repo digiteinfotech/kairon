@@ -1267,19 +1267,20 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
-        print(logs[0][0])
-        assert logs[0][0] == {'reference_id': '657821a15b38204ad05aa22d', 'log_type': 'send',
-                              'bot': 'test_execute_message_broadcast_with_logs_modification',
-                              'timestamp': {'$date': 1702371745806}, 'status': 'FAILURE', 'api_response': {
+        logs[0][0].pop("timestamp")
+        logged_config = logs[0][0]
+        print(logged_config)
+        assert logged_config == {'log_type': 'send', 'bot': 'test_execute_message_broadcast_with_logs_modification',
+                                 'status': 'FAILURE', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}], 'messages': [
                     {'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
                      'message_status': 'accepted'}]}, 'recipient': '918958030541', 'template_params': None,
-                              'template': [
-                                  {'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'}, {
-                                      'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.',
-                                      'type': 'BODY'}, {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
-                                  {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}],
-                                   'type': 'BUTTONS'}], 'errors': [
+                                 'template': [
+                                     {'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'}, {
+                                         'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.',
+                                         'type': 'BODY'}, {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
+                                     {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}],
+                                      'type': 'BUTTONS'}], 'errors': [
                 {'code': 130472, 'title': "User's number is part of an experiment",
                  'message': "User's number is part of an experiment", 'error_data': {
                     'details': "Failed to send message because this user's phone number is part of an experiment"},
