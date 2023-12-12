@@ -1268,9 +1268,10 @@ class TestEventExecution:
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
         logs[0][0].pop("timestamp")
+        reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0]
         print(logged_config)
-        assert logged_config == {'log_type': 'send', 'bot': 'test_execute_message_broadcast_with_logs_modification',
+        assert logged_config == {'reference_id': reference_id, 'log_type': 'send', 'bot': 'test_execute_message_broadcast_with_logs_modification',
                                  'status': 'FAILURE', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}], 'messages': [
                     {'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
