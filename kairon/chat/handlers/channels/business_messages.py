@@ -22,21 +22,16 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.chat.agent_processor import AgentProcessor
 
 
-path_to_service_account_key = 'kairon/chat/handlers/channels/business_messages/service_account_key.json'
-
-
 class BusinessMessagesHandler(InputChannel):
 
     def __init__(self, bot: Text, user: User, request: Request):
         self.bot = bot
         self.user = user
         self.request = request
+        self.channel_config = {}
 
     async def validate(self):
-        business_message_conf = ChatDataProcessor.get_channel_config("business_messages", self.bot,
-                                                                     mask_characters=False)
-
-        partner_key = business_message_conf["config"]["private_key_id"]
+        partner_key = self.channel_config["private_key_id"]
         generated_signature = base64.b64encode(hmac.new(partner_key.encode(), msg=await self.request.body(),
                                                         digestmod=hashlib.sha512).digest()).decode('UTF-8')
         google_signature = self.request.headers.get('x-goog-signature')
@@ -50,16 +45,10 @@ class BusinessMessagesHandler(InputChannel):
         if 'secret' in request_body:
             return request_body.get('secret')
 
-        await self.validate()
         business_message_conf = ChatDataProcessor.get_channel_config("business_messages", self.bot,
                                                                      mask_characters=False)
-        credentials_json = {
-            "type": "service_account",
-            "private_key_id": business_message_conf["config"]["private_key_id"],
-            "private_key": business_message_conf["config"]["private_key"],
-            "client_email": business_message_conf["config"]["client_email"],
-            "client_id": business_message_conf["config"]["client_id"]
-        }
+        self.channel_config = business_message_conf['config']
+        await self.validate()
         print(request_body)
         metadata = self.get_metadata(self.request) or {}
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account,
@@ -71,10 +60,11 @@ class BusinessMessagesHandler(InputChannel):
                 message = request_body['message']['text']
                 conversation_id = request_body['conversationId']
                 message_id = request_body['message']['messageId']
-                business_messages = BusinessMessages(credentials_json)
+                business_messages = BusinessMessages(self.channel_config)
                 await business_messages.handle_user_message(text=message, sender_id=self.user.email, metadata=metadata,
                                                             conversation_id=conversation_id, bot=self.bot,
                                                             message_id=message_id)
+        logger.debug("Business Messages Request: " + str(request_body))
         return {"status": "OK"}
 
     @staticmethod
@@ -84,30 +74,32 @@ class BusinessMessagesHandler(InputChannel):
         current_time = datetime.utcnow()
         message_time = datetime.strptime(create_time, '%Y-%m-%dT%H:%M:%S.%fZ')
         time_difference = current_time - message_time
-        print(time_difference)
         return True if time_difference.total_seconds() < 5 else False
 
 
 class BusinessMessages:
 
-    def __init__(self, credentials_json: Dict):
-        self.credentials_json = credentials_json
+    def __init__(self, channel_config: Dict):
+        self.channel_config = channel_config
 
     @classmethod
     def name(cls) -> Text:
         return "business_messages"
 
-    @staticmethod
-    def write_json_to_file(json_code, file_path):
-        import json
-
-        with open(file_path, 'w') as json_file:
-            json.dump(json_code, json_file, indent=2)
+    def get_credentials(self):
+        credentials_json = {
+            "type": "service_account",
+            "private_key_id": self.channel_config["private_key_id"],
+            "private_key": self.channel_config["private_key"],
+            "client_email": self.channel_config["client_email"],
+            "client_id": self.channel_config["client_id"]
+        }
+        return credentials_json
 
     def get_business_message_credentials(self):
-        self.write_json_to_file(self.credentials_json, path_to_service_account_key)
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(
-            path_to_service_account_key,
+        credentials = self.get_credentials()
+        credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+            credentials,
             scopes=['https://www.googleapis.com/auth/businessmessages'])
         return credentials
 
@@ -117,16 +109,14 @@ class BusinessMessages:
     ) -> None:
         user_msg = UserMessage(text=text, message_id=message_id,
                                input_channel=self.name(), sender_id=sender_id, metadata=metadata)
-        message = "No Response"
         try:
             response = await self.process_message(bot, user_msg)
             print(response)
-            message = response['response'][0]['text']
-        except Exception:
-            logger.exception(
-                "Exception when trying to handle webhook for business message."
-            )
-        await self.send_message(message=message, conversation_id=conversation_id)
+            message = response['response'][0].get('text')
+        except Exception as e:
+            raise Exception(f"Exception when trying to handle webhook for business message: {str(e)}")
+        if message:
+            await self.send_message(message=message, conversation_id=conversation_id)
 
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):
@@ -146,19 +136,14 @@ class BusinessMessages:
         credentials = self.get_business_message_credentials()
         client = bm_client.BusinessmessagesV1(credentials=credentials)
 
-        create_request = BusinessmessagesConversationsEventsCreateRequest(
-            eventId=str(uuid.uuid4().int),
-            businessMessagesEvent=BusinessMessagesEvent(
-                representative=BusinessMessagesRepresentative(
-                    representativeType=BusinessMessagesRepresentative.RepresentativeTypeValueValuesEnum.BOT
-                ),
-                eventType=BusinessMessagesEvent.EventTypeValueValuesEnum.TYPING_STARTED
-            ),
-            parent='conversations/' + conversation_id)
+        self.trigger_start_typing_event(conversation_id, client)
 
-        bm_client.BusinessmessagesV1.ConversationsEventsService(
-            client=client).Create(request=create_request)
+        self.send_google_business_message(message, conversation_id, client)
 
+        self.trigger_stop_typing_event(conversation_id, client)
+
+    @staticmethod
+    def send_google_business_message(message, conversation_id, client):
         message_obj = BusinessMessagesMessage(
             messageId=str(uuid.uuid4().int),
             representative=BusinessMessagesRepresentative(
@@ -173,6 +158,23 @@ class BusinessMessages:
         bm_client.BusinessmessagesV1.ConversationsMessagesService(
             client=client).Create(request=create_request)
 
+    @staticmethod
+    def trigger_start_typing_event(conversation_id, client):
+        create_request = BusinessmessagesConversationsEventsCreateRequest(
+            eventId=str(uuid.uuid4().int),
+            businessMessagesEvent=BusinessMessagesEvent(
+                representative=BusinessMessagesRepresentative(
+                    representativeType=BusinessMessagesRepresentative.RepresentativeTypeValueValuesEnum.BOT
+                ),
+                eventType=BusinessMessagesEvent.EventTypeValueValuesEnum.TYPING_STARTED
+            ),
+            parent='conversations/' + conversation_id)
+
+        bm_client.BusinessmessagesV1.ConversationsEventsService(
+            client=client).Create(request=create_request)
+
+    @staticmethod
+    def trigger_stop_typing_event(conversation_id, client):
         create_request = BusinessmessagesConversationsEventsCreateRequest(
             eventId=str(uuid.uuid4().int),
             businessMessagesEvent=BusinessMessagesEvent(
