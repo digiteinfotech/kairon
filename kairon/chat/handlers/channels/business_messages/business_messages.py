@@ -66,14 +66,26 @@ class BusinessMessagesHandler(InputChannel):
                          "channel_type": "business_messages", "tabname": "default"})
 
         if 'message' in request_body and 'text' in request_body['message']:
-            message = request_body['message']['text']
-            conversation_id = request_body['conversationId']
-            message_id = request_body['message']['messageId']
-            business_messages = BusinessMessages(credentials_json)
-            await business_messages.handle_user_message(text=message, sender_id=self.user.email, metadata=metadata,
-                                                        conversation_id=conversation_id, bot=self.bot,
-                                                        message_id=message_id)
+            create_time = request_body['message']['createTime']
+            if self.check_message_create_time(create_time):
+                message = request_body['message']['text']
+                conversation_id = request_body['conversationId']
+                message_id = request_body['message']['messageId']
+                business_messages = BusinessMessages(credentials_json)
+                await business_messages.handle_user_message(text=message, sender_id=self.user.email, metadata=metadata,
+                                                            conversation_id=conversation_id, bot=self.bot,
+                                                            message_id=message_id)
         return {"status": "OK"}
+
+    @staticmethod
+    def check_message_create_time(create_time: str):
+        from datetime import datetime
+
+        current_time = datetime.utcnow()
+        message_time = datetime.strptime(create_time, '%Y-%m-%dT%H:%M:%S.%fZ')
+        time_difference = current_time - message_time
+        print(time_difference)
+        return True if time_difference.total_seconds() < 5 else False
 
 
 class BusinessMessages:
