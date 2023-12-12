@@ -143,6 +143,8 @@ class KaironSystemSlots(str, Enum):
     document = "document"
     doc_url = "doc_url"
     order = "order"
+    longitude = "longitude"
+    latitude = "latitude"
 
 
 class VectorEmbeddingsDatabases(str, Enum):
