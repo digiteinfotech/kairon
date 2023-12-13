@@ -27,6 +27,12 @@ channels:
       - username_for_bot
     api:
       url: https://api.telegram.org
+  business_messages:
+    required_fields:
+      - private_key_id
+      - private_key
+      - client_email
+      - client_id
   hangouts:
     required_fields:
       - project_id

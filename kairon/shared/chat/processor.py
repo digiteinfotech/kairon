@@ -2,7 +2,7 @@ from typing import Dict, Text
 
 from mongoengine import DoesNotExist
 from loguru import logger
-from .data_objects import Channels, WhatsappAuditLog
+from .data_objects import Channels, ChannelLogs
 from datetime import datetime
 from kairon.shared.utils import Utility
 from ..constants import ChannelTypes
@@ -134,7 +134,7 @@ class ChatDataProcessor:
         :param user: user id
         :return: None
         """
-        WhatsappAuditLog(
+        ChannelLogs(
             status=status_data.get('status'),
             data=status_data.get('conversation'),
             initiator=status_data.get('conversation', {}).get('origin', {}).get('type'),
