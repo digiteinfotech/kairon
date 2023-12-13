@@ -1417,7 +1417,7 @@ def test_whatsapp_valid_order_message_request():
 
 @responses.activate
 def test_whatsapp_valid_statuses_with_sent_request():
-    from kairon.shared.chat.data_objects import WhatsappAuditLog
+    from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1468,7 +1468,7 @@ def test_whatsapp_valid_statuses_with_sent_request():
             })
     actual = response.json()
     assert actual == 'success'
-    log = WhatsappAuditLog.objects(
+    log = ChannelLogs.objects(
         bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIA').get().to_mongo().to_dict()
     assert log['data'] == {
         'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412', 'origin': {'type': 'business_initated'}
@@ -1479,7 +1479,7 @@ def test_whatsapp_valid_statuses_with_sent_request():
 
 @responses.activate
 def test_whatsapp_valid_statuses_with_delivered_request():
-    from kairon.shared.chat.data_objects import WhatsappAuditLog
+    from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1530,7 +1530,7 @@ def test_whatsapp_valid_statuses_with_delivered_request():
             })
     actual = response.json()
     assert actual == 'success'
-    log = WhatsappAuditLog.objects(
+    log = ChannelLogs.objects(
         bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIB').get().to_mongo().to_dict()
     assert log['data'] == {
         'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412', 'origin': {'type': 'user_initiated'}
@@ -1541,7 +1541,7 @@ def test_whatsapp_valid_statuses_with_delivered_request():
 
 @responses.activate
 def test_whatsapp_valid_statuses_with_read_request():
-    from kairon.shared.chat.data_objects import WhatsappAuditLog
+    from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1580,14 +1580,14 @@ def test_whatsapp_valid_statuses_with_read_request():
             })
     actual = response.json()
     assert actual == 'success'
-    log = WhatsappAuditLog.objects(
+    log = ChannelLogs.objects(
         bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIC').get().to_mongo().to_dict()
     assert log.get('data') is None
     assert log.get('initiator') is None
     assert log.get('status') == 'read'
 
-    logs = WhatsappAuditLog.objects(bot=bot, user='919876543210')
-    assert len(WhatsappAuditLog.objects(bot=bot, user='919876543210')) == 3
+    logs = ChannelLogs.objects(bot=bot, user='919876543210')
+    assert len(ChannelLogs.objects(bot=bot, user='919876543210')) == 3
     assert logs[0]['data'] == {
         'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412', 'origin': {'type': 'business_initated'}
     }
@@ -1603,7 +1603,7 @@ def test_whatsapp_valid_statuses_with_read_request():
 
 @responses.activate
 def test_whatsapp_valid_statuses_with_errors_request():
-    from kairon.shared.chat.data_objects import WhatsappAuditLog
+    from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1655,8 +1655,8 @@ def test_whatsapp_valid_statuses_with_errors_request():
             })
     actual = response.json()
     assert actual == 'success'
-    assert WhatsappAuditLog.objects(bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ')
-    log = WhatsappAuditLog.objects(bot=bot, user='919876543219').get().to_mongo().to_dict()
+    assert ChannelLogs.objects(bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ')
+    log = ChannelLogs.objects(bot=bot, user='919876543219').get().to_mongo().to_dict()
     assert log.get('status') == 'failed'
     assert log.get('data') is None
     assert log.get('errors') == [{

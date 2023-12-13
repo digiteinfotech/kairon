@@ -19,7 +19,7 @@ from responses import matchers
 
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.shared.channels.broadcast.whatsapp import WhatsappBroadcast
-from kairon.shared.chat.data_objects import WhatsappAuditLog
+from kairon.shared.chat.data_objects import ChannelLogs
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -1239,7 +1239,7 @@ class TestEventExecution:
                                   "messages": [{"id": 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ', "message_status": 'accepted'}]}
         mock_get_partner_auth_token.return_value = None
 
-        WhatsappAuditLog(
+        ChannelLogs(
             status='sent',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},

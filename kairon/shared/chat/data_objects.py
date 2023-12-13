@@ -40,7 +40,7 @@ class Channels(Auditlog):
 
 @auditlogger.log
 @push_notification.apply
-class WhatsappAuditLog(Auditlog):
+class ChannelLogs(Auditlog):
     data = DictField(default=None)
     status = StringField(required=True)
     message_id = StringField(required=True)

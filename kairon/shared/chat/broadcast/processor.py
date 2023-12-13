@@ -11,7 +11,7 @@ from kairon.exceptions import AppException
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
-from kairon.shared.chat.data_objects import Channels, WhatsappAuditLog
+from kairon.shared.chat.data_objects import Channels, ChannelLogs
 
 
 class MessageBroadcastProcessor:
@@ -123,7 +123,7 @@ class MessageBroadcastProcessor:
     @staticmethod
     def __add_broadcast_logs_status_and_errors(broadcast_logs: Dict[Text, Document]):
         message_ids = list(broadcast_logs.keys())
-        channel_logs = WhatsappAuditLog.objects(message_id__in=message_ids)
+        channel_logs = ChannelLogs.objects(message_id__in=message_ids)
         for log in channel_logs:
             if log['errors']:
                 msg_id = log["message_id"]
