@@ -421,34 +421,6 @@ class TestChat:
                                                       "test",
                                                       "test")
 
-    @responses.activate
-    def test_save_channel_config_business_messages(self):
-        def __mock_endpoint(*args):
-            return f"https://test@test.com/api/bot/business_messages/tests/test"
-
-        with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
-            channel_endpoint = ChatDataProcessor.save_channel_config(
-                {
-                    "connector_type": "business_messages",
-                    "config": {
-                        "type": "service_account",
-                        "private_key_id": "fa006e13b1e17eddf3990eede45ca6111eb74945",
-                        "private_key": "test_private_key",
-                        "client_email": "provider@gbc-mahesh.iam.testaccount.com",
-                        "client_id": "102056160806575769486"
-                    }
-                },
-                "test",
-                "test")
-            assert channel_endpoint == "https://test@test.com/api/bot/business_messages/tests/test"
-            business_messages_config = ChatDataProcessor.get_channel_config("business_messages",
-                                                                            "test")
-            assert business_messages_config['config'] == {'type': 'service_account',
-                                                          'private_key_id': 'fa006e13b1e17eddf3990eede45ca6111eb*****',
-                                                          'private_key': 'test_privat*****',
-                                                          'client_email': 'provider@gbc-mahesh.iam.testaccoun*****',
-                                                          'client_id': '1020561608065757*****'}
-
     @mock.patch('kairon.shared.utils.MongoClient', autospec=True)
     def test_fetch_session_history_error(self, mock_mongo):
         mock_mongo.side_effect = ServerSelectionTimeoutError("Failed to retrieve conversation: Failed to connect")
@@ -494,6 +466,34 @@ class TestChat:
         assert history[0]["tabname"] == "coaching"
         assert len(history[0]["events"]) == 2
         assert message is None
+
+    @responses.activate
+    def test_save_channel_config_business_messages(self):
+        def __mock_endpoint(*args):
+            return f"https://test@test.com/api/bot/business_messages/tests/test"
+
+        with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
+            channel_endpoint = ChatDataProcessor.save_channel_config(
+                {
+                    "connector_type": "business_messages",
+                    "config": {
+                        "type": "service_account",
+                        "private_key_id": "fa006e13b1e17eddf3990eede45ca6111eb74945",
+                        "private_key": "test_private_key",
+                        "client_email": "provider@gbc-mahesh.iam.testaccount.com",
+                        "client_id": "102056160806575769486"
+                    }
+                },
+                "test",
+                "test")
+            assert channel_endpoint == "https://test@test.com/api/bot/business_messages/tests/test"
+            business_messages_config = ChatDataProcessor.get_channel_config("business_messages",
+                                                                            "test")
+            assert business_messages_config['config'] == {'type': 'service_account',
+                                                          'private_key_id': 'fa006e13b1e17eddf3990eede45ca6111eb*****',
+                                                          'private_key': 'test_privat*****',
+                                                          'client_email': 'provider@gbc-mahesh.iam.testaccoun*****',
+                                                          'client_id': '1020561608065757*****'}
 
     def test_save_channel_config_msteams(self, monkeypatch):
         bot = '5e564fbcdcf0d5fad89e3acd'
