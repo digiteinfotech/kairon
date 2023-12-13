@@ -402,30 +402,32 @@ def test_business_messages_with_valid_data(mock_business_messages, mock_credenti
     mock_check_message_create_time.return_value = True
     mock_credentials.return_value = {}
     mock_business_messages.return_value = {}
-    response = client.post(
-            f"/api/bot/business_messages/{bot}/{token}",
-            headers={"Authorization": "Bearer Test"},
-            json={"message": {
-                "name": "conversations/24ab463a-a6bf-4049-b49e-cc05fb1dc384/messages/5979C5-325C-4700-BF5A-0156C39C541",
-                "text": "Hello!",
-                "createTime": "2023-12-04T06:30:46.034290Z",
-                "messageId": "5979C547-325C-4700-BF5A-0156C39C5641"},
-                "context": {
-                    "placeId": "",
-                    "userInfo": {
-                        "displayName": "Mahesh Sattala",
-                        "userDeviceLocale": "en-IN"
+    with patch.object(Agent, "handle_message") as mock_agent:
+        mock_agent.side_effect = mock_agent_response
+        response = client.post(
+                f"/api/bot/business_messages/{bot}/{token}",
+                headers={"Authorization": "Bearer Test"},
+                json={"message": {
+                    "name": "conversations/24ab463a-a6bf-4049-b49e-cc05fb1dc384/messages/5979C5-325C-4700-BF5A-0156C39C541",
+                    "text": "Hello!",
+                    "createTime": "2023-12-04T06:30:46.034290Z",
+                    "messageId": "5979C547-325C-4700-BF5A-0156C39C5641"},
+                    "context": {
+                        "placeId": "",
+                        "userInfo": {
+                            "displayName": "Mahesh Sattala",
+                            "userDeviceLocale": "en-IN"
+                        },
+                        "resolvedLocale": "en"
                     },
-                    "resolvedLocale": "en"
-                },
-                "sendTime": "2023-12-04T06:30:46.662594Z",
-                "conversationId": "24ab463a-a6bf-4056-b49e-aa05fb1dc384",
-                "requestId": "5979C547-325C-4700-BF5A-0156C45C1541",
-                "agent": "brands/bd7e3fe0-3c3e-4b3e-4759-6e46ac0412a5/agents/3cf91834-3b5e-4c4b-a632-9575f0cc3444"
-            }
-    )
-    actual = response.json()
-    assert actual == {"status": "OK"}
+                    "sendTime": "2023-12-04T06:30:46.662594Z",
+                    "conversationId": "24ab463a-a6bf-4056-b49e-aa05fb1dc384",
+                    "requestId": "5979C547-325C-4700-BF5A-0156C45C1541",
+                    "agent": "brands/bd7e3fe0-3c3e-4b3e-4759-6e46ac0412a5/agents/3cf91834-3b5e-4c4b-a632-9575f0cc3444"
+                }
+        )
+        actual = response.json()
+        assert actual == {"status": "OK"}
 
 
 def test_chat():
