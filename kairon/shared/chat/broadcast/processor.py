@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Text, Dict, List
+from typing import Text, Dict
 
 from bson import ObjectId
 from loguru import logger
