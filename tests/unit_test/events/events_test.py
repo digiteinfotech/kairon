@@ -1240,7 +1240,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         ChannelLogs(
-            status='sent',
+            status='Failed',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -1272,7 +1272,7 @@ class TestEventExecution:
         logged_config = logs[0][0]
         print(logged_config)
         assert logged_config == {'reference_id': reference_id, 'log_type': 'send', 'bot': 'test_execute_message_broadcast_with_logs_modification',
-                                 'status': 'FAILURE', 'api_response': {
+                                 'status': 'Failed', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}], 'messages': [
                     {'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
                      'message_status': 'accepted'}]}, 'recipient': '918958030541', 'template_params': None,
@@ -1286,6 +1286,7 @@ class TestEventExecution:
                  'message': "User's number is part of an experiment", 'error_data': {
                     'details': "Failed to send message because this user's phone number is part of an experiment"},
                  'href': 'https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/'}]}
+        assert ChannelLogs.objects(bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ').get().campaign_id == reference_id
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))

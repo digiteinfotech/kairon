@@ -114,23 +114,24 @@ class MessageBroadcastProcessor:
         broadcast_logs = {
             message['id']: log
             for log in message_broadcast_logs
-            if log.get("api_response") and log["api_response"].get('messages', [])
-            for message in log["api_response"]['messages']
+            if log.api_response and log.api_response.get('messages', [])
+            for message in log.api_response['messages']
             if message['id']
         }
         return broadcast_logs
 
     @staticmethod
-    def __add_broadcast_logs_status_and_errors(broadcast_logs: Dict[Text, Document]):
+    def __add_broadcast_logs_status_and_errors(reference_id: Text, broadcast_logs: Dict[Text, Document]):
         message_ids = list(broadcast_logs.keys())
         channel_logs = ChannelLogs.objects(message_id__in=message_ids)
         for log in channel_logs:
             if log['errors']:
                 msg_id = log["message_id"]
                 broadcast_logs[msg_id].update(errors=log['errors'], status="Failed")
+            log.update(campaign_id=reference_id)
 
     @staticmethod
     def insert_status_received_on_channel_webhook(reference_id: Text):
         broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
         if broadcast_logs:
-            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(broadcast_logs)
+            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_logs)
