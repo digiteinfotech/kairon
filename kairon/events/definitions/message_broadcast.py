@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Text, Dict
 
 from loguru import logger
-from mongoengine import Q
 
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
@@ -73,13 +72,18 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 for message in document.api_response['messages']
                 if message['id']
             ]
-            whatsapp_audit_logs = WhatsappAuditLog.objects(status='sent', message_id__in=message_ids)
-            matching_documents = MessageBroadcastLogs.objects(
-                api_response__messages__elemMatch={'id': {'$in': message_ids}})
-            for audit_log in whatsapp_audit_logs:
-                if audit_log['errors']:
-                    for document in matching_documents:
-                        document.update(errors=audit_log['errors'], status='FAILURE')
+            if message_ids:
+                whatsapp_audit_logs = WhatsappAuditLog.objects(status='sent', message_id__in=message_ids)
+                for audit_log in whatsapp_audit_logs:
+                    if audit_log['errors']:
+                        matching_message_broadcast_log = MessageBroadcastLogs.objects(
+                            api_response__messages__elemMatch={'id': audit_log['message_id']}
+                        ).get()
+                        if matching_message_broadcast_log:
+                            matching_message_broadcast_log.update(
+                                errors=audit_log['errors'],
+                                status='FAILURE'
+                            )
             if config and not config.get("scheduler_config"):
                 MessageBroadcastProcessor.delete_task(event_id, self.bot, False)
 
