@@ -111,35 +111,26 @@ class MessageBroadcastProcessor:
     def extract_message_ids_from_broadcast_logs(reference_id: Text):
         message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
                                                               log_type=MessageBroadcastLogType.send.value)
-        message_ids = [
-            message['id']
-            for document in message_broadcast_logs
-            if document.api_response and document.api_response.get('messages', [])
-            for message in document.api_response['messages']
+        broadcast_logs = {
+            message['id']: log
+            for log in message_broadcast_logs
+            if log.get("api_response") and log["api_response"].get('messages', [])
+            for message in log["api_response"]['messages']
             if message['id']
-        ]
-        return message_broadcast_logs, message_ids
+        }
+        return broadcast_logs
 
     @staticmethod
-    def update_message_broadcast_logs(reference_id: Text):
-        message_broadcast_logs, message_ids = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(
-            reference_id)
-        if message_ids:
-            MessageBroadcastProcessor.add_broadcast_logs_status_and_errors(message_ids, message_broadcast_logs)
+    def __add_broadcast_logs_status_and_errors(broadcast_logs: Dict[Text, Document]):
+        message_ids = list(broadcast_logs.keys())
+        channel_logs = WhatsappAuditLog.objects(message_id__in=message_ids)
+        for log in channel_logs:
+            if log['errors']:
+                msg_id = log["message_id"]
+                broadcast_logs[msg_id].update(errors=log['errors'], status="Failed")
 
     @staticmethod
-    def add_broadcast_logs_status_and_errors(message_ids: List, message_broadcast_logs: List[Document]):
-        whatsapp_audit_logs = WhatsappAuditLog.objects(status='sent', message_id__in=message_ids)
-        for audit_log in whatsapp_audit_logs:
-            if audit_log['errors']:
-                matching_message_broadcast_log = next(
-                    (doc for doc in message_broadcast_logs if any(
-                        msg['id'] == audit_log['message_id'] for msg in doc.api_response.get('messages', [])
-                    )),
-                    None
-                )
-                if matching_message_broadcast_log:
-                    matching_message_broadcast_log.update(
-                        errors=audit_log['errors'],
-                        status='FAILURE'
-                    )
+    def insert_status_received_on_channel_webhook(reference_id: Text):
+        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
+        if broadcast_logs:
+            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(broadcast_logs)

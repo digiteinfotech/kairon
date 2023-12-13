@@ -58,11 +58,11 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             logger.exception(e)
             exception = str(e)
         finally:
+            MessageBroadcastProcessor.insert_status_received_on_channel_webhook(reference_id)
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, reference_id=reference_id, status=status,
                 broadcast_id=event_id, exception=exception
             )
-            MessageBroadcastProcessor.update_message_broadcast_logs(reference_id)
             if config and not config.get("scheduler_config"):
                 MessageBroadcastProcessor.delete_task(event_id, self.bot, False)
 
