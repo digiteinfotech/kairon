@@ -395,15 +395,13 @@ def test_business_messages_without_message(mock_process_message, mock_check_mess
 
 
 @patch("kairon.chat.handlers.channels.business_messages.BusinessMessagesHandler.check_message_create_time")
-@patch("kairon.chat.handlers.channels.business_messages.BusinessMessages.process_message")
 @patch('oauth2client.service_account.ServiceAccountCredentials.from_json_keyfile_dict')
 @patch('businessmessages.businessmessages_v1_client.BusinessmessagesV1')
-def test_business_messages_with_valid_data(mock_business_messages, mock_credentials, mock_process_message,
+def test_business_messages_with_valid_data(mock_business_messages, mock_credentials,
                                            mock_check_message_create_time):
     mock_check_message_create_time.return_value = True
     mock_credentials.return_value = {}
     mock_business_messages.return_value = {}
-    mock_process_message.return_value = {'response': [{'text': 'How may I help you!'}]}
     response = client.post(
             f"/api/bot/business_messages/{bot}/{token}",
             headers={"Authorization": "Bearer Test"},

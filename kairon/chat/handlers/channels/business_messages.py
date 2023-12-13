@@ -17,6 +17,7 @@ from businessmessages.businessmessages_v1_messages import BusinessMessagesMessag
 from businessmessages.businessmessages_v1_messages import BusinessMessagesRepresentative
 from oauth2client.service_account import ServiceAccountCredentials
 
+from kairon.shared.constants import ChannelTypes
 from kairon.shared.models import User
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.chat.agent_processor import AgentProcessor
@@ -45,14 +46,14 @@ class BusinessMessagesHandler(InputChannel):
         if 'secret' in request_body:
             return request_body.get('secret')
 
-        business_message_conf = ChatDataProcessor.get_channel_config("business_messages", self.bot,
+        business_message_conf = ChatDataProcessor.get_channel_config(ChannelTypes.BUSINESS_MESSAGES.value, self.bot,
                                                                      mask_characters=False)
         self.channel_config = business_message_conf['config']
         await self.validate()
         print(request_body)
         metadata = self.get_metadata(self.request) or {}
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account,
-                         "channel_type": "business_messages", "tabname": "default"})
+                         "channel_type": ChannelTypes.BUSINESS_MESSAGES.value, "tabname": "default"})
 
         if 'message' in request_body and 'text' in request_body['message']:
             create_time = request_body['message']['createTime']
@@ -64,7 +65,7 @@ class BusinessMessagesHandler(InputChannel):
                 await business_messages.handle_user_message(text=message, sender_id=self.user.email, metadata=metadata,
                                                             conversation_id=conversation_id, bot=self.bot,
                                                             message_id=message_id)
-        logger.debug("Business Messages Request: " + str(request_body))
+        logger.debug(f"Business Messages Request: {request_body}")
         return {"status": "OK"}
 
     @staticmethod
@@ -84,7 +85,7 @@ class BusinessMessages:
 
     @classmethod
     def name(cls) -> Text:
-        return "business_messages"
+        return ChannelTypes.BUSINESS_MESSAGES.value
 
     def get_credentials(self):
         credentials_json = {
@@ -113,10 +114,10 @@ class BusinessMessages:
             response = await self.process_message(bot, user_msg)
             print(response)
             message = response['response'][0].get('text')
+            if message:
+                await self.send_message(message=message, conversation_id=conversation_id)
         except Exception as e:
             raise Exception(f"Exception when trying to handle webhook for business message: {str(e)}")
-        if message:
-            await self.send_message(message=message, conversation_id=conversation_id)
 
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):
