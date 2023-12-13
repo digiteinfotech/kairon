@@ -7,9 +7,8 @@ from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.factory import MessageBroadcastFactory
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
-from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, MessageBroadcastLogs
+from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
-from kairon.shared.chat.data_objects import WhatsappAuditLog
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.processor import MongoProcessor
@@ -63,27 +62,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 self.bot, MessageBroadcastLogType.common.value, reference_id=reference_id, status=status,
                 broadcast_id=event_id, exception=exception
             )
-            message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
-                                                                  log_type=MessageBroadcastLogType.send.value)
-            message_ids = [
-                message['id']
-                for document in message_broadcast_logs
-                if document.api_response and document.api_response.get('messages', [])
-                for message in document.api_response['messages']
-                if message['id']
-            ]
-            if message_ids:
-                whatsapp_audit_logs = WhatsappAuditLog.objects(status='sent', message_id__in=message_ids)
-                for audit_log in whatsapp_audit_logs:
-                    if audit_log['errors']:
-                        matching_message_broadcast_log = MessageBroadcastLogs.objects(
-                            api_response__messages__elemMatch={'id': audit_log['message_id']}
-                        ).get()
-                        if matching_message_broadcast_log:
-                            matching_message_broadcast_log.update(
-                                errors=audit_log['errors'],
-                                status='FAILURE'
-                            )
+            MessageBroadcastProcessor.update_message_broadcast_logs(reference_id)
             if config and not config.get("scheduler_config"):
                 MessageBroadcastProcessor.delete_task(event_id, self.bot, False)
 

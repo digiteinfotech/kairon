@@ -1,16 +1,17 @@
 import json
 from datetime import datetime
-from typing import Text, Dict
+from typing import Text, Dict, List
 
-from loguru import logger
 from bson import ObjectId
-from mongoengine import DoesNotExist
+from loguru import logger
+from mongoengine import DoesNotExist, Document
+
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
+from kairon.shared.chat.data_objects import Channels, WhatsappAuditLog
 
 
 class MessageBroadcastProcessor:
@@ -105,3 +106,40 @@ class MessageBroadcastProcessor:
         logs = query_objects.skip(start_idx).limit(page_size).exclude('id').to_json()
         logs = json.loads(logs)
         return logs, total_count
+
+    @staticmethod
+    def extract_message_ids_from_broadcast_logs(reference_id: Text):
+        message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
+                                                              log_type=MessageBroadcastLogType.send.value)
+        message_ids = [
+            message['id']
+            for document in message_broadcast_logs
+            if document.api_response and document.api_response.get('messages', [])
+            for message in document.api_response['messages']
+            if message['id']
+        ]
+        return message_broadcast_logs, message_ids
+
+    @staticmethod
+    def update_message_broadcast_logs(reference_id: Text):
+        message_broadcast_logs, message_ids = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(
+            reference_id)
+        if message_ids:
+            MessageBroadcastProcessor.add_broadcast_logs_status_and_errors(message_ids, message_broadcast_logs)
+
+    @staticmethod
+    def add_broadcast_logs_status_and_errors(message_ids: List, message_broadcast_logs: List[Document]):
+        whatsapp_audit_logs = WhatsappAuditLog.objects(status='sent', message_id__in=message_ids)
+        for audit_log in whatsapp_audit_logs:
+            if audit_log['errors']:
+                matching_message_broadcast_log = next(
+                    (doc for doc in message_broadcast_logs if any(
+                        msg['id'] == audit_log['message_id'] for msg in doc.api_response.get('messages', [])
+                    )),
+                    None
+                )
+                if matching_message_broadcast_log:
+                    matching_message_broadcast_log.update(
+                        errors=audit_log['errors'],
+                        status='FAILURE'
+                    )
