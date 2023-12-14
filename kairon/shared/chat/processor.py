@@ -127,15 +127,17 @@ class ChatDataProcessor:
             raise AppException('Channel not configured')
 
     @staticmethod
-    def save_whatsapp_audit_log(status_data: Dict, bot: Text, user: Text):
+    def save_whatsapp_audit_log(status_data: Dict, bot: Text, user: Text, channel_type: Text):
         """
         save or updates channel configuration
         :param status_data: status_data dict
         :param bot: bot id
         :param user: user id
+        :param channel_type: channel type
         :return: None
         """
         ChannelLogs(
+            type=channel_type,
             status=status_data.get('status'),
             data=status_data.get('conversation'),
             initiator=status_data.get('conversation', {}).get('origin', {}).get('type'),

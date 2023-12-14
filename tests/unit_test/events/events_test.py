@@ -32,7 +32,7 @@ from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.exceptions import AppException
-from kairon.shared.constants import EventClass, EventRequestType
+from kairon.shared.constants import EventClass, EventRequestType, ChannelTypes
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.shared.data.data_objects import Configs, BotSettings
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
@@ -1287,9 +1287,8 @@ class TestEventExecution:
                     'details': "Failed to send message because this user's phone number is part of an experiment"},
                  'href': 'https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/'}]}
         assert ChannelLogs.objects(bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ').get().campaign_id == reference_id
-        result = MessageBroadcastProcessor.get_channel_logs_count(bot)
-        print(result)
-        assert result == [{'status': 'Failed', 'campaign_id': reference_id, 'cnt': 1}]
+        result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
+        assert result == [{'status': 'Failed', 'campaign_id': reference_id, 'count': 1}]
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))

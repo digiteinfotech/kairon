@@ -74,7 +74,7 @@ class Whatsapp:
                     statuses = changes.get("value", {}).get("statuses")
                     user = metadata.get('display_phone_number')
                     for status_data in statuses:
-                        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user)
+                        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, ChannelTypes.WHATSAPP.value)
                 for message in messages or []:
                     await self.message(message, metadata, bot)
 

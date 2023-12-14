@@ -14057,6 +14057,7 @@ def test_list_whatsapp_templates_error():
 def test_get_channel_logs():
     from kairon.shared.chat.data_objects import ChannelLogs
     ChannelLogs(
+        type=ChannelTypes.WHATSAPP.value,
         status='read',
         data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
               'origin': {'type': 'business_initated'}},
@@ -14067,6 +14068,7 @@ def test_get_channel_logs():
         user='integration@demo.ai'
     ).save()
     ChannelLogs(
+        type=ChannelTypes.WHATSAPP.value,
         status='delivered',
         data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1621598412',
               'origin': {'type': 'business_initated'}},
@@ -14077,6 +14079,7 @@ def test_get_channel_logs():
         user='integration@demo.ai'
     ).save()
     ChannelLogs(
+        type=ChannelTypes.WHATSAPP.value,
         status='sent',
         data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1631598412',
               'origin': {'type': 'business_initated'}},
@@ -14087,16 +14090,16 @@ def test_get_channel_logs():
         user='integration@demo.ai'
     ).save()
     response = client.get(
-        f"/api/bot/{pytest.bot}/channels/whatsapp/logs",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/metrics",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == {'count': [{'status': 'delivered', 'campaign_id': '6779002886649302', 'cnt': 1},
-                                        {'status': 'read', 'campaign_id': '6779002886649302', 'cnt': 1},
-                                        {'status': 'sent', 'campaign_id': '6779002886649302', 'cnt': 1}]}
+    assert actual["data"] == [{'status': 'delivered', 'campaign_id': '6779002886649302', 'cnt': 1},
+                              {'status': 'read', 'campaign_id': '6779002886649302', 'cnt': 1},
+                              {'status': 'sent', 'campaign_id': '6779002886649302', 'cnt': 1}]
 
 
 @responses.activate
