@@ -14054,6 +14054,51 @@ def test_list_whatsapp_templates_error():
     assert actual["message"] == "Channel not found!"
 
 
+def test_get_channel_logs():
+    from kairon.shared.chat.data_objects import ChannelLogs
+    ChannelLogs(
+        status='read',
+        data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+              'origin': {'type': 'business_initated'}},
+        initiator='business_initated',
+        campaign_id='6779002886649302',
+        message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+        bot=pytest.bot,
+        user='integration@demo.ai'
+    ).save()
+    ChannelLogs(
+        status='delivered',
+        data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1621598412',
+              'origin': {'type': 'business_initated'}},
+        initiator='business_initated',
+        campaign_id='6779002886649302',
+        message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+        bot=pytest.bot,
+        user='integration@demo.ai'
+    ).save()
+    ChannelLogs(
+        status='sent',
+        data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1631598412',
+              'origin': {'type': 'business_initated'}},
+        initiator='business_initated',
+        campaign_id='6779002886649302',
+        message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+        bot=pytest.bot,
+        user='integration@demo.ai'
+    ).save()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == {'count': [{'status': 'delivered', 'campaign_id': '6779002886649302', 'cnt': 1},
+                                        {'status': 'read', 'campaign_id': '6779002886649302', 'cnt': 1},
+                                        {'status': 'sent', 'campaign_id': '6779002886649302', 'cnt': 1}]}
+
+
 @responses.activate
 def test_initiate_bsp_onboarding_without_channels(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):

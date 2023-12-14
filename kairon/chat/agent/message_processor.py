@@ -1,6 +1,8 @@
 from typing import Tuple, Optional, Text
+
 import rasa
-from rasa.core.actions.action import Action, ActionRetrieveResponse, ActionEndToEndResponse, RemoteAction, default_actions
+from rasa.core.actions.action import Action, ActionRetrieveResponse, ActionEndToEndResponse, RemoteAction, \
+    default_actions
 from rasa.core.channels import UserMessage, OutputChannel, CollectingOutputChannel
 from rasa.core.policies.policy import PolicyPrediction
 from rasa.core.processor import MessageProcessor, logger

@@ -135,3 +135,31 @@ class MessageBroadcastProcessor:
         broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
         if broadcast_logs:
             MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_logs)
+
+    @staticmethod
+    def get_channel_logs_count(bot: Text):
+        result = list(ChannelLogs.objects.aggregate([
+            {
+                '$match': {
+                    'bot': bot
+                }
+            }, {
+                '$group': {
+                    '_id': {
+                        'campaign_id': '$campaign_id',
+                        'status': '$status'
+                    },
+                    'count': {
+                        '$sum': 1
+                    }
+                }
+            }, {
+                '$project': {
+                    'status': '$_id.status',
+                    'campaign_id': '$_id.campaign_id',
+                    'cnt': '$count',
+                    '_id': 0
+                }
+            }
+        ]))
+        return result

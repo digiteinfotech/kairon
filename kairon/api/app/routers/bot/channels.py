@@ -235,3 +235,17 @@ async def retrieve_scheduled_message_broadcast_logs(
     log_filters = request.query_params._dict.copy()
     logs, total_count = MessageBroadcastProcessor.get_broadcast_logs(current_user.get_bot(), **log_filters)
     return Response(data={"logs": logs, "total_count": total_count})
+
+
+@router.get("/whatsapp/logs", response_model=Response)
+async def get_channel_logs_count(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Get Channel logs count.
+    """
+    channel_logs_count = MessageBroadcastProcessor.get_channel_logs_count(current_user.get_bot())
+    data = {
+        'count': channel_logs_count
+    }
+    return Response(data=data)
