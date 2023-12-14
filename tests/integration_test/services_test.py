@@ -34,7 +34,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.constants import EventClass
+from kairon.shared.constants import EventClass, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
     KAIRON_TWO_STAGE_FALLBACK, FeatureMappings, DEFAULT_NLU_FALLBACK_RESPONSE
