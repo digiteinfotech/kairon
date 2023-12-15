@@ -34,7 +34,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.constants import EventClass
+from kairon.shared.constants import EventClass, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
     KAIRON_TWO_STAGE_FALLBACK, FeatureMappings, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -14052,6 +14052,54 @@ def test_list_whatsapp_templates_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Channel not found!"
+
+
+def test_get_channel_logs():
+    from kairon.shared.chat.data_objects import ChannelLogs
+    ChannelLogs(
+        type=ChannelTypes.WHATSAPP.value,
+        status='read',
+        data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+              'origin': {'type': 'business_initated'}},
+        initiator='business_initated',
+        campaign_id='6779002886649302',
+        message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+        bot=pytest.bot,
+        user='integration@demo.ai'
+    ).save()
+    ChannelLogs(
+        type=ChannelTypes.WHATSAPP.value,
+        status='delivered',
+        data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1621598412',
+              'origin': {'type': 'business_initated'}},
+        initiator='business_initated',
+        campaign_id='6779002886649302',
+        message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+        bot=pytest.bot,
+        user='integration@demo.ai'
+    ).save()
+    ChannelLogs(
+        type=ChannelTypes.WHATSAPP.value,
+        status='sent',
+        data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1631598412',
+              'origin': {'type': 'business_initated'}},
+        initiator='business_initated',
+        campaign_id='6779002886649302',
+        message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+        bot=pytest.bot,
+        user='integration@demo.ai'
+    ).save()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/metrics",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'status': 'delivered', 'campaign_id': '6779002886649302', 'count': 1},
+                              {'status': 'read', 'campaign_id': '6779002886649302', 'count': 1},
+                              {'status': 'sent', 'campaign_id': '6779002886649302', 'count': 1}]
 
 
 @responses.activate

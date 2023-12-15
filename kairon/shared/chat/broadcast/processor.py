@@ -12,6 +12,7 @@ from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
+from kairon.shared.constants import ChannelTypes
 
 
 class MessageBroadcastProcessor:
@@ -123,15 +124,25 @@ class MessageBroadcastProcessor:
     @staticmethod
     def __add_broadcast_logs_status_and_errors(reference_id: Text, broadcast_logs: Dict[Text, Document]):
         message_ids = list(broadcast_logs.keys())
-        channel_logs = ChannelLogs.objects(message_id__in=message_ids)
+        channel_logs = ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value)
         for log in channel_logs:
             if log['errors']:
                 msg_id = log["message_id"]
                 broadcast_logs[msg_id].update(errors=log['errors'], status="Failed")
-            log.update(campaign_id=reference_id)
+
+        ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id)
 
     @staticmethod
     def insert_status_received_on_channel_webhook(reference_id: Text):
         broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
         if broadcast_logs:
             MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_logs)
+
+    @staticmethod
+    def get_channel_metrics(channel_type: Text, bot: Text):
+        result = list(ChannelLogs.objects.aggregate([
+            {'$match': {'bot': bot, "type": channel_type}},
+            {'$group': {'_id': {'campaign_id': '$campaign_id', 'status': '$status'}, 'count': {'$sum': 1}}},
+            {'$project': {'status': '$_id.status', 'campaign_id': '$_id.campaign_id', 'count': '$count', '_id': 0}}
+        ]))
+        return result

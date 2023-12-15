@@ -11,7 +11,7 @@ from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderF
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.models import ChannelRequest, MessageBroadcastRequest
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, WhatsappBSPTypes, EventRequestType
+from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, WhatsappBSPTypes, EventRequestType, ChannelTypes
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 
@@ -235,3 +235,14 @@ async def retrieve_scheduled_message_broadcast_logs(
     log_filters = request.query_params._dict.copy()
     logs, total_count = MessageBroadcastProcessor.get_broadcast_logs(current_user.get_bot(), **log_filters)
     return Response(data={"logs": logs, "total_count": total_count})
+
+
+@router.get("/{channel_type}/metrics", response_model=Response)
+async def get_channel_metrics(
+        channel_type: ChannelTypes,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Get Channel metrics (Failures/Successes).
+    """
+    return Response(data=MessageBroadcastProcessor.get_channel_metrics(channel_type, current_user.get_bot()))
