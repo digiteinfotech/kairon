@@ -1758,7 +1758,7 @@ def test_whatsapp_valid_statuses_with_read_request():
     assert actual == 'success'
     log = ChannelLogs.objects(
         bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIC').get().to_mongo().to_dict()
-    assert log.get('data') is None
+    assert log.get('data') == {}
     assert log.get('initiator') is None
     assert log.get('status') == 'read'
 
@@ -1834,7 +1834,7 @@ def test_whatsapp_valid_statuses_with_errors_request():
     assert ChannelLogs.objects(bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ')
     log = ChannelLogs.objects(bot=bot, user='919876543219').get().to_mongo().to_dict()
     assert log.get('status') == 'failed'
-    assert log.get('data') is None
+    assert log.get('data') == {}
     assert log.get('errors') == [{
         'code': 130472, 'title': "User's number is part of an experiment",
         'message': "User's number is part of an experiment",
