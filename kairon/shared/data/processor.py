@@ -4394,6 +4394,7 @@ class MongoProcessor:
         if not client_config.config['headers'].get('X-USER'):
             client_config.config['headers']['X-USER'] = user
         client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
+        client_config.config['nudge_server_url'] = Utility.environment['nudge']['server_url']
         token, refresh_token = Authentication.generate_integration_token(
             bot, user, expiry=bot_settings.chat_token_expiry,
             access_limit=[

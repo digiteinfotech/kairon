@@ -10,6 +10,7 @@ roles:
       modelConfiguration: true
       configureClient: true
       configureTelemetry: true
+      configureNudge: true
       integrations: true
       administration: true
       chatHistory: true
@@ -54,6 +55,9 @@ roles:
         get: true
         generate: true
       configureTelemetry:
+        save: true
+        get: true
+      configureNudge:
         save: true
         get: true
       integrations:
@@ -116,6 +120,7 @@ roles:
       modelConfiguration: true
       configureClient: true
       configureTelemetry: true
+      configureNudge: true
       integrations: true
       administration: true
       chatHistory: true
@@ -160,6 +165,9 @@ roles:
         get: true
         generate: true
       configureTelemetry:
+        save: true
+        get: true
+      configureNudge:
         save: true
         get: true
       integrations:
@@ -222,6 +230,7 @@ roles:
       modelConfiguration: true
       configureClient: true
       configureTelemetry: true
+      configureNudge: true
       integrations: true
       administration: false
       chatHistory: true
@@ -266,6 +275,9 @@ roles:
         get: true
         generate: true
       configureTelemetry:
+        save: true
+        get: true
+      configureNudge:
         save: true
         get: true
       integrations:
@@ -328,6 +340,7 @@ roles:
       modelConfiguration: true
       configureClient: true
       configureTelemetry: true
+      configureNudge: true
       integrations: false
       administration: false
       chatHistory: true
@@ -372,6 +385,9 @@ roles:
         get: true
         generate: false
       configureTelemetry:
+        save: false
+        get: true
+      configureNudge:
         save: false
         get: true
       integrations:
@@ -434,6 +450,7 @@ roles:
       modelConfiguration: false
       configureClient: false
       configureTelemetry: false
+      configureNudge: false
       integrations: false
       administration: false
       chatHistory: false
@@ -478,6 +495,9 @@ roles:
         get: false
         generate: false
       configureTelemetry:
+        save: false
+        get: false
+      configureNudge:
         save: false
         get: false
       integrations:

@@ -6360,6 +6360,8 @@ class TestMongoProcessor:
         assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
         assert actual_config.config['api_server_host_url']
         del actual_config.config['api_server_host_url']
+        assert actual_config.config['nudge_server_url']
+        del actual_config.config['nudge_server_url']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
         headers = actual_config.config.pop('headers')
