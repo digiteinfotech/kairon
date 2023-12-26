@@ -87,9 +87,9 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             Utility.validate_create_template_request(data)
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
             partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
-            channel_id = config.get("config", {}).get("channel_id")
+            waba_account_id = config.get("config", {}).get("waba_account_id")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates'
+            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates'
             headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
             url = f"{base_url}{template_endpoint}"
             resp = Utility.execute_http_request(request_method="POST", http_url=url, request_body=data, headers=headers,
@@ -105,9 +105,9 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             Utility.validate_edit_template_request(data)
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
             partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
-            channel_id = config.get("config", {}).get("channel_id")
+            waba_account_id = config.get("config", {}).get("waba_account_id")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}'
+            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates/{template_id}'
             headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
             url = f"{base_url}{template_endpoint}"
             resp = Utility.execute_http_request(request_method="PATCH", http_url=url, request_body=data, headers=headers,
@@ -124,9 +124,9 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         try:
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
             partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
-            channel_id = config.get("config", {}).get("channel_id")
+            waba_account_id = config.get("config", {}).get("waba_account_id")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}'
+            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates/{template_id}'
             headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
             url = f"{base_url}{template_endpoint}"
             resp = Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
