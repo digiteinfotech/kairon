@@ -297,7 +297,7 @@ class TestBusinessServiceProvider:
             responses.reset()
             bot = "62bc24b493a0d6b7a46328ff"
             partner_id = "new_partner_id"
-            channel_id = "dfghjkl"
+            waba_account_id = "Cyih7GWA"
             data = {
                 "name": "Introduction template",
                 "category": "MARKETING",
@@ -339,7 +339,7 @@ class TestBusinessServiceProvider:
             monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
 
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates"
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates"
             responses.add("POST", json=api_resp, url=url)
             template = BSP360Dialog(bot, "test").add_template(data, bot, "test")
             assert template == {'category': 'MARKETING', 'id': '594425479261596', 'status': 'PENDING'}
@@ -397,7 +397,7 @@ class TestBusinessServiceProvider:
         with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
             bot = "62bc24b493a0d6b7a46328ff"
             partner_id = "new_partner_id"
-            channel_id = "dfghjkl"
+            waba_account_id = "Cyih7GWA"
             data = {
                 "name": "Introduction template",
                 "category": "MARKETING",
@@ -432,7 +432,7 @@ class TestBusinessServiceProvider:
 
             monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates"
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates"
             responses.add("POST", json={}, url=url, status=500)
 
             with pytest.raises(AppException, match=r"Failed to add template: *"):
@@ -444,7 +444,7 @@ class TestBusinessServiceProvider:
             bot = "62bc24b493a0d6b7a46328ff"
             template_id = "test_id"
             partner_id = "new_partner_id"
-            channel_id = "dfghjkl"
+            waba_account_id = "Cyih7GWA"
             data = {
                 "components": [
                     {
@@ -481,7 +481,7 @@ class TestBusinessServiceProvider:
             monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
 
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}"
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates/{template_id}"
             responses.add("PATCH", json=api_resp, url=url)
             template = BSP360Dialog(bot, "test").edit_template(data, template_id)
             assert template == {'success': True}
@@ -540,7 +540,7 @@ class TestBusinessServiceProvider:
             bot = "62bc24b493a0d6b7a46328ff"
             template_id = "test_id"
             partner_id = "new_partner_id"
-            channel_id = "dfghjkl"
+            waba_account_id = "Cyih7GWA"
             data = {
                 "components": [
                     {
@@ -573,7 +573,7 @@ class TestBusinessServiceProvider:
 
             monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}"
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates/{template_id}"
             responses.add("PATCH", json={}, url=url, status=500)
 
             with pytest.raises(AppException, match=r"Failed to edit template: Internal Server Error"):
@@ -585,7 +585,7 @@ class TestBusinessServiceProvider:
             bot = "62bc24b493a0d6b7a46328ff"
             template_id = "test_id"
             partner_id = "new_partner_id"
-            channel_id = "dfghjkl"
+            waba_account_id = "Cyih7GWA"
             api_resp = {
                 "meta": {
                     "developer_message": "template name=Introduction template was deleted",
@@ -600,7 +600,7 @@ class TestBusinessServiceProvider:
             monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
 
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}"
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates/{template_id}"
             responses.add("DELETE", json=api_resp, url=url)
             template = BSP360Dialog(bot, "test").delete_template(template_id)
             assert template == {'meta': {'developer_message': 'template name=Introduction template was deleted', 'http_code': 200, 'success': True}}
@@ -611,14 +611,14 @@ class TestBusinessServiceProvider:
             bot = "62bc24b493a0d6b7a46328ff"
             template_id = "test_id"
             partner_id = "new_partner_id"
-            channel_id = "dfghjkl"
+            waba_account_id = "Cyih7GWA"
 
             def _get_partners_auth_token(*args, **kwargs):
                 return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
 
             monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{channel_id}/waba_templates/{template_id}"
+            url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates/{template_id}"
             responses.add("DELETE", json={}, url=url, status=500)
 
             with pytest.raises(AppException, match=r"Failed to delete template: *"):
