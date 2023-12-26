@@ -49,7 +49,7 @@ class Whatsapp:
             if message['type'] == "voice":
                 message['type'] = "audio"
             text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
-        elif message.get("location") == "location":
+        elif message.get("type") == "location":
             logger.debug(message['location'])
             text = f"/k_multimedia_msg{{\"latitude\": \"{message['location']['latitude']}\", \"longitude\": \"{message['location']['longitude']}\"}}"
         elif message.get("type") == "order":

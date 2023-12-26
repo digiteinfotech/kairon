@@ -1308,9 +1308,9 @@ class TestEventExecution:
                     'details': "Failed to send message because this user's phone number is part of an experiment"},
                  'href': 'https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/'}]}
         assert ChannelLogs.objects(bot=bot,
-                                   message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ').get().campaign_id == reference_id
+                                   message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ').get().campaign_id == event_id
         result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
-        assert result == [{'status': 'Failed', 'campaign_id': reference_id, 'count': 1}]
+        assert result == [{'campaign_id': event_id, 'campaign_name': 'one_time_schedule', 'status': {'Failed': 1}}]
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
