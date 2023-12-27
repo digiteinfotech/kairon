@@ -1430,7 +1430,7 @@ class Utility:
             logger.exception(e)
             raise AppException(f"Failed to execute the url: {str(e)}")
 
-        if kwargs.get('validate_status', False) and response.status_code != kwargs.get('expected_status_code', 200):
+        if kwargs.get('validate_status', False) and response.status_code not in {kwargs.get('expected_status_code', 200), 201}:
             if Utility.check_empty_string(kwargs.get('err_msg')):
                 raise AppException("err_msg cannot be empty")
             raise AppException(f"{kwargs['err_msg']}{response.reason}")
