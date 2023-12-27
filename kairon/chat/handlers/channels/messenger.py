@@ -2,8 +2,8 @@ import hashlib
 import hmac
 import logging
 from typing import Text, List, Dict, Any, Iterable, Optional, Union
+
 import rasa.shared.utils.io
-from fbmessenger import MessengerClient
 from fbmessenger.attachments import Image
 from fbmessenger.elements import Text as FBText
 from fbmessenger.quick_replies import QuickReplies, QuickReply
@@ -11,13 +11,14 @@ from fbmessenger.sender_actions import SenderAction
 from rasa.core.channels.channel import UserMessage, OutputChannel, InputChannel
 from starlette.requests import Request
 
+from kairon import Utility
 from kairon.chat.agent_processor import AgentProcessor
+from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
+from kairon.chat.handlers.channels.clients.messenger.messenger_client import MessengerClientOutput
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.models import User
-from kairon import Utility
-from kairon.chat.converters.channels.response_factory import ConverterFactory
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class Messenger:
             page_access_token: Text,
     ) -> None:
 
-        self.client = MessengerClient(page_access_token)
+        self.client = MessengerClientOutput(page_access_token)
         self.last_message: Dict[Text, Any] = {}
 
     def get_user_id(self) -> Text:
@@ -177,7 +178,7 @@ class MessengerBot(OutputChannel):
     def name(cls) -> Text:
         return "facebook"
 
-    def __init__(self, messenger_client: MessengerClient) -> None:
+    def __init__(self, messenger_client: MessengerClientOutput) -> None:
 
         self.messenger_client = messenger_client
         super().__init__()
@@ -411,7 +412,7 @@ class MessengerHandler(InputChannel, ChannelHandlerBase):
         return False
 
     def get_output_channel(self) -> OutputChannel:
-        client = MessengerClient(self.fb_access_token)
+        client = MessengerClientOutput(self.fb_access_token)
         return MessengerBot(client)
 
 

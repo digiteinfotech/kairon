@@ -17,11 +17,11 @@ from starlette.requests import Request
 from kairon import Utility
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.converters.channels.response_factory import ConverterFactory
-from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.models import User
+from kairon.shared.rest_client import AioRestClient
 
 
 class MSTeamBot(OutputChannel):
@@ -42,6 +42,7 @@ class MSTeamBot(OutputChannel):
         conversation: Dict[Text, Any],
         bot: Text,
         service_url: Text,
+        session: AioRestClient(False),
     ) -> None:
 
         service_url = ( f"{service_url}/" if not service_url.endswith("/") else service_url)
@@ -50,6 +51,15 @@ class MSTeamBot(OutputChannel):
         self.conversation = conversation
         self.global_uri = f"{service_url}v3/"
         self.bot = bot
+        self.session = session
+
+    async def make_request(self, method, url, request_body=None, headers=None, timeout=None, is_streaming_resp=False):
+        resp = await self.session.request(
+                method, url, request_body=request_body, headers=headers, timeout=timeout,
+                return_json=False, is_streaming_resp=is_streaming_resp, max_retries=3
+            )
+        logger.debug(resp)
+        return resp
 
     async def _get_headers(self, refetch=False) -> Optional[Dict[Text, Any]]:
         ms_oauthurl = Utility.system_metadata["channels"][ChannelTypes.MSTEAMS.value]["MICROSOFT_OAUTH2_URL"]
@@ -65,12 +75,11 @@ class MSTeamBot(OutputChannel):
                 'scope': scope,
             }
 
-            token_response = requests.post(uri, data=payload)
+            token_response = await self.make_request("POST", uri, request_body=payload)
 
-            if token_response.ok:
-                token_data = token_response.json()
-                access_token = token_data["access_token"]
-                token_expiration = token_data["expires_in"]
+            if token_response.status_code == 200:
+                access_token = token_response["access_token"]
+                token_expiration = token_response["expires_in"]
 
                 delta = datetime.timedelta(seconds=int(token_expiration))
                 MSTeamBot.token_expiration_date = datetime.datetime.now() + delta
@@ -104,23 +113,19 @@ class MSTeamBot(OutputChannel):
             self.global_uri, self.conversation["id"]
         )
         headers = await self._get_headers()
-        send_response = requests.post(
-            post_message_uri,headers=headers, data=json.dumps(message_data)
-        )
+        send_response = await self.make_request("POST", post_message_uri, request_body=json.dumps(message_data), headers=headers)
 
         if send_response.status_code == 403:
             headers = await self._get_headers(True)
-            send_response = requests.post(
-                post_message_uri, headers=headers, data=json.dumps(message_data)
-            )
+            send_response = await self.make_request("POST", post_message_uri, request_body=json.dumps(message_data),
+                                                    headers=headers)
 
-        if not send_response.ok:
+        if not send_response != 200:
             logger.error(
                 "Error trying to send botframework messge. Response: %s",
                 send_response.text,
             )
             raise Exception(f"Exception while responding to MSTeams:: {send_response.text} and status::{send_response.status_code}")
-
 
     async def send_text_message(
         self, recipient_id: Text, text: Text, **kwargs: Any
