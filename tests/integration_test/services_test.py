@@ -14098,9 +14098,7 @@ def test_get_channel_logs():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == [{'status': 'delivered', 'campaign_id': '6779002886649302', 'count': 1},
-                              {'status': 'read', 'campaign_id': '6779002886649302', 'count': 1},
-                              {'status': 'sent', 'campaign_id': '6779002886649302', 'count': 1}]
+    assert actual["data"] == [{'campaign_id': '6779002886649302', 'status': {'delivered': 1, 'read': 1, 'sent': 1}}]
 
 
 @responses.activate
