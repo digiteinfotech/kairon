@@ -2597,6 +2597,7 @@ class MongoProcessor:
         razorpay_actions = set(RazorpayAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
         prompt_actions = set(PromptAction.objects(bot=bot, status=True).values_list('name'))
+        database_actions = set(DatabaseAction.objects(bot=bot, status=True).values_list('name'))
         web_search_actions = set(WebSearchAction.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
@@ -2654,6 +2655,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
                     elif event['name'] in prompt_actions:
                         step['type'] = StoryStepType.prompt_action.value
+                    elif event['name'] in database_actions:
+                        step['type'] = StoryStepType.database_action.value
                     elif event['name'] in web_search_actions:
                         step['type'] = StoryStepType.web_search_action.value
                     elif str(event['name']).startswith("utter_"):

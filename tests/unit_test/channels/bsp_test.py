@@ -340,7 +340,7 @@ class TestBusinessServiceProvider:
 
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
             url = f"{base_url}/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates"
-            responses.add("POST", json=api_resp, url=url)
+            responses.add("POST", json=api_resp, url=url, status=201)
             template = BSP360Dialog(bot, "test").add_template(data, bot, "test")
             assert template == {'category': 'MARKETING', 'id': '594425479261596', 'status': 'PENDING'}
             count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user="test", action="activity").count()

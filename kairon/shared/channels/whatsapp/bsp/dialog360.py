@@ -93,7 +93,8 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
             url = f"{base_url}{template_endpoint}"
             resp = Utility.execute_http_request(request_method="POST", http_url=url, request_body=data, headers=headers,
-                                                validate_status=True, err_msg="Failed to add template: ")
+                                                validate_status=True, err_msg="Failed to add template: ",
+                                                expected_status_code=201)
             UserActivityLogger.add_log(a_type=UserActivityType.template_creation.value, email=user, bot=bot, message=['Template created!'])
             return resp
         except DoesNotExist as e:
