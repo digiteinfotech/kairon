@@ -14,5 +14,5 @@ class EventsBase:
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def execute(self, **kwargs):
+    async def execute(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
