@@ -1285,7 +1285,7 @@ def test_whatsapp_valid_text_message_request(aioresponses):
         return True
 
     aioresponses.add(
-        method=responses.POST,
+        method="POST",
         url="https://graph.facebook.com/v13.0/12345678/messages",
         body="success",
         status=200
@@ -1343,7 +1343,7 @@ def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(mock
         return True
 
     aioresponses.add(
-        method=responses.POST,
+        method="POST",
         url="https://graph.facebook.com/v13.0/12345678/messages",
         body="success",
         status=200
@@ -1393,7 +1393,7 @@ def test_whatsapp_valid_button_message_request(aioresponses):
         return True
 
     aioresponses.add(
-        method=responses.POST,
+        method="POST",
         url="https://graph.facebook.com/v13.0/12345678/messages",
         body="success",
         status=200
@@ -1457,13 +1457,13 @@ def test_whatsapp_valid_attachment_message_request(aioresponses):
         return True
     responses.reset()
     aioresponses.add(
-        method=responses.POST,
+        method="POST",
         url="https://graph.facebook.com/v13.0/12345678/messages",
         body="success",
         status=200
     )
     aioresponses.add(
-        method=responses.GET,
+        method="GET",
         url="https://graph.facebook.com/v13.0/sdfghj567",
         body={
             "messaging_product": "whatsapp",
@@ -1857,7 +1857,7 @@ def test_whatsapp_valid_unsupported_message_request(aioresponses):
         return True
 
     aioresponses.add(
-        method=responses.POST,
+        method="POST",
         url="https://graph.facebook.com/v13.0/12345678/messages",
         body="success",
         status=200
@@ -1903,13 +1903,13 @@ def test_whatsapp_valid_unsupported_message_request(aioresponses):
 
 def test_whatsapp_bsp_valid_text_message_request(aioresponses):
     aioresponses.add(
-        method=responses.POST,
+        method="POST",
         url="https://waba-v2.360dialog.io/v1/messages",
         body="success",
         status=200
     )
     aioresponses.add(
-        method=responses.PUT,
+        method="PUT",
         url="https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
         body="success",
         status=200
@@ -1953,13 +1953,13 @@ def test_whatsapp_bsp_valid_text_message_request(aioresponses):
 
 def test_whatsapp_bsp_valid_button_message_request(aioresponses):
     aioresponses.add(
-        method=responses.POST,
+        method="POST",
         url="https://waba-v2.360dialog.io/v1/messages",
         body="success",
         status=200
     )
     aioresponses.add(
-        method=responses.PUT,
+        method="PUT",
         url="https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
         body="success",
         status=200
@@ -2004,13 +2004,13 @@ def test_whatsapp_bsp_valid_button_message_request(aioresponses):
 
 def test_whatsapp_bsp_valid_attachment_message_request(aioresponses):
     aioresponses.add(
-        method=responses.POST,
+        method="POST",
         url="https://waba-v2.360dialog.io/v1/messages",
         body="success",
         status=200
     )
     aioresponses.add(
-        method=responses.PUT,
+        method="PUT",
         url="https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
         body="success",
         status=200
@@ -2053,7 +2053,7 @@ def test_whatsapp_bsp_valid_attachment_message_request(aioresponses):
 
 def test_whatsapp_bsp_valid_order_message_request(aioresponses):
     aioresponses.add(
-        method=responses.POST,
+        method="POST",
         url="https://waba-v2.360dialog.io/messages",
         body="success",
         status=200
