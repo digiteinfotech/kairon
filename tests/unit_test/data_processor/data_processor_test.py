@@ -9625,6 +9625,27 @@ class TestMongoProcessor:
         assert actual_vectordb_action['query_type'] == 'embedding_search'
         assert actual_vectordb_action['response']['value'] == '0'
 
+    def test_add_vector_embedding_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        steps = [
+            {"name": "helu", "type": "INTENT"},
+            {"name": "test_vectordb_action_op_embedding_search", "type": "DATABASE_ACTION"},
+        ]
+        story_dict = {'name': "story with vector embedding action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_id = processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with vector embedding action", bot=bot,
+                                events__name='test_vectordb_action_op_embedding_search', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with vector embedding action']
+        assert story_with_form[0]['steps'] == [
+            {"name": "helu", "type": "INTENT"},
+            {"name": "test_vectordb_action_op_embedding_search", "type": "DATABASE_ACTION"},
+        ]
+        processor.delete_complex_story(story_id, 'STORY', bot, user)
+
     def test_add_vector_embedding_action_config_op_payload_search(self):
         processor = MongoProcessor()
         bot = 'test_vector_bot'
