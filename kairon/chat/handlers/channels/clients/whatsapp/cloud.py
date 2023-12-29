@@ -3,10 +3,9 @@ import hmac
 import logging
 from typing import Text, Dict
 
-import requests
-
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.rest_client import AioRestClient
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ class WhatsappCloud(object):
             @required:
                 access_token
             @optional:
-                session
+                client
                 api_version
                 app_secret
         """
@@ -40,7 +39,7 @@ class WhatsappCloud(object):
         self.from_phone_number_id = kwargs.get('from_phone_number_id')
         if self.client_type == "meta" and Utility.check_empty_string(self.from_phone_number_id):
             raise AppException("missing parameter 'from_phone_number_id'")
-        self.session = kwargs.get('session', requests.Session())
+        self.client = kwargs.get('session', AioRestClient(False))
         self.api_version = kwargs.get('api_version', DEFAULT_API_VERSION)
         self.app = 'https://graph.facebook.com/v{api_version}'.format(api_version=self.api_version)
         self.app_secret = kwargs.get('app_secret')
@@ -61,7 +60,7 @@ class WhatsappCloud(object):
             self._auth_args = auth
         return self._auth_args
 
-    def send(self, payload, to_phone_number, messaging_type, recipient_type='individual', timeout=None, tag=None):
+    async def send(self, payload, to_phone_number, messaging_type, recipient_type='individual', timeout=None, tag=None):
         """
             @required:
                 payload: message request payload
@@ -87,9 +86,9 @@ class WhatsappCloud(object):
         if tag:
             body['tag'] = tag
 
-        return self.send_action(body)
+        return await self.send_action(body)
 
-    def send_json(self, payload: dict, to_phone_number, recipient_type='individual', timeout=None):
+    async def send_json(self, payload: dict, to_phone_number, recipient_type='individual', timeout=None):
         """
             @required:
                 payload: message request payload
@@ -105,9 +104,9 @@ class WhatsappCloud(object):
             "to": to_phone_number
         })
 
-        return self.send_action(payload)
+        return await self.send_action(payload)
 
-    def send_action(self, payload, timeout=None, **kwargs):
+    async def send_action(self, payload, timeout=None, **kwargs):
         """
             @required:
                 payload: message request payload
@@ -115,17 +114,15 @@ class WhatsappCloud(object):
                 timeout: request timeout
             @outputs: response json
         """
-        r = self.session.post(
-            '{app}/{from_phone_number_id}/messages'.format(app=self.app, from_phone_number_id=self.from_phone_number_id),
-            params=self.auth_args,
-            json=payload,
-            timeout=timeout
-        )
-        resp = r.json()
+        is_streaming_resp = kwargs.get("stream", False)
+        url = '{app}/{from_phone_number_id}/messages'.format(app=self.app,
+                                                                 from_phone_number_id=self.from_phone_number_id)
+        resp = await self.client.request("POST", url, headers=self.auth_args, request_body=payload, timeout=timeout,
+                                              return_json=False, is_streaming_resp=is_streaming_resp, max_retries=3)
         logger.debug(resp)
         return resp
 
-    def get_attachment(self, attachment_id, timeout=None):
+    async def get_attachment(self, attachment_id, timeout=None):
         """
             @required:
                 attachment_id: audio/video/image/document id
@@ -133,18 +130,16 @@ class WhatsappCloud(object):
                 timeout: request timeout
             @outputs: response json
         """
-        r = self.session.get(
-            '{app}/{attachment_id}'.format(app=self.app, attachment_id=attachment_id),
-            params=self.auth_args,
-            timeout=timeout
-        )
-        resp = r.json()
+        url = '{app}/{attachment_id}'.format(app=self.app, attachment_id=attachment_id)
+        resp = await self.client.request("GET", url, headers=self.auth_args, timeout=timeout,
+                                              return_json=False, max_retries=3)
+        await self.client.cleanup()
         logger.debug(resp)
         return resp
 
-    def mark_as_read(self, msg_id, timeout=None):
+    async def mark_as_read(self, msg_id, timeout=None):
         payload = {"messaging_product": "whatsapp", "status": "read", "message_id": msg_id}
-        return self.send_action(payload)
+        return await self.send_action(payload)
 
     def generate_appsecret_proof(self):
         """
@@ -157,7 +152,7 @@ class WhatsappCloud(object):
 
         return hmac.new(app_secret, access_token, hashlib.sha256).hexdigest()
 
-    def send_template_message(self, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None, namespace: Text = None):
+    async def send_template_message(self, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None, namespace: Text = None):
         payload = {
             "language": {
                 "code": language_code
@@ -166,4 +161,4 @@ class WhatsappCloud(object):
         }
         if components:
             payload.update({"components": components})
-        return self.send(payload, to_phone_number, messaging_type="template")
+        return await self.send(payload, to_phone_number, messaging_type="template")

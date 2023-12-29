@@ -40,7 +40,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 len(list(MessageBroadcastProcessor.list_settings(self.bot, timestamp__gt=date_today))):
             raise AppException("Notification scheduling limit reached!")
 
-    def execute(self, event_id: Text, **kwargs):
+    async def execute(self, event_id: Text, **kwargs):
         """
         Execute the event.
         """
@@ -52,7 +52,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             reference_id, config = self.__retrieve_config(event_id)
             broadcast = MessageBroadcastFactory.get_instance(config["connector_type"]).from_config(config, reference_id)
             recipients = broadcast.get_recipients()
-            broadcast.send(recipients)
+            await broadcast.send(recipients)
             status = EVENT_STATUS.COMPLETED.value
         except Exception as e:
             logger.exception(e)

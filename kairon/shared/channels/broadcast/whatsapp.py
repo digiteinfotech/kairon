@@ -1,8 +1,11 @@
+import asyncio
 import json
 from typing import List, Text, Dict
 
 import pymongo
 import requests
+from loguru import logger
+from mongoengine import DoesNotExist
 from uuid6 import uuid7
 
 from kairon import Utility
@@ -17,8 +20,6 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.processor import MongoProcessor
-from loguru import logger
-from mongoengine import DoesNotExist
 
 
 class WhatsappBroadcast(MessageBroadcastFromConfig):
@@ -42,9 +43,9 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         )
         return recipients
 
-    def send(self, recipients: List, **kwargs):
+    async def send(self, recipients: List, **kwargs):
         if self.config["broadcast_type"] == MessageBroadcastType.static.value:
-            self.__send_using_configuration(recipients)
+            await self.__send_using_configuration(recipients)
         else:
             self.__send_using_pyscript()
 
@@ -57,7 +58,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         client = self.__get_db_client()
 
         def send_msg(template_id: Text, recipient, language_code: Text = "en", components: Dict = None, namespace: Text = None):
-            response = channel_client.send_template_message(template_id, recipient, language_code, components, namespace)
+            response = asyncio.run(channel_client.send_template_message(template_id, recipient, language_code, components, namespace))
             status = "Failed" if response.get("error") else "Success"
             raw_template = self.__get_template(template_id, language_code)
 
@@ -87,7 +88,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             **script_variables
         )
 
-    def __send_using_configuration(self, recipients: List):
+    async def __send_using_configuration(self, recipients: List):
         channel_client = self.__get_client()
         total = len(recipients)
         db_client = self.__get_db_client()
@@ -111,7 +112,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             for recipient, t_params in zip(recipients, template_params):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
-                    response = channel_client.send_template_message(template_id, recipient, lang, t_params, namespace=namespace)
+                    response = await channel_client.send_template_message(template_id, recipient, lang, t_params, namespace=namespace)
                     status = "Failed" if response.get("errors") else "Success"
                     if status == "Failed":
                         failure_cnt = failure_cnt + 1
