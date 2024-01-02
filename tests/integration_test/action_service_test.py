@@ -2890,6 +2890,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
@@ -2898,7 +2899,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_faq_embd/points'
+    http_url = 'http://localhost:6333/collections/test_vectordb_action_execution/points'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -2981,6 +2982,7 @@ def test_vectordb_action_execution_payload_search_from_value():
     }
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_value',
         query_type=DbActionOperationType.payload_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
@@ -2989,7 +2991,7 @@ def test_vectordb_action_execution_payload_search_from_value():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_faq_embd/points/scroll'
+    http_url = 'http://localhost:6333/collections/test_vectordb_action_execution_payload_search_from_value/points/scroll'
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
@@ -3056,6 +3058,7 @@ def test_vectordb_action_execution_embedding_search_from_slot():
 
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution_embedding_search_from_slot',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_slot", value='name'),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
@@ -3064,7 +3067,7 @@ def test_vectordb_action_execution_embedding_search_from_slot():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_faq_embd/points'
+    http_url = 'http://localhost:6333/collections/test_vectordb_action_execution_embedding_search_from_slot/points'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -3141,6 +3144,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
 
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_slot',
         query_type=DbActionOperationType.payload_search.value,
         payload=DbQuery(type="from_slot", value='color'),
         response=HttpActionResponse(value="The name of the city with id ${data.0.id} is ${data.0.city}"),
@@ -3149,7 +3153,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fx0a56v698ca10d39c2e_faq_embd/points/scroll'
+    http_url = 'http://localhost:6333/collections/test_vectordb_action_execution_payload_search_from_slot/points/scroll'
     resp_msg = json.dumps(
         [{"id": 5, "city": "Berlin"}]
     )
@@ -3213,6 +3217,7 @@ def test_vectordb_action_execution_no_response_dispatch():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution_no_response_dispatch',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
@@ -3222,7 +3227,7 @@ def test_vectordb_action_execution_no_response_dispatch():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_faq_embd/points'
+    http_url = 'http://localhost:6333/collections/test_vectordb_action_execution_no_response_dispatch/points'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -3297,6 +3302,7 @@ def test_vectordb_action_execution_invalid_operation_type():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution_invalid_operation_type',
         query_type="vector_search",
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
@@ -3357,6 +3363,7 @@ def test_vectordb_action_failed_execution(mock_action_config, mock_action):
                      user="user")
     action_config = DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_failed_execution',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector"),

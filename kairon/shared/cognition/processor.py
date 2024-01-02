@@ -6,7 +6,7 @@ from mongoengine import DoesNotExist, Q
 
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import PromptAction
+from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import CognitionDataType, CognitionMetadataType
@@ -247,5 +247,8 @@ class CognitionDataProcessor:
     @staticmethod
     def validate_collection_name(bot: Text, collection: Text):
         prompt_action = list(PromptAction.objects(bot=bot, collection__iexact=collection))
+        database_action = list(DatabaseAction.objects(bot=bot, collection__iexact=collection))
         if prompt_action:
             raise AppException(f'Cannot remove collection {collection} linked to action "{prompt_action[0].name}"!')
+        if database_action:
+            raise AppException(f'Cannot remove collection {collection} linked to action "{database_action[0].name}"!')
