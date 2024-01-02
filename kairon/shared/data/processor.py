@@ -94,6 +94,7 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
+from ..cognition.data_objects import CognitionSchema
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
@@ -3213,7 +3214,11 @@ class MongoProcessor:
         if not Utility.is_exist(DatabaseAction, raise_error=False, name=request_data.get('name'), bot=bot, status=True):
             raise AppException(f'Action with name "{request_data.get("name")}" not found')
         self.__validate_payload(request_data.get('payload'), bot)
+        if not Utility.is_exist(CognitionSchema, bot=bot, collection_name__iexact=request_data.get('collection'),
+                                raise_error=False):
+            raise AppException('Collection does not exist!')
         action = DatabaseAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        action.collection = request_data['collection']
         action.query_type = request_data['query_type']
         action.payload = DbQuery(**request_data['payload'])
         action.response = HttpActionResponse(**request_data.get('response', {}))
@@ -3234,9 +3239,13 @@ class MongoProcessor:
         """
         self.__validate_payload(vector_db_action_config.get('payload'), bot)
         Utility.is_valid_action_name(vector_db_action_config.get("name"), bot, DatabaseAction)
+        if not Utility.is_exist(CognitionSchema, bot=bot, collection_name__iexact=vector_db_action_config.get('collection'),
+                                raise_error=False):
+            raise AppException('Collection does not exist!')
         set_slots = [SetSlotsFromResponse(**slot) for slot in vector_db_action_config.get('set_slots')]
         action_id = DatabaseAction(
             name=vector_db_action_config['name'],
+            collection=vector_db_action_config['collection'],
             query_type=vector_db_action_config.get('query_type'),
             payload=DbQuery(**vector_db_action_config.get('payload')),
             response=HttpActionResponse(**vector_db_action_config.get('response', {})),
