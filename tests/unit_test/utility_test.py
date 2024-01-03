@@ -4,6 +4,7 @@ import re
 import shutil
 import tempfile
 import uuid
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from io import BytesIO
@@ -26,12 +27,14 @@ from websockets import InvalidStatusCode
 
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
+from kairon.chat.converters.channels.telegram import TelegramResponseConverter
+from kairon.chat.utils import ChatUtils
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
-from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
+from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider, UserActivityType
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
-from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
+from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, AuditlogActions
 from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots, LLMSettings
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.llm.clients.azure import AzureGPT3Resources
@@ -41,7 +44,6 @@ from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.verification.email import QuickEmailVerification
-from kairon.chat.converters.channels.telegram import TelegramResponseConverter
 
 
 class TestUtility:
@@ -2781,3 +2783,15 @@ data: [DONE]\n\n"""
         telegram = TelegramResponseConverter("button", "telegram")
         with pytest.raises(Exception):
             telegram.button_transformer(input_json)
+
+    def test_is_reload_model_in_progress_failure(self):
+        AuditLogData(
+            attributes=[{"key": "bot", "value": pytest.bot}], user="test", timestamp=datetime.utcnow(),
+            action=AuditlogActions.ACTIVITY.value,
+            entity=UserActivityType.reload_model_enqueued.value,
+            data={'message': 'Model reload enqueued!'}
+        ).save()
+        in_progress = ChatUtils.is_reload_model_in_progress(pytest.bot, False)
+        assert in_progress
+        with pytest.raises(AppException, match='Model reload enqueued. Check logs.'):
+            ChatUtils.is_reload_model_in_progress(pytest.bot)

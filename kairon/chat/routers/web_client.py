@@ -14,7 +14,6 @@ from kairon.shared.constants import CHAT_ACCESS
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 
-
 router = APIRouter()
 
 
@@ -77,5 +76,6 @@ async def reload_model(
     """
     Retrieves chat client config of a bot.
     """
-    background_tasks.add_task(ChatUtils.reload, bot)
-    return {"message": "Reloading Model!"}
+    if not ChatUtils.is_reload_model_in_progress(bot):
+        background_tasks.add_task(ChatUtils.reload, bot, current_user.email)
+        return {"message": "Reloading Model!"}

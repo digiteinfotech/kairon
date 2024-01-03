@@ -29,7 +29,7 @@ class AuditDataProcessor:
 
         action = kwargs.get("action")
         attribute = AuditDataProcessor.get_attributes({"bot": bot, "account": account, "email": email})
-        user = email if email else AccountProcessor.get_account(account)['user']
+        user = email if email else AccountProcessor.get_account(account)['user'] if account else AccountProcessor.get_bot(bot)['user']
         audit_log = AuditLogData(attributes=attribute,
                                  user=user,
                                  action=action,

@@ -1,8 +1,10 @@
 import datetime
 import json
+import os
 from typing import Text, Dict
 
 from loguru import logger
+from mongoengine import DoesNotExist
 from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
 from rasa.core.channels import UserMessage
@@ -10,8 +12,13 @@ from rasa.core.tracker_store import TrackerStore
 
 from .agent_processor import AgentProcessor
 from .. import Utility
+from ..exceptions import AppException
 from ..live_agent.factory import LiveAgentFactory
+from ..shared.account.activity_log import UserActivityLogger
 from ..shared.actions.utils import ActionUtility
+from ..shared.constants import UserActivityType
+from ..shared.data.audit.data_objects import AuditLogData
+from ..shared.data.constant import AuditlogActions
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
@@ -29,8 +36,38 @@ class ChatUtils:
         return chat_response
 
     @staticmethod
-    def reload(bot: Text):
-        AgentProcessor.reload(bot)
+    def is_reload_model_in_progress(bot: str, raise_exception=True):
+        """
+        Checks if model reloading is in progress.
+        @param bot: bot id
+        @param raise_exception: Raise exception if event is in progress.
+        @return: boolean flag.
+        """
+        in_progress = False
+        try:
+            latest_log = AuditLogData.objects(attributes__key='bot', attributes__value=bot, action=AuditlogActions.ACTIVITY.value).filter(
+                entity=UserActivityType.reload_model_enqueued.value
+            ).order_by('-timestamp').first()
+            if latest_log:
+                if raise_exception:
+                    raise AppException("Model reload enqueued. Check logs.")
+                in_progress = True
+        except DoesNotExist as e:
+            logger.error(e)
+        return in_progress
+
+    @staticmethod
+    def reload(bot: Text, email: str):
+        exc = None
+        try:
+            AgentProcessor.reload(bot)
+        except Exception as e:
+            logger.exception(e)
+            exc = str(e)
+        finally:
+            UserActivityLogger.add_log(a_type=UserActivityType.reload_model_enqueued.value,
+                                       email=email, bot=bot, message=['Model reload enqueued!'],
+                                       data={"username": email, "process_id": os.getpid(), "exception": exc})
 
     @staticmethod
     def __attach_agent_handoff_metadata(account: int, bot: Text, sender_id: Text, bot_predictions, tracker):

@@ -10,6 +10,9 @@ from kairon.exceptions import AppException
 from kairon.shared.data.processor import MongoProcessor
 from .agent.agent import KaironAgent
 from kairon.shared.chat.cache.in_memory_agent import InMemoryAgentCache
+from ..shared.account.activity_log import UserActivityLogger
+from ..shared.account.data_objects import Bot
+from ..shared.constants import UserActivityType
 from ..shared.utils import Utility
 
 
@@ -41,6 +44,7 @@ class AgentProcessor:
         reload bot agent
 
         :param bot: bot id
+        :param email: email
         :return: None
         """
         try:
@@ -57,7 +61,13 @@ class AgentProcessor:
                                      lock_store=lock_store_endpoint)
             agent.model_ver = model_path.split("/")[-1]
             AgentProcessor.cache_provider.set(bot, agent, is_billed=bot_settings.is_billed)
+            UserActivityLogger.add_log(a_type=UserActivityType.reload_model_completion.value,
+                                       bot=bot, message=['Model reload completed!'],
+                                       data={"username": email, "process_id": os.getpid()})
         except Exception as e:
+            UserActivityLogger.add_log(a_type=UserActivityType.reload_model_failure.value,
+                                       bot=bot, message=['Model reload failed!'],
+                                       data={"username": email, "process_id": os.getpid()})
             logging.exception(e)
             raise AppException("Bot has not been trained yet!")
 

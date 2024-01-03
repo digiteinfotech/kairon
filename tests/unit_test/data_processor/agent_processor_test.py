@@ -12,6 +12,7 @@ from redis.client import Redis
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.chat.cache.least_priority import LeastPriorityCache
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.model_processor import ModelProcessor
@@ -30,6 +31,8 @@ class TestAgentProcessor:
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         bot = bson.ObjectId().__str__()
         pytest.bot = bot
+        pytest.email = 'testuser@gmail.com'
+        pytest.account = 1
         model_path = os.path.join('models', bot)
         if not os.path.exists(model_path):
             os.mkdir(model_path)
@@ -125,8 +128,19 @@ class TestAgentProcessor:
         assert str(e).__contains__("Bot has not been trained yet!")
 
     def test_get_agent_not_exists(self):
+        user_name = "test_user"
+        account = AccountProcessor.add_account("test_one", "test_user")
+        AccountProcessor.add_bot('test_user', account["_id"], user_name, True)
+        AccountProcessor.add_user(
+            email="nk1111@digite.com",
+            first_name="test_one",
+            last_name="test_one_two",
+            password="Welcome@109",
+            account=account['_id'],
+            user=user_name,
+        )
         with pytest.raises(AppException) as e:
-            AgentProcessor.get_agent('test_user')
+            AgentProcessor.get_agent('test_user', account['_id'])
         assert str(e).__contains__("Bot has not been trained yet!")
 
     def test_get_agent(self):
