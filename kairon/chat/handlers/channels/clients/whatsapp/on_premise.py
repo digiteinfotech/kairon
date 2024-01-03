@@ -1,11 +1,10 @@
 import logging
 from typing import Text, Dict
 
-import requests
-
-from kairon.exceptions import AppException
-from kairon.shared.utils import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
+from kairon.exceptions import AppException
+from kairon.shared.rest_client import AioRestClient
+from kairon.shared.utils import Utility
 
 logger = logging.getLogger(__name__)
 
@@ -14,20 +13,21 @@ DEFAULT_API_VERSION = 13.0
 
 class WhatsappOnPremise(WhatsappCloud):
 
-    def __init__(self, access_token, **kwargs):
+    def __init__(self, access_token, session, **kwargs):
         """
             @required:
                 access_token
             @optional:
-                session
+                client
                 api_version
                 app_secret
         """
-        super().__init__(access_token, **kwargs)
+        super().__init__(access_token, session, **kwargs)
         self.access_token = access_token
-        self.session = kwargs.get('session', requests.Session())
+        self.session = session
+        self.client = kwargs.get('session', AioRestClient(False))
 
-    def send_action(self, payload, timeout=None, **kwargs):
+    async def send_action(self, payload, timeout=None, **kwargs):
         """
             @required:
                 payload: message request payload
@@ -35,17 +35,14 @@ class WhatsappOnPremise(WhatsappCloud):
                 timeout: request timeout
             @outputs: response json
         """
-        r = self.session.post(
-            '{app}/messages'.format(app=self.app),
-            headers=self.auth_args,
-            json=payload,
-            timeout=timeout
-        )
-        resp = r.json()
+        url = '{app}/messages'.format(app=self.app)
+        response = await self.session.request("POST", url, headers=self.auth_args, request_body=payload, timeout=timeout,
+                                              return_json=False)
+        resp = await response.text()
         logger.debug(resp)
         return resp
 
-    def get_attachment(self, media_id, timeout=None):
+    async def get_attachment(self, media_id, timeout=None):
         """
             @required:
                 media_id: audio/video/image/document id
@@ -53,30 +50,25 @@ class WhatsappOnPremise(WhatsappCloud):
                 timeout: request timeout
             @outputs: response json
         """
-        r = self.session.get(
-            '{app}/media/{media_id}'.format(app=self.app, media_id=media_id),
-            headers=self.auth_args,
-            timeout=timeout
-        )
-        resp = r.json()
+        url = '{app}/media/{media_id}'.format(app=self.app, media_id=media_id)
+        response = await self.session.request("GET", url, headers=self.auth_args, timeout=timeout,
+                                              return_json=False)
+        resp = await response.text()
         logger.debug(resp)
         return resp
 
-    def mark_as_read(self, msg_id, timeout=None):
+    async def mark_as_read(self, msg_id, timeout=None):
         payload = {
             "status": "read"
         }
-        r = self.session.put(
-            '{app}/messages/{message_id}'.format(app=self.app, message_id=msg_id),
-            headers=self.auth_args,
-            json=payload,
-            timeout=timeout
-        )
-        resp = r.json()
+        url = '{app}/messages/{message_id}'.format(app=self.app, message_id=msg_id)
+        response = await self.session.request("PUT", url, headers=self.auth_args, request_body=payload, timeout=timeout,
+                                              return_json=False)
+        resp = await response.text()
         logger.debug(resp)
         return resp
 
-    def send_template_message(self, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None, namespace: Text = None):
+    async def send_template_message(self, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None, namespace: Text = None):
         if Utility.check_empty_string(namespace):
             raise AppException("namespace is required to send messages using on-premises api!")
 
@@ -90,4 +82,5 @@ class WhatsappOnPremise(WhatsappCloud):
         }
         if components:
             payload.update({"components": components})
-        return self.send(payload, to_phone_number, messaging_type="template")
+        response = await self.send(payload, to_phone_number, messaging_type="template")
+        return response

@@ -19,7 +19,7 @@ from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
-from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
+from ..data.constant import REQUEST_TIMESTAMP_HEADER
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..rest_client import AioRestClient
@@ -564,6 +564,15 @@ class ActionUtility:
         slots = {} if not isinstance(slots, dict) else slots
         slot_values = {slot: value for slot, value in slots.items() if slot not in {KaironSystemSlots.bot.value}}
         return slot_values
+
+    @staticmethod
+    def check_request_body_type(body: Any):
+        try:
+            if isinstance(body, str):
+                body = json.loads(body.replace("'", "\""))
+        except json.JSONDecodeError as e:
+            raise ActionFailure(f"Error decoding JSON: {str(e)}")
+        return body
 
     @staticmethod
     def run_pyscript(source_code: Text, context: dict):
