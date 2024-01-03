@@ -1187,6 +1187,7 @@ class TestEventExecution:
         assert not logs[0].get('end_timestamp')
         assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
 
+    @pytest.mark.asyncio
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
@@ -1194,7 +1195,7 @@ class TestEventExecution:
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_logs_modification(self, mock_is_exist, mock_channel_config,
+    async def test_execute_message_broadcast_with_logs_modification(self, mock_is_exist, mock_channel_config,
                                                               mock_get_bot_settings, mock_send,
                                                               mock_get_partner_auth_token):
         bot = 'test_execute_message_broadcast_with_logs_modification'
@@ -1284,7 +1285,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            await event.execute(event_id)
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
@@ -1312,6 +1313,7 @@ class TestEventExecution:
         result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
         assert result == [{'status': 'Failed', 'campaign_id': reference_id, 'count': 1}]
 
+    @pytest.mark.asyncio
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
@@ -1319,7 +1321,7 @@ class TestEventExecution:
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_static_values(self, mock_is_exist, mock_channel_config,
+    async def test_execute_message_broadcast_with_static_values(self, mock_is_exist, mock_channel_config,
                                                           mock_get_bot_settings, mock_send,
                                                           mock_get_partner_auth_token):
         bot = 'test_execute_message_broadcast'
@@ -1386,7 +1388,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            await event.execute(event_id)
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
@@ -1417,13 +1419,14 @@ class TestEventExecution:
         assert len(settings) == 1
         assert settings[0]["status"] == False
 
+    @pytest.mark.asyncio
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_dynamic_values(self, mock_is_exist, mock_channel_config,
+    async def test_execute_message_broadcast_with_dynamic_values(self, mock_is_exist, mock_channel_config,
                                                            mock_get_bot_settings, mock_send,
                                                            mock_get_partner_auth_token):
         bot = 'test_execute_dynamic_message_broadcast'
@@ -1496,7 +1499,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            await event.execute(event_id)
             responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
@@ -1549,11 +1552,12 @@ class TestEventExecution:
             'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
             'filename': 'Brochure.pdf'}}]}]
 
+    @pytest.mark.asyncio
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_recipient_evaluation_failure(self, mock_is_exist, mock_channel_config,
+    async def test_execute_message_broadcast_with_recipient_evaluation_failure(self, mock_is_exist, mock_channel_config,
                                                                          mock_get_bot_settings, mock_send):
         bot = 'test_execute_dynamic_message_broadcast_recipient_evaluation_failure'
         user = 'test_user'
@@ -1588,7 +1592,7 @@ class TestEventExecution:
         event = MessageBroadcastEvent(bot, user)
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        await event.execute(event_id)
         responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
@@ -1611,10 +1615,11 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
+    @pytest.mark.asyncio
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_expression_evaluation_failure(self, mock_is_exist, mock_get_bot_settings,
+    async def test_execute_message_broadcast_expression_evaluation_failure(self, mock_is_exist, mock_get_bot_settings,
                                                                      mock_channel_config):
         bot = 'test_execute_message_broadcast_expression_evaluation_failure'
         user = 'test_user'
@@ -1647,7 +1652,7 @@ class TestEventExecution:
         event = MessageBroadcastEvent(bot, user)
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        await event.execute(event_id)
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -1655,10 +1660,11 @@ class TestEventExecution:
         assert exception.startswith('Failed to evaluate template: ')
         responses.reset()
 
+    @pytest.mark.asyncio
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_channel_deleted(self, mock_is_exist, mock_get_bot_settings, mock_send):
+    async def test_execute_message_broadcast_with_channel_deleted(self, mock_is_exist, mock_get_bot_settings, mock_send):
         bot = 'test_execute_message_broadcast_with_channel_deleted'
         user = 'test_user'
         config = {
@@ -1695,7 +1701,7 @@ class TestEventExecution:
                 "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
 
-        event.execute(event_id)
+        await event.execute(event_id)
         responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
@@ -1718,6 +1724,7 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
+    @pytest.mark.asyncio
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
@@ -1725,7 +1732,7 @@ class TestEventExecution:
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_evaluate_template_parameters(self, mock_is_exist, mock_send, mock_channel_config,
+    async def test_execute_message_broadcast_evaluate_template_parameters(self, mock_is_exist, mock_send, mock_channel_config,
                                                                     mock_get_bot_settings, mock_bsp_auth_token):
         bot = 'test_execute_message_broadcast_evaluate_template_parameters'
         user = 'test_user'
@@ -1793,7 +1800,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            await event.execute(event_id)
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 
@@ -1843,13 +1850,14 @@ class TestEventExecution:
             with pytest.raises(Exception):
                 ScheduledEventsBase("test", "test").enqueue(event_request_type, config={})
 
+    @pytest.mark.asyncio
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_pyscript(self, mock_is_exist, mock_channel_config,
+    async def test_execute_message_broadcast_with_pyscript(self, mock_is_exist, mock_channel_config,
                                                      mock_get_bot_settings, mock_send, mock_get_partner_auth_token):
         bot = 'test_execute_message_broadcast_with_pyscript'
         user = 'test_user'
@@ -1927,7 +1935,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            await event.execute(event_id)
             responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
@@ -2000,10 +2008,11 @@ class TestEventExecution:
         #     'filename': 'Brochure.pdf'}}]}]
         # assert mock_send.call_args[0][5] == '13b1e228_4a08_4d19_a0da_cdb80bc76380'
 
+    @pytest.mark.asyncio
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_pyscript_failure(self, mock_is_exist, mock_channel_config,
+    async def test_execute_message_broadcast_with_pyscript_failure(self, mock_is_exist, mock_channel_config,
                                                              mock_get_bot_settings):
         bot = 'test_execute_message_broadcast_with_pyscript_failure'
         user = 'test_user'
@@ -2032,7 +2041,7 @@ class TestEventExecution:
         event = MessageBroadcastEvent(bot, user)
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        await event.execute(event_id)
         responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
@@ -2054,11 +2063,12 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
+    @pytest.mark.asyncio
     @patch("kairon.shared.channels.broadcast.whatsapp.json")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_pyscript_timeout(self, mock_is_exist, mock_channel_config,
+    async def test_execute_message_broadcast_with_pyscript_timeout(self, mock_is_exist, mock_channel_config,
                                                              mock_get_bot_settings, mock_json):
         import time
 
@@ -2093,7 +2103,7 @@ class TestEventExecution:
         event = MessageBroadcastEvent(bot, user)
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        await event.execute(event_id)
         responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)

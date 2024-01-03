@@ -73,7 +73,7 @@ class ActionDatabase(ActionsBase):
             operation_type = vector_action_config['query_type']
             payload_type = vector_action_config['payload']
             request_body = tracker.get_slot(payload_type.get('value')) if payload_type.get('type') == DbQueryValueType.from_slot.value \
-                else payload_type.get('value')
+                else ActionUtility.check_request_body_type(payload_type.get('value'))
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)
             response = vector_db.perform_operation(operation_type, request_body)

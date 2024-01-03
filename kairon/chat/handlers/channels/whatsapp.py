@@ -1,20 +1,20 @@
 import json
+import logging
 from typing import Optional, Dict, Text, Any, List, Union
 
 from rasa.core.channels import OutputChannel, UserMessage
 from starlette.requests import Request
 
-from kairon.chat.agent_processor import AgentProcessor
-from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
-from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
-from kairon.chat.handlers.channels.messenger import MessengerHandler
-import logging
-
-from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
+from kairon.chat.agent_processor import AgentProcessor
+from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
+from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
+from kairon.chat.handlers.channels.messenger import MessengerHandler
+from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.models import User
+from kairon.shared.rest_client import AioRestClient
 
 logger = logging.getLogger(__name__)
 
@@ -60,13 +60,14 @@ class Whatsapp:
         await self._handle_user_message(text, message["from"], message, bot)
 
     async def __handle_meta_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
+        session = AioRestClient(True)
         provider = self.config.get("bsp_type", "meta")
         access_token = self.__get_access_token()
         for entry in payload["entry"]:
             for changes in entry["changes"]:
                 self.last_message = changes
                 client = WhatsappFactory.get_client(provider)
-                self.client = client(access_token, from_phone_number_id=self.get_business_phone_number_id())
+                self.client = client(access_token, session, from_phone_number_id=self.get_business_phone_number_id())
                 msg_metadata = changes.get("value", {}).get("metadata", {})
                 metadata.update(msg_metadata)
                 messages = changes.get("value", {}).get("messages")
@@ -77,6 +78,7 @@ class Whatsapp:
                         ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, ChannelTypes.WHATSAPP.value)
                 for message in messages or []:
                     await self.message(message, metadata, bot)
+        await self.client.cleanup()
 
     async def handle_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
         msg = "success"

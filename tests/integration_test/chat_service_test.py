@@ -1280,13 +1280,15 @@ def test_whatsapp_invalid_hub_signature():
     assert actual == 'not validated'
 
 
-@responses.activate
-def test_whatsapp_valid_text_message_request():
+def test_whatsapp_valid_text_message_request(aioresponses):
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add(
-        "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+    aioresponses.add(
+        method="POST",
+        url="https://graph.facebook.com/v13.0/12345678/messages",
+        body="success",
+        status=200
     )
     with mock.patch.object(EndpointConfig, "request") as mock_action_execution:
         mock_action_execution.return_value = {"responses": [{"response": "Welcome to kairon!"}], "events": []}
@@ -1335,14 +1337,16 @@ def test_whatsapp_valid_text_message_request():
                                               channel_type="whatsapp") > 0
 
 
-@responses.activate
 @mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp.process_message", autospec=True)
-def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(mock_process_message):
+def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(mock_process_message, aioresponses):
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add(
-        "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+    aioresponses.add(
+        method="POST",
+        url="https://graph.facebook.com/v13.0/12345678/messages",
+        body="success",
+        status=200
     )
     mock_process_message.side_effect = Exception
     with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
@@ -1384,15 +1388,16 @@ def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(mock
     assert actual == 'success'
 
 
-@responses.activate
-def test_whatsapp_valid_button_message_request():
+def test_whatsapp_valid_button_message_request(aioresponses):
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add(
-        "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+    aioresponses.add(
+        method="POST",
+        url="https://graph.facebook.com/v13.0/12345678/messages",
+        body="success",
+        status=200
     )
-
     with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
         with mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
                         autospec=True) as whatsapp_msg_handler:
@@ -1447,21 +1452,25 @@ def test_whatsapp_valid_button_message_request():
     assert whatsapp_msg_handler.call_args[0][4] == bot
 
 
-@responses.activate
-def test_whatsapp_valid_attachment_message_request():
+def test_whatsapp_valid_attachment_message_request(aioresponses):
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
     responses.reset()
-    responses.add(
-        "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+    aioresponses.add(
+        method="POST",
+        url="https://graph.facebook.com/v13.0/12345678/messages",
+        body="success",
+        status=200
     )
-    responses.add(
-        "GET", "https://graph.facebook.com/v13.0/sdfghj567",
-        json={
+    aioresponses.add(
+        method="GET",
+        url="https://graph.facebook.com/v13.0/sdfghj567",
+        body={
             "messaging_product": "whatsapp",
             "url": "http://kairon-media.url",
             "id": "sdfghj567"
-        }
+        },
+        status=200
     )
 
     with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
@@ -1843,15 +1852,16 @@ def test_whatsapp_valid_statuses_with_errors_request():
     }]
 
 
-@responses.activate
-def test_whatsapp_valid_unsupported_message_request():
+def test_whatsapp_valid_unsupported_message_request(aioresponses):
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add(
-        "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+    aioresponses.add(
+        method="POST",
+        url="https://graph.facebook.com/v13.0/12345678/messages",
+        body="success",
+        status=200
     )
-
     with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
         response = client.post(
             f"/api/bot/whatsapp/{bot}/{token}",
@@ -1891,13 +1901,18 @@ def test_whatsapp_valid_unsupported_message_request():
     assert actual == 'success'
 
 
-@responses.activate
-def test_whatsapp_bsp_valid_text_message_request():
-    responses.add(
-        "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
+def test_whatsapp_bsp_valid_text_message_request(aioresponses):
+    aioresponses.add(
+        method="POST",
+        url="https://waba-v2.360dialog.io/v1/messages",
+        body="success",
+        status=200
     )
-    responses.add(
-        "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+    aioresponses.add(
+        method="PUT",
+        url="https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
+        body="success",
+        status=200
     )
     response = client.post(
         f"/api/bot/whatsapp/{bot2}/{token}",
@@ -1934,16 +1949,20 @@ def test_whatsapp_bsp_valid_text_message_request():
         })
     actual = response.json()
     assert actual == 'success'
-    responses.reset()
 
 
-@responses.activate
-def test_whatsapp_bsp_valid_button_message_request():
-    responses.add(
-        "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
+def test_whatsapp_bsp_valid_button_message_request(aioresponses):
+    aioresponses.add(
+        method="POST",
+        url="https://waba-v2.360dialog.io/v1/messages",
+        body="success",
+        status=200
     )
-    responses.add(
-        "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+    aioresponses.add(
+        method="PUT",
+        url="https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
+        body="success",
+        status=200
     )
     response = client.post(
         f"/api/bot/whatsapp/{bot2}/{token}",
@@ -1981,18 +2000,21 @@ def test_whatsapp_bsp_valid_button_message_request():
         })
     actual = response.json()
     assert actual == 'success'
-    responses.reset()
 
 
-@responses.activate
-def test_whatsapp_bsp_valid_attachment_message_request():
-    responses.add(
-        "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
+def test_whatsapp_bsp_valid_attachment_message_request(aioresponses):
+    aioresponses.add(
+        method="POST",
+        url="https://waba-v2.360dialog.io/v1/messages",
+        body="success",
+        status=200
     )
-    responses.add(
-        "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+    aioresponses.add(
+        method="PUT",
+        url="https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
+        body="success",
+        status=200
     )
-
     response = client.post(
         f"/api/bot/whatsapp/{bot2}/{token}",
         headers={"hub.verify_token": "valid"},
@@ -2027,15 +2049,15 @@ def test_whatsapp_bsp_valid_attachment_message_request():
         })
     actual = response.json()
     assert actual == 'success'
-    responses.reset()
 
 
-@responses.activate
-def test_whatsapp_bsp_valid_order_message_request():
-    responses.add(
-        "POST", "https://waba-v2.360dialog.io/messages", json={}
+def test_whatsapp_bsp_valid_order_message_request(aioresponses):
+    aioresponses.add(
+        method="POST",
+        url="https://waba-v2.360dialog.io/messages",
+        body="success",
+        status=200
     )
-
     response = client.post(
         f"/api/bot/whatsapp/{bot2}/{token}",
         headers={"hub.verify_token": "valid"},
@@ -2083,7 +2105,6 @@ def test_whatsapp_bsp_valid_order_message_request():
         })
     actual = response.json()
     assert actual == 'success'
-    responses.reset()
 
 
 def add_live_agent_config(bot_id, email):
