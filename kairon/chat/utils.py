@@ -60,7 +60,7 @@ class ChatUtils:
     def reload(bot: Text, email: str):
         exc = None
         try:
-            AgentProcessor.reload(bot)
+            AgentProcessor.reload(bot, email)
         except Exception as e:
             logger.exception(e)
             exc = str(e)

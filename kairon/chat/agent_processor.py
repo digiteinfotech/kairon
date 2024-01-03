@@ -39,7 +39,7 @@ class AgentProcessor:
         return AgentProcessor.cache_provider.get(bot)
 
     @staticmethod
-    def reload(bot: Text):
+    def reload(bot: Text, email: str = None):
         """
         reload bot agent
 
