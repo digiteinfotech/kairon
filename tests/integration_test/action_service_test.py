@@ -2972,14 +2972,7 @@ def test_vectordb_action_execution_payload_search_from_value():
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
             user="user").save()
-    payload_body = {
-        "filter": {
-            "should": [
-                {"key": "city", "match": {"value": "London"}},
-                {"key": "color", "match": {"value": "red"}}
-            ]
-        }
-    }
+    payload_body = "{'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}"
     DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_execution_payload_search_from_value',
@@ -2995,12 +2988,13 @@ def test_vectordb_action_execution_payload_search_from_value():
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
+    json_params_matcher = {'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
     responses.add(
         method=responses.POST,
         url=http_url,
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(payload_body)],
+        match=[responses.matchers.json_params_matcher(json_params_matcher)],
     )
 
     request_object = {
@@ -3044,6 +3038,80 @@ def test_vectordb_action_execution_payload_search_from_value():
          'value': 'The value of London with color red is 2'}]
     assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
     log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+
+
+@responses.activate
+def test_vectordb_action_execution_payload_search_from_value_json_decode_error():
+    action_name = "test_vectordb_action_execution_payload_search_from_value_json_decode_error"
+    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
+            user="user").save()
+    payload_body = "{'filter'}"
+    DatabaseAction(
+        name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_value',
+        query_type=DbActionOperationType.payload_search.value,
+        payload=DbQuery(type="from_value", value=payload_body),
+        response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+        set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+        bot="5f50md0a56b698ca10d35d2e",
+        user="user"
+    ).save()
+
+    # http_url = 'http://localhost:6333/collections/test_vectordb_action_execution_payload_search_from_value/points/scroll'
+    # resp_msg = json.dumps(
+    #     [{"id": 2, "city": "London", "color": "red"}]
+    # )
+    # json_params_matcher = {'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+    # responses.add(
+    #     method=responses.POST,
+    #     url=http_url,
+    #     body=resp_msg,
+    #     status=200,
+    #     match=[responses.matchers.json_params_matcher(json_params_matcher)],
+    # )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    print(response_json['events'])
+    print(response_json['responses'])
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'I have failed to process your request.'}]
+    assert response_json['responses'][0]['text'] == 'I have failed to process your request.'
+    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
+    print(log)
+    assert log['exception'] == "Error decoding JSON: Expecting ':' delimiter: line 1 column 10 (char 9)"
     log.pop('_id')
     log.pop('timestamp')
 

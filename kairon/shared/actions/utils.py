@@ -566,6 +566,15 @@ class ActionUtility:
         return slot_values
 
     @staticmethod
+    def check_request_body_type(body: Any):
+        try:
+            if isinstance(body, str):
+                body = json.loads(body.replace("'", "\""))
+        except json.JSONDecodeError as e:
+            raise ActionFailure(f"Error decoding JSON: {str(e)}")
+        return body
+
+    @staticmethod
     def run_pyscript(source_code: Text, context: dict):
         trigger_task = Utility.environment['evaluator']['pyscript']['trigger_task']
         pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
