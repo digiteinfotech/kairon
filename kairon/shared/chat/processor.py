@@ -23,6 +23,9 @@ class ChatDataProcessor:
         :return: None
         """
         primary_slack_config_changed = False
+        private_key = configuration['config'].get('private_key', None)
+        if configuration['connector_type'] == ChannelTypes.BUSINESS_MESSAGES.value and private_key:
+            configuration['config']['private_key'] = private_key.replace("\\n", "\n")
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
