@@ -71,9 +71,8 @@ class ActionDatabase(ActionsBase):
             db_type = vector_action_config['db_type']
             vector_db = VectorEmbeddingsDbFactory.get_instance(db_type)(collection_name)
             operation_type = vector_action_config['query_type']
-            payload_type = vector_action_config['payload']
-            request_body = tracker.get_slot(payload_type.get('value')) if payload_type.get('type') == DbQueryValueType.from_slot.value \
-                else payload_type.get('value')
+            payload = vector_action_config['payload']
+            request_body = ActionUtility.get_payload(payload, tracker)
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)
             response = vector_db.perform_operation(operation_type, request_body)
