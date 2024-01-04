@@ -13,7 +13,7 @@ from kairon.actions.definitions.pyscript import ActionPyscript
 from kairon.actions.definitions.razorpay import ActionRazorpay
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
-from kairon.actions.definitions.vector_action import ActionDatabase
+from kairon.actions.definitions.database import ActionDatabase
 from kairon.actions.definitions.web_search import ActionWebSearch
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.actions.exception import ActionFailure
