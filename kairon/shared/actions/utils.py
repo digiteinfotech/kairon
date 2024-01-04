@@ -14,7 +14,8 @@ from rasa_sdk.executor import CollectingDispatcher
 
 from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
-from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType, DispatchType
+from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType, DispatchType, \
+    DbQueryValueType
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
@@ -566,13 +567,19 @@ class ActionUtility:
         return slot_values
 
     @staticmethod
-    def check_request_body_type(body: Any):
+    def get_payload(payload: Dict, tracker: Tracker):
+        if payload.get('type') == DbQueryValueType.from_slot.value:
+            rqst_payload = tracker.get_slot(payload.get('value'))
+        else:
+            rqst_payload = payload.get('value')
+
         try:
-            if isinstance(body, str):
-                body = json.loads(body.replace("'", "\""))
+            if isinstance(rqst_payload, str):
+                rqst_payload = json.loads(rqst_payload)
         except json.JSONDecodeError as e:
-            raise ActionFailure(f"Error decoding JSON: {str(e)}")
-        return body
+            logger.debug(e)
+            raise ActionFailure(f"Error converting payload to JSON: {rqst_payload}")
+        return rqst_payload
 
     @staticmethod
     def run_pyscript(source_code: Text, context: dict):
