@@ -5,6 +5,7 @@ from loguru import logger
 from mongoengine import DoesNotExist
 
 from kairon.shared.utils import Utility
+from .broadcast.processor import MessageBroadcastProcessor
 from .data_objects import Channels, ChannelLogs
 from ..constants import ChannelTypes
 from ..data.utils import DataUtility
@@ -136,13 +137,21 @@ class ChatDataProcessor:
         :param channel_type: channel type
         :return: None
         """
+        campaign_id = None
+        status = status_data.get('status')
+        msg_id = status_data.get('id')
+
+        if msg_id and status in {"delivered", "read"}:
+            campaign_id = MessageBroadcastProcessor.get_campaign_id(msg_id)
+
         ChannelLogs(
             type=channel_type,
-            status=status_data.get('status'),
+            status=status,
             data=status_data.get('conversation'),
             initiator=status_data.get('conversation', {}).get('origin', {}).get('type'),
-            message_id=status_data.get('id'),
+            message_id=msg_id,
             errors=status_data.get('errors', []),
             bot=bot,
-            user=user
+            user=user,
+            campaign_id=campaign_id
         ).save()

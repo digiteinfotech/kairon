@@ -2,7 +2,6 @@ import json
 from datetime import datetime
 from typing import Text, Dict
 
-from bson import ObjectId
 from loguru import logger
 from mongoengine import DoesNotExist, Document
 
@@ -86,8 +85,6 @@ class MessageBroadcastProcessor:
                 raise DoesNotExist()
             log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type).get()
         except DoesNotExist:
-            if not reference_id:
-                reference_id = ObjectId().__str__()
             log = MessageBroadcastLogs(bot=bot, reference_id=reference_id, log_type=log_type)
         if status:
             log.status = status
@@ -95,7 +92,6 @@ class MessageBroadcastProcessor:
             if not getattr(log, key, None) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
         log.save()
-        return reference_id
 
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
@@ -133,8 +129,8 @@ class MessageBroadcastProcessor:
         ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id, campaign_name=campaign_name)
 
     @staticmethod
-    def insert_status_received_on_channel_webhook(event_id: Text, broadcast_name: Text, reference_id: Text):
-        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
+    def insert_status_received_on_channel_webhook(event_id: Text, broadcast_name: Text):
+        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(event_id)
         if broadcast_logs:
             MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(event_id, broadcast_name, broadcast_logs)
 
@@ -142,8 +138,20 @@ class MessageBroadcastProcessor:
     def get_channel_metrics(channel_type: Text, bot: Text):
         result = list(ChannelLogs.objects.aggregate([
             {'$match': {'bot': bot, 'type': channel_type}},
-            {'$group': {'_id': {'campaign_id': '$campaign_id', 'campaign_name': '$campaign_name', 'status': '$status'}, 'count': {'$sum': 1}}},
-            {'$group': {'_id': {'campaign_id': '$_id.campaign_id', 'campaign_name': '$_id.campaign_name'}, 'status': {'$push': {'k': '$_id.status', 'v': '$count'}}}},
-            {'$project': {'campaign_id': '$_id.campaign_id', 'campaign_name': '$_id.campaign_name', 'status': {'$arrayToObject': '$status'}, '_id': 0}}
+            {'$group': {'_id': {'campaign_id': '$campaign_id', 'status': '$status'}, 'count': {'$sum': 1}}},
+            {'$group': {'_id': '$_id.campaign_id', 'status': {'$push': {'k': '$_id.status', 'v': '$count'}}}},
+            {'$project': {'campaign_id': '$_id', 'status': {'$arrayToObject': '$status'}, '_id': 0}}
         ]))
         return result
+
+    @staticmethod
+    def get_campaign_id(message_id: Text):
+        campaign_id = None
+        try:
+            log = MessageBroadcastLogs.objects(api_response__messages__id=message_id, log_type=MessageBroadcastLogType.send.value)
+            if log:
+                campaign_id = log[0].reference_id
+        except Exception as e:
+            logger.debug(e)
+
+        return campaign_id
