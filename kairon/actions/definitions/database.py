@@ -25,6 +25,7 @@ class ActionDatabase(ActionsBase):
         """
         self.bot = bot
         self.name = name
+        self.suffix = "_faq_embd"
         self.__response = None
         self.__is_success = False
 
@@ -68,7 +69,7 @@ class ActionDatabase(ActionsBase):
             vector_action_config = self.retrieve_config()
             dispatch_bot_response = vector_action_config['response']['dispatch']
             failure_response = vector_action_config['failure_response']
-            collection_name = vector_action_config['collection']
+            collection_name = f"{self.bot}_{vector_action_config['collection']}{self.suffix}"
             db_type = vector_action_config['db_type']
             vector_db = VectorEmbeddingsDbFactory.get_instance(db_type)(collection_name)
             operation_type = vector_action_config['query_type']
