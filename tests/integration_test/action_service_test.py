@@ -2899,7 +2899,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/test_vectordb_action_execution/points'
+    http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_test_vectordb_action_execution_faq_embd/points'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -2984,7 +2984,7 @@ def test_vectordb_action_execution_payload_search_from_value():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/test_vectordb_action_execution_payload_search_from_value/points/scroll'
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_value_faq_embd/points/scroll'
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
@@ -3123,7 +3123,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/test_vectordb_action_execution_embedding_search_from_slot/points'
+    http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_test_vectordb_action_execution_embedding_search_from_slot_faq_embd/points'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -3208,7 +3208,7 @@ def test_vectordb_action_execution_no_response_dispatch():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/test_vectordb_action_execution_no_response_dispatch/points'
+    http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_test_vectordb_action_execution_no_response_dispatch_faq_embd/points'
     resp_msg = json.dumps(
         {
             "time": 0,
