@@ -37,6 +37,7 @@ class ActionDatabase(ActionsBase):
         try:
             vector_action_dict = DatabaseAction.objects(bot=self.bot, name=self.name,
                                                         status=True).get().to_mongo().to_dict()
+            vector_action_dict.pop('_id', None)
             logger.debug("vector_action_config: " + str(vector_action_dict))
             return vector_action_dict
         except DoesNotExist as e:
