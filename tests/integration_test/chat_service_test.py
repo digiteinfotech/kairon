@@ -1592,6 +1592,83 @@ def test_whatsapp_valid_order_message_request():
 
 
 @responses.activate
+def test_whatsapp_valid_flows_message_request():
+    responses.reset()
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+        with mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                        autospec=True) as whatsapp_msg_handler:
+            request_json = {
+                'object': 'whatsapp_business_account',
+                'entry': [{
+                    'id': '147142368486217',
+                    'changes': [{
+                        'value': {
+                            'messaging_product': 'whatsapp',
+                            'metadata': {
+                                'display_phone_number': '918657011111',
+                                'phone_number_id': '142427035629239'
+                            },
+                            'contacts': [{
+                                'profile': {
+                                    'name': 'Mahesh'
+                                },
+                                'wa_id': '919515991111'
+                            }],
+                            'messages': [{
+                                'context': {
+                                    'from': '918657011111',
+                                    'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSMjVGRjYwODI3RkMyOEQ0NUM1AA=='
+                                },
+                                'from': '919515991111',
+                                'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggQTRBQUYyODNBQkMwNEIzRDQ0MUI1ODkyMTE2NTMA',
+                                'timestamp': '1703257297',
+                                'type': 'interactive',
+                                'interactive': {
+                                    'type': 'nfm_reply',
+                                    'nfm_reply': {
+                                        'response_json': '{"flow_token":"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.","firstName":"Mahesh ","lastName":"Sattala ","pincode":"523456","district":"Bangalore ","houseNumber":"5-6","dateOfBirth":"1703257240046","source":"SOCIAL_MEDIA","landmark":"HSR Layout ","email":"maheshsattala@gmail.com"}',
+                                        'body': 'Sent',
+                                        'name': 'flow'
+                                    }
+                                }
+                            }]
+                        },
+                        'field': 'messages'
+                    }]
+                }]
+            }
+            response = client.post(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json=request_json
+            )
+    actual = response.json()
+    assert actual == 'success'
+    assert len(whatsapp_msg_handler.call_args[0]) == 5
+    print(whatsapp_msg_handler.call_args[0][1])
+    assert whatsapp_msg_handler.call_args[0][1] == '/k_flow_msg{"nfm_reply": "{\\"flow_token\\":\\"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.\\",\\"firstName\\":\\"Mahesh \\",\\"lastName\\":\\"Sattala \\",\\"pincode\\":\\"523456\\",\\"district\\":\\"Bangalore \\",\\"houseNumber\\":\\"5-6\\",\\"dateOfBirth\\":\\"1703257240046\\",\\"source\\":\\"SOCIAL_MEDIA\\",\\"landmark\\":\\"HSR Layout \\",\\"email\\":\\"maheshsattala@gmail.com\\"}"}'
+    assert whatsapp_msg_handler.call_args[0][2] == '919515991111'
+    metadata = whatsapp_msg_handler.call_args[0][3]
+    metadata.pop("timestamp")
+    print(metadata)
+    assert metadata == {
+        'context': {'from': '918657011111', 'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSMjVGRjYwODI3RkMyOEQ0NUM1AA=='},
+        'from': '919515991111', 'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggQTRBQUYyODNBQkMwNEIzRDQ0MUI1ODkyMTE2NTMA',
+        'type': 'interactive',
+        'interactive': {
+            'type': 'nfm_reply', 'nfm_reply': {
+            'response_json': '{"flow_token":"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.","firstName":"Mahesh ","lastName":"Sattala ","pincode":"523456","district":"Bangalore ","houseNumber":"5-6","dateOfBirth":"1703257240046","source":"SOCIAL_MEDIA","landmark":"HSR Layout ","email":"maheshsattala@gmail.com"}',
+            'body': 'Sent', 'name': 'flow'}},
+        'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+        'bsp_type': 'meta', 'tabname': 'default', 'display_phone_number': '918657011111',
+        'phone_number_id': '142427035629239'}
+    assert whatsapp_msg_handler.call_args[0][4] == bot
+
+
+@responses.activate
 def test_whatsapp_valid_statuses_with_sent_request():
     from kairon.shared.chat.data_objects import ChannelLogs
 
