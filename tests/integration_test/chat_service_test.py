@@ -1594,6 +1594,7 @@ def test_whatsapp_valid_order_message_request():
 @responses.activate
 def test_whatsapp_valid_flows_message_request():
     responses.reset()
+
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
@@ -1648,12 +1649,10 @@ def test_whatsapp_valid_flows_message_request():
     actual = response.json()
     assert actual == 'success'
     assert len(whatsapp_msg_handler.call_args[0]) == 5
-    print(whatsapp_msg_handler.call_args[0][1])
-    assert whatsapp_msg_handler.call_args[0][1] == '/k_flow_msg{"nfm_reply": "{\\"flow_token\\":\\"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.\\",\\"firstName\\":\\"Mahesh \\",\\"lastName\\":\\"Sattala \\",\\"pincode\\":\\"523456\\",\\"district\\":\\"Bangalore \\",\\"houseNumber\\":\\"5-6\\",\\"dateOfBirth\\":\\"1703257240046\\",\\"source\\":\\"SOCIAL_MEDIA\\",\\"landmark\\":\\"HSR Layout \\",\\"email\\":\\"maheshsattala@gmail.com\\"}"}'
+    assert whatsapp_msg_handler.call_args[0][1] == '/k_flow_msg{\"nfm_reply\": {\"flow_token\": \"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.\", \"firstName\": \"Mahesh \", \"lastName\": \"Sattala \", \"pincode\": \"523456\", \"district\": \"Bangalore \", \"houseNumber\": \"5-6\", \"dateOfBirth\": \"1703257240046\", \"source\": \"SOCIAL_MEDIA\", \"landmark\": \"HSR Layout \", \"email\": \"maheshsattala@gmail.com\"}}'
     assert whatsapp_msg_handler.call_args[0][2] == '919515991111'
     metadata = whatsapp_msg_handler.call_args[0][3]
     metadata.pop("timestamp")
-    print(metadata)
     assert metadata == {
         'context': {'from': '918657011111', 'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSMjVGRjYwODI3RkMyOEQ0NUM1AA=='},
         'from': '919515991111', 'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggQTRBQUYyODNBQkMwNEIzRDQ0MUI1ODkyMTE2NTMA',

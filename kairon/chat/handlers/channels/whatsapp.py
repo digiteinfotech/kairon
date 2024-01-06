@@ -42,7 +42,7 @@ class Whatsapp:
             interactive_type = message.get("interactive").get("type")
             if interactive_type == "nfm_reply":
                 response_json = json.dumps(
-                    {interactive_type: message["interactive"][interactive_type]['response_json']}
+                    {interactive_type: json.loads(message["interactive"][interactive_type]['response_json'])}
                 )
                 text = f"/k_flow_msg{response_json}"
             else:
