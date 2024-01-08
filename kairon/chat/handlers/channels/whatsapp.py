@@ -40,7 +40,14 @@ class Whatsapp:
         # so quick reply should be checked first
         if message.get("type") == "interactive":
             interactive_type = message.get("interactive").get("type")
-            text = message["interactive"][interactive_type]["id"]
+            if interactive_type == "nfm_reply":
+                logger.debug(message["interactive"][interactive_type])
+                response_json = json.loads(message["interactive"][interactive_type]['response_json'])
+                response_json.update({"type": interactive_type})
+                entity = json.dumps({"flow_reply": response_json})
+                text = f"/k_interactive_msg{entity}"
+            else:
+                text = message["interactive"][interactive_type]["id"]
         elif message.get("type") == "text":
             text = message["text"]['body']
         elif message.get("type") == "button":

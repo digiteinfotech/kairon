@@ -142,6 +142,7 @@ class KaironSystemSlots(str, Enum):
     document = "document"
     doc_url = "doc_url"
     order = "order"
+    flow_reply = "flow_reply"
 
 
 class VectorEmbeddingsDatabases(str, Enum):
