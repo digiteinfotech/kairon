@@ -44,7 +44,7 @@ class Whatsapp:
                 logger.debug(message["interactive"][interactive_type])
                 response_json = json.loads(message["interactive"][interactive_type]['response_json'])
                 response_json.update({"type": interactive_type})
-                entity = json.dumps({interactive_type: response_json})
+                entity = json.dumps({"flow_reply": response_json})
                 text = f"/k_interactive_msg{entity}"
             else:
                 text = message["interactive"][interactive_type]["id"]
