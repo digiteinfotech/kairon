@@ -102,7 +102,7 @@ class ActionDatabase(ActionsBase):
                 action=self.name,
                 config=vector_action_config,
                 sender=tracker.sender_id,
-                payload=str(request_body),
+                payload=str(request_body) if request_body else None,
                 response=str(response) if response else None,
                 bot_response=str(bot_response) if bot_response else None,
                 messages=msg_logger,
