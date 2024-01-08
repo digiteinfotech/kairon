@@ -41,10 +41,11 @@ class Whatsapp:
         if message.get("type") == "interactive":
             interactive_type = message.get("interactive").get("type")
             if interactive_type == "nfm_reply":
-                response_json = json.dumps(
-                    {interactive_type: json.loads(message["interactive"][interactive_type]['response_json'])}
-                )
-                text = f"/k_flow_msg{response_json}"
+                logger.debug(message["interactive"][interactive_type])
+                response_json = json.loads(message["interactive"][interactive_type]['response_json'])
+                response_json.update({"type": interactive_type})
+                entity = json.dumps({interactive_type: response_json})
+                text = f"/k_interactive_msg{entity}"
             else:
                 text = message["interactive"][interactive_type]["id"]
         elif message.get("type") == "text":
