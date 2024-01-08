@@ -8,7 +8,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, DatabaseAction
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, DbQueryValueType
+from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.vector_embeddings.db.factory import VectorEmbeddingsDbFactory
@@ -64,6 +64,7 @@ class ActionDatabase(ActionsBase):
         failure_response = 'I have failed to process your request.'
         filled_slots = {}
         msg_logger = []
+        request_body = None
 
         try:
             vector_action_config = self.retrieve_config()
@@ -101,6 +102,7 @@ class ActionDatabase(ActionsBase):
                 action=self.name,
                 config=vector_action_config,
                 sender=tracker.sender_id,
+                payload=str(request_body),
                 response=str(response) if response else None,
                 bot_response=str(bot_response) if bot_response else None,
                 messages=msg_logger,
