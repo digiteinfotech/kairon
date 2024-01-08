@@ -146,6 +146,7 @@ class KaironSystemSlots(str, Enum):
     order = "order"
     longitude = "longitude"
     latitude = "latitude"
+    flow_reply = "flow_reply"
 
 
 class VectorEmbeddingsDatabases(str, Enum):
