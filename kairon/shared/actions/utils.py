@@ -545,24 +545,20 @@ class ActionUtility:
 
         message = None
         if bot_response:
-            if dispatch_type == DispatchType.json.value:
-                try:
-                    if isinstance(bot_response, str):
-                        bot_response = json.loads(bot_response)
+            try:
+                if dispatch_type == DispatchType.json.value:
+                    bot_response = json.loads(bot_response) if isinstance(bot_response, str) else bot_response
                     dispatcher.utter_message(json_message=bot_response)
-                except JSONDecodeError as e:
-                    message = f'Failed to convert http response to json: {str(e)}'
-                    logger.exception(e)
-                    dispatcher.utter_message(str(bot_response))
-            else:
-                if isinstance(bot_response, list):
-                    for message in bot_response:
-                        if isinstance(message, dict):
-                            dispatcher.utter_message(json_message=message)
-                        else:
-                            dispatcher.utter_message(str(message))
+                elif isinstance(bot_response, list):
+                    for msg in bot_response:
+                        dispatcher.utter_message(json_message=msg) if isinstance(msg, dict) \
+                            else dispatcher.utter_message(str(msg))
                 else:
                     dispatcher.utter_message(str(bot_response))
+            except JSONDecodeError as e:
+                message = f'Failed to convert http response to json: {str(e)}'
+                logger.exception(e)
+                dispatcher.utter_message(str(bot_response))
         return bot_response, message
 
     @staticmethod
