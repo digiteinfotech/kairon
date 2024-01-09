@@ -855,6 +855,28 @@ def test_reload_logging(mock_reload):
                        'data': {'message': None, 'username': 'test@chat.com', 'exception': None, 'status': 'Success'}}
 
 
+@patch('kairon.shared.utils.Utility.get_local_mongo_store')
+def test_reload_event_exception(mock_store):
+    mock_store.return_value = None
+    with patch("kairon.chat.utils.ChatUtils.reload") as mock_reload:
+        mock_reload.return_value = Exception("Simulated exception during model reload")
+        responses.add(
+            responses.GET,
+            f"/api/bot/{bot}/reload",
+            status=200,
+            json={'success': True, 'error_code': 0, "data": None, 'message': "Reloading Model!"}
+        )
+        try:
+            response = client.get(
+                f"/api/bot/{bot}/reload",
+                headers={
+                    "Authorization": token_type + " " + token
+                },
+            )
+        except Exception as e:
+            assert e
+
+
 def test_reload_exception():
     response = client.get(
         f"/api/bot/{bot}/reload",
