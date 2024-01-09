@@ -197,14 +197,14 @@ def test_pyscript_action_execution_with_multiple_utterances():
     response_json = response.json()
     assert response.status_code == 200
     assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 1
+    assert len(response_json['responses']) == 2
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
         {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': [{'text': 'Hello!'}, 'How can I help you?']}]
-    assert response_json['responses'][0]['text'] == "{'text': 'Hello!'}\nHow can I help you?"
-
+    assert response_json['responses'][0]['custom'] == {'text': 'Hello!'}
+    assert response_json['responses'][1]['text'] == 'How can I help you?'
 
 @responses.activate
 def test_pyscript_action_execution_with_multiple_integer_utterances():
@@ -214,7 +214,7 @@ def test_pyscript_action_execution_with_multiple_integer_utterances():
     Actions(name=action_name, type=ActionType.pyscript_action.value,
             bot="5f50fd0a56b698ca10d35d2z", user="user").save()
     script = """
-    numbers = [1, 2, 3, 4, 5]
+    numbers = [1, 2, 3]
     total = 0
     for i in numbers:
         total += i
@@ -232,8 +232,8 @@ def test_pyscript_action_execution_with_multiple_integer_utterances():
 
     responses.add(
         "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": [1, 2, 3, 4, 5],
-                                        'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5,
+        json={"success": True, "data": {"bot_response": [1, 2, 3],
+                                        'numbers': [1, 2, 3], 'total': 6, 'i': 3,
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "text"},
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
@@ -276,12 +276,14 @@ def test_pyscript_action_execution_with_multiple_integer_utterances():
     response_json = response.json()
     assert response.status_code == 200
     assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 1
+    assert len(response_json['responses']) == 3
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
         {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': [1, 2, 3, 4, 5]}]
-    assert response_json['responses'][0]['text'] == '1\n2\n3\n4\n5'
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': [1, 2, 3]}]
+    assert response_json['responses'][0]['text'] == '1'
+    assert response_json['responses'][1]['text'] == '2'
+    assert response_json['responses'][2]['text'] == '3'
 
 
 @responses.activate

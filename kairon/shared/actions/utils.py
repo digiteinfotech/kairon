@@ -556,8 +556,11 @@ class ActionUtility:
                     dispatcher.utter_message(str(bot_response))
             else:
                 if isinstance(bot_response, list):
-                    combined_bot_response = "\n".join(map(str, bot_response))
-                    dispatcher.utter_message(combined_bot_response)
+                    for message in bot_response:
+                        if isinstance(message, dict):
+                            dispatcher.utter_message(json_message=message)
+                        else:
+                            dispatcher.utter_message(str(message))
                 else:
                     dispatcher.utter_message(str(bot_response))
         return bot_response, message
