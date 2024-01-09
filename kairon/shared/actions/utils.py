@@ -541,27 +541,45 @@ class ActionUtility:
 
     @staticmethod
     def handle_utter_bot_response(dispatcher: CollectingDispatcher, dispatch_type: str, bot_response: Any):
+        message = None
+        if bot_response:
+            if dispatch_type == DispatchType.json.value:
+                message, bot_response = ActionUtility.handle_json_response(dispatcher, bot_response)
+            else:
+                ActionUtility.handle_text_response(dispatcher, bot_response)
+        return bot_response, message
+
+    @staticmethod
+    def set_dispatcher_response(dispatcher: CollectingDispatcher, response: Any, dispatch_type: DispatchType):
+        if dispatch_type == DispatchType.json.value:
+            dispatcher.utter_message(json_message=response)
+        else:
+            dispatcher.utter_message(text=str(response))
+
+    @staticmethod
+    def handle_text_response(dispatcher: CollectingDispatcher, bot_response: Any):
+        if isinstance(bot_response, list):
+            for message in bot_response:
+                if isinstance(message, dict):
+                    ActionUtility.set_dispatcher_response(dispatcher, message, DispatchType.json.value)
+                else:
+                    ActionUtility.set_dispatcher_response(dispatcher, message, DispatchType.text.value)
+        else:
+            ActionUtility.set_dispatcher_response(dispatcher, bot_response, DispatchType.text.value)
+
+    @staticmethod
+    def handle_json_response(dispatcher: CollectingDispatcher, bot_response: Any):
         from json import JSONDecodeError
 
         message = None
-        if bot_response:
-            try:
-                if dispatch_type == DispatchType.json.value:
-                    bot_response = json.loads(bot_response) if isinstance(bot_response, str) else bot_response
-                    dispatcher.utter_message(json_message=bot_response)
-                elif isinstance(bot_response, list):
-                    for message in bot_response:
-                        if isinstance(message, dict):
-                            dispatcher.utter_message(json_message=message)
-                        else:
-                            dispatcher.utter_message(str(message))
-                else:
-                    dispatcher.utter_message(str(bot_response))
-            except JSONDecodeError as e:
-                message = f'Failed to convert http response to json: {str(e)}'
-                logger.exception(e)
-                dispatcher.utter_message(str(bot_response))
-        return bot_response, message
+        try:
+            bot_response = json.loads(bot_response) if isinstance(bot_response, str) else bot_response
+            ActionUtility.set_dispatcher_response(dispatcher, bot_response, DispatchType.json.value)
+        except JSONDecodeError as e:
+            message = f'Failed to convert http response to json: {str(e)}'
+            logger.exception(e)
+            ActionUtility.set_dispatcher_response(dispatcher, bot_response, DispatchType.text.value)
+        return message, bot_response
 
     @staticmethod
     def filter_out_kairon_system_slots(slots: dict):
