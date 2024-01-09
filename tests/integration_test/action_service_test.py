@@ -155,7 +155,8 @@ def test_pyscript_action_execution_with_multiple_utterances():
         "POST", Utility.environment['evaluator']['pyscript']['url'],
         json={"success": True, "data": {"bot_response": [{'text': 'Hello!'}, 'How can I help you?'],
                                         'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5,
-                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "text"},
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"},
+                                        "type": "text"},
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -234,7 +235,8 @@ def test_pyscript_action_execution_with_multiple_integer_utterances():
         "POST", Utility.environment['evaluator']['pyscript']['url'],
         json={"success": True, "data": {"bot_response": [1, 2, 3],
                                         'numbers': [1, 2, 3], 'total': 6, 'i': 3,
-                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "text"},
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"},
+                                        "type": "text"},
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
