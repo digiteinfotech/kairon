@@ -555,7 +555,11 @@ class ActionUtility:
                     logger.exception(e)
                     dispatcher.utter_message(str(bot_response))
             else:
-                dispatcher.utter_message(str(bot_response))
+                if isinstance(bot_response, list):
+                    combined_bot_response = "\n".join(map(str, bot_response))
+                    dispatcher.utter_message(combined_bot_response)
+                else:
+                    dispatcher.utter_message(str(bot_response))
         return bot_response, message
 
     @staticmethod
