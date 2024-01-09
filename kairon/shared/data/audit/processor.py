@@ -6,6 +6,7 @@ from mongoengine import DoesNotExist
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.account.data_objects import Bot
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import AuditlogActions
 from kairon.shared.data.data_objects import EventConfig
@@ -29,7 +30,7 @@ class AuditDataProcessor:
 
         action = kwargs.get("action")
         attribute = AuditDataProcessor.get_attributes({"bot": bot, "account": account, "email": email})
-        user = email if email else AccountProcessor.get_account(account)['user']
+        user = email if email else AccountProcessor.get_account(account)['user'] if account else AccountProcessor.get_bot(bot)['user']
         audit_log = AuditLogData(attributes=attribute,
                                  user=user,
                                  action=action,
