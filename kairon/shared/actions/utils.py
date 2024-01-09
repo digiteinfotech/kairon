@@ -550,9 +550,11 @@ class ActionUtility:
                     bot_response = json.loads(bot_response) if isinstance(bot_response, str) else bot_response
                     dispatcher.utter_message(json_message=bot_response)
                 elif isinstance(bot_response, list):
-                    for msg in bot_response:
-                        dispatcher.utter_message(json_message=msg) if isinstance(msg, dict) \
-                            else dispatcher.utter_message(str(msg))
+                    for message in bot_response:
+                        if isinstance(message, dict):
+                            dispatcher.utter_message(json_message=message)
+                        else:
+                            dispatcher.utter_message(str(message))
                 else:
                     dispatcher.utter_message(str(bot_response))
             except JSONDecodeError as e:
