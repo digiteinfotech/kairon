@@ -4,6 +4,7 @@ from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
+from rasa_sdk.forms import REQUESTED_SLOT
 
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.utils import MailUtility
@@ -54,7 +55,9 @@ class ActionEmail(ActionsBase):
         exception = None
         action_config = self.retrieve_config()
         bot_response = action_config.get("response")
-        to_email = action_config['to_email']
+        slot = tracker.get_slot(REQUESTED_SLOT)
+        slot_value = tracker.get_slot(slot)
+        from_email, to_email = self.__get_from_email_and_to_email(action_config, slot, slot_value)
         smtp_password = action_config.get('smtp_password')
         smtp_userid = action_config.get('smtp_userid')
         custom_text = action_config.get('custom_text')
@@ -74,7 +77,7 @@ class ActionEmail(ActionsBase):
                                                 body=body,
                                                 smtp_url=action_config['smtp_url'],
                                                 smtp_port=action_config['smtp_port'],
-                                                sender_email=action_config['from_email'],
+                                                sender_email=from_email,
                                                 smtp_password=password,
                                                 smtp_userid=userid,
                                                 tls=action_config['tls']
@@ -100,3 +103,10 @@ class ActionEmail(ActionsBase):
             ).save()
         dispatcher.utter_message(bot_response)
         return {KaironSystemSlots.kairon_action_response.value: bot_response}
+
+    @staticmethod
+    def __get_from_email_and_to_email(action_config: EmailActionConfig, slot: str, slot_value: str):
+        from_email = slot_value if slot == "from_email" else action_config['from_email']
+        to_email = slot_value if slot == "to_email" else action_config['to_email']
+        to_email = [to_email] if isinstance(to_email, str) else to_email
+        return from_email, to_email
