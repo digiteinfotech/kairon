@@ -855,26 +855,35 @@ def test_reload_logging(mock_reload):
                        'data': {'message': None, 'username': 'test@chat.com', 'exception': None, 'status': 'Success'}}
 
 
-@patch('kairon.shared.utils.Utility.get_local_mongo_store')
-def test_reload_event_exception(mock_store):
-    mock_store.return_value = None
-    with patch("kairon.chat.utils.ChatUtils.reload") as mock_reload:
-        mock_reload.return_value = Exception("Simulated exception during model reload")
-        responses.add(
-            responses.GET,
-            f"/api/bot/{bot}/reload",
-            status=200,
-            json={'success': True, 'error_code': 0, "data": None, 'message': "Reloading Model!"}
-        )
-        try:
-            response = client.get(
-                f"/api/bot/{bot}/reload",
-                headers={
-                    "Authorization": token_type + " " + token
-                },
-            )
-        except Exception as e:
-            assert e
+@mock.patch('kairon.chat.agent_processor.AgentProcessor.reload', autospec=True)
+def test_reload_event_exception(mock_reload):
+    processor = MongoProcessor()
+    start_time = datetime.utcnow() - timedelta(days=1)
+    end_time = datetime.utcnow() + timedelta(days=1)
+    def _reload(*args):
+        raise Exception('Simulated exception during model reload')
+
+    mock_reload.side_effect = _reload
+    response = client.get(
+        f"/api/bot/{bot}/reload",
+        headers={
+            "Authorization": token_type + " " + token
+        },
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Reloading Model!"
+    logs = processor.get_logs(bot, "audit_logs", start_time, end_time)
+    logs[0].pop('timestamp')
+    logs[0].pop('_id')
+    logs[0]['data'].pop('process_id')
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': bot}], 'user': 'test@chat.com',
+                       'action': 'activity', 'entity': 'model_reload',
+                       'data': {'message': None, 'username': 'test@chat.com',
+                                'exception': 'Simulated exception during model reload', 'status': 'Failed'},
+                       }
 
 
 def test_reload_exception():
