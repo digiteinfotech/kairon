@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import time
+from datetime import datetime, timedelta
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
 
@@ -826,6 +827,63 @@ def test_reload(mock_store):
                         ('cross-origin-resource-policy', 'same-origin')]
     for header in expected_headers:
         assert header in actual_headers
+
+
+@patch('kairon.chat.utils.ChatUtils.reload')
+def test_reload_logging(mock_reload):
+    processor = MongoProcessor()
+    start_time = datetime.utcnow() - timedelta(days=1)
+    end_time = datetime.utcnow() + timedelta(days=1)
+    mock_reload.return_value = None
+    response = client.get(
+        f"/api/bot/{bot}/reload",
+        headers={
+            "Authorization": token_type + " " + token
+        },
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Reloading Model!"
+    logs = processor.get_logs(bot, "audit_logs", start_time, end_time)
+    logs[0].pop('timestamp')
+    logs[0].pop('_id')
+    logs[0]['data'].pop('process_id')
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': bot}], 'user': 'test@chat.com', 'action': 'activity',
+                       'entity': 'model_reload',
+                       'data': {'message': None, 'username': 'test@chat.com', 'exception': None, 'status': 'Success'}}
+
+
+@mock.patch('kairon.chat.agent_processor.AgentProcessor.reload', autospec=True)
+def test_reload_event_exception(mock_reload):
+    processor = MongoProcessor()
+    start_time = datetime.utcnow() - timedelta(days=1)
+    end_time = datetime.utcnow() + timedelta(days=1)
+    def _reload(*args):
+        raise Exception('Simulated exception during model reload')
+
+    mock_reload.side_effect = _reload
+    response = client.get(
+        f"/api/bot/{bot}/reload",
+        headers={
+            "Authorization": token_type + " " + token
+        },
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Reloading Model!"
+    logs = processor.get_logs(bot, "audit_logs", start_time, end_time)
+    logs[0].pop('timestamp')
+    logs[0].pop('_id')
+    logs[0]['data'].pop('process_id')
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': bot}], 'user': 'test@chat.com',
+                       'action': 'activity', 'entity': 'model_reload',
+                       'data': {'message': None, 'username': 'test@chat.com',
+                                'exception': 'Simulated exception during model reload', 'status': 'Failed'},
+                       }
 
 
 def test_reload_exception():
