@@ -59,6 +59,7 @@ class UserActivityType(str, Enum):
     invalid_login = 'invalid_login'
     download = "download"
     template_creation = 'template_creation'
+    model_reload = "model_reload"
 
 
 class EventClass(str, Enum):

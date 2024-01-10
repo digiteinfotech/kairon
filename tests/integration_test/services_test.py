@@ -5835,6 +5835,9 @@ def test_set_templates_insecure():
 
 @responses.activate
 def test_reload_model(monkeypatch):
+    processor = MongoProcessor()
+    start_time = datetime.utcnow() - timedelta(days=1)
+    end_time = datetime.utcnow() + timedelta(days=1)
     def mongo_store(*arge, **kwargs):
         return None
 
@@ -5859,6 +5862,39 @@ def test_reload_model(monkeypatch):
     assert actual['error_code'] == 0
     assert actual['message'] == "Reloading Model!"
     assert actual['success']
+    logs = processor.get_logs(pytest.bot, "audit_logs", start_time, end_time)
+    logs[0].pop('timestamp')
+    logs[0].pop('_id')
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': pytest.bot}], 'user': 'integration@demo.ai', 'action': 'activity', 'entity': 'model_reload', 'data': {'message': None, 'username': 'integration@demo.ai', 'exception': None, 'status': 'Initiated'}}
+
+
+@responses.activate
+def test_reload_model_exception():
+    processor = MongoProcessor()
+    start_time = datetime.utcnow() - timedelta(days=1)
+    end_time = datetime.utcnow() + timedelta(days=1)
+    # def mongo_store(*arge, **kwargs):
+    #     return None
+    #
+    # monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    # monkeypatch.setitem(Utility.environment['action'], "url", None)
+    # monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+    response = client.get(
+        f"/api/bot/{pytest.bot}/model/reload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual['data'] is None
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Agent config not found!'
+    logs = processor.get_logs(pytest.bot, "audit_logs", start_time, end_time)
+    logs[0].pop('timestamp')
+    logs[0].pop('_id')
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': pytest.bot}],
+                       'user': 'integration@demo.ai', 'action': 'activity', 'entity': 'model_reload',
+                       'data': {'message': None, 'username': 'integration@demo.ai',
+                                'exception': 'Agent config not found!', 'status': 'Failed'}}
 
 
 def test_get_config_templates():

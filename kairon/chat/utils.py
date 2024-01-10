@@ -1,5 +1,6 @@
 import datetime
 import json
+import os
 from typing import Text, Dict
 
 from loguru import logger
@@ -11,7 +12,9 @@ from rasa.core.tracker_store import TrackerStore
 from .agent_processor import AgentProcessor
 from .. import Utility
 from ..live_agent.factory import LiveAgentFactory
+from ..shared.account.activity_log import UserActivityLogger
 from ..shared.actions.utils import ActionUtility
+from ..shared.constants import UserActivityType
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
@@ -29,8 +32,20 @@ class ChatUtils:
         return chat_response
 
     @staticmethod
-    def reload(bot: Text):
-        AgentProcessor.reload(bot)
+    def reload(bot: Text, user: Text):
+        exc = None
+        status = "Success"
+        try:
+            AgentProcessor.reload(bot)
+        except Exception as e:
+            logger.error(e)
+            exc = str(e)
+            status = "Failed"
+        finally:
+            UserActivityLogger.add_log(a_type=UserActivityType.model_reload.value,
+                                       email=user, bot=bot,
+                                       data={"username": user, "process_id": os.getpid(), "exception": exc,
+                                             "status": status})
 
     @staticmethod
     def __attach_agent_handoff_metadata(account: int, bot: Text, sender_id: Text, bot_predictions, tracker):

@@ -62,8 +62,8 @@ from validators import email as mail_check
 from websockets import connect
 
 from .actions.models import ActionParameterType
-from .constants import EventClass
-from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
+from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes, UserActivityType, \
+    EventClass
 from .data.constant import TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
@@ -1056,14 +1056,27 @@ class Utility:
 
     @staticmethod
     def reload_model(bot: Text, email: Text):
-        if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
-            from kairon.shared.auth import Authentication
-            agent_url = Utility.environment['model']['agent'].get('url')
-            token, _ = Authentication.generate_integration_token(bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value)
-            response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, email)
-            return json.loads(response)
-        else:
-            raise AppException("Agent config not found!")
+        from kairon.shared.account.activity_log import UserActivityLogger
+
+        exc = None
+        status = "Initiated"
+        try:
+            if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
+                from kairon.shared.auth import Authentication
+                agent_url = Utility.environment['model']['agent'].get('url')
+                token, _ = Authentication.generate_integration_token(bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value)
+                response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, email)
+                return json.loads(response)
+            else:
+                raise AppException("Agent config not found!")
+        except Exception as e:
+            logger.exception(e)
+            exc = str(e)
+            status = "Failed"
+            raise AppException(e)
+        finally:
+            UserActivityLogger.add_log(a_type=UserActivityType.model_reload.value,
+                                       email=email, bot=bot, data={"username": email, "exception": exc, "status": status})
 
     @staticmethod
     def validate_create_template_request(data: Dict):
