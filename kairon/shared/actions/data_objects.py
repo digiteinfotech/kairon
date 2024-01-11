@@ -372,14 +372,15 @@ class EmailActionConfig(Auditlog):
             raise ValidationError("Invalid SMTP url")
         elif isinstance(email(self.from_email.value), ValidationFailure) and self.from_email.parameter_type == "value":
             raise ValidationError("Invalid From or To email address")
+        elif self.from_email.parameter_type == "slot" and ActionUtility.is_empty(self.from_email.value):
+            raise ValidationError("Provide name of the slot as value")
         elif self.to_email.parameter_type == "value":
             if not isinstance(self.to_email.value, list):
                 raise ValidationError("Provide list of emails as value")
             for to_email in self.to_email.value:
                 if isinstance(email(to_email), ValidationFailure):
                     raise ValidationError("Invalid From or To email address")
-        elif (self.from_email.parameter_type == "slot" and ActionUtility.is_empty(self.from_email.value) or
-              self.to_email.parameter_type == "slot" and ActionUtility.is_empty(self.to_email.value)):
+        elif self.to_email.parameter_type == "slot" and ActionUtility.is_empty(self.to_email.value):
             raise ValidationError("Provide name of the slot as value")
 
         if self.custom_text and self.custom_text.parameter_type not in {ActionParameterType.value, ActionParameterType.slot}:
