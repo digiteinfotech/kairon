@@ -4,7 +4,6 @@ from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
-from rasa_sdk.forms import REQUESTED_SLOT
 
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.utils import MailUtility
