@@ -1,3 +1,6 @@
+import asyncio
+from unittest import mock
+
 import pytest
 
 from kairon.exceptions import AppException
@@ -86,3 +89,15 @@ class TestAioRestClient:
         with pytest.raises(AppException, match="Invalid request method!"):
             await AioRestClient().request("options", url, request_body={"name": "udit.pandey", "loc": "blr"},
                                           headers={"Authorization": "Bearer sasdfghjkytrtyui"})
+
+    @pytest.mark.asyncio
+    async def test_aio_rest_client_timeout_error(self, aioresponses):
+        url = 'http://kairon.com'
+        aioresponses.get(url, status=200, payload={"data": "hi!"})
+        with mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger", side_effect=asyncio.TimeoutError("Request timed out")):
+            with pytest.raises(AppException, match="Request timed out: Request timed out"):
+                await AioRestClient().request("get", url, request_body={"name": "udit.pandey", "loc": "blr"},
+                                              headers={"Authorization": "Bearer sasdfghjkytrtyui"})
+            with pytest.raises(AppException, match="Request timed out: Request timed out"):
+                await AioRestClient().request("get", url, request_body={"name": "udit.pandey", "loc": "blr"},
+                                              headers={"Authorization": "Bearer sasdfghjkytrtyui"}, max_retries=3)

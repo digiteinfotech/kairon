@@ -47,7 +47,8 @@ class HistoryDeletionLogProcessor:
         try:
             ConversationsHistoryDeleteLogs.objects(bot=bot).filter(
                 Q(status__ne=EVENT_STATUS.COMPLETED.value) &
-                Q(status__ne=EVENT_STATUS.FAIL.value)).get()
+                Q(status__ne=EVENT_STATUS.FAIL.value) &
+                Q(status__ne=EVENT_STATUS.ABORTED.value)).get()
 
             if raise_exception:
                 raise AppException("Event already in progress! Check logs.")

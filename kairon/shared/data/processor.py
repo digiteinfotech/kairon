@@ -148,23 +148,17 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Utterances,
-    BotSettings,
-    ChatClientConfig,
-    SlotMapping,
-    KeyVault,
-    EventConfig,
-    TrainingDataGenerator,
-    MultiflowStories,
-    MultiflowStoryEvents,
-    MultiFlowStoryMetadata,
-    Synonyms,
-    Lookup,
-    Analytics,
+    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
+    MultiflowStories, MultiflowStoryEvents, MultiFlowStoryMetadata,
+    Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs
 )
 from .utils import DataUtility
-from ..constants import KaironSystemSlots, PluginTypes
+from ..chat.broadcast.data_objects import MessageBroadcastLogs
+from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
+from ..importer.data_objects import ValidationLogs
+from ..multilingual.data_objects import BotReplicationLogs
+from ..test.data_objects import ModelTestingLogs
 
 
 class MongoProcessor:
@@ -4316,6 +4310,45 @@ class MongoProcessor:
             raise AppException("Slot does not exist.")
 
     @staticmethod
+    def abort_current_event(bot: Text, user: Text, event_type: EventClass):
+        """
+        sets event status to aborted if there is any event in progress or enqueued
+
+        :param bot: bot id
+        :param user: user id
+        :param event_type: type of the event
+        :return: None
+        :raises: AppException
+        """
+        events_dict = {
+            EventClass.model_training: ModelTraining,
+            EventClass.model_testing: ModelTestingLogs,
+            EventClass.delete_history: ConversationsHistoryDeleteLogs,
+            EventClass.data_importer: ValidationLogs,
+            EventClass.multilingual: BotReplicationLogs,
+            EventClass.data_generator: TrainingDataGenerator,
+            EventClass.faq_importer: ValidationLogs,
+            EventClass.message_broadcast: MessageBroadcastLogs
+        }
+        status_field = "status" if event_type in {EventClass.model_training,
+                                                  EventClass.delete_history,
+                                                  EventClass.data_generator} else "event_status"
+        event_data_object = events_dict.get(event_type)
+        if event_data_object:
+            try:
+                filter_params = {'bot': bot, f'{status_field}__in': [EVENT_STATUS.ENQUEUED.value]}
+
+                event_object = event_data_object.objects.get(**filter_params)
+                update_params = {f'set__{status_field}': EVENT_STATUS.ABORTED.value}
+                event_object.update(**update_params)
+                event = event_object.save().to_mongo().to_dict()
+                event_id = event["_id"].__str__()
+                payload = {'bot': bot, 'user': user, 'event_id': event_id}
+                Utility.request_event_server(event_type, payload)
+            except DoesNotExist:
+                raise AppException(f"No Enqueued {event_type} present for this bot.")
+
+    @staticmethod
     def get_row_count(document: Document, bot: str, **kwargs):
         """
         Gets the count of rows in a document for a particular bot.
@@ -4323,10 +4356,8 @@ class MongoProcessor:
         :param bot: bot id
         :return: Count of rows
         """
-        query = {"bot": bot}
-        if document.__name__ == "AuditLogData":
-            query = {"attributes__key": bot}
-        kwargs.update(__raw__=query)
+        if document.__name__ != "AuditLogData":
+            kwargs['bot'] = bot
         return document.objects(**kwargs).count()
 
     @staticmethod
@@ -4412,22 +4443,11 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document(
-            [
-                HttpActionConfig,
-                SlotSetAction,
-                FormValidationAction,
-                EmailActionConfig,
-                GoogleSearchAction,
-                JiraAction,
-                ZendeskAction,
-                PipedriveLeadsAction,
-                HubspotFormsAction,
-                KaironTwoStageFallbackAction,
-                PromptAction,
-            ],
-            bot=bot,
-        )
+        Utility.hard_delete_document([
+            HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
+            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction, PromptAction,
+            PyscriptActionConfig, RazorpayAction
+        ], bot=bot)
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
 
     def __get_rules(self, bot: Text):
@@ -4477,6 +4497,8 @@ class MongoProcessor:
             ActionType.pipedrive_leads_action.value: PipedriveLeadsAction,
             ActionType.prompt_action.value: PromptAction,
             ActionType.web_search_action.value: WebSearchAction,
+            ActionType.razorpay_action.value: RazorpayAction,
+            ActionType.pyscript_action.value: PyscriptActionConfig
         }
         saved_actions = set(
             Actions.objects(bot=bot, status=True, type__ne=None).values_list("name")
@@ -4514,6 +4536,8 @@ class MongoProcessor:
         action_config.update(self.load_pipedrive_leads_action(bot))
         action_config.update(self.load_two_stage_fallback_action_config(bot))
         action_config.update(self.load_prompt_action(bot))
+        action_config.update(self.load_razorpay_action(bot))
+        action_config.update(self.load_pyscript_action(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -4552,12 +4576,14 @@ class MongoProcessor:
                 ):
                     param["value"] = Utility.decrypt_message(param["value"])
 
-            if action.get("headers"):
-                config["headers"] = action["headers"]
-            if action.get("params_list"):
-                config["params_list"] = action["params_list"]
-            if action.get("set_slots"):
-                config["set_slots"] = action["set_slots"]
+            if action.get('headers'):
+                config['headers'] = action['headers']
+            if action.get('params_list'):
+                config['params_list'] = action['params_list']
+            if action.get('set_slots'):
+                config['set_slots'] = action['set_slots']
+            if action.get('dynamic_params'):
+                config['dynamic_params'] = action['dynamic_params']
             http_actions.append(config)
         return {ActionType.http_action.value: http_actions}
 
@@ -4658,6 +4684,22 @@ class MongoProcessor:
         return {
             ActionType.prompt_action.value: list(self.get_prompt_action(bot, False))
         }
+
+    def load_razorpay_action(self, bot: Text):
+        """
+        Loads Razorpay actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.razorpay_action.value: list(self.get_razorpay_action_config(bot, False))}
+
+    def load_pyscript_action(self, bot: Text):
+        """
+        Loads Pyscript actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.pyscript_action.value: list(self.list_pyscript_actions(bot, False))}
 
     @staticmethod
     def get_existing_slots(bot: Text):
@@ -5397,13 +5439,12 @@ class MongoProcessor:
                 "./template/chat-client/default-config.json"
             )
             client_config = ChatClientConfig(config=config, bot=bot, user=user)
-        if not client_config.config.get("headers"):
-            client_config.config["headers"] = {}
-        if not client_config.config["headers"].get("X-USER"):
-            client_config.config["headers"]["X-USER"] = user
-        client_config.config["api_server_host_url"] = Utility.environment["app"][
-            "server_url"
-        ]
+        if not client_config.config.get('headers'):
+            client_config.config['headers'] = {}
+        if not client_config.config['headers'].get('X-USER'):
+            client_config.config['headers']['X-USER'] = user
+        client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
+        client_config.config['nudge_server_url'] = Utility.environment['nudge']['server_url']
         token, refresh_token = Authentication.generate_integration_token(
             bot,
             user,
@@ -6002,10 +6043,12 @@ class MongoProcessor:
         :param form: retrieve slot mappings for a particular form
         :return: list of slot mappings
         """
+        query = Q(bot=bot, status=True)
         if Utility.check_empty_string(form):
-            mappings = SlotMapping.objects(bot=bot, status=True)
+            mappings = SlotMapping.objects(query)
         else:
-            mappings = SlotMapping.objects(bot=bot, mapping__conditions__active_loop=form, status=True)
+            query &= Q(mapping__conditions__exists=True) & Q(mapping__conditions__elemMatch={"active_loop": form})
+            mappings = SlotMapping.objects(query)
         for slot_mapping in mappings:
             slot_mapping = slot_mapping.to_mongo().to_dict()
             slot_mapping.pop("bot")
@@ -7069,29 +7112,17 @@ class MongoProcessor:
         return event_config
 
     @staticmethod
-    def get_auditlog_for_bot(
-        bot, from_date=None, to_date=None, start_idx: int = 0, page_size: int = 10
-    ):
+    def get_auditlog_for_bot(bot, from_date=None, to_date=None, start_idx: int = 0, page_size: int = 10):
+        processor = MongoProcessor()
         if not from_date:
             from_date = datetime.utcnow().date()
         if not to_date:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
-        data_filter = {
-            "attributes__key": "bot",
-            "attributes__value": bot,
-            "timestamp__gte": from_date,
-            "timestamp__lte": to_date,
-        }
-        auditlog_data = (
-            AuditLogData.objects(**data_filter)
-            .skip(start_idx)
-            .limit(page_size)
-            .exclude("id")
-            .order_by("-timestamp")
-            .to_json()
-        )
-        return json.loads(auditlog_data)
+        data_filter = {"attributes__key": 'bot', "attributes__value": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
+        auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by('-timestamp').to_json()
+        row_cnt = processor.get_row_count(AuditLogData, bot, **data_filter)
+        return json.loads(auditlog_data), row_cnt
 
     def get_logs(
         self, bot: Text, logtype: str, start_time: datetime, end_time: datetime

@@ -1377,6 +1377,27 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual["data"][0]["dispatch_response"]
 
 
+def test_get_client_config_with_nudge_server_url():
+    expected_app_server_url = Utility.environment['app']['server_url']
+    expected_nudge_server_url = Utility.environment['nudge']['server_url']
+    expected_chat_server_url = Utility.environment['model']['agent']['url']
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    print(actual["data"])
+    assert actual["data"]["welcomeMessage"] == 'Hello! How are you?'
+    assert actual["data"]["name"] == 'kairon'
+    assert actual["data"]["buttonType"] == 'button'
+    assert actual["data"]["whitelist"] == ["*"]
+    assert actual["data"]["nudge_server_url"] == expected_nudge_server_url
+    assert actual["data"]["api_server_host_url"] == expected_app_server_url
+    assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
+
+
 def test_get_client_config_url_with_ip_info(monkeypatch):
     monkeypatch.setitem(
         Utility.environment["model"]["agent"], "url", "http://localhost"
@@ -4187,130 +4208,80 @@ def test_get_data_importer_logs():
     assert actual["data"]["logs"][0]["start_timestamp"]
     assert actual["data"]["logs"][0]["end_timestamp"]
 
-    assert actual["data"]["logs"][1]["event_status"] == EVENT_STATUS.COMPLETED.value
-    assert actual["data"]["logs"][1]["status"] == "Success"
-    assert set(actual["data"]["logs"][1]["files_received"]) == {
-        "stories",
-        "nlu",
-        "domain",
-        "config",
-        "actions",
-    }
-    assert actual["data"]["logs"][1]["is_data_uploaded"]
-    assert actual["data"]["logs"][1]["start_timestamp"]
-    assert actual["data"]["logs"][1]["end_timestamp"]
-    del actual["data"]["logs"][1]["start_timestamp"]
-    del actual["data"]["logs"][1]["end_timestamp"]
-    del actual["data"]["logs"][1]["files_received"]
-    assert actual["data"]["logs"][1] == {
-        "intents": {"count": 14, "data": []},
-        "utterances": {"count": 14, "data": []},
-        "stories": {"count": 16, "data": []},
-        "training_examples": {"count": 192, "data": []},
-        "domain": {
-            "intents_count": 19,
-            "actions_count": 23,
-            "slots_count": 10,
-            "utterances_count": 14,
-            "forms_count": 2,
-            "entities_count": 8,
-            "data": [],
-        },
-        "config": {"count": 0, "data": []},
-        "rules": {"count": 1, "data": []},
-        "actions": [
-            {"type": "http_actions", "count": 5, "data": []},
-            {"type": "slot_set_actions", "count": 0, "data": []},
-            {"type": "form_validation_actions", "count": 0, "data": []},
-            {"type": "email_actions", "count": 0, "data": []},
-            {"type": "google_search_actions", "count": 0, "data": []},
-            {"type": "jira_actions", "count": 0, "data": []},
-            {"type": "zendesk_actions", "count": 0, "data": []},
-            {"type": "pipedrive_leads_actions", "count": 0, "data": []},
-            {"type": "prompt_actions", "count": 0, "data": []},
-        ],
-        "multiflow_stories": {"count": 0, "data": []},
-        "user_actions": {"count": 7, "data": []},
-        "exception": "",
-        "is_data_uploaded": True,
-        "status": "Success",
-        "event_status": "Completed",
-    }
-    assert actual["data"]["logs"][2]["event_status"] == EVENT_STATUS.COMPLETED.value
-    assert actual["data"]["logs"][2]["status"] == "Failure"
-    assert set(actual["data"]["logs"][2]["files_received"]) == {
-        "stories",
-        "nlu",
-        "domain",
-        "config",
-        "chat_client_config",
-    }
-    assert actual["data"]["logs"][2]["is_data_uploaded"]
-    assert actual["data"]["logs"][2]["start_timestamp"]
-    assert actual["data"]["logs"][2]["end_timestamp"]
+    assert actual['data']["logs"][1]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][1]['status'] == 'Success'
+    assert set(actual['data']["logs"][1]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert actual['data']["logs"][1]['is_data_uploaded']
+    assert actual['data']["logs"][1]['start_timestamp']
+    assert actual['data']["logs"][1]['end_timestamp']
+    del actual['data']["logs"][1]['start_timestamp']
+    del actual['data']["logs"][1]['end_timestamp']
+    del actual['data']["logs"][1]['files_received']
+    assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
+                                 'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
+                                 'domain': {'intents_count': 19, 'actions_count': 23, 'slots_count': 10,
+                                            'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
+                                 'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
+                                 'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
+                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                             {'type': 'email_actions', 'count': 0, 'data': []},
+                                             {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                             {'type': 'jira_actions', 'count': 0, 'data': []},
+                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
+                                             {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                             {'type': 'razorpay_actions', 'count': 0, 'data': []},
+                                             {'type': 'pyscript_actions', 'count': 0, 'data': []}],
+                                         'multiflow_stories': {'count': 0, 'data': []},
+                                         'user_actions': {'count': 7, 'data': []},
+                                 'exception': '',
+                                 'is_data_uploaded': True,
+                                 'status': 'Success', 'event_status': 'Completed'}
+    assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][2]['status'] == 'Failure'
+    assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
+                                                                'chat_client_config'}
+    assert actual['data']["logs"][2]['is_data_uploaded']
+    assert actual['data']["logs"][2]['start_timestamp']
+    assert actual['data']["logs"][2]['end_timestamp']
 
-    print(actual["data"]["logs"][3])
-    assert actual["data"]["logs"][3]["event_status"] == EVENT_STATUS.COMPLETED.value
-    assert actual["data"]["logs"][3]["status"] == "Failure"
-    assert set(actual["data"]["logs"][3]["files_received"]) == {
-        "rules",
-        "stories",
-        "nlu",
-        "domain",
-        "config",
-        "actions",
-        "chat_client_config",
-        "multiflow_stories",
-    }
-    assert actual["data"]["logs"][3]["is_data_uploaded"]
-    assert actual["data"]["logs"][3]["start_timestamp"]
-    assert actual["data"]["logs"][3]["end_timestamp"]
-    assert actual["data"]["logs"][3]["intents"]["count"] == 19
-    assert len(actual["data"]["logs"][3]["intents"]["data"]) == 21
-    assert actual["data"]["logs"][3]["utterances"]["count"] == 27
-    assert len(actual["data"]["logs"][3]["utterances"]["data"]) == 11
-    assert actual["data"]["logs"][3]["stories"]["count"] == 16
-    assert len(actual["data"]["logs"][3]["stories"]["data"]) == 1
-    assert actual["data"]["logs"][3]["rules"]["count"] == 3
-    assert len(actual["data"]["logs"][3]["rules"]["data"]) == 0
-    assert actual["data"]["logs"][3]["training_examples"]["count"] == 305
-    assert len(actual["data"]["logs"][3]["training_examples"]["data"]) == 0
-    assert actual["data"]["logs"][3]["domain"] == {
-        "intents_count": 32,
-        "actions_count": 41,
-        "slots_count": 11,
-        "utterances_count": 27,
-        "forms_count": 2,
-        "entities_count": 9,
-        "data": [],
-    }
-    assert actual["data"]["logs"][3]["config"] == {"count": 0, "data": []}
-    assert not DeepDiff(
-        actual["data"]["logs"][3]["actions"],
-        [
-            {"type": "http_actions", "count": 5, "data": []},
-            {"type": "slot_set_actions", "count": 0, "data": []},
-            {"type": "form_validation_actions", "count": 0, "data": []},
-            {"type": "email_actions", "count": 0, "data": []},
-            {"type": "google_search_actions", "count": 1, "data": []},
-            {"type": "jira_actions", "count": 0, "data": []},
-            {"type": "zendesk_actions", "count": 0, "data": []},
-            {"type": "pipedrive_leads_actions", "count": 0, "data": []},
-            {"type": "prompt_actions", "count": 0, "data": []},
-        ],
-        ignore_order=True,
-    )
-    assert actual["data"]["logs"][3]["is_data_uploaded"]
-    assert set(actual["data"]["logs"][3]["files_received"]) == {
-        "rules",
-        "stories",
-        "nlu",
-        "config",
-        "domain",
-        "actions",
-        "chat_client_config",
-        "multiflow_stories",
-    }
+    print(actual['data']["logs"][3])
+    assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][3]['status'] == 'Failure'
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
+                                                                'actions', 'chat_client_config', 'multiflow_stories'}
+    assert actual['data']["logs"][3]['is_data_uploaded']
+    assert actual['data']["logs"][3]['start_timestamp']
+    assert actual['data']["logs"][3]['end_timestamp']
+    assert actual['data']["logs"][3]['intents']['count'] == 19
+    assert len(actual['data']["logs"][3]['intents']['data']) == 21
+    assert actual['data']["logs"][3]['utterances']['count'] == 27
+    assert len(actual['data']["logs"][3]['utterances']['data']) == 11
+    assert actual['data']["logs"][3]['stories']['count'] == 16
+    assert len(actual['data']["logs"][3]['stories']['data']) == 1
+    assert actual['data']["logs"][3]['rules']['count'] == 3
+    assert len(actual['data']["logs"][3]['rules']['data']) == 0
+    assert actual['data']["logs"][3]['training_examples']['count'] == 305
+    assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 32, 'actions_count': 41, 'slots_count': 11,
+                                           'utterances_count': 27, 'forms_count': 2, 'entities_count': 9, 'data': []}
+    assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
+    assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
+                                            {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                            {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                            {'type': 'email_actions', 'count': 0, 'data': []},
+                                            {'type': 'google_search_actions', 'count': 1, 'data': []},
+                                            {'type': 'jira_actions', 'count': 0, 'data': []},
+                                            {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                            {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
+                                            {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                            {'type': 'razorpay_actions', 'count': 0, 'data': []},
+                                            {'type': 'pyscript_actions', 'count': 0, 'data': []}
+                                            ]
+    assert actual['data']["logs"][3]['is_data_uploaded']
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
+                                                                'actions', 'chat_client_config', 'multiflow_stories'}
 
 
 @responses.activate
@@ -4365,11 +4336,9 @@ def test_upload_with_chat_client_config_only():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    actual["data"].pop("headers")
-    assert (
-        actual["data"]
-        == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
-    )
+    actual['data'].pop('headers')
+    actual['data'].pop('nudge_server_url')
+    assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
 
 
 @responses.activate
@@ -7880,7 +7849,6 @@ def test_get_config_templates():
         "long-answer",
         "rasa-default",
         "contextual",
-        "word-embedding",
         "kairon-default",
         "gpt-faq",
         "openai-classifier",
@@ -12273,23 +12241,23 @@ def test_upload_actions_and_config():
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 5
     assert actual["data"]["total"] == 5
-    assert actual["data"]["logs"][0]["status"] == "Success"
-    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
-    assert actual["data"]["logs"][0]["is_data_uploaded"]
-    assert actual["data"]["logs"][0]["start_timestamp"]
-    assert actual["data"]["logs"][0]["end_timestamp"]
-    assert actual["data"]["logs"][0]["actions"] == [
-        {"type": "http_actions", "count": 5, "data": []},
-        {"type": "slot_set_actions", "count": 0, "data": []},
-        {"type": "form_validation_actions", "count": 0, "data": []},
-        {"type": "email_actions", "count": 0, "data": []},
-        {"type": "google_search_actions", "count": 1, "data": []},
-        {"type": "jira_actions", "count": 0, "data": []},
-        {"type": "zendesk_actions", "count": 0, "data": []},
-        {"type": "pipedrive_leads_actions", "data": [], "count": 0},
-        {"type": "prompt_actions", "data": [], "count": 0},
-    ]
-    assert not actual["data"]["logs"][0]["config"]["data"]
+    assert actual['data']["logs"][0]['status'] == 'Success'
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['end_timestamp']
+    assert actual['data']["logs"][0]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
+                                            {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                            {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                            {'type': 'email_actions', 'count': 0, 'data': []},
+                                            {'type': 'google_search_actions', 'count': 1, 'data': []},
+                                            {'type': 'jira_actions', 'count': 0, 'data': []},
+                                            {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                            {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0},
+                                            {'type': 'prompt_actions', 'data': [], 'count': 0},
+                                            {'type': 'razorpay_actions', 'data': [], 'count': 0},
+                                            {'type': 'pyscript_actions', 'data': [], 'count': 0}]
+    assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
         f"/api/bot/{pytest.bot}/action/httpaction",
@@ -14003,7 +13971,7 @@ def test_add_empty_slot_mapping():
             "type": "value_error.missing",
         }
     ]
-    
+
     response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={"slot": "num_people", "mapping": [{"type": "from_text", "conditions": [{"requested_slot": "num_people"}]}]},

@@ -50,7 +50,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.constants import SLOT_SET_TYPE, EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import ENDPOINT_TYPE
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
@@ -958,6 +958,67 @@ class TestMongoProcessor:
         assert updated_settings.analytics.to_mongo().to_dict() == {'fallback_intent': 'utter_please_rephrase'}
         assert updated_settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'openai'}
 
+    def test_abort_current_event_with_no_model_training_event(self):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        with pytest.raises(AppException, match="No Enqueued model_training present for this bot."):
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_training)
+
+    def test_abort_current_event_with_no_model_testing_event(self):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        with pytest.raises(AppException, match="No Enqueued model_testing present for this bot."):
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_testing)
+
+    def test_abort_current_event_with_no_delete_history_event(self):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        with pytest.raises(AppException, match="No Enqueued delete_history present for this bot."):
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.delete_history)
+
+    def test_abort_current_event_with_no_data_importer_event(self):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        with pytest.raises(AppException, match="No Enqueued data_importer present for this bot."):
+            mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.data_importer)
+
+    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+    def test_abort_current_event_with_model_training(self, mock_event_server):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
+        ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
+        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_training)
+        model_training_object = ModelTraining.objects(bot=bot).get()
+        assert model_training_object.status == EVENT_STATUS.ABORTED.value
+
+    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+    def test_abort_current_event_with_model_testing(self, mock_event_server):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
+        ModelTestingLogProcessor.log_test_result(bot=bot, user=user, event_status=EVENT_STATUS.ENQUEUED.value)
+        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_testing)
+        model_testing_object = ModelTestingLogs.objects(bot=bot).get()
+        assert model_testing_object.event_status == EVENT_STATUS.ABORTED.value
+
+    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+    def test_abort_current_event_with_data_generator(self, mock_event_server):
+        mongo_processor = MongoProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
+        TrainingDataGenerationProcessor.set_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
+        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.data_generator)
+        data_generator_object = TrainingDataGenerator.objects(bot=bot).get()
+        assert data_generator_object.status == EVENT_STATUS.ABORTED.value
+
     @pytest.mark.asyncio
     async def test_save_from_path_yml(self):
         processor = MongoProcessor()
@@ -1430,7 +1491,16 @@ class TestMongoProcessor:
              'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1',
                               'parameter_type': 'value', 'encrypt': False},
                              {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1',
-                              'parameter_type': 'slot', 'encrypt': False}]},
+                              'parameter_type': 'slot', 'encrypt': False}],
+             'dynamic_params': {
+                 "farmid": '120d37d6-6159-45f1-a3d0-edfead442971',
+                 "fields": [
+                     {
+                         "fieldid": '58ce899a-b5ad-4a76-905b-e615672c0c66',
+                         "duration_min": 2
+                     }
+                 ]
+             }},
             {'action_name': 'action_get_microsoft_application',
              'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'},
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET', 'content_type': 'json',
@@ -2906,7 +2976,7 @@ class TestMongoProcessor:
 
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
-        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
+        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action: []\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
             encoding='utf-8')
 
         def _mock_bot_info(*args, **kwargs):
@@ -2932,6 +3002,7 @@ class TestMongoProcessor:
         file_info = zip_file.getinfo('actions.yml')
         file_content = zip_file.read(file_info)
         actual_actions = file_content.decode(encoding='utf-8')
+        print(actual_actions)
         assert actual_actions == expected_actions
         zip_file.close()
 
@@ -2940,7 +3011,8 @@ class TestMongoProcessor:
         action_config = processor.load_action_configurations("tests")
         assert action_config == {'http_action': [], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
-                                 'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': []}
+                                 'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': [],
+                                 'razorpay_action': [], 'pyscript_action': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -5509,7 +5581,8 @@ class TestMongoProcessor:
                             'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [],
                             'email_actions': [],
                             'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': [],
-                            'pipedrive_leads_actions': [], 'prompt_actions': []
+                            'pipedrive_leads_actions': [], 'prompt_actions': [], 'razorpay_actions': [],
+                            'pyscript_actions': []
                         }
                         assert non_event_validation_summary['component_count']['http_actions'] == 4
                         assert non_event_validation_summary['component_count']['jira_actions'] == 2
@@ -6229,6 +6302,8 @@ class TestMongoProcessor:
         assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
         assert actual_config.config['api_server_host_url']
         del actual_config.config['api_server_host_url']
+        assert actual_config.config['nudge_server_url']
+        del actual_config.config['nudge_server_url']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
         headers = actual_config.config.pop('headers')
@@ -15121,6 +15196,12 @@ class TestModelProcessor:
         actual_response = ModelProcessor.is_training_inprogress("tests")
         assert actual_response is False
 
+    def test_is_training_inprogress_with_aborted(self):
+        ModelProcessor.set_training_status("testbot", "testuser", "Aborted")
+        model_training = ModelTraining.objects(bot="testbot", status="Aborted")
+        actual_response = ModelProcessor.is_training_inprogress("tests", False)
+        assert actual_response is False
+
     def test_is_training_inprogress_True(self, test_set_training_status_inprogress):
         assert test_set_training_status_inprogress.__len__() == 1
         assert test_set_training_status_inprogress.first().bot == "tests"
@@ -15227,13 +15308,13 @@ class TestModelProcessor:
     def test_get_auditlog_for_invalid_bot(self):
         bot = "invalid"
         page_size = 100
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
         assert auditlog_data == []
 
     def test_get_auditlog_for_bot_top_n_default(self):
         bot = "test"
         page_size = 100
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_date_range(self):
@@ -15241,7 +15322,7 @@ class TestModelProcessor:
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
         page_size = 100
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
                                                             page_size=page_size)
         assert len(auditlog_data) > 90
 
@@ -15250,7 +15331,7 @@ class TestModelProcessor:
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
         page_size = 50
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
                                                             page_size=page_size)
         assert len(auditlog_data) == 50
 
@@ -15259,7 +15340,7 @@ class TestModelProcessor:
         from_date = None
         to_date = None
         page_size = 50
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
+        auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
                                                             page_size=page_size)
         assert len(auditlog_data) == 50
 

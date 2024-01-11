@@ -163,6 +163,9 @@ class TelegramOutput(TeleBot, OutputChannel):
                     api_call(recipient_id, *response_list, **response)
                 elif ops_type in ["button"]:
                     body_default = ElementTransformerOps.getChannelConfig(ChannelTypes.TELEGRAM.value, "body_message")
+                    logger.debug(f"body_default: {body_default}")
+                    logger.debug(f"response: {response}")
+                    logger.debug(f"json.dumps(response): {json.dumps(response)}")
                     self.send_message(recipient_id, text=body_default, reply_markup=json.dumps(response))
             else:
                 self.send_message(recipient_id, str(json_message))
