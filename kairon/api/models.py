@@ -452,6 +452,7 @@ class PyscriptActionRequest(BaseModel):
 
 class DatabaseActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
+    collection: str
     query_type: DbActionOperationType
     payload: PayloadConfig
     response: ActionResponseEvaluation = None
@@ -463,6 +464,14 @@ class DatabaseActionRequest(BaseModel):
 
         if Utility.check_empty_string(v):
             raise ValueError("name is required")
+        return v
+
+    @validator("collection")
+    def validate_collection_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("collection is required")
         return v
 
 

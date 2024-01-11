@@ -129,6 +129,167 @@ def test_pyscript_action_execution():
 
 
 @responses.activate
+def test_pyscript_action_execution_with_multiple_utterances():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_multiple_utterances"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    type = 'text'
+    bot_response = [{'text': 'Hello!'}, 'How can I help you?']
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": [{'text': 'Hello!'}, 'How can I help you?'],
+                                        'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5,
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"},
+                                        "type": "text"},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 2
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': [{'text': 'Hello!'}, 'How can I help you?']}]
+    assert response_json['responses'][0]['custom'] == {'text': 'Hello!'}
+    assert response_json['responses'][1]['text'] == 'How can I help you?'
+
+@responses.activate
+def test_pyscript_action_execution_with_multiple_integer_utterances():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_multiple_integer_utterances"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    type = 'text'
+    bot_response = numbers
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": [1, 2, 3],
+                                        'numbers': [1, 2, 3], 'total': 6, 'i': 3,
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"},
+                                        "type": "text"},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 3
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': [1, 2, 3]}]
+    assert response_json['responses'][0]['text'] == '1'
+    assert response_json['responses'][1]['text'] == '2'
+    assert response_json['responses'][2]['text'] == '3'
+
+
+@responses.activate
 def test_pyscript_action_execution_with_bot_response_none():
     import textwrap
 
@@ -2897,6 +3058,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
@@ -2905,7 +3067,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_faq_embd/points'
+    http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_test_vectordb_action_execution_faq_embd/points'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -2978,16 +3140,10 @@ def test_vectordb_action_execution_payload_search_from_value():
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
             user="user").save()
-    payload_body = {
-        "filter": {
-            "should": [
-                {"key": "city", "match": {"value": "London"}},
-                {"key": "color", "match": {"value": "red"}}
-            ]
-        }
-    }
+    payload_body = json.dumps({'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}})
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_value',
         query_type=DbActionOperationType.payload_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
@@ -2996,16 +3152,17 @@ def test_vectordb_action_execution_payload_search_from_value():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_faq_embd/points/scroll'
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_value_faq_embd/points/scroll'
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
+    json_params_matcher = {'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
     responses.add(
         method=responses.POST,
         url=http_url,
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(payload_body)],
+        match=[responses.matchers.json_params_matcher(json_params_matcher)],
     )
 
     request_object = {
@@ -3054,15 +3211,78 @@ def test_vectordb_action_execution_payload_search_from_value():
 
 
 @responses.activate
-def test_vectordb_action_execution_embedding_search_from_slot():
+def test_vectordb_action_execution_payload_search_from_value_json_decode_error():
+    action_name = "test_vectordb_action_execution_payload_search_from_value_json_decode_error"
+    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
+            user="user").save()
+    payload_body = "{'filter'}"
+    DatabaseAction(
+        name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_value',
+        query_type=DbActionOperationType.payload_search.value,
+        payload=DbQuery(type="from_value", value=payload_body),
+        response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+        set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+        bot="5f50md0a56b698ca10d35d2e",
+        user="user"
+    ).save()
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    print(response_json['events'])
+    print(response_json['responses'])
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'I have failed to process your request.'}]
+    assert response_json['responses'][0]['text'] == 'I have failed to process your request.'
+    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
+    print(log)
+    assert log['exception'] == "Error converting payload to JSON: {'filter'}"
+    log.pop('_id')
+    log.pop('timestamp')
+
+
+@responses.activate
+def test_vectordb_action_execution_payload_search_from_slot():
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fx0a56b698ca10d35d2e",
             user="user").save()
     slot = 'name'
     Slots(name=slot, type='text', bot='5f50fx0a56b698ca10d35d2e', user='user').save()
-
+    payload_body = json.dumps({'filter': {
+        'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}})
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution_embedding_search_from_slot',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_slot", value='name'),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
@@ -3071,7 +3291,7 @@ def test_vectordb_action_execution_embedding_search_from_slot():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_faq_embd/points'
+    http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_test_vectordb_action_execution_embedding_search_from_slot_faq_embd/points'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -3099,7 +3319,7 @@ def test_vectordb_action_execution_embedding_search_from_slot():
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fx0a56b698ca10d35d2e", "name": 'Nupur'},
+            "slots": {"bot": "5f50fx0a56b698ca10d35d2e", "name": payload_body},
             "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
@@ -3139,80 +3359,6 @@ def test_vectordb_action_execution_embedding_search_from_slot():
 
 
 @responses.activate
-def test_vectordb_action_execution_payload_search_from_slot():
-    action_name = "test_vectordb_action_execution"
-    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fx0a56v698ca10d39c2e",
-            user="user").save()
-    slot = 'color'
-    Slots(name=slot, type='text', bot='5f50fx0a56v698ca10d39c2e', user='user').save()
-
-    DatabaseAction(
-        name=action_name,
-        query_type=DbActionOperationType.payload_search.value,
-        payload=DbQuery(type="from_slot", value='color'),
-        response=HttpActionResponse(value="The name of the city with id ${data.0.id} is ${data.0.city}"),
-        set_slots=[SetSlotsFromResponse(name="city_name", value="${data.0.city}")],
-        bot="5f50fx0a56v698ca10d39c2e",
-        user="user"
-    ).save()
-
-    http_url = 'http://localhost:6333/collections/5f50fx0a56v698ca10d39c2e_faq_embd/points/scroll'
-    resp_msg = json.dumps(
-        [{"id": 5, "city": "Berlin"}]
-    )
-    responses.add(
-        method=responses.POST,
-        url=http_url,
-        body=resp_msg,
-        status=200,
-    )
-
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "default",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fx0a56v698ca10d39c2e", "color": 'red'},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fx0a56v698ca10d39c2e", "color": None},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
-    assert len(response_json['events']) == 2
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'city_name', 'value': 'Berlin'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': 'The name of the city with id 5 is Berlin'}]
-    assert response_json['responses'][0]['text'] == "The name of the city with id 5 is Berlin"
-    log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56v698ca10d39c2e').get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-
-
-@responses.activate
 def test_vectordb_action_execution_no_response_dispatch():
     action_name = "test_vectordb_action_execution_no_response_dispatch"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56v098ca10d75d2e",
@@ -3220,6 +3366,7 @@ def test_vectordb_action_execution_no_response_dispatch():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution_no_response_dispatch',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
@@ -3229,7 +3376,7 @@ def test_vectordb_action_execution_no_response_dispatch():
         user="user"
     ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_faq_embd/points'
+    http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_test_vectordb_action_execution_no_response_dispatch_faq_embd/points'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -3304,6 +3451,7 @@ def test_vectordb_action_execution_invalid_operation_type():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_execution_invalid_operation_type',
         query_type="vector_search",
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
@@ -3356,7 +3504,7 @@ def test_vectordb_action_execution_invalid_operation_type():
 
 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")
-@patch("kairon.actions.definitions.vector_action.ActionDatabase.retrieve_config")
+@patch("kairon.actions.definitions.database.ActionDatabase.retrieve_config")
 def test_vectordb_action_failed_execution(mock_action_config, mock_action):
     action_name = "test_run_with_get_action"
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
@@ -3364,6 +3512,7 @@ def test_vectordb_action_failed_execution(mock_action_config, mock_action):
                      user="user")
     action_config = DatabaseAction(
         name=action_name,
+        collection='test_vectordb_action_failed_execution',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector"),

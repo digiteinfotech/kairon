@@ -1,4 +1,4 @@
-type_list: ["image","link","video","button","dropdown"]
+type_list: ["image","link","video","button","dropdown","audio"]
 slack:
   image: '{
 	"blocks": [
@@ -98,9 +98,12 @@ whatsapp:
     "body":"<data>"
  }'
   video: '{
-      "preview_url": true,
-      "body":"<data>"
+    "link":"<data>",
+    "caption":"<alttext>"
    }'
+  audio: '{
+      "link":"<data>"
+     }'
   button: '{
   "type": "button",
   "body": "<body>",
@@ -138,7 +141,8 @@ channel_messagetype_and_key_mapping: '{"slack": {"image": {"URL": "<imageurl>", 
                        "telegram": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
                                    "link": {"data": "<data>"}, "video":{"data": "<data>"}},
                        "whatsapp": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
-                                     "link": {"data": "<data>"}, "video":{"data": "<data>"}},
+                                     "link": {"data": "<data>"}, "video":{"data": "<data>", "caption": "<alttext>"}, 
+                                     "audio":{"data": "<data>"}},
                        "instagram": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
                                     "link": {"data": "<data>"}, "video":{"data": "<data>"}}
                                      }'

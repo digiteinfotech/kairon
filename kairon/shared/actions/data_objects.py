@@ -250,11 +250,6 @@ class DatabaseAction(Auditlog):
         self.response.validate()
         self.payload.validate()
 
-    def clean(self):
-        self.name = self.name.strip().lower()
-        if Utility.check_empty_string(self.collection):
-            self.collection = self.bot + "_faq_embd"
-
 
 class ActionServerLogs(DynamicDocument):
     type = StringField()

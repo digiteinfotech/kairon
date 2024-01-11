@@ -68,7 +68,7 @@ from validators import email as mail_check
 from websockets import connect
 
 from .actions.models import ActionParameterType
-from .constants import EventClass
+from .constants import EventClass, UserActivityType
 from .constants import (
     MaskingStrategy,
     SYSTEM_TRIGGERED_UTTERANCES,
@@ -1222,21 +1222,40 @@ class Utility:
 
     @staticmethod
     def reload_model(bot: Text, email: Text):
-        if Utility.environment.get("model") and Utility.environment["model"][
-            "agent"
-        ].get("url"):
-            from kairon.shared.auth import Authentication
+        from kairon.shared.account.activity_log import UserActivityLogger
 
-            agent_url = Utility.environment["model"]["agent"].get("url")
-            token, _ = Authentication.generate_integration_token(
-                bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value
-            )
-            response = Utility.http_request(
-                "get", urljoin(agent_url, f"/api/bot/{bot}/reload"), token, email
-            )
-            return json.loads(response)
-        else:
-            raise AppException("Agent config not found!")
+        exc = None
+        status = "Initiated"
+        try:
+            if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
+                from kairon.shared.auth import Authentication
+                agent_url = Utility.environment['model']['agent'].get('url')
+                token, _ = Authentication.generate_integration_token(bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value)
+                response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, email)
+                return json.loads(response)
+            else:
+                raise AppException("Agent config not found!")
+        except Exception as e:
+            logger.exception(e)
+            exc = str(e)
+            status = "Failed"
+            raise AppException(e)
+        finally:
+            UserActivityLogger.add_log(a_type=UserActivityType.model_reload.value,
+                                       email=email, bot=bot, data={"username": email, "exception": exc, "status": status})
+
+    @staticmethod
+    def validate_create_template_request(data: Dict):
+        required_keys = ['name', 'category', 'components', 'language']
+        missing_keys = [key for key in required_keys if key not in data]
+        if missing_keys:
+            raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
+
+    @staticmethod
+    def validate_edit_template_request(data: Dict):
+        non_editable_keys = ['name', 'category', 'language']
+        if any(key in data for key in non_editable_keys):
+            raise AppException('Only "components" and "allow_category_change" fields can be edited!')
 
     @staticmethod
     def initiate_fastapi_apm_client():
@@ -1632,7 +1651,7 @@ class Utility:
                     headers=headers,
                     timeout=kwargs.get("timeout"),
                 )
-            elif request_method.lower() in ["post", "put"]:
+            elif request_method.lower() in ['post', 'put', 'patch']:
                 response = session.request(
                     request_method.upper(),
                     http_url,

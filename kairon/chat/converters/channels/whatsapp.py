@@ -13,15 +13,13 @@ class WhatsappResponseConverter(ElementTransformerOps):
 
     def message_extractor(self, json_message, message_type):
         try:
-            if message_type == ElementTypes.IMAGE.value:
+            if message_type in {ElementTypes.IMAGE.value, ElementTypes.VIDEO.value, ElementTypes.AUDIO.value}:
                 return super().message_extractor(json_message, message_type)
-            if message_type == ElementTypes.LINK.value:
+            elif message_type == ElementTypes.LINK.value:
                 jsoniterator = ElementTransformerOps.json_generator(json_message)
                 stringbuilder = ElementTransformerOps.convertjson_to_link_format(jsoniterator, bind_display_str=False)
                 body = {"data": stringbuilder}
                 return body
-            if message_type == ElementTypes.VIDEO.value:
-                return super().message_extractor(json_message, message_type)
         except Exception as ex:
             raise Exception(f" Error in WhatsappResponseConverter::message_extractor {str(ex)}")
 
@@ -116,6 +114,8 @@ class WhatsappResponseConverter(ElementTransformerOps):
             elif self.message_type == ElementTypes.LINK.value:
                 return self.link_transformer(message)
             elif self.message_type == ElementTypes.VIDEO.value:
+                return super().video_transformer(message)
+            elif self.message_type == ElementTypes.AUDIO.value:
                 return super().video_transformer(message)
             elif self.message_type == ElementTypes.BUTTON.value:
                 return self.button_transformer(message)

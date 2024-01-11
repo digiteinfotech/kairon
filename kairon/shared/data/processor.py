@@ -154,6 +154,7 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
+from ..cognition.data_objects import CognitionSchema
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
@@ -3133,38 +3134,19 @@ class MongoProcessor:
         """
 
         http_actions = self.list_http_action_names(bot)
-        reset_slot_actions = set(
-            SlotSetAction.objects(bot=bot, status=True).values_list("name")
-        )
-        google_search_actions = set(
-            GoogleSearchAction.objects(bot=bot, status=True).values_list("name")
-        )
-        jira_actions = set(JiraAction.objects(bot=bot, status=True).values_list("name"))
-        zendesk_actions = set(
-            ZendeskAction.objects(bot=bot, status=True).values_list("name")
-        )
-        pipedrive_leads_actions = set(
-            PipedriveLeadsAction.objects(bot=bot, status=True).values_list("name")
-        )
-        hubspot_forms_actions = set(
-            HubspotFormsAction.objects(bot=bot, status=True).values_list("name")
-        )
-        pyscript_actions = set(
-            PyscriptActionConfig.objects(bot=bot, status=True).values_list("name")
-        )
-        razorpay_actions = set(
-            RazorpayAction.objects(bot=bot, status=True).values_list("name")
-        )
-        email_actions = set(
-            EmailActionConfig.objects(bot=bot, status=True).values_list("action_name")
-        )
-        prompt_actions = set(
-            PromptAction.objects(bot=bot, status=True).values_list("name")
-        )
-        web_search_actions = set(
-            WebSearchAction.objects(bot=bot, status=True).values_list("name")
-        )
-        forms = set(Forms.objects(bot=bot, status=True).values_list("name"))
+        reset_slot_actions = set(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
+        google_search_actions = set(GoogleSearchAction.objects(bot=bot, status=True).values_list('name'))
+        jira_actions = set(JiraAction.objects(bot=bot, status=True).values_list('name'))
+        zendesk_actions = set(ZendeskAction.objects(bot=bot, status=True).values_list('name'))
+        pipedrive_leads_actions = set(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name'))
+        hubspot_forms_actions = set(HubspotFormsAction.objects(bot=bot, status=True).values_list('name'))
+        pyscript_actions = set(PyscriptActionConfig.objects(bot=bot, status=True).values_list('name'))
+        razorpay_actions = set(RazorpayAction.objects(bot=bot, status=True).values_list('name'))
+        email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
+        prompt_actions = set(PromptAction.objects(bot=bot, status=True).values_list('name'))
+        database_actions = set(DatabaseAction.objects(bot=bot, status=True).values_list('name'))
+        web_search_actions = set(WebSearchAction.objects(bot=bot, status=True).values_list('name'))
+        forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
         for value in data_list:
@@ -3224,7 +3206,9 @@ class MongoProcessor:
                         step["type"] = StoryStepType.two_stage_fallback_action.value
                     elif event["name"] in prompt_actions:
                         step["type"] = StoryStepType.prompt_action.value
-                    elif event["name"] in web_search_actions:
+                    elif event["name"] in database_actions:
+                        step['type'] = StoryStepType.database_action.value
+                    elif event['name'] in web_search_actions:
                         step["type"] = StoryStepType.web_search_action.value
                     elif str(event["name"]).startswith("utter_"):
                         step["type"] = StoryStepType.bot.value
@@ -3892,9 +3876,13 @@ class MongoProcessor:
                 f'Action with name "{request_data.get("name")}" not found'
             )
         self.__validate_payload(request_data.get("payload"), bot)
+        if not Utility.is_exist(CognitionSchema, bot=bot, collection_name__iexact=request_data.get('collection'),
+                                raise_error=False):
+            raise AppException('Collection does not exist!')
         action = DatabaseAction.objects(
             name=request_data.get("name"), bot=bot, status=True
         ).get()
+        action.collection = request_data['collection']
         action.query_type = request_data["query_type"]
         action.payload = DbQuery(**request_data["payload"])
         action.response = HttpActionResponse(**request_data.get("response", {}))
@@ -3919,6 +3907,9 @@ class MongoProcessor:
         Utility.is_valid_action_name(
             vector_db_action_config.get("name"), bot, DatabaseAction
         )
+        if not Utility.is_exist(CognitionSchema, bot=bot, collection_name__iexact=vector_db_action_config.get('collection'),
+                                raise_error=False):
+            raise AppException('Collection does not exist!')
         set_slots = [
             SetSlotsFromResponse(**slot)
             for slot in vector_db_action_config.get("set_slots")
@@ -3926,6 +3917,7 @@ class MongoProcessor:
         action_id = (
             DatabaseAction(
                 name=vector_db_action_config["name"],
+            collection=vector_db_action_config['collection'],
                 query_type=vector_db_action_config.get("query_type"),
                 payload=DbQuery(**vector_db_action_config.get("payload")),
                 response=HttpActionResponse(

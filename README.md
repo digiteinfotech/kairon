@@ -264,6 +264,7 @@ The repository is being maintained and supported by **NimbleWork Inc.**
 * [Nirmal Parwate](https://github.com/nirmal495)
 * [Adurthi Ashwin Swarup](https://github.com/Leothorn)
 * [Udit Pandey](https://github.com/udit-pandey)
+* [Nupur_Khare](https://github.com/nupur-khare)
 * [Rohan Patwardhan]
 * [Hitesh Ghuge]
 * [Sushant Patade]

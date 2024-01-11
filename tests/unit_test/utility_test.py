@@ -2088,7 +2088,8 @@ class TestUtility:
         assert str(error.value) == "file not found"
 
     def test_get_channels(self):
-        expected_channels = ['msteams', 'slack', 'telegram', 'hangouts', 'messenger', 'instagram', 'whatsapp']
+        expected_channels = ['msteams', 'slack', 'telegram', 'business_messages','hangouts',
+                             'messenger', 'instagram', 'whatsapp']
         channels = Utility.get_channels()
         assert channels == expected_channels
 

@@ -20,6 +20,7 @@ from responses import matchers
 
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.shared.channels.broadcast.whatsapp import WhatsappBroadcast
+from kairon.shared.chat.data_objects import ChannelLogs
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -36,7 +37,7 @@ from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
-from kairon.shared.constants import EventClass, EventRequestType
+from kairon.shared.constants import EventClass, EventRequestType, ChannelTypes
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.shared.data.data_objects import Configs, BotSettings
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
@@ -838,6 +839,7 @@ class TestEventExecution:
     def test_trigger_faq_importer_validate_only(self, monkeypatch):
         def _mock_execution(*args, **kwargs):
             return None
+
         def _mock_aggregation(*args, **kwargs):
             return {}
 
@@ -869,6 +871,7 @@ class TestEventExecution:
     def test_trigger_faq_importer_overwrite(self, monkeypatch):
         def _mock_execution(*args, **kwargs):
             return None
+
         def _mock_aggregation(*args, **kwargs):
             return {}
 
@@ -915,6 +918,7 @@ class TestEventExecution:
     def test_trigger_faq_importer_validate_only_append_mode(self, monkeypatch):
         def _mock_execution(*args, **kwargs):
             return None
+
         def _mock_aggregation(*args, **kwargs):
             return {}
 
@@ -1068,6 +1072,7 @@ class TestEventExecution:
                 "intent_evaluation": [],
             }
             return nlu, stories
+
         monkeypatch.setattr(ModelTester, "run_tests_on_model", _mock_test_result)
         ModelTestingEvent(bot, user).execute()
         config_path = 'tests/testing_data/model_tester/config.yml'
@@ -1171,6 +1176,131 @@ class TestEventExecution:
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_logs_modification(self, mock_is_exist, mock_channel_config,
+                                                              mock_get_bot_settings, mock_send,
+                                                              mock_get_partner_auth_token):
+        bot = 'test_execute_message_broadcast_with_logs_modification'
+        user = 'test_user'
+        config = {
+            "name": "one_time_schedule", "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipients": "918958030541,"
+            },
+            "template_config": [
+                {
+                    'language': 'hi',
+                    "template_id": "brochure_pdf",
+                }
+            ]
+        }
+        template = [
+            {
+                "format": "TEXT",
+                "text": "Kisan Suvidha Program Follow-up",
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            },
+            {
+                "buttons": [
+                    {
+                        "text": "Connect to Agronomist",
+                        "type": "QUICK_REPLY"
+                    }
+                ],
+                "type": "BUTTONS"
+            }
+        ]
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
+                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}],
+                                  "messages": [{"id": 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+                                                "message_status": 'accepted'}]}
+        mock_get_partner_auth_token.return_value = None
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='Failed',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            errors=[
+                {
+                    "code": 130472,
+                    "title": "User's number is part of an experiment",
+                    "message": "User's number is part of an experiment",
+                    "error_data": {
+                        "details": "Failed to send message because this user's phone number is part of an experiment"
+                    },
+                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                }
+            ],
+            bot=bot,
+            user=user
+        ).save()
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id)
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 2
+        logs[0][0].pop("timestamp")
+        reference_id = logs[0][0].get("reference_id")
+        logged_config = logs[0][0]
+        print(logged_config)
+        assert logged_config == {'reference_id': reference_id, 'log_type': 'send',
+                                 'bot': 'test_execute_message_broadcast_with_logs_modification', 'status': 'Failed',
+                                 'api_response': {
+                                     'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
+                                     'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+                                                   'message_status': 'accepted'}]}, 'recipient': '918958030541',
+                                 'template_params': None, 'template': [
+                {'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'}, {
+                    'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.',
+                    'type': 'BODY'}, {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
+                {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}], 'errors': [
+                {'code': 130472, 'title': "User's number is part of an experiment",
+                 'message': "User's number is part of an experiment", 'error_data': {
+                    'details': "Failed to send message because this user's phone number is part of an experiment"},
+                 'href': 'https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/'}]}
+        assert ChannelLogs.objects(bot=bot,
+                                   message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ').get().campaign_id == event_id
+        result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
+        assert result == [{'campaign_id': event_id, 'status': {'Failed': 1}}]
+
+    @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_execute_message_broadcast_with_static_values(self, mock_is_exist, mock_channel_config,
                                                            mock_get_bot_settings, mock_send, mock_get_partner_auth_token):
         bot = 'test_execute_message_broadcast'
@@ -1250,8 +1380,7 @@ class TestEventExecution:
         assert logged_config == config
         print(logs)
         assert logs[0][1] == {'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
-                              'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
-                              'failure_cnt': 0, 'total': 2,
+                              'user': 'test_user', 'recipients': ['918958030541', ''], 'failure_cnt': 0, 'total': 2,
                               'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
                               }
         logs[0][0].pop("timestamp")
@@ -1275,10 +1404,11 @@ class TestEventExecution:
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_execute_message_broadcast_with_dynamic_values(self, mock_is_exist, mock_channel_config,
-                                                           mock_get_bot_settings, mock_send, mock_get_partner_auth_token):
+                                                           mock_get_bot_settings, mock_send,
+                                                           mock_get_partner_auth_token):
         bot = 'test_execute_dynamic_message_broadcast'
         user = 'test_user'
-        params = [{"type": "header","parameters": [{"type": "document","document":
+        params = [{"type": "header", "parameters": [{"type": "document", "document":
             {"link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
              "filename": "Brochure.pdf"}}]}]
         template = [
@@ -1307,7 +1437,7 @@ class TestEventExecution:
         ]
 
         config = {
-            "name": "one_time_schedule","broadcast_type": "static",
+            "name": "one_time_schedule", "broadcast_type": "static",
             "connector_type": "whatsapp",
             "recipients_config": {
                 "recipients": "9876543210, 876543212345",
@@ -1333,8 +1463,11 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
-        mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
+                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
 
@@ -1356,8 +1489,7 @@ class TestEventExecution:
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
         assert logs[0][2] == {'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
-                              'status': 'Completed', 'user': 'test_user', 'broadcast_id': event_id,
-                              'recipients': ['9876543210', '876543212345'],
+                              'status': 'Completed', 'user': 'test_user', 'recipients': ['9876543210', '876543212345'],
                               'template_params': [[{'type': 'header', 'parameters': [{'type': 'document', 'document': {
                                   'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                   'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
@@ -1371,19 +1503,19 @@ class TestEventExecution:
         logs[0][0].pop("recipient")
         assert logs[0][1] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
-                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+                                  'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'template_params': [{'type': 'header', 'parameters': [
-                {'type': 'document', 'document': {
-                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                    'filename': 'Brochure.pdf'}}]}], "template": template}
+                                  {'type': 'document', 'document': {
+                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                      'filename': 'Brochure.pdf'}}]}], "template": template}
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
-                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+                                  'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'template_params': [{'type': 'header', 'parameters': [
-                {'type': 'document', 'document': {
-                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                    'filename': 'Brochure.pdf'}}]}], "template": template}
+                                  {'type': 'document', 'document': {
+                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                      'filename': 'Brochure.pdf'}}]}], "template": template}
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
@@ -1448,7 +1580,7 @@ class TestEventExecution:
         config.pop("recipients_config")
         assert logged_config == config
         assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user,
-                              'broadcast_id': event_id, 'exception': "Failed to evaluate recipients: 'recipients'"
+                              'exception': "Failed to evaluate recipients: 'recipients'"
                               }
 
         with pytest.raises(AppException, match="Notification settings not found!"):
@@ -1549,8 +1681,7 @@ class TestEventExecution:
         assert logged_config == config
         exception = logs[0][0].pop("exception")
         assert exception.startswith("Whatsapp channel config not found!")
-        assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user, 'broadcast_id': event_id,
-                              'recipients': ['918958030541']}
+        assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user, 'recipients': ['918958030541']}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
@@ -1650,8 +1781,8 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         assert logged_config == config
         assert logs[0][1] == {'log_type': 'common', 'bot': bot, 'status': 'Completed',
-                              'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
-                              'template_params': [[{'body': 'Udit Pandey'}]], 'failure_cnt': 0, 'total': 2,
+                              'user': 'test_user', 'recipients': ['918958030541', ''], 'failure_cnt': 0, 'total': 2,
+                              'template_params': [[{'body': 'Udit Pandey'}]],
                               'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
                               }
         logs[0][0].pop("timestamp")
@@ -1801,12 +1932,12 @@ class TestEventExecution:
         [log.pop("timestamp") for log in logs[0]]
         reference_id = logs[0][0].get("reference_id")
         expected_logs = [{'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
-             'user': 'test_user', 'broadcast_id': event_id, 'failure_cnt': 0, 'total': 0,
-             'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
-                 'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                 'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
-             'api_response': {'contacts': ['9876543210', '876543212345']},
-             'resp': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}]
+                          'user': 'test_user', 'failure_cnt': 0, 'total': 0,
+                          'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                              'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                              'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
+                          'api_response': {'contacts': ['9876543210', '876543212345']},
+                          'resp': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}]
         for log in logs[0]:
             if log.get("config"):
                 logged_config = log.pop("config")
@@ -1875,8 +2006,7 @@ class TestEventExecution:
         assert logged_config == config
 
         assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
-                              'user': user, 'broadcast_id': event_id,
-                              "exception": "Script execution error: import of 'time' is unauthorized"}
+                              'user': user, "exception": "Script execution error: import of 'time' is unauthorized"}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
@@ -1934,7 +2064,7 @@ class TestEventExecution:
         assert logged_config == config
 
         assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
-                              'user': user, 'broadcast_id': event_id, 'exception': 'Operation timed out: 1 seconds'}
+                              'user': user, 'exception': 'Operation timed out: 1 seconds'}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)

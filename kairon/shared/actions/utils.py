@@ -14,7 +14,8 @@ from rasa_sdk.executor import CollectingDispatcher
 
 from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
-from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType, DispatchType
+from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType, DispatchType, \
+    DbQueryValueType
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
@@ -547,17 +548,42 @@ class ActionUtility:
         message = None
         if bot_response:
             if dispatch_type == DispatchType.json.value:
-                try:
-                    if isinstance(bot_response, str):
-                        bot_response = json.loads(bot_response)
-                    dispatcher.utter_message(json_message=bot_response)
-                except json.JSONDecodeError as e:
-                    message = f'Failed to convert http response to json: {str(e)}'
-                    logger.error(e)
-                    dispatcher.utter_message(str(bot_response))
+                message, bot_response = ActionUtility.handle_json_response(dispatcher, bot_response)
             else:
-                dispatcher.utter_message(str(bot_response))
+                ActionUtility.handle_text_response(dispatcher, bot_response)
         return bot_response, message
+
+    @staticmethod
+    def set_dispatcher_response(dispatcher: CollectingDispatcher, response: Any, dispatch_type: DispatchType):
+        if dispatch_type == DispatchType.json.value:
+            dispatcher.utter_message(json_message=response)
+        else:
+            dispatcher.utter_message(text=str(response))
+
+    @staticmethod
+    def handle_text_response(dispatcher: CollectingDispatcher, bot_response: Any):
+        if isinstance(bot_response, list):
+            for message in bot_response:
+                if isinstance(message, dict):
+                    ActionUtility.set_dispatcher_response(dispatcher, message, DispatchType.json.value)
+                else:
+                    ActionUtility.set_dispatcher_response(dispatcher, message, DispatchType.text.value)
+        else:
+            ActionUtility.set_dispatcher_response(dispatcher, bot_response, DispatchType.text.value)
+
+    @staticmethod
+    def handle_json_response(dispatcher: CollectingDispatcher, bot_response: Any):
+        from json import JSONDecodeError
+
+        message = None
+        try:
+            bot_response = json.loads(bot_response) if isinstance(bot_response, str) else bot_response
+            ActionUtility.set_dispatcher_response(dispatcher, bot_response, DispatchType.json.value)
+        except json.JSONDecodeError as e:
+            message = f'Failed to convert http response to json: {str(e)}'
+            logger.error(e)
+            ActionUtility.set_dispatcher_response(dispatcher, bot_response, DispatchType.text.value)
+        return message, bot_response
 
     @staticmethod
     def filter_out_kairon_system_slots(slots: dict):
@@ -566,6 +592,21 @@ class ActionUtility:
         slots = {} if not isinstance(slots, dict) else slots
         slot_values = {slot: value for slot, value in slots.items() if slot not in {KaironSystemSlots.bot.value}}
         return slot_values
+
+    @staticmethod
+    def get_payload(payload: Dict, tracker: Tracker):
+        if payload.get('type') == DbQueryValueType.from_slot.value:
+            rqst_payload = tracker.get_slot(payload.get('value'))
+        else:
+            rqst_payload = payload.get('value')
+
+        try:
+            if isinstance(rqst_payload, str):
+                rqst_payload = json.loads(rqst_payload)
+        except json.JSONDecodeError as e:
+            logger.debug(e)
+            raise ActionFailure(f"Error converting payload to JSON: {rqst_payload}")
+        return rqst_payload
 
     @staticmethod
     def run_pyscript(source_code: Text, context: dict):
