@@ -17,7 +17,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
+    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, CustomActionParameters
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
@@ -4827,9 +4827,9 @@ def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config,
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email="test@demo.com",
-        subject="test script",
-        to_email=["test@test.com"],
+        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
+        to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+        subject="test",
         response="Email Triggered",
         custom_text=CustomActionRequestParameters(key="custom_text", value="custom_mail_text",
                                                   parameter_type=ActionParameterType.slot.value),
@@ -4881,18 +4881,17 @@ def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config,
     assert {} == kwargs
 
     from_email, password = args
-    assert from_email == action_config.from_email
+    assert from_email == action_config.from_email.value
     assert password == action_config.smtp_password.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().sendmail'
     assert {} == kwargs
 
-    assert args[0] == action_config.from_email
+    assert args[0] == action_config.from_email.value
     assert args[1] == ["test@test.com"]
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
-
 
 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")
@@ -4915,9 +4914,9 @@ def test_email_action_execution(mock_smtp, mock_action_config, mock_action):
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email="test@demo.com",
+        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
+        to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
         subject="test",
-        to_email=["test@test.com"],
         response="Email Triggered",
         bot="bot",
         user="user"
@@ -5033,14 +5032,14 @@ def test_email_action_execution(mock_smtp, mock_action_config, mock_action):
     assert {} == kwargs
 
     from_email, password = args
-    assert from_email == action_config.from_email
+    assert from_email == action_config.from_email.value
     assert password == action_config.smtp_password.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().sendmail'
     assert {} == kwargs
 
-    assert args[0] == action_config.from_email
+    assert args[0] == action_config.from_email.value
     assert args[1] == ["test@test.com"]
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
@@ -5060,16 +5059,16 @@ def test_email_action_execution_with_sender_email_from_slot(mock_smtp, mock_acti
     Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
                                                                        'rb').read().decode()
 
-    action_name = "test_email_action_execution_with_sender_from_slot"
+    action_name = "test_email_action_execution_with_sender_email_from_slot"
     action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
     action_config = EmailActionConfig(
         action_name=action_name,
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email="test@demo.com",
+        from_email=CustomActionRequestParameters(value="from_email", parameter_type="slot"),
+        to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
         subject="test",
-        to_email=["test@test.com"],
         response="Email Triggered",
         bot="bot",
         user="user"
@@ -5213,16 +5212,16 @@ def test_email_action_execution_with_receiver_email_list_from_slot(mock_smtp, mo
     Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
                                                                        'rb').read().decode()
 
-    action_name = "test_email_action_execution_with_reciever_email_list_from_slot"
+    action_name = "test_email_action_execution_with_receiver_email_list_from_slot"
     action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
     action_config = EmailActionConfig(
         action_name=action_name,
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email="test@demo.com",
+        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
+        to_email=CustomActionParameters(value="to_email", parameter_type="slot"),
         subject="test",
-        to_email=["test@test.com"],
         response="Email Triggered",
         bot="bot",
         user="user"
@@ -5339,14 +5338,14 @@ def test_email_action_execution_with_receiver_email_list_from_slot(mock_smtp, mo
     assert {} == kwargs
 
     from_email, password = args
-    assert from_email == action_config.from_email
+    assert from_email == action_config.from_email.value
     assert password == action_config.smtp_password.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().sendmail'
     assert {} == kwargs
 
-    assert args[0] == action_config.from_email
+    assert args[0] == action_config.from_email.value
     assert args[1] == ["test@gmail.com"]
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
@@ -5366,16 +5365,16 @@ def test_email_action_execution_with_single_receiver_email_from_slot(mock_smtp, 
     Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
                                                                        'rb').read().decode()
 
-    action_name = "test_email_action_execution_with_single_reciever_email_from_slot"
+    action_name = "test_email_action_execution_with_single_receiver_email_from_slot"
     action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
     action_config = EmailActionConfig(
         action_name=action_name,
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email="test@demo.com",
+        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
+        to_email=CustomActionParameters(value="to_email", parameter_type="slot"),
         subject="test",
-        to_email=["test@test.com"],
         response="Email Triggered",
         bot="bot",
         user="user"
@@ -5492,14 +5491,14 @@ def test_email_action_execution_with_single_receiver_email_from_slot(mock_smtp, 
     assert {} == kwargs
 
     from_email, password = args
-    assert from_email == action_config.from_email
+    assert from_email == action_config.from_email.value
     assert password == action_config.smtp_password.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().sendmail'
     assert {} == kwargs
 
-    assert args[0] == action_config.from_email
+    assert args[0] == action_config.from_email.value
     assert args[1] == ["example@gmail.com"]
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
@@ -5526,9 +5525,9 @@ def test_email_action_execution_varied_utterances(mock_smtp, mock_action_config,
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email="test@demo.com",
+        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
+        to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
         subject="test",
-        to_email=["test@test.com"],
         response="Email Triggered",
         bot="bot",
         user="user"
@@ -5850,14 +5849,14 @@ def test_email_action_execution_varied_utterances(mock_smtp, mock_action_config,
     assert {} == kwargs
 
     from_email, password = args
-    assert from_email == action_config.from_email
+    assert from_email == action_config.from_email.value
     assert password == action_config.smtp_password.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().sendmail'
     assert {} == kwargs
 
-    assert args[0] == action_config.from_email
+    assert args[0] == action_config.from_email.value
     assert args[1] == ["test@test.com"]
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
@@ -5972,9 +5971,9 @@ def test_email_action_failed_execution(mock_action_config, mock_action):
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(value="test"),
-        from_email="test@demo.com",
+        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
+        to_email=CustomActionParameters(value="test@test.com", parameter_type="value"),
         subject="test",
-        to_email="test@test.com",
         response="Email Triggered",
         bot="bot",
         user="user"

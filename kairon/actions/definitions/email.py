@@ -55,9 +55,7 @@ class ActionEmail(ActionsBase):
         exception = None
         action_config = self.retrieve_config()
         bot_response = action_config.get("response")
-        slot = tracker.get_slot(REQUESTED_SLOT)
-        slot_value = tracker.get_slot(slot)
-        from_email, to_email = self.__get_from_email_and_to_email(action_config, slot, slot_value)
+        from_email, to_email = self.__get_from_email_and_to_email(action_config, tracker)
         smtp_password = action_config.get('smtp_password')
         smtp_userid = action_config.get('smtp_userid')
         custom_text = action_config.get('custom_text')
@@ -105,8 +103,12 @@ class ActionEmail(ActionsBase):
         return {KaironSystemSlots.kairon_action_response.value: bot_response}
 
     @staticmethod
-    def __get_from_email_and_to_email(action_config: EmailActionConfig, slot: str, slot_value: str):
-        from_email = slot_value if slot == "from_email" else action_config['from_email']
-        to_email = slot_value if slot == "to_email" else action_config['to_email']
+    def __get_from_email_and_to_email(action_config: EmailActionConfig, tracker: Tracker):
+        from_email_type = action_config['from_email']['parameter_type']
+        to_email_type = action_config['to_email']['parameter_type']
+        from_email = tracker.get_slot(action_config['from_email']['value']) if from_email_type == "slot" \
+            else action_config['from_email']['value']
+        to_email = tracker.get_slot(action_config['to_email']['value']) if to_email_type == "slot" \
+            else action_config['to_email']['value']
         to_email = [to_email] if isinstance(to_email, str) else to_email
         return from_email, to_email

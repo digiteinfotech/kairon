@@ -43,7 +43,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
+    LlmPrompt, FormSlotSet, DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, \
+    CustomActionParameters
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.importer.processor import DataImporterLogProcessor
@@ -4998,9 +4999,9 @@ class MongoProcessor:
         email_action.smtp_userid = CustomActionRequestParameters(**action['smtp_userid']) if action.get('smtp_userid') else None
         email_action.smtp_password = CustomActionRequestParameters(**action['smtp_password'])
         email_action.custom_text = CustomActionRequestParameters(**action['custom_text']) if action.get('custom_text') else None
-        email_action.from_email = action['from_email']
+        email_action.from_email = CustomActionRequestParameters(**action['from_email']) if action.get('from_email') else None
         email_action.subject = action['subject']
-        email_action.to_email = action['to_email']
+        email_action.to_email = CustomActionParameters(**action['to_email']) if action.get('to_email') else None
         email_action.response = action['response']
         email_action.tls = action['tls']
         email_action.user = user

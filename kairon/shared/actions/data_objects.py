@@ -331,6 +331,12 @@ class CustomActionRequestParameters(HttpActionRequestBody):
                                           ActionParameterType.key_vault, ActionParameterType.sender_id])
 
 
+class CustomActionParameters(HttpActionRequestBody):
+    value = DynamicField(required=True)
+    parameter_type = StringField(default=ActionParameterType.value,
+                                 choices=[ActionParameterType.value, ActionParameterType.slot])
+
+
 @auditlogger.log
 @push_notification.apply
 class EmailActionConfig(Auditlog):
@@ -339,9 +345,9 @@ class EmailActionConfig(Auditlog):
     smtp_port = IntField(required=True)
     smtp_userid = EmbeddedDocumentField(CustomActionRequestParameters)
     smtp_password = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
-    from_email = StringField(required=True)
+    from_email = EmbeddedDocumentField(CustomActionRequestParameters)
     subject = StringField(required=True)
-    to_email = ListField(StringField(), required=True)
+    to_email = EmbeddedDocumentField(CustomActionParameters)
     response = StringField(required=True)
     custom_text = EmbeddedDocumentField(CustomActionRequestParameters)
     tls = BooleanField(default=False)
@@ -364,10 +370,10 @@ class EmailActionConfig(Auditlog):
             raise ValidationError("URL cannot be empty")
         if not Utility.validate_smtp(self.smtp_url, self.smtp_port):
             raise ValidationError("Invalid SMTP url")
-        elif isinstance(email(self.from_email), ValidationFailure):
+        elif isinstance(email(self.from_email.value), ValidationFailure) and self.from_email.parameter_type == "value":
             raise ValidationError("Invalid From or To email address")
-        else:
-            for to_email in self.to_email:
+        elif self.to_email.parameter_type == "value":
+            for to_email in self.to_email.value:
                 if isinstance(email(to_email), ValidationFailure):
                     raise ValidationError("Invalid From or To email address")
 
