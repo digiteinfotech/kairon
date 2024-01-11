@@ -16,6 +16,18 @@ class WhatsappBusinessServiceProviderBase(ABC):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
+    def add_template(self, **kwargs):
+        raise NotImplementedError("Provider not implemented")
+
+    @abstractmethod
+    def edit_template(self, **kwargs):
+        raise NotImplementedError("Provider not implemented")
+
+    @abstractmethod
+    def delete_template(self, **kwargs):
+        raise NotImplementedError("Provider not implemented")
+
+    @abstractmethod
     def get_template(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 

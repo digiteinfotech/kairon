@@ -77,5 +77,5 @@ async def reload_model(
     """
     Retrieves chat client config of a bot.
     """
-    background_tasks.add_task(ChatUtils.reload, bot)
+    background_tasks.add_task(ChatUtils.reload, bot, current_user.get_user())
     return {"message": "Reloading Model!"}

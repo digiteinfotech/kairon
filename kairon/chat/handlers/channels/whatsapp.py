@@ -40,7 +40,14 @@ class Whatsapp:
         # so quick reply should be checked first
         if message.get("type") == "interactive":
             interactive_type = message.get("interactive").get("type")
-            text = message["interactive"][interactive_type]["id"]
+            if interactive_type == "nfm_reply":
+                logger.debug(message["interactive"][interactive_type])
+                response_json = json.loads(message["interactive"][interactive_type]['response_json'])
+                response_json.update({"type": interactive_type})
+                entity = json.dumps({"flow_reply": response_json})
+                text = f"/k_interactive_msg{entity}"
+            else:
+                text = message["interactive"][interactive_type]["id"]
         elif message.get("type") == "text":
             text = message["text"]['body']
         elif message.get("type") == "button":
@@ -49,6 +56,9 @@ class Whatsapp:
             if message['type'] == "voice":
                 message['type'] = "audio"
             text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
+        elif message.get("type") == "location":
+            logger.debug(message['location'])
+            text = f"/k_multimedia_msg{{\"latitude\": \"{message['location']['latitude']}\", \"longitude\": \"{message['location']['longitude']}\"}}"
         elif message.get("type") == "order":
             logger.debug(message['order'])
             entity = json.dumps({message["type"]: message['order']})
@@ -74,7 +84,7 @@ class Whatsapp:
                     statuses = changes.get("value", {}).get("statuses")
                     user = metadata.get('display_phone_number')
                     for status_data in statuses:
-                        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user)
+                        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, ChannelTypes.WHATSAPP.value)
                 for message in messages or []:
                     await self.message(message, metadata, bot)
 
@@ -176,8 +186,8 @@ class WhatsappBot(OutputChannel):
         type_list = Utility.system_metadata.get("type_list")
         message = json_message.get("data")
         messagetype = json_message.get("type")
-        content_type = {"link": "text", "video": "text", "image": "image", "button": "interactive",
-                        "dropdown": "interactive"}
+        content_type = {"link": "text", "video": "video", "image": "image", "button": "interactive",
+                        "dropdown": "interactive", "audio": "audio"}
         if messagetype is not None and messagetype in type_list:
             messaging_type = content_type.get(messagetype)
             from kairon.chat.converters.channels.response_factory import ConverterFactory

@@ -3,14 +3,15 @@ from datetime import datetime
 from typing import Text, Dict
 
 from loguru import logger
-from bson import ObjectId
-from mongoengine import DoesNotExist
+from mongoengine import DoesNotExist, Document
+
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
+from kairon.shared.chat.data_objects import Channels, ChannelLogs
+from kairon.shared.constants import ChannelTypes
 
 
 class MessageBroadcastProcessor:
@@ -84,8 +85,6 @@ class MessageBroadcastProcessor:
                 raise DoesNotExist()
             log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type).get()
         except DoesNotExist:
-            if not reference_id:
-                reference_id = ObjectId().__str__()
             log = MessageBroadcastLogs(bot=bot, reference_id=reference_id, log_type=log_type)
         if status:
             log.status = status
@@ -93,7 +92,6 @@ class MessageBroadcastProcessor:
             if not getattr(log, key, None) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
         log.save()
-        return reference_id
 
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
@@ -105,3 +103,55 @@ class MessageBroadcastProcessor:
         logs = query_objects.skip(start_idx).limit(page_size).exclude('id').to_json()
         logs = json.loads(logs)
         return logs, total_count
+
+    @staticmethod
+    def extract_message_ids_from_broadcast_logs(reference_id: Text):
+        message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
+                                                              log_type=MessageBroadcastLogType.send.value)
+        broadcast_logs = {
+            message['id']: log
+            for log in message_broadcast_logs
+            if log.api_response and log.api_response.get('messages', [])
+            for message in log.api_response['messages']
+            if message['id']
+        }
+        return broadcast_logs
+
+    @staticmethod
+    def __add_broadcast_logs_status_and_errors(reference_id: Text, campaign_name: Text, broadcast_logs: Dict[Text, Document]):
+        message_ids = list(broadcast_logs.keys())
+        channel_logs = ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value)
+        for log in channel_logs:
+            if log['errors']:
+                msg_id = log["message_id"]
+                broadcast_logs[msg_id].update(errors=log['errors'], status="Failed")
+
+        ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id, campaign_name=campaign_name)
+
+    @staticmethod
+    def insert_status_received_on_channel_webhook(event_id: Text, broadcast_name: Text):
+        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(event_id)
+        if broadcast_logs:
+            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(event_id, broadcast_name, broadcast_logs)
+
+    @staticmethod
+    def get_channel_metrics(channel_type: Text, bot: Text):
+        result = list(ChannelLogs.objects.aggregate([
+            {'$match': {'bot': bot, 'type': channel_type}},
+            {'$group': {'_id': {'campaign_id': '$campaign_id', 'status': '$status'}, 'count': {'$sum': 1}}},
+            {'$group': {'_id': '$_id.campaign_id', 'status': {'$push': {'k': '$_id.status', 'v': '$count'}}}},
+            {'$project': {'campaign_id': '$_id', 'status': {'$arrayToObject': '$status'}, '_id': 0}}
+        ]))
+        return result
+
+    @staticmethod
+    def get_campaign_id(message_id: Text):
+        campaign_id = None
+        try:
+            log = MessageBroadcastLogs.objects(api_response__messages__id=message_id, log_type=MessageBroadcastLogType.send.value)
+            if log:
+                campaign_id = log[0].reference_id
+        except Exception as e:
+            logger.debug(e)
+
+        return campaign_id

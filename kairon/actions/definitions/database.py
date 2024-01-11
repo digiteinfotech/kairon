@@ -8,7 +8,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, DatabaseAction
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, DbQueryValueType
+from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.vector_embeddings.db.factory import VectorEmbeddingsDbFactory
@@ -25,6 +25,7 @@ class ActionDatabase(ActionsBase):
         """
         self.bot = bot
         self.name = name
+        self.suffix = "_faq_embd"
         self.__response = None
         self.__is_success = False
 
@@ -37,6 +38,7 @@ class ActionDatabase(ActionsBase):
         try:
             vector_action_dict = DatabaseAction.objects(bot=self.bot, name=self.name,
                                                         status=True).get().to_mongo().to_dict()
+            vector_action_dict.pop('_id', None)
             logger.debug("vector_action_config: " + str(vector_action_dict))
             return vector_action_dict
         except DoesNotExist as e:
@@ -62,18 +64,18 @@ class ActionDatabase(ActionsBase):
         failure_response = 'I have failed to process your request.'
         filled_slots = {}
         msg_logger = []
+        request_body = None
 
         try:
             vector_action_config = self.retrieve_config()
             dispatch_bot_response = vector_action_config['response']['dispatch']
             failure_response = vector_action_config['failure_response']
-            collection_name = vector_action_config['collection']
+            collection_name = f"{self.bot}_{vector_action_config['collection']}{self.suffix}"
             db_type = vector_action_config['db_type']
             vector_db = VectorEmbeddingsDbFactory.get_instance(db_type)(collection_name)
             operation_type = vector_action_config['query_type']
-            payload_type = vector_action_config['payload']
-            request_body = tracker.get_slot(payload_type.get('value')) if payload_type.get('type') == DbQueryValueType.from_slot.value \
-                else payload_type.get('value')
+            payload = vector_action_config['payload']
+            request_body = ActionUtility.get_payload(payload, tracker)
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)
             response = vector_db.perform_operation(operation_type, request_body)
@@ -100,6 +102,7 @@ class ActionDatabase(ActionsBase):
                 action=self.name,
                 config=vector_action_config,
                 sender=tracker.sender_id,
+                payload=str(request_body) if request_body else None,
                 response=str(response) if response else None,
                 bot_response=str(bot_response) if bot_response else None,
                 messages=msg_logger,

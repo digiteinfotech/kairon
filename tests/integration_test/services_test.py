@@ -34,7 +34,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.constants import EventClass
+from kairon.shared.constants import EventClass, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
     KAIRON_TWO_STAGE_FALLBACK, FeatureMappings, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -2911,7 +2911,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 8
+    assert len(actual['data']) == 11
     assert actual["success"]
 
 
@@ -3036,7 +3036,8 @@ def test_list_entities():
     assert actual["error_code"] == 0
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                                                    'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
-                                                   'audio', 'image', 'doc_url', 'document', 'video', 'order'}
+                                                   'audio', 'image', 'doc_url', 'document', 'video', 'order', 'latitude',
+                                                   'longitude', 'flow_reply'}
     assert actual["success"]
 
 
@@ -3437,7 +3438,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 15
+    assert len(actual["data"]) == 18
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -4372,9 +4373,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -4632,11 +4633,11 @@ def test_add_multiflow_story_invalid_event_type():
                         "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
                         "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
                         "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
-                        "'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                        "'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT',
                  'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
                  'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
+                 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION']}
                  }]
     )
 
@@ -4702,9 +4703,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -4840,12 +4841,12 @@ def test_update_multiflow_story_invalid_event_type():
                         "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
                         "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                         "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
-                        "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                        "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END',
                         'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
                         'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                        'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
+                        'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION']}
                  }]
     )
 
@@ -5834,6 +5835,9 @@ def test_set_templates_insecure():
 
 @responses.activate
 def test_reload_model(monkeypatch):
+    processor = MongoProcessor()
+    start_time = datetime.utcnow() - timedelta(days=1)
+    end_time = datetime.utcnow() + timedelta(days=1)
     def mongo_store(*arge, **kwargs):
         return None
 
@@ -5858,6 +5862,39 @@ def test_reload_model(monkeypatch):
     assert actual['error_code'] == 0
     assert actual['message'] == "Reloading Model!"
     assert actual['success']
+    logs = processor.get_logs(pytest.bot, "audit_logs", start_time, end_time)
+    logs[0].pop('timestamp')
+    logs[0].pop('_id')
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': pytest.bot}], 'user': 'integration@demo.ai', 'action': 'activity', 'entity': 'model_reload', 'data': {'message': None, 'username': 'integration@demo.ai', 'exception': None, 'status': 'Initiated'}}
+
+
+@responses.activate
+def test_reload_model_exception():
+    processor = MongoProcessor()
+    start_time = datetime.utcnow() - timedelta(days=1)
+    end_time = datetime.utcnow() + timedelta(days=1)
+    # def mongo_store(*arge, **kwargs):
+    #     return None
+    #
+    # monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+    # monkeypatch.setitem(Utility.environment['action'], "url", None)
+    # monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
+    response = client.get(
+        f"/api/bot/{pytest.bot}/model/reload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual['data'] is None
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Agent config not found!'
+    logs = processor.get_logs(pytest.bot, "audit_logs", start_time, end_time)
+    logs[0].pop('timestamp')
+    logs[0].pop('_id')
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': pytest.bot}],
+                       'user': 'integration@demo.ai', 'action': 'activity', 'entity': 'model_reload',
+                       'data': {'message': None, 'username': 'integration@demo.ai',
+                                'exception': 'Agent config not found!', 'status': 'Failed'}}
 
 
 def test_get_config_templates():
@@ -7256,6 +7293,7 @@ def test_get_secret_2():
 def test_add_vectordb_action_empty_name():
     request_body = {
         "name": '',
+        "collection": 'test_add_vectordb_action_empty_name',
         "query_type": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
@@ -7273,9 +7311,31 @@ def test_add_vectordb_action_empty_name():
     assert not actual["success"]
 
 
+def test_add_vectordb_action_empty_collection_name():
+    request_body = {
+        "name": 'test_add_vectordb_action_empty_collection_name',
+        "collection": '',
+        "query_type": "embedding_search",
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'collection'], 'msg': 'collection is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
 def test_add_vectordb_action_empty_operation_value():
     request_body = {
         "name": 'action_test_empty_operation_value',
+        "collection": 'test_add_vectordb_action_empty_operation_value',
         "query_type": "",
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
@@ -7295,29 +7355,10 @@ def test_add_vectordb_action_empty_operation_value():
     assert not actual["success"]
 
 
-def test_add_vectordb_action_empty_operation_type():
-    request_body = {
-        "name": 'action_test_empty_operation_type',
-        "query_type": "embedding_search",
-        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
-        "response": {"value": "0"}
-    }
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/action/db",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    print(actual)
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Action added!"
-    assert actual["success"]
-
-
 def test_add_vectordb_action_empty_payload_type():
     request_body = {
         "name": 'test_add_vectordb_action_empty_payload_type',
+        "collection": 'test_add_vectordb_action_empty_payload_type',
         "query_type": "payload_search",
         "payload": {"type": "", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
@@ -7342,6 +7383,7 @@ def test_add_vectordb_action_empty_payload_type():
 def test_add_vectordb_action_empty_payload_value():
     request_body = {
         "name": 'action_test_empty_value',
+        "collection": 'test_add_vectordb_action_empty_payload_value',
         "query_type": "payload_search",
         "payload": {"type": "from_value", "value": ''},
         "response": {"value": "0"}
@@ -7359,9 +7401,63 @@ def test_add_vectordb_action_empty_payload_value():
     assert not actual["success"]
 
 
-def test_add_vectordb_action():
+def test_add_vectordb_action_collection_does_not_exists():
     request_body = {
         "name": 'vectordb_action_test',
+        "collection": 'test_add_vectordb_action_collection_does_not_exists',
+        "query_type": "payload_search",
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Collection does not exist!'
+    assert not actual["success"]
+
+
+def test_add_vectordb_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [{"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                         {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "test_add_vectordb_action"
+    },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.delete_schema_id_db_action = actual["data"]["_id"]
+    payload = {
+        "data": {"city": "London", "color": "red"},
+        "collection": "test_add_vectordb_action",
+        "content_type": "json"}
+    payload_response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    request_body = {
+        "name": 'vectordb_action_test',
+        "collection": 'test_add_vectordb_action',
         "query_type": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
@@ -7385,10 +7481,23 @@ def test_add_vectordb_action():
     assert actual["message"] == 'Action added!'
     assert actual["success"]
 
+    response_two = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.delete_schema_id_db_action}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_two = response_two.json()
+    print(actual_two)
+    assert not actual_two["success"]
+    assert actual_two[
+               "message"] == 'Cannot remove collection test_add_vectordb_action linked to action "vectordb_action_test"!'
+    assert actual_two["data"] is None
+    assert actual_two["error_code"] == 422
+
 
 def test_add_vectordb_action_case_insensitivity():
     request_body = {
         "name": 'VECTORDB_ACTION_CASE_INSENSITIVE',
+        "collection": 'test_add_vectordb_action',
         "query_type": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
@@ -7434,6 +7543,7 @@ def test_add_vectordb_action_case_insensitivity():
 def test_add_vectordb_action_existing():
     request_body = {
         "name": 'test_add_vectordb_action_existing',
+        "collection": 'test_add_vectordb_action',
         "query_type": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"},
@@ -7477,6 +7587,7 @@ def test_add_vectordb_action_with_slots():
 
     request_body = {
         "name": 'test_add_vectordb_action_with_slots',
+        "collection": 'test_add_vectordb_action',
         "query_type": "payload_search",
         "payload": {"type": "from_slot", "value": "vectordb"},
         "response": {"value": "0"}
@@ -7497,6 +7608,7 @@ def test_add_vectordb_action_with_slots():
 def test_update_vectordb_action():
     request_body = {
         "name": 'test_update_vectordb_action',
+        "collection": 'test_add_vectordb_action',
         "query_type": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
@@ -7519,6 +7631,7 @@ def test_update_vectordb_action():
 
     request_body = {
         "name": 'test_update_vectordb_action',
+        "collection": 'test_add_vectordb_action',
         "query_type": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"},
@@ -7546,6 +7659,7 @@ def test_update_vectordb_action():
 def test_update_vectordb_action_non_existing():
     request_body = {
         "name": 'test_update_vectordb_action_non_existing',
+        "collection": 'test_add_vectordb_action',
         "query_type": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
         "response": {"value": "15"},
@@ -7560,6 +7674,7 @@ def test_update_vectordb_action_non_existing():
 
     request_body = {
         "name": "test_update_vectordb_action_non_existing_new",
+        "collection": 'test_add_vectordb_action',
         "query_type": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
         "response": {"value": "15"},
@@ -7580,6 +7695,7 @@ def test_update_vectordb_action_non_existing():
 def test_update_vector_action_wrong_parameter():
     request_body = {
         "name": "test_update_vector_action_1",
+        "collection": 'test_add_vectordb_action',
         "query_type": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [8], "with_payload": True, "with_vector": True}},
         "response": {"value": "15"},
@@ -7596,6 +7712,7 @@ def test_update_vector_action_wrong_parameter():
 
     request_body = {
         "name": "test_update_vector_action_1",
+        "collection": 'test_add_vectordb_action',
         "query_type": "embedding_search",
         "payload": {"type": "from_val", "value": {"ids": [81], "with_payload": True, "with_vector": True}},
         "response": {"value": "nupur"},
@@ -7643,12 +7760,13 @@ def test_list_vector_db_action():
     print(actual)
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert actual['data'][0]['name'] == 'action_test_empty_operation_type'
+    assert actual['data'][0]['name'] == 'vectordb_action_test'
 
 
 def test_delete_vectordb_action():
     request_body = {
         "name": "test_delete_vectordb_action",
+        "collection": 'test_add_vectordb_action',
         "query_type": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
@@ -7681,6 +7799,7 @@ def test_delete_vectordb_action():
 def test_delete_vectordb_action_non_existing():
     request_body = {
         "name": "test_delete_vectordb_action_non_existing",
+        "collection": 'test_add_vectordb_action',
         "query_type": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
@@ -8561,11 +8680,10 @@ def test_list_actions():
     assert Utility.check_empty_string(actual["message"])
     print(actual['data'])
     assert actual['data'] == {'actions': ['action_greet'],
-                              'database_action': ['action_test_empty_operation_type', 'vectordb_action_test',
-                                                  'vectordb_action_case_insensitive', 'test_add_vectordb_action_existing',
-                                                  'test_add_vectordb_action_with_slots', 'test_update_vectordb_action',
-                                                  'test_update_vectordb_action_non_existing', 'test_update_vector_action_1',
-                                                  'test_delete_vectordb_action_non_existing'],
+                              'database_action': ['vectordb_action_test', 'vectordb_action_case_insensitive',
+                                                  'test_add_vectordb_action_existing', 'test_add_vectordb_action_with_slots',
+                                                  'test_update_vectordb_action', 'test_update_vectordb_action_non_existing',
+                                                  'test_update_vector_action_1', 'test_delete_vectordb_action_non_existing'],
                               'http_action': ['test_add_http_action_no_token', 'test_add_http_action_with_valid_dispatch_type',
                                               'test_add_http_action_with_dynamic_params', 'test_update_http_action_with_dynamic_params',
                                               'test_add_http_action_with_sender_id_parameter_type',
@@ -9257,9 +9375,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -9322,9 +9440,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -13942,6 +14060,107 @@ def test_add_channel_config(monkeypatch):
     assert actual["data"].startswith(f"http://localhost:5056/api/bot/slack/{pytest.bot}/e")
 
 
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+def test_add_template_error(mock_get_partner_auth_token):
+    mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+    data = {
+        "name": "Introduction template",
+        "category": "UTILITY",
+        "components": [
+            {
+                "format": "TEXT",
+                "text": "New request",
+                "type": "HEADER"
+            },
+            {
+                "type": "BODY",
+                "text": "Hi {{1}}, thanks for getting in touch with {{2}}. We will process your request get back to you shortly",
+                "example": {
+                    "body_text": [
+                        [
+                            "Nupur",
+                            "360dialog"
+                        ]
+                    ]
+                }
+            },
+            {
+                "text": "WhatsApp Business API provided by 360dialog",
+                "type": "FOOTER"
+            }
+        ],
+        "language": "es_ES",
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog",
+        json={'data': data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Channel not found!"
+    assert actual["data"] == None
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+def test_edit_template_error(mock_get_partner_auth_token):
+    mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+    data = {
+        "components": [
+            {
+                "format": "TEXT",
+                "text": "New request",
+                "type": "HEADER"
+            },
+            {
+                "type": "BODY",
+                "text": "Hi {{1}}, thanks for getting in touch with {{2}}. Let us know your queries!",
+                "example": {
+                    "body_text": [
+                        [
+                            "Nupur",
+                            "360dialog"
+                        ]
+                    ]
+                }
+            },
+            {
+                "text": "WhatsApp Business API provided by 360dialog",
+                "type": "FOOTER"
+            }
+        ],
+        "allow_category_change": False
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/test_one_id",
+        json={'data': data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Channel not found!"
+    assert actual["data"] == None
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+def test_delete_template_error(mock_get_partner_auth_token):
+    mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/test_one_id",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Channel not found!"
+    assert actual["data"] == None
+
+
 def test_list_whatsapp_templates_error():
     response = client.get(
         f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/list",
@@ -13951,6 +14170,52 @@ def test_list_whatsapp_templates_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Channel not found!"
+
+
+def test_get_channel_logs():
+    from kairon.shared.chat.data_objects import ChannelLogs
+    ChannelLogs(
+        type=ChannelTypes.WHATSAPP.value,
+        status='read',
+        data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+              'origin': {'type': 'business_initated'}},
+        initiator='business_initated',
+        campaign_id='6779002886649302',
+        message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+        bot=pytest.bot,
+        user='integration@demo.ai'
+    ).save()
+    ChannelLogs(
+        type=ChannelTypes.WHATSAPP.value,
+        status='delivered',
+        data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1621598412',
+              'origin': {'type': 'business_initated'}},
+        initiator='business_initated',
+        campaign_id='6779002886649302',
+        message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+        bot=pytest.bot,
+        user='integration@demo.ai'
+    ).save()
+    ChannelLogs(
+        type=ChannelTypes.WHATSAPP.value,
+        status='sent',
+        data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1631598412',
+              'origin': {'type': 'business_initated'}},
+        initiator='business_initated',
+        campaign_id='6779002886649302',
+        message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+        bot=pytest.bot,
+        user='integration@demo.ai'
+    ).save()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/metrics",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'campaign_id': '6779002886649302', 'status': {'delivered': 1, 'read': 1, 'sent': 1}}]
 
 
 @responses.activate
@@ -14055,6 +14320,123 @@ def test_post_process(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["message"] == 'Credentials refreshed!'
     assert actual["data"].startswith(f"http://kairon-api.digite.com/api/bot/whatsapp/{pytest.bot}/e")
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.add_template", autospec=True)
+def test_add_template(mock_add_template):
+    data = {
+            "name": "Introduction template",
+            "category": "MARKETING",
+            "components": [
+                {
+                    "format": "TEXT",
+                    "text": "New request",
+                    "type": "HEADER"
+                },
+                {
+                    "type": "BODY",
+                    "text": "Hi {{1}}, thanks for getting in touch with {{2}}. We will process your request get back to you shortly",
+                    "example": {
+                        "body_text": [
+                            [
+                                "Nupur",
+                                "360dialog"
+                            ]
+                        ]
+                    }
+                },
+                {
+                    "text": "WhatsApp Business API provided by 360dialog",
+                    "type": "FOOTER"
+                }
+            ],
+            "language": "es_ES",
+            "allow_category_change": True
+        }
+    api_resp = {
+        "id": "594425479261596",
+        "status": "PENDING",
+        "category": "MARKETING"
+    }
+    mock_add_template.return_value = api_resp
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog",
+        json={'data': data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == {'id': '594425479261596', 'status': 'PENDING', 'category': 'MARKETING'}
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.edit_template", autospec=True)
+def test_edit_template(mock_edit_template):
+    data = {
+        "components": [
+            {
+                "format": "TEXT",
+                "text": "New request",
+                "type": "HEADER"
+            },
+            {
+                "type": "BODY",
+                "text": "Hi {{1}}, thanks for getting in touch with {{2}}. Let us know your queries!",
+                "example": {
+                    "body_text": [
+                        [
+                            "Nupur",
+                            "360dialog"
+                        ]
+                    ]
+                }
+            },
+            {
+                "text": "WhatsApp Business API provided by 360dialog",
+                "type": "FOOTER"
+            }
+        ],
+        "allow_category_change": False
+    }
+    api_resp = {
+        "success": True
+    }
+    mock_edit_template.return_value = api_resp
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/test_id",
+        json={'data': data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == [{'success': True}]
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.delete_template", autospec=True)
+def test_delete_template(mock_delete_template):
+    api_resp = {
+        "meta": {
+            "developer_message": "template name=Introduction template was deleted",
+            "http_code": 200,
+            "success": True
+        }
+    }
+    mock_delete_template.return_value = api_resp
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/test_id",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == api_resp
 
 
 @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.list_templates", autospec=True)

@@ -1,4 +1,4 @@
-from mongoengine import StringField, DictField, DateTimeField, ValidationError
+from mongoengine import StringField, DictField, DateTimeField, ValidationError, DynamicDocument
 from datetime import datetime
 
 from kairon.shared.constants import ChannelTypes
@@ -40,8 +40,10 @@ class Channels(Auditlog):
 
 @auditlogger.log
 @push_notification.apply
-class WhatsappAuditLog(Auditlog):
-    data = DictField(default=None)
+class ChannelLogs(DynamicDocument):
+    type = StringField()
+    data = DictField()
+    campaign_id = StringField()
     status = StringField(required=True)
     message_id = StringField(required=True)
     errors = ListField(DictField(default=[]))
@@ -49,3 +51,5 @@ class WhatsappAuditLog(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "type", "campaign_id")]}]}

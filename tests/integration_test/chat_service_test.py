@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import time
+from datetime import datetime, timedelta
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
 
@@ -134,6 +135,16 @@ ChatDataProcessor.save_channel_config({"connector_type": "hangouts",
                                        },
                                       bot, user="test@chat.com")
 
+ChatDataProcessor.save_channel_config({"connector_type": "business_messages",
+                                       "config": {
+                                           "private_key_id": "fa006e13b1e17eddf3990eede45ca6111eb74945",
+                                           "private_key": "test_private_key",
+                                           "client_email": "solution-provider@gbc-mahesh-mxqtkk9.iam.testaccount.com",
+                                           "client_id": "102056160806575769486"
+                                       }
+                                       },
+                                      bot, user="test@chat.com")
+
 ChatDataProcessor.save_channel_config({"connector_type": "messenger",
                                        "config": {
                                            "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
@@ -255,6 +266,172 @@ def test_get_chat_client_config_with_invalid_domain():
         assert actual["data"] is None
         assert not Utility.check_empty_string(actual["message"])
         assert actual["message"] == "Domain not registered for kAIron client"
+
+
+def test_business_messages_invalid_auth():
+    response = client.post(
+        f"/api/bot/business_messages/{bot}/123",
+        json={"message": {
+            "name": "conversations/24ab463a-a6bf-4049-b49e-cc05fb1dc384/messages/5979C5-325C-4700-BF5A-0156C39C541",
+            "text": "Hello!",
+            "createTime": "2023-12-04T06:30:46.034290Z",
+            "messageId": "5979C547-325C-4700-BF5A-0156C39C5641"},
+            "context": {
+                "placeId": "",
+                "userInfo": {
+                    "displayName": "Mahesh Sattala",
+                    "userDeviceLocale": "en-IN"
+                },
+                "resolvedLocale": "en"
+            },
+            "sendTime": "2023-12-04T06:30:46.662594Z",
+            "conversationId": "24ab463a-a6bf-4056-b49e-aa05fb1dc384",
+            "requestId": "5979C547-325C-4700-BF5A-0156C45C1541",
+            "agent": "brands/bd7e3fe0-3c3e-4b3e-4759-6e46ac0412a5/agents/3cf91834-3b5e-4c4b-a632-9575f0cc3444"
+        })
+    actual = response.json()
+    assert actual == {"data": None, "success": False, "error_code": 401, "message": "Could not validate credentials"}
+
+
+def test_business_messages_with_secret():
+    response = client.post(
+            f"/api/bot/business_messages/{bot}/{token}",
+            headers={"Authorization": "Bearer Test"},
+            json={"secret": "34983948"}
+    )
+    actual = response.json()
+    assert actual == "34983948"
+
+
+@patch("kairon.chat.handlers.channels.business_messages.BusinessMessagesHandler.check_message_create_time")
+@patch("kairon.chat.handlers.channels.business_messages.BusinessMessages.process_message")
+@patch('businessmessages.businessmessages_v1_client.BusinessmessagesV1')
+def test_business_messages_with_exception(mock_business_messages, mock_process_message,
+                                          mock_check_message_create_time):
+    mock_check_message_create_time.return_value = True
+    mock_business_messages.return_value = {}
+    mock_process_message.side_effect = Exception("invalid user message")
+    with pytest.raises(Exception,
+                       match="Exception when trying to handle webhook for business message: invalid user message"):
+        client.post(
+            f"/api/bot/business_messages/{bot}/{token}",
+            headers={"Authorization": "Bearer Test"},
+            json={"message": {
+                "name": "conversations/24ab463a-a6bf-4049-b49e-cc05fb1dc384/messages/5979C5-325C-4700-BF5A-0156C39C541",
+                "text": "Hello!",
+                "createTime": "2023-12-04T06:30:46.034290Z",
+                "messageId": "5979C547-325C-4700-BF5A-0156C39C5641"},
+                "context": {
+                    "placeId": "",
+                    "userInfo": {
+                        "displayName": "Mahesh Sattala",
+                        "userDeviceLocale": "en-IN"
+                    },
+                    "resolvedLocale": "en"
+                },
+                "sendTime": "2023-12-04T06:30:46.662594Z",
+                "conversationId": "24ab463a-a6bf-4056-b49e-aa05fb1dc384",
+                "requestId": "5979C547-325C-4700-BF5A-0156C45C1541",
+                "agent": "brands/bd7e3fe0-3c3e-4b3e-4759-6e46ac0412a5/agents/3cf91834-3b5e-4c4b-a632-9575f0cc3444"
+            }
+        )
+
+
+def test_business_messages_with_invalid_create_time():
+    response = client.post(
+            f"/api/bot/business_messages/{bot}/{token}",
+            headers={"Authorization": "Bearer Test"},
+            json={"message": {
+                "name": "conversations/24ab463a-a6bf-4049-b49e-cc05fb1dc384/messages/5979C5-325C-4700-BF5A-0156C39C541",
+                "text": "Hello!",
+                "createTime": "2023-12-04T06:30:46.034290Z",
+                "messageId": "5979C547-325C-4700-BF5A-0156C39C5641"},
+                "context": {
+                    "placeId": "",
+                    "userInfo": {
+                        "displayName": "Mahesh Sattala",
+                        "userDeviceLocale": "en-IN"
+                    },
+                    "resolvedLocale": "en"
+                },
+                "sendTime": "2023-12-04T06:30:46.662594Z",
+                "conversationId": "24ab463a-a6bf-4056-b49e-aa05fb1dc384",
+                "requestId": "5979C547-325C-4700-BF5A-0156C45C1541",
+                "agent": "brands/bd7e3fe0-3c3e-4b3e-4759-6e46ac0412a5/agents/3cf91834-3b5e-4c4b-a632-9575f0cc3444"
+            }
+    )
+    actual = response.json()
+    assert actual == {"status": "OK"}
+
+
+@patch("kairon.chat.handlers.channels.business_messages.BusinessMessagesHandler.check_message_create_time")
+@patch("kairon.chat.handlers.channels.business_messages.BusinessMessages.process_message")
+def test_business_messages_without_message(mock_process_message, mock_check_message_create_time):
+    mock_check_message_create_time.return_value = True
+    mock_process_message.return_value = {'response': [{'text': None}]}
+    response = client.post(
+            f"/api/bot/business_messages/{bot}/{token}",
+            headers={"Authorization": "Bearer Test"},
+            json={"message": {
+                "name": "conversations/24ab463a-a6bf-4049-b49e-cc05fb1dc384/messages/5979C5-325C-4700-BF5A-0156C39C541",
+                "text": "Hello!",
+                "createTime": "2023-12-04T06:30:46.034290Z",
+                "messageId": "5979C547-325C-4700-BF5A-0156C39C5641"},
+                "context": {
+                    "placeId": "",
+                    "userInfo": {
+                        "displayName": "Mahesh Sattala",
+                        "userDeviceLocale": "en-IN"
+                    },
+                    "resolvedLocale": "en"
+                },
+                "sendTime": "2023-12-04T06:30:46.662594Z",
+                "conversationId": "24ab463a-a6bf-4056-b49e-aa05fb1dc384",
+                "requestId": "5979C547-325C-4700-BF5A-0156C45C1541",
+                "agent": "brands/bd7e3fe0-3c3e-4b3e-4759-6e46ac0412a5/agents/3cf91834-3b5e-4c4b-a632-9575f0cc3444"
+            }
+    )
+    actual = response.json()
+    assert actual == {"status": "OK"}
+
+
+@patch("kairon.chat.handlers.channels.business_messages.BusinessMessagesHandler.check_message_create_time")
+@patch("kairon.chat.agent_processor.AgentProcessor.reload")
+@patch("kairon.chat.agent_processor.AgentProcessor.cache_provider.get")
+@patch('oauth2client.service_account.ServiceAccountCredentials.from_json_keyfile_dict')
+@patch('businessmessages.businessmessages_v1_client.BusinessmessagesV1')
+def test_business_messages_with_valid_data(mock_business_messages, mock_credentials, mock_get_agent, mock_reload,
+                                           mock_check_message_create_time):
+    mock_check_message_create_time.return_value = True
+    mock_get_agent.return_value = KaironAgent
+    mock_credentials.return_value = {}
+    mock_business_messages.return_value = {}
+    with patch.object(KaironAgent, "handle_message") as mock_agent:
+        mock_agent.side_effect = mock_agent_response
+        response = client.post(
+                f"/api/bot/business_messages/{bot}/{token}",
+                headers={"Authorization": "Bearer Test"},
+                json={"message": {
+                    "name": "conversations/24ab463a-a6bf-4049-b49e-cc05fb1dc384/messages/5979C5-325C-4700-BF5A-0156C39C541",
+                    "text": "Hello!",
+                    "createTime": "2023-12-04T06:30:46.034290Z",
+                    "messageId": "5979C547-325C-4700-BF5A-0156C39C5641"},
+                    "context": {
+                        "placeId": "",
+                        "userInfo": {
+                            "displayName": "Mahesh Sattala",
+                            "userDeviceLocale": "en-IN"
+                        },
+                        "resolvedLocale": "en"
+                    },
+                    "sendTime": "2023-12-04T06:30:46.662594Z",
+                    "conversationId": "24ab463a-a6bf-4056-b49e-aa05fb1dc384",
+                    "requestId": "5979C547-325C-4700-BF5A-0156C45C1541",
+                    "agent": "brands/bd7e3fe0-3c3e-4b3e-4759-6e46ac0412a5/agents/3cf91834-3b5e-4c4b-a632-9575f0cc3444"
+                }
+        )
+        actual = response.json()
+        assert actual == {"status": "OK"}
 
 
 def test_chat():
@@ -650,6 +827,63 @@ def test_reload(mock_store):
                         ('cross-origin-resource-policy', 'same-origin')]
     for header in expected_headers:
         assert header in actual_headers
+
+
+@patch('kairon.chat.utils.ChatUtils.reload')
+def test_reload_logging(mock_reload):
+    processor = MongoProcessor()
+    start_time = datetime.utcnow() - timedelta(days=1)
+    end_time = datetime.utcnow() + timedelta(days=1)
+    mock_reload.return_value = None
+    response = client.get(
+        f"/api/bot/{bot}/reload",
+        headers={
+            "Authorization": token_type + " " + token
+        },
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Reloading Model!"
+    logs = processor.get_logs(bot, "audit_logs", start_time, end_time)
+    logs[0].pop('timestamp')
+    logs[0].pop('_id')
+    logs[0]['data'].pop('process_id')
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': bot}], 'user': 'test@chat.com', 'action': 'activity',
+                       'entity': 'model_reload',
+                       'data': {'message': None, 'username': 'test@chat.com', 'exception': None, 'status': 'Success'}}
+
+
+@mock.patch('kairon.chat.agent_processor.AgentProcessor.reload', autospec=True)
+def test_reload_event_exception(mock_reload):
+    processor = MongoProcessor()
+    start_time = datetime.utcnow() - timedelta(days=1)
+    end_time = datetime.utcnow() + timedelta(days=1)
+    def _reload(*args):
+        raise Exception('Simulated exception during model reload')
+
+    mock_reload.side_effect = _reload
+    response = client.get(
+        f"/api/bot/{bot}/reload",
+        headers={
+            "Authorization": token_type + " " + token
+        },
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Reloading Model!"
+    logs = processor.get_logs(bot, "audit_logs", start_time, end_time)
+    logs[0].pop('timestamp')
+    logs[0].pop('_id')
+    logs[0]['data'].pop('process_id')
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': bot}], 'user': 'test@chat.com',
+                       'action': 'activity', 'entity': 'model_reload',
+                       'data': {'message': None, 'username': 'test@chat.com',
+                                'exception': 'Simulated exception during model reload', 'status': 'Failed'},
+                       }
 
 
 def test_reload_exception():
@@ -1275,7 +1509,7 @@ def test_whatsapp_valid_button_message_request():
 def test_whatsapp_valid_attachment_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
-
+    responses.reset()
     responses.add(
         "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
     )
@@ -1341,6 +1575,7 @@ def test_whatsapp_valid_attachment_message_request():
 
 @responses.activate
 def test_whatsapp_valid_order_message_request():
+    responses.reset()
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
@@ -1415,8 +1650,84 @@ def test_whatsapp_valid_order_message_request():
 
 
 @responses.activate
+def test_whatsapp_valid_flows_message_request():
+    responses.reset()
+
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+        with mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                        autospec=True) as whatsapp_msg_handler:
+            request_json = {
+                'object': 'whatsapp_business_account',
+                'entry': [{
+                    'id': '147142368486217',
+                    'changes': [{
+                        'value': {
+                            'messaging_product': 'whatsapp',
+                            'metadata': {
+                                'display_phone_number': '918657011111',
+                                'phone_number_id': '142427035629239'
+                            },
+                            'contacts': [{
+                                'profile': {
+                                    'name': 'Mahesh'
+                                },
+                                'wa_id': '919515991111'
+                            }],
+                            'messages': [{
+                                'context': {
+                                    'from': '918657011111',
+                                    'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSMjVGRjYwODI3RkMyOEQ0NUM1AA=='
+                                },
+                                'from': '919515991111',
+                                'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggQTRBQUYyODNBQkMwNEIzRDQ0MUI1ODkyMTE2NTMA',
+                                'timestamp': '1703257297',
+                                'type': 'interactive',
+                                'interactive': {
+                                    'type': 'nfm_reply',
+                                    'nfm_reply': {
+                                        'response_json': '{"flow_token":"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.","firstName":"Mahesh ","lastName":"Sattala ","pincode":"523456","district":"Bangalore ","houseNumber":"5-6","dateOfBirth":"1703257240046","source":"SOCIAL_MEDIA","landmark":"HSR Layout ","email":"maheshsattala@gmail.com"}',
+                                        'body': 'Sent',
+                                        'name': 'flow'
+                                    }
+                                }
+                            }]
+                        },
+                        'field': 'messages'
+                    }]
+                }]
+            }
+            response = client.post(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json=request_json
+            )
+    actual = response.json()
+    assert actual == 'success'
+    assert len(whatsapp_msg_handler.call_args[0]) == 5
+    assert whatsapp_msg_handler.call_args[0][1] == '/k_interactive_msg{\"flow_reply\": {\"flow_token\": \"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.\", \"firstName\": \"Mahesh \", \"lastName\": \"Sattala \", \"pincode\": \"523456\", \"district\": \"Bangalore \", \"houseNumber\": \"5-6\", \"dateOfBirth\": \"1703257240046\", \"source\": \"SOCIAL_MEDIA\", \"landmark\": \"HSR Layout \", \"email\": \"maheshsattala@gmail.com\", \"type\": \"nfm_reply\"}}'
+    assert whatsapp_msg_handler.call_args[0][2] == '919515991111'
+    metadata = whatsapp_msg_handler.call_args[0][3]
+    metadata.pop("timestamp")
+    assert metadata == {
+        'context': {'from': '918657011111', 'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSMjVGRjYwODI3RkMyOEQ0NUM1AA=='},
+        'from': '919515991111', 'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggQTRBQUYyODNBQkMwNEIzRDQ0MUI1ODkyMTE2NTMA',
+        'type': 'interactive',
+        'interactive': {
+            'type': 'nfm_reply', 'nfm_reply': {
+            'response_json': '{"flow_token":"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.","firstName":"Mahesh ","lastName":"Sattala ","pincode":"523456","district":"Bangalore ","houseNumber":"5-6","dateOfBirth":"1703257240046","source":"SOCIAL_MEDIA","landmark":"HSR Layout ","email":"maheshsattala@gmail.com"}',
+            'body': 'Sent', 'name': 'flow'}},
+        'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+        'bsp_type': 'meta', 'tabname': 'default', 'display_phone_number': '918657011111',
+        'phone_number_id': '142427035629239'}
+    assert whatsapp_msg_handler.call_args[0][4] == bot
+
+
+@responses.activate
 def test_whatsapp_valid_statuses_with_sent_request():
-    from kairon.shared.chat.data_objects import WhatsappAuditLog
+    from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1467,7 +1778,7 @@ def test_whatsapp_valid_statuses_with_sent_request():
             })
     actual = response.json()
     assert actual == 'success'
-    log = WhatsappAuditLog.objects(
+    log = ChannelLogs.objects(
         bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIA').get().to_mongo().to_dict()
     assert log['data'] == {
         'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412', 'origin': {'type': 'business_initated'}
@@ -1478,7 +1789,7 @@ def test_whatsapp_valid_statuses_with_sent_request():
 
 @responses.activate
 def test_whatsapp_valid_statuses_with_delivered_request():
-    from kairon.shared.chat.data_objects import WhatsappAuditLog
+    from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1529,7 +1840,7 @@ def test_whatsapp_valid_statuses_with_delivered_request():
             })
     actual = response.json()
     assert actual == 'success'
-    log = WhatsappAuditLog.objects(
+    log = ChannelLogs.objects(
         bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIB').get().to_mongo().to_dict()
     assert log['data'] == {
         'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412', 'origin': {'type': 'user_initiated'}
@@ -1540,7 +1851,7 @@ def test_whatsapp_valid_statuses_with_delivered_request():
 
 @responses.activate
 def test_whatsapp_valid_statuses_with_read_request():
-    from kairon.shared.chat.data_objects import WhatsappAuditLog
+    from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1579,14 +1890,14 @@ def test_whatsapp_valid_statuses_with_read_request():
             })
     actual = response.json()
     assert actual == 'success'
-    log = WhatsappAuditLog.objects(
+    log = ChannelLogs.objects(
         bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIC').get().to_mongo().to_dict()
-    assert log.get('data') is None
+    assert log.get('data') == {}
     assert log.get('initiator') is None
     assert log.get('status') == 'read'
 
-    logs = WhatsappAuditLog.objects(bot=bot, user='919876543210')
-    assert len(WhatsappAuditLog.objects(bot=bot, user='919876543210')) == 3
+    logs = ChannelLogs.objects(bot=bot, user='919876543210')
+    assert len(ChannelLogs.objects(bot=bot, user='919876543210')) == 3
     assert logs[0]['data'] == {
         'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412', 'origin': {'type': 'business_initated'}
     }
@@ -1602,7 +1913,7 @@ def test_whatsapp_valid_statuses_with_read_request():
 
 @responses.activate
 def test_whatsapp_valid_statuses_with_errors_request():
-    from kairon.shared.chat.data_objects import WhatsappAuditLog
+    from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1654,10 +1965,10 @@ def test_whatsapp_valid_statuses_with_errors_request():
             })
     actual = response.json()
     assert actual == 'success'
-    assert WhatsappAuditLog.objects(bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ')
-    log = WhatsappAuditLog.objects(bot=bot, user='919876543219').get().to_mongo().to_dict()
+    assert ChannelLogs.objects(bot=bot, message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ')
+    log = ChannelLogs.objects(bot=bot, user='919876543219').get().to_mongo().to_dict()
     assert log.get('status') == 'failed'
-    assert log.get('data') is None
+    assert log.get('data') == {}
     assert log.get('errors') == [{
         'code': 130472, 'title': "User's number is part of an experiment",
         'message': "User's number is part of an experiment",

@@ -1,10 +1,12 @@
+from datetime import datetime
 from typing import Dict, Text
 
-from mongoengine import DoesNotExist
 from loguru import logger
-from .data_objects import Channels, WhatsappAuditLog
-from datetime import datetime
+from mongoengine import DoesNotExist
+
 from kairon.shared.utils import Utility
+from .broadcast.processor import MessageBroadcastProcessor
+from .data_objects import Channels, ChannelLogs
 from ..constants import ChannelTypes
 from ..data.utils import DataUtility
 from ...exceptions import AppException
@@ -22,6 +24,9 @@ class ChatDataProcessor:
         :return: None
         """
         primary_slack_config_changed = False
+        private_key = configuration['config'].get('private_key', None)
+        if configuration['connector_type'] == ChannelTypes.BUSINESS_MESSAGES.value and private_key:
+            configuration['config']['private_key'] = private_key.replace("\\n", "\n")
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
@@ -126,20 +131,30 @@ class ChatDataProcessor:
             raise AppException('Channel not configured')
 
     @staticmethod
-    def save_whatsapp_audit_log(status_data: Dict, bot: Text, user: Text):
+    def save_whatsapp_audit_log(status_data: Dict, bot: Text, user: Text, channel_type: Text):
         """
         save or updates channel configuration
         :param status_data: status_data dict
         :param bot: bot id
         :param user: user id
+        :param channel_type: channel type
         :return: None
         """
-        WhatsappAuditLog(
-            status=status_data.get('status'),
+        campaign_id = None
+        status = status_data.get('status')
+        msg_id = status_data.get('id')
+
+        if msg_id and status in {"delivered", "read"}:
+            campaign_id = MessageBroadcastProcessor.get_campaign_id(msg_id)
+
+        ChannelLogs(
+            type=channel_type,
+            status=status,
             data=status_data.get('conversation'),
             initiator=status_data.get('conversation', {}).get('origin', {}).get('type'),
-            message_id=status_data.get('id'),
+            message_id=msg_id,
             errors=status_data.get('errors', []),
             bot=bot,
-            user=user
+            user=user,
+            campaign_id=campaign_id
         ).save()

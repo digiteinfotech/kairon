@@ -58,6 +58,8 @@ class UserActivityType(str, Enum):
     login_refresh_token = "login_refresh_token"
     invalid_login = 'invalid_login'
     download = "download"
+    template_creation = 'template_creation'
+    model_reload = "model_reload"
 
 
 class EventClass(str, Enum):
@@ -108,12 +110,14 @@ class ChannelTypes(str, Enum):
     SLACK = "slack"
     TELEGRAM = "telegram"
     INSTAGRAM = "instagram"
+    BUSINESS_MESSAGES = "business_messages"
 
 
 class ElementTypes(str, Enum):
     LINK = "link"
     IMAGE = "image"
     VIDEO = "video"
+    AUDIO = "audio"
     BUTTON = "button"
     DROPDOWN = "dropdown"
 
@@ -141,6 +145,9 @@ class KaironSystemSlots(str, Enum):
     document = "document"
     doc_url = "doc_url"
     order = "order"
+    longitude = "longitude"
+    latitude = "latitude"
+    flow_reply = "flow_reply"
 
 
 class VectorEmbeddingsDatabases(str, Enum):

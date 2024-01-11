@@ -40,7 +40,7 @@ class AioRestClient(RestClientBase):
     async def request(self, request_method: str, http_url: str, request_body: Union[dict, list] = None,
                       headers: dict = None,
                       return_json: bool = True, **kwargs):
-        max_retries = kwargs.get("max_retries", 0)
+        max_retries = kwargs.get("max_retries", 1)
         status_forcelist = kwargs.get("status_forcelist", [104, 502, 503, 504])
         timeout = ClientTimeout(total=kwargs['timeout']) if kwargs.get('timeout') else None
         is_streaming_resp = kwargs.pop("is_streaming_resp", False)

@@ -162,7 +162,7 @@
   "hangout_video_op": {"text": "https://www.youtube.com/watch?v=YFbCaahCWQ0"},
   "slack_video_op": {"blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": "https://www.youtube.com/watch?v=YFbCaahCWQ0"}}]},
   "messenger_video_op": {"text": "https://www.youtube.com/watch?v=YFbCaahCWQ0"},
-  "whatsapp_video_op": {"preview_url": true, "body": "https://www.youtube.com/watch?v=YFbCaahCWQ0"},
+  "whatsapp_video_op": {"caption": "", "link": "https://www.youtube.com/watch?v=YFbCaahCWQ0"},
   "telegram_video_op": {"text": "https://www.youtube.com/watch?v=YFbCaahCWQ0"},
   "whatsapp_button_op_two": {"type": "button", "body": {"text": "Please select from quick buttons:"},
     "action": {"buttons": [{"type": "reply", "reply": {"id": "seeds are treated with Bavistin", "title": "Yes"}},
