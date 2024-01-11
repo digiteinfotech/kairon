@@ -47,3 +47,5 @@ opentelemetry-distro[otlp]
 opentelemetry-sdk-extension-aws
 opentelemetry-propagator-aws-xray
 opentelemetry-instrumentation-fastapi
+google-businessmessages==1.0.5
+google-apitools==0.5.32
