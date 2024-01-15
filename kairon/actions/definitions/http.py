@@ -11,6 +11,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
+import time
 
 
 class ActionHTTP(ActionsBase):
@@ -64,6 +65,7 @@ class ActionHTTP(ActionsBase):
         dispatch_bot_response = True
         dispatch_type = DispatchType.text.value
         msg_logger = []
+        response_time = 0.0
         try:
             http_action_config = self.retrieve_config()
             dispatch_bot_response = http_action_config['response']['dispatch']
@@ -82,10 +84,14 @@ class ActionHTTP(ActionsBase):
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
+            req_start_time = time.time()
             http_response = await ActionUtility.execute_request_async(headers=headers, http_url=http_url,
                                                                       request_method=request_method, request_body=body,
                                                                       content_type=http_action_config['content_type'])
+            req_done_time = time.time()
+            response_time = (req_done_time - req_start_time) * 1000
             logger.info("http response: " + str(http_response))
+            logger.info("time taken: ", f"{response_time:.4}s")
             response_context = self.__add_user_context_to_http_response(http_response, tracker_data)
             bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'],
                                                                         response_context)
@@ -122,7 +128,8 @@ class ActionHTTP(ActionsBase):
                 exception=exception,
                 bot=self.bot,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                response_time=response_time
             ).save()
         filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return filled_slots

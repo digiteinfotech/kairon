@@ -1037,9 +1037,10 @@ def test_http_action_execution(aioresponses):
          "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
     assert result['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    assert isinstance(log['response_time'], float) and log['response_time'] > 0.0
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
+    log.pop('response_time')
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution',
                    'sender': 'default',
                    'headers': {'botid': '**********************2e', 'userid': '****', 'tag': '******ot',
@@ -1511,9 +1512,10 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
          "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
     assert response_json['responses'] == []
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    assert isinstance(log['response_time'], float) and log['response_time'] > 0.0
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
+    log.pop('response_time')
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default',
                    'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
@@ -1814,9 +1816,10 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
          "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
     assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    assert isinstance(log['response_time'], float) and log['response_time'] > 0.0
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
+    log.pop('response_time')
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params',
                    'sender': 'default',
@@ -1986,7 +1989,6 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response.status_code == 200
     assert len(response_json['events']) == 3
     assert len(response_json['responses']) == 1
@@ -2531,9 +2533,10 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
          "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
     assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    assert isinstance(log['response_time'], float) and log['response_time'] > 0.0
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
+    log.pop('response_time')
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list',
                    'sender': 'default',
@@ -2961,12 +2964,12 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8082/mock', 'request_method': 'GET', 'request_params': {},
                    'bot_response': 'I have failed to process your request',
                    'exception': 'Request timed out: 408', 'messages': [],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents'}
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents',
+                   'response_time': 0.0}
 
 
 def test_http_action_missing_action_name():
@@ -3115,8 +3118,6 @@ def test_vectordb_action_execution_embedding_search_from_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
@@ -3189,8 +3190,6 @@ def test_vectordb_action_execution_payload_search_from_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
@@ -3251,14 +3250,11 @@ def test_vectordb_action_execution_payload_search_from_value_json_decode_error()
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 1
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'I have failed to process your request.'}]
     assert response_json['responses'][0]['text'] == 'I have failed to process your request.'
     log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
-    print(log)
     assert log['exception'] == "Error converting payload to JSON: {'filter'}"
     log.pop('_id')
     log.pop('timestamp')
@@ -3338,8 +3334,6 @@ def test_vectordb_action_execution_payload_search_from_slot():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
@@ -3424,8 +3418,6 @@ def test_vectordb_action_execution_no_response_dispatch():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 0
     assert response_json['events'] == [
@@ -6812,7 +6804,6 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
         mocked.side_effect = _perform_web_search
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        print(response_json)
         assert response.status_code == 200
         assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
@@ -9749,7 +9740,6 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
                2] == """You are a personal assistant. Answer question based on the context below.\n"""
     assert mock_completion.call_args.args[
                3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
-    print(mock_completion.call_args.kwargs)
     assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
                                                 'enable_response_cache': False,
                                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
@@ -9830,7 +9820,6 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
                2] == """You are a personal assistant. Answer question based on the context below.\n"""
     assert mock_completion.call_args.args[
                3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
-    print(mock_completion.call_args.kwargs)
     assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
                                                 'enable_response_cache': False,
                                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
@@ -9914,7 +9903,6 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
                2] == """You are a personal assistant. Answer question based on the context below.\n"""
     assert mock_completion.call_args.args[
                3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
-    print(mock_completion.call_args.kwargs)
     assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
                                                 'enable_response_cache': False,
                                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
@@ -10001,7 +9989,6 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
         ]
-    print(mock_completion.call_args.kwargs['messages'])
     assert mock_completion.call_args.kwargs['messages'] == [
         {'role': 'system',
          'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -10522,7 +10509,6 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What is kanban'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
-    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[
                3] == 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n'
 
@@ -10692,7 +10678,6 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'api_type', 'value': 'filter'},
                                        {'event': 'slot', 'timestamp': None, 'name': 'query',
                                         'value': '{"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}'},
