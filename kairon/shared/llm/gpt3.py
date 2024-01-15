@@ -33,8 +33,7 @@ class GPT3FAQEmbedding(LLMBase):
         self.vector_config = {'size': 1536, 'distance': 'Cosine'}
         self.llm_settings = llm_settings
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
-        self.client = LLMClientFactory.get_resource_provider(llm_settings["provider"])(self.api_key,
-                                                                                       **self.llm_settings)
+        self.client = LLMClientFactory.get_resource_provider(llm_settings["provider"])(self.api_key, **self.llm_settings)
         self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
         self.__logs = []

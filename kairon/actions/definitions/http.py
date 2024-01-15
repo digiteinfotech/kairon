@@ -64,6 +64,7 @@ class ActionHTTP(ActionsBase):
         dispatch_bot_response = True
         dispatch_type = DispatchType.text.value
         msg_logger = []
+        time_elapsed = None
         try:
             http_action_config = self.retrieve_config()
             dispatch_bot_response = http_action_config['response']['dispatch']
@@ -82,9 +83,10 @@ class ActionHTTP(ActionsBase):
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
-            http_response = await ActionUtility.execute_request_async(headers=headers, http_url=http_url,
-                                                                      request_method=request_method, request_body=body,
-                                                                      content_type=http_action_config['content_type'])
+            http_response, time_elapsed = await ActionUtility.execute_request_async(headers=headers, http_url=http_url,
+                                                                                    request_method=request_method,
+                                                                                    request_body=body,
+                                                                                    content_type=http_action_config['content_type'])
             logger.info("http response: " + str(http_response))
             response_context = self.__add_user_context_to_http_response(http_response, tracker_data)
             bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'],
@@ -122,7 +124,8 @@ class ActionHTTP(ActionsBase):
                 exception=exception,
                 bot=self.bot,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                time_elapsed=time_elapsed
             ).save()
         filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return filled_slots

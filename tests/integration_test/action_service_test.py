@@ -1060,7 +1060,7 @@ def test_http_action_execution(aioresponses):
                                 'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
                                 "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                 'response: red'],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'time_elapsed': 0}
 
 
 def test_http_action_execution_returns_custom_json(aioresponses):
@@ -1532,7 +1532,7 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
                                 'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
                                 "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                 'response: red'],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'time_elapsed': 0}
 
 
 @responses.activate
@@ -1844,7 +1844,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                                 "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                 'raise_err_on_failure: True',
                                 "Evaluator response: {'success': True, 'data': 'red'}"],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'time_elapsed': 0}
 
 
 @responses.activate
@@ -2562,7 +2562,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
                                 "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                 'raise_err_on_failure: True',
                                 "Evaluator response: {'success': True, 'data': 'red'}"],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'time_elapsed': 0}
 
 
 @responses.activate
@@ -2966,7 +2966,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
                    'headers': {}, 'url': 'http://localhost:8082/mock', 'request_method': 'GET', 'request_params': {},
                    'bot_response': 'I have failed to process your request',
                    'exception': 'Request timed out: 408', 'messages': [],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents'}
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents', 'time_elapsed': None}
 
 
 def test_http_action_missing_action_name():
