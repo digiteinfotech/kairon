@@ -1,5 +1,6 @@
 import asyncio
 from abc import ABC
+from datetime import datetime
 from typing import Union
 
 from aiohttp import ClientSession, ClientTimeout, ClientResponse, ClientConnectionError
@@ -28,6 +29,7 @@ class AioRestClient(RestClientBase):
         self.session = ClientSession()
         self.close_session_with_rqst_completion = close_session_with_rqst_completion
         self._streaming_response = None
+        self._time_elapsed = None
 
     @property
     def streaming_response(self):
@@ -36,6 +38,14 @@ class AioRestClient(RestClientBase):
     @streaming_response.setter
     def streaming_response(self, resp):
         self._streaming_response = resp
+
+    @property
+    def time_elapsed(self):
+        return self._time_elapsed
+
+    @time_elapsed.setter
+    def time_elapsed(self, time_elapsed):
+        self._time_elapsed = time_elapsed
 
     async def request(self, request_method: str, http_url: str, request_body: Union[dict, list] = None,
                       headers: dict = None,
@@ -96,7 +106,9 @@ class AioRestClient(RestClientBase):
         Response object is returned as it is and Streaming response is set into class property.
         """
         is_streaming_resp = kwargs.pop("is_streaming_resp", False)
+        rqst_start_time = datetime.utcnow()
         async with client.request(*args, **kwargs) as response:
+            self.time_elapsed = (datetime.utcnow() - rqst_start_time).seconds * 1000
             logger.debug(f"Content-type: {response.headers['content-type']}")
             logger.debug(f"Status code: {str(response.status)}")
             if is_streaming_resp:

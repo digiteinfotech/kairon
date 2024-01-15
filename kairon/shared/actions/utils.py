@@ -63,7 +63,7 @@ class ActionUtility:
             logging.error(str(e))
             http_response = await response.text()
 
-        return http_response
+        return http_response, client.time_elapsed
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
