@@ -91,7 +91,7 @@ class ActionHTTP(ActionsBase):
             req_done_time = time.time()
             response_time = (req_done_time - req_start_time) * 1000
             logger.info("http response: " + str(http_response))
-            logger.info("time taken: ", f"{response_time:.4}s")
+            logger.info("time taken: ", f"{response_time:.3}ms")
             response_context = self.__add_user_context_to_http_response(http_response, tracker_data)
             bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'],
                                                                         response_context)
