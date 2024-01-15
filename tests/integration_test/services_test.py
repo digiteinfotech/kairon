@@ -5499,8 +5499,8 @@ def test_add_story_invalid_event_type():
                     "TWO_STAGE_FALLBACK_ACTION",
                     "PYSCRIPT_ACTION",
                     "PROMPT_ACTION",
+                    "DATABASE_ACTION",
                     "WEB_SEARCH_ACTION", 
-                    "DATABASE_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],

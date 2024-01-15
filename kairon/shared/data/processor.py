@@ -1171,14 +1171,20 @@ class MongoProcessor:
                 Slots.objects.insert(new_slots)
 
     def add_system_required_slots(self, bot: Text, user: Text):
-        for slot in [
-            s for s in KaironSystemSlots if s.value == KaironSystemSlots.bot.value
-        ]:
+        non_conversational_slots = {
+                KaironSystemSlots.kairon_action_response.value, KaironSystemSlots.bot.value,
+                KaironSystemSlots.order.value, KaironSystemSlots.flow_reply.value
+            }
+        for slot in [s for s in KaironSystemSlots if s.value in non_conversational_slots]:
+            initial_value = None
+            if slot.value == KaironSystemSlots.bot.value:
+                initial_value = bot
+
             self.add_slot(
                 {
                     "name": slot,
                     "type": "any",
-                    "initial_value": bot,
+                    "initial_value": initial_value,
                     "influence_conversation": False,
                 },
                 bot,
@@ -1186,37 +1192,7 @@ class MongoProcessor:
                 raise_exception_if_exists=False,
             )
 
-        for slot in [
-            s
-            for s in KaironSystemSlots
-            if s.value
-            in {
-                KaironSystemSlots.kairon_action_response.value,
-                KaironSystemSlots.order.value,
-            }
-        ]:
-            self.add_slot(
-                {
-                    "name": slot,
-                    "type": "any",
-                    "initial_value": None,
-                    "influence_conversation": False,
-                },
-                bot,
-                user,
-                raise_exception_if_exists=False,
-            )
-
-        for slot in [
-            s
-            for s in KaironSystemSlots
-            if s.value
-            not in {
-                KaironSystemSlots.bot.value,
-                KaironSystemSlots.kairon_action_response.value,
-                KaironSystemSlots.order.value,
-            }
-        ]:
+        for slot in [s for s in KaironSystemSlots if s.value not in non_conversational_slots]:
             self.add_slot(
                 {
                     "name": slot,
