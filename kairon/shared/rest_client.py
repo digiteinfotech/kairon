@@ -45,7 +45,7 @@ class AioRestClient(RestClientBase):
 
     @time_elapsed.setter
     def time_elapsed(self, time_elapsed):
-        self._time_elapsed = time_elapsed
+        self._time_elapsed = time_elapsed.microseconds / 1000
 
     async def request(self, request_method: str, http_url: str, request_body: Union[dict, list] = None,
                       headers: dict = None,
@@ -108,7 +108,7 @@ class AioRestClient(RestClientBase):
         is_streaming_resp = kwargs.pop("is_streaming_resp", False)
         rqst_start_time = datetime.utcnow()
         async with client.request(*args, **kwargs) as response:
-            self.time_elapsed = (datetime.utcnow() - rqst_start_time).seconds * 1000
+            self.time_elapsed = datetime.utcnow() - rqst_start_time
             logger.debug(f"Content-type: {response.headers['content-type']}")
             logger.debug(f"Status code: {str(response.status)}")
             if is_streaming_resp:
