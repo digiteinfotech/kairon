@@ -627,7 +627,11 @@ class KaironTwoStageFallbackAction(Auditlog):
 
 class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
+    top_results = IntField(default=10)
+    similarity_threshold = FloatField(default=0.70)
+    hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     data = StringField()
+    collection = StringField(default=None)
     instructions = StringField()
     type = StringField(required=True, choices=[LlmPromptType.user.value, LlmPromptType.system.value, LlmPromptType.query.value])
     source = StringField(choices=[LlmPromptSource.static.value, LlmPromptSource.history.value, LlmPromptSource.bot_content.value,
@@ -635,9 +639,20 @@ class LlmPrompt(EmbeddedDocument):
                          default=LlmPromptSource.static.value)
     is_enabled = BooleanField(default=True)
 
+    def clean(self):
+        for key, value in Utility.get_llm_hyperparameters().items():
+            if key not in self.hyperparameters:
+                self.hyperparameters.update({key: value})
+
     def validate(self, clean=True):
+        if not 0.3 <= self.similarity_threshold <= 1:
+            raise ValidationError("similarity_threshold should be within 0.3 and 1")
+        if self.top_results > 30:
+            raise ValidationError("top_results should not be greater than 30")
         if self.type == LlmPromptType.system.value and self.source != LlmPromptSource.static.value:
             raise ValidationError("System prompt must have static source!")
+        dict_data = self.to_mongo().to_dict()
+        Utility.validate_llm_hyperparameters(dict_data['hyperparameters'], ValidationError)
 
 
 class UserQuestion(EmbeddedDocument):
@@ -651,43 +666,30 @@ class UserQuestion(EmbeddedDocument):
 class PromptAction(Auditlog):
     name = StringField(required=True)
     num_bot_responses = IntField(default=5)
-    top_results = IntField(default=10)
-    similarity_threshold = FloatField(default=0.70)
-    enable_response_cache = BooleanField(default=False)
     failure_message = StringField(default=DEFAULT_NLU_FALLBACK_RESPONSE)
     user_question = EmbeddedDocumentField(UserQuestion, default=UserQuestion())
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
-    hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
     instructions = ListField(StringField())
-    collection = StringField(default=None)
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
 
-    def clean(self):
-        for key, value in Utility.get_llm_hyperparameters().items():
-            if key not in self.hyperparameters:
-                self.hyperparameters.update({key: value})
-
     def validate(self, clean=True):
         if clean:
             self.clean()
         if self.num_bot_responses > 5:
             raise ValidationError("num_bot_responses should not be greater than 5")
-        if not 0.3 <= self.similarity_threshold <= 1:
-            raise ValidationError("similarity_threshold should be within 0.3 and 1")
-        if self.top_results > 30:
-            raise ValidationError("top_results should not be greater than 30")
         if not self.llm_prompts:
             raise ValidationError("llm_prompts are required!")
+        for prompts in self.llm_prompts:
+            prompts.validate()
         dict_data = self.to_mongo().to_dict()
         Utility.validate_kairon_faq_llm_prompts(dict_data['llm_prompts'], ValidationError)
-        Utility.validate_llm_hyperparameters(dict_data['hyperparameters'], ValidationError)
 
 
 @auditlogger.log

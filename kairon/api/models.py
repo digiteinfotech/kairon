@@ -874,32 +874,15 @@ class TwoStageFallbackConfigRequest(BaseModel):
 
 class LlmPromptRequest(BaseModel):
     name: str
+    top_results: int = 10
+    similarity_threshold: float = 0.70
+    hyperparameters: dict = None
     data: str = None
+    collection: str = None
     instructions: str = None
     type: LlmPromptType
     source: LlmPromptSource
     is_enabled: bool = True
-
-
-class UserQuestionModel(BaseModel):
-    type: UserMessageType = UserMessageType.from_user_message.value
-    value: str = None
-
-
-class PromptActionConfigRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
-    num_bot_responses: int = 5
-    failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
-    user_question: UserQuestionModel = UserQuestionModel()
-    top_results: int = 10
-    similarity_threshold: float = 0.70
-    enable_response_cache: bool = False
-    hyperparameters: dict = None
-    llm_prompts: List[LlmPromptRequest]
-    instructions: List[str] = []
-    collection: str = None
-    set_slots: List[SetSlotsUsingActionResponse] = []
-    dispatch_response: bool = True
 
     @validator("similarity_threshold")
     def validate_similarity_threshold(cls, v, values, **kwargs):
@@ -907,23 +890,10 @@ class PromptActionConfigRequest(BaseModel):
             raise ValueError("similarity_threshold should be within 0.3 and 1")
         return v
 
-    @validator("llm_prompts")
-    def validate_llm_prompts(cls, v, values, **kwargs):
-        from kairon.shared.utils import Utility
-
-        Utility.validate_kairon_faq_llm_prompts([vars(value) for value in v], ValueError)
-        return v
-
     @validator("top_results")
     def validate_top_results(cls, v, values, **kwargs):
         if v > 30:
             raise ValueError("top_results should not be greater than 30")
-        return v
-
-    @validator("num_bot_responses")
-    def validate_num_bot_responses(cls, v, values, **kwargs):
-        if v > 5:
-            raise ValueError("num_bot_responses should not be greater than 5")
         return v
 
     @root_validator
@@ -937,6 +907,35 @@ class PromptActionConfigRequest(BaseModel):
             if key not in values['hyperparameters']:
                 values['hyperparameters'][key] = value
         return values
+
+
+class UserQuestionModel(BaseModel):
+    type: UserMessageType = UserMessageType.from_user_message.value
+    value: str = None
+
+
+class PromptActionConfigRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    num_bot_responses: int = 5
+    failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
+    user_question: UserQuestionModel = UserQuestionModel()
+    llm_prompts: List[LlmPromptRequest]
+    instructions: List[str] = []
+    set_slots: List[SetSlotsUsingActionResponse] = []
+    dispatch_response: bool = True
+
+    @validator("llm_prompts")
+    def validate_llm_prompts(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        Utility.validate_kairon_faq_llm_prompts([vars(value) for value in v], ValueError)
+        return v
+
+    @validator("num_bot_responses")
+    def validate_num_bot_responses(cls, v, values, **kwargs):
+        if v > 5:
+            raise ValueError("num_bot_responses should not be greater than 5")
+        return v
 
 
 class ColumnMetadata(BaseModel):

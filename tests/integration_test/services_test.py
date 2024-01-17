@@ -1375,14 +1375,16 @@ def test_metadata_upload_api(monkeypatch):
     assert not actual_three["data"]
     assert actual_three["error_code"] == 422
 
-    response = client.delete(
+    response_five = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id_one}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
-    response = client.delete(
+    actual_five = response_five.json()
+    response_six = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id_two}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
+    actual_six = response_six.json()
 
     response_four = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -1569,7 +1571,7 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
                                'source': 'static', 'is_enabled': True},
                               {'name': 'Similarity Prompt',
                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True, 'collection': 'python'},
                               {'name': 'Query Prompt',
                                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                'instructions': 'Answer according to the context', 'type': 'query',
@@ -1579,9 +1581,8 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
                                'instructions': 'Answer according to the context', 'type': 'query',
                                'source': 'static', 'is_enabled': True}],
               'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-              'collection': 'python',
               'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2262,7 +2263,8 @@ def test_add_prompt_action_with_invalid_similarity_threshold():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "top_results": 10, "similarity_threshold": 1.70,
+                                    "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -2271,7 +2273,7 @@ def test_add_prompt_action_with_invalid_similarity_threshold():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2279,8 +2281,7 @@ def test_add_prompt_action_with_invalid_similarity_threshold():
     )
     actual = response.json()
     assert actual["message"] == [
-        {'loc': ['body', 'similarity_threshold'], 'msg': 'similarity_threshold should be within 0.3 and 1',
-         'type': 'value_error'}]
+        {'loc': ['body', 'llm_prompts', 1, 'similarity_threshold'], 'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -2292,7 +2293,8 @@ def test_add_prompt_action_with_invalid_top_results():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "top_results": 40, "similarity_threshold": 0.70,
+                                    "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -2301,7 +2303,7 @@ def test_add_prompt_action_with_invalid_top_results():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2309,8 +2311,7 @@ def test_add_prompt_action_with_invalid_top_results():
     )
     actual = response.json()
     print(actual["message"])
-    assert actual["message"] == [{'loc': ['body', 'top_results'],
-                                  'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'top_results'], 'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -2322,12 +2323,12 @@ def test_add_prompt_action_with_invalid_query_prompt():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'history', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2347,7 +2348,7 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -2356,7 +2357,7 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
               "num_bot_responses": 10}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -2379,7 +2380,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -2388,7 +2389,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2413,7 +2414,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -2422,7 +2423,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2443,7 +2444,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -2452,7 +2453,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2467,13 +2468,43 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
     assert actual["error_code"] == 422
 
 
+def test_add_prompt_action_with_collection_for_bot_content():
+    action = {'name': 'test_add_prompt_action_with_empty_llm_prompt_name',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'Collection is required for bot content prompts!', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_add_prompt_action_with_empty_data_for_static_prompt():
     action = {'name': 'test_add_prompt_action_with_empty_data_for_static_prompt',
         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': '', 'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True},
@@ -2481,7 +2512,7 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2504,12 +2535,12 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
                                    {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2531,16 +2562,16 @@ def test_add_prompt_action_with_multiple_bot_content_source_prompts():
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Another Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Data"}
                                    ], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2561,7 +2592,7 @@ def test_add_prompt_action_with_gpt_feature_disabled():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Science"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -2570,7 +2601,7 @@ def test_add_prompt_action_with_gpt_feature_disabled():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2593,18 +2624,17 @@ def test_add_prompt_action(monkeypatch):
                                'source': 'static', 'is_enabled': True},
                               {'name': 'Similarity Prompt',
                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
                               {'name': 'Query Prompt',
                                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                'instructions': 'Answer according to the context', 'type': 'query',
-                               'source': 'static', 'is_enabled': True},
+                               'source': 'static', 'is_enabled': True, "top_results": 10, "similarity_threshold": 0.70},
                               {'name': 'Query Prompt',
                                'data': 'If there is no specific query, assume that user is aking about java programming.',
                                'instructions': 'Answer according to the context', 'type': 'query',
                                'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-              'collection': 'Bot_collection',
               'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2624,21 +2654,22 @@ def test_add_prompt_action_already_exist(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    action = {'name': 'test_add_prompt_action',
-        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    action = {'name': 'test_add_prompt_action', 'user_question': {'type': 'from_user_message'},
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
+                              {'name': 'Query Prompt',
+                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True, "top_results": 10, "similarity_threshold": 0.70},
+                              {'name': 'Query Prompt',
+                               'data': 'If there is no specific query, assume that user is aking about java programming.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2658,7 +2689,7 @@ def test_update_prompt_action_does_not_exist():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -2667,7 +2698,7 @@ def test_update_prompt_action_does_not_exist():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/61512cc2c6219f0aae7bba3d",
         json=action,
@@ -2687,7 +2718,8 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection",
+                                    "top_results": 9, "similarity_threshold": 1.50},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -2696,7 +2728,7 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 1.50}
+              "failure_message": "updated_failure_message"}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
@@ -2704,8 +2736,7 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
     )
     actual = response.json()
     print(actual["message"])
-    assert actual["message"] == [{'loc': ['body', 'similarity_threshold'],
-                                  'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
+    assert actual["message"] == [ {'loc': ['body', 'llm_prompts', 1, 'similarity_threshold'], 'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -2717,12 +2748,13 @@ def test_update_prompt_action_with_invalid_top_results():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"
+                                    , "top_results": 39, "similarity_threshold": 0.50},
                                    {'name': 'Query Prompt',
                                     'data': 'If there is no specific query, assume that user is aking about java programming here.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
-              "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
+              "failure_message": "updated_failure_message"}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
@@ -2730,8 +2762,7 @@ def test_update_prompt_action_with_invalid_top_results():
     )
     actual = response.json()
     print(actual["message"])
-    assert actual["message"] == [{'loc': ['body', 'top_results'],
-                                  'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'top_results'], 'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -2743,12 +2774,12 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 50,
-              "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
+              "failure_message": "updated_failure_message"}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
@@ -2758,8 +2789,7 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
     print(actual["message"])
     assert actual["message"] == [
         {'loc': ['body', 'num_bot_responses'], 'msg': 'num_bot_responses should not be greater than 5',
-         'type': 'value_error'},
-        {'loc': ['body', 'top_results'], 'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
+         'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -2771,13 +2801,13 @@ def test_update_prompt_action_with_invalid_query_prompt():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'history', 'is_enabled': True},
                                    ],
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
               'num_bot_responses': 5,
               "use_query_prompt": True, "query_prompt": ""}
     response = client.put(
@@ -2797,13 +2827,13 @@ def test_update_prompt_action_with_query_prompt_with_false():
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'bot_content', 'is_enabled': False},
+                                    'source': 'bot_content', 'is_enabled': False, "collection": "Bot_collection"},
                                    ],
-              "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50,
+              "failure_message": "updated_failure_message",
               'num_bot_responses': 5,
               "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                             {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
@@ -2825,7 +2855,7 @@ def test_update_prompt_action():
                                'source': 'static', 'is_enabled': True},
                               {'name': 'Similarity_analytical Prompt',
                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
                               {'name': 'Query Prompt',
                                'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                'instructions': 'Answer according to the context', 'type': 'query',
@@ -2835,7 +2865,7 @@ def test_update_prompt_action():
                                'instructions': 'Answer according to the context', 'type': 'query',
                                'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
               'num_bot_responses': 5,
-              "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50}
+              "failure_message": "updated_failure_message"}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
@@ -2861,25 +2891,35 @@ def test_get_prompt_action():
     actual['data'][0].pop("_id")
     print(actual["data"])
     assert actual["data"] == [
-        {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'top_results': 9, 'similarity_threshold': 0.5,
-         'enable_response_cache': False, 'failure_message': 'updated_failure_message',
-         'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                             'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                             'logit_bias': {}},
-         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                          'source': 'static', 'is_enabled': True},
-                         {'name': 'Similarity_analytical Prompt',
-                          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                          'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                         {'name': 'Query Prompt',
-                          'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
-                         {'name': 'Query Prompt',
-                          'data': 'If there is no specific query, assume that user is aking about java programming language,',
-                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-         'set_slots': [], 'dispatch_response': True, 'status': True}]
+        {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'failure_message': 'updated_failure_message',
+         'user_question': {'type': 'from_slot', 'value': 'prompt_question'}, 'llm_prompts': [
+            {'name': 'System Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'logit_bias': {}}, 'data': 'You are a personal assistant.', 'type': 'system',
+             'source': 'static', 'is_enabled': True},
+            {'name': 'Similarity_analytical Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'logit_bias': {}}, 'collection': 'Bot_collection',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Query Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'logit_bias': {}},
+             'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+             'is_enabled': True}, {'name': 'Query Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
+                                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                       'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                       'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                       'logit_bias': {}},
+                                   'data': 'If there is no specific query, assume that user is aking about java programming language,',
+                                   'instructions': 'Answer according to the context', 'type': 'query',
+                                   'source': 'static', 'is_enabled': True}],
+         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [], 'dispatch_response': True,
+         'status': True}]
 
 
 def test_delete_prompt_action_not_exists():
