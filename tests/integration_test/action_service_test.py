@@ -5508,6 +5508,265 @@ def test_email_action_execution_with_single_receiver_email_from_slot(mock_smtp, 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")
 @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
 @patch("kairon.shared.utils.SMTP", autospec=True)
+def test_email_action_execution_with_invalid_from_email(mock_smtp, mock_action_config, mock_action):
+    Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
+                                                                    'rb').read().decode()
+    Utility.email_conf['email']['templates']['bot_msg_conversation'] = open(
+        'template/emails/bot_msg_conversation.html', 'rb').read().decode()
+    Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
+        'template/emails/user_msg_conversation.html', 'rb').read().decode()
+    Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
+                                                                       'rb').read().decode()
+
+    action_name = "test_email_action_execution_with_invalid_from_email"
+    action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
+    action_config = EmailActionConfig(
+        action_name=action_name,
+        smtp_url="test.localhost",
+        smtp_port=293,
+        smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
+        from_email=CustomActionRequestParameters(value=["test@demo.com"], parameter_type="value"),
+        to_email=CustomActionParameters(value="to_email", parameter_type="slot"),
+        subject="test",
+        response="Email Triggered",
+        bot="bot",
+        user="user"
+    )
+
+    def _get_action(*arge, **kwargs):
+        return action.to_mongo().to_dict()
+
+    def _get_action_config(*arge, **kwargs):
+        return action_config.to_mongo().to_dict()
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "mahesh.sattala",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "requested_slot": "to_email",
+                      "to_email": "example@gmail.com"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": None,
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    mock_action.side_effect = _get_action
+    mock_action_config.side_effect = _get_action_config
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': "I have failed to process your request"}]
+    assert response_json['responses'][0]['text'] == "I have failed to process your request"
+    logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
+    assert logs.status == "FAILURE"
+    assert logs.exception == "Invalid 'from_email' type. It must be of type str."
+
+
+@patch("kairon.shared.actions.utils.ActionUtility.get_action")
+@patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_email_action_execution_with_invalid_to_email(mock_smtp, mock_action_config, mock_action):
+    Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
+                                                                    'rb').read().decode()
+    Utility.email_conf['email']['templates']['bot_msg_conversation'] = open(
+        'template/emails/bot_msg_conversation.html', 'rb').read().decode()
+    Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
+        'template/emails/user_msg_conversation.html', 'rb').read().decode()
+    Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
+                                                                       'rb').read().decode()
+
+    action_name = "test_email_action_execution_with_invalid_to_email"
+    action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
+    action_config = EmailActionConfig(
+        action_name=action_name,
+        smtp_url="test.localhost",
+        smtp_port=293,
+        smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
+        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
+        to_email=CustomActionParameters(value={"to_email": "test@test.com"}, parameter_type="value"),
+        subject="test",
+        response="Email Triggered",
+        bot="bot",
+        user="user"
+    )
+
+    def _get_action(*arge, **kwargs):
+        return action.to_mongo().to_dict()
+
+    def _get_action_config(*arge, **kwargs):
+        return action_config.to_mongo().to_dict()
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "mahesh.sattala",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "requested_slot": "to_email",
+                      "to_email": "example@gmail.com"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": None,
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    mock_action.side_effect = _get_action
+    mock_action_config.side_effect = _get_action_config
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': "I have failed to process your request"}]
+    assert response_json['responses'][0]['text'] == "I have failed to process your request"
+    logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
+    print(logs.to_mongo().to_dict())
+    assert logs.status == "FAILURE"
+    assert logs.exception == "Invalid 'to_email' type. It must be of type str or list."
+
+
+@patch("kairon.shared.actions.utils.ActionUtility.get_action")
+@patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
+@patch("kairon.shared.utils.SMTP", autospec=True)
 def test_email_action_execution_varied_utterances(mock_smtp, mock_action_config, mock_action):
     Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
                                                                     'rb').read().decode()

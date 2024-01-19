@@ -54,11 +54,11 @@ class ActionEmail(ActionsBase):
         exception = None
         action_config = self.retrieve_config()
         bot_response = action_config.get("response")
-        from_email, to_email = self.__get_from_email_and_to_email(action_config, tracker)
         smtp_password = action_config.get('smtp_password')
         smtp_userid = action_config.get('smtp_userid')
         custom_text = action_config.get('custom_text')
         try:
+            from_email, to_email = self.__get_from_email_and_to_email(action_config, tracker)
             tracker_data = ActionUtility.build_context(tracker)
             password = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, smtp_password, self.bot)
             userid = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, smtp_userid, self.bot)
@@ -109,5 +109,12 @@ class ActionEmail(ActionsBase):
             else action_config['from_email']['value']
         to_email = tracker.get_slot(action_config['to_email']['value']) if to_email_type == "slot" \
             else action_config['to_email']['value']
+
+        if not isinstance(to_email, (str, list)):
+            raise ValueError("Invalid 'to_email' type. It must be of type str or list.")
+
+        if not isinstance(from_email, str):
+            raise ValueError("Invalid 'from_email' type. It must be of type str.")
+
         to_email = [to_email] if isinstance(to_email, str) else to_email
         return from_email, to_email
