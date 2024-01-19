@@ -15,7 +15,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType, UserMessageType
+    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType, UserMessageType, FlowModes
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -382,6 +382,40 @@ class EmailActionConfig(Auditlog):
             self.smtp_password.key = "smtp_password"
         if self.custom_text:
             self.custom_text.key = "custom_text"
+
+
+@auditlogger.log
+@push_notification.apply
+class FlowActionConfig(Auditlog):
+    name = StringField(required=True)
+    flow_id = EmbeddedDocumentField(CustomActionRequestParameters)
+    header = StringField(default=None)
+    body = StringField(required=True)
+    footer = StringField(default=None)
+    mode = StringField(default=FlowModes.published.value,
+                       choices=[p_type.value for p_type in FlowModes])
+    recipient_phone = EmbeddedDocumentField(CustomActionRequestParameters)
+    initial_screen = StringField(required=True)
+    flow_cta = StringField(required=True)
+    dispatch_response = BooleanField(default=True)
+    response = StringField(default=None)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if Utility.check_empty_string(self.body):
+            raise ValidationError("body cannot be empty")
+        if Utility.check_empty_string(self.initial_screen):
+            raise ValidationError("initial_screen cannot be empty")
+        if Utility.check_empty_string(self.flow_cta):
+            raise ValidationError("flow_cta cannot be empty")
 
 
 @auditlogger.log

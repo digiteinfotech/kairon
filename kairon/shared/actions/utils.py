@@ -905,6 +905,53 @@ class ActionUtility:
         return requests.auth._basic_auth_str(username, password)
 
     @staticmethod
+    def prepare_flow_body(flow_action_config: dict, tracker: Tracker):
+        http_url = Utility.environment["flow"]["url"]
+        header_key = Utility.environment["flow"]["headers"]["key"]
+        header_value = Utility.environment["flow"]["headers"]["value"]
+        headers = {header_key: header_value}
+        flow_body = {
+            "recipient_type": "individual",
+            "messaging_product": "whatsapp",
+            "type": "interactive",
+            "interactive": {
+                "type": "flow",
+                "action": {
+                    "name": "flow",
+                    "parameters": {
+                        "mode": "published",
+                        "flow_message_version": "3",
+                        "flow_token": "AQAAAAACS5FpgQ_cAAAAAD0QI3s.",
+                        "flow_action": "navigate",
+                    }
+                }
+            }
+        }
+        parameter_type = flow_action_config['recipient_phone']['parameter_type']
+        recipient_phone = tracker.get_slot(flow_action_config['recipient_phone']['value']) \
+            if parameter_type == 'slot' else flow_action_config['recipient_phone']['value']
+        parameter_type = flow_action_config['flow_id']['parameter_type']
+        flow_id = tracker.get_slot(flow_action_config['flow_id']['value']) if parameter_type == 'slot' \
+            else flow_action_config['flow_id']['value']
+        header = flow_action_config.get('header')
+        body = flow_action_config['body']
+        footer = flow_action_config.get('footer')
+        mode = flow_action_config['mode']
+        initial_screen = flow_action_config['initial_screen']
+        flow_cta = flow_action_config['flow_cta']
+        flow_body["to"] = recipient_phone
+        if header:
+            flow_body["interactive"]["header"] = {"type": "text", "text": header}
+        flow_body["interactive"]["body"] = {"text": body}
+        if footer:
+            flow_body["interactive"]["footer"] = {"text": footer}
+        flow_body["interactive"]["action"]["parameters"]["mode"] = mode
+        flow_body["interactive"]["action"]["parameters"]["flow_cta"] = flow_cta
+        flow_body["interactive"]["action"]["parameters"]["flow_id"] = flow_id
+        flow_body["interactive"]["action"]["parameters"]["flow_action_payload"] = {"screen": initial_screen}
+        return flow_body, http_url, headers
+
+    @staticmethod
     def evaluate_script(script: Text, data: Any, raise_err_on_failure: bool = True):
         log = [f"evaluation_type: script", f"script: {script}", f"data: {data}", f"raise_err_on_failure: {raise_err_on_failure}"]
         endpoint = Utility.environment['evaluator']['url']

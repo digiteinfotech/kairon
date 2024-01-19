@@ -19,6 +19,11 @@ class ActionParameterType(str, Enum):
     key_vault = "key_vault"
 
 
+class FlowModes(str, Enum):
+    draft = "draft"
+    published = "published"
+
+
 class EvaluationType(str, Enum):
     expression = "expression"
     script = "script"
@@ -46,6 +51,7 @@ class ActionType(str, Enum):
     pyscript_action = "pyscript_action"
     database_action = "database_action"
     web_search_action = "web_search_action"
+    flow_action = "flow_action"
 
 
 class HttpRequestContentType(str, Enum):
