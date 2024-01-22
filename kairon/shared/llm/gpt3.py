@@ -202,18 +202,19 @@ class GPT3FAQEmbedding(LLMBase):
 
     async def __attach_similarity_prompt_if_enabled(self, query_embedding, context_prompt, **kwargs):
         similarity_prompt = kwargs.pop('similarity_prompt')
-        use_similarity_prompt = similarity_prompt.get('use_similarity_prompt')
-        similarity_prompt_name = similarity_prompt.get('similarity_prompt_name')
-        similarity_prompt_instructions = similarity_prompt.get('similarity_prompt_instructions')
-        limit = similarity_prompt.get('top_results', 10)
-        score_threshold = similarity_prompt.get('similarity_threshold', 0.70)
-        if use_similarity_prompt:
-            collection_name = f"{self.bot}_{similarity_prompt.get('collection')}{self.suffix}" if similarity_prompt.get('collection') else f"{self.bot}{self.suffix}"
-            search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit, score_threshold=score_threshold)
+        for similarity_context_prompt in similarity_prompt:
+            use_similarity_prompt = similarity_context_prompt.get('use_similarity_prompt')
+            similarity_prompt_name = similarity_context_prompt.get('similarity_prompt_name')
+            similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
+            limit = similarity_context_prompt.get('top_results', 10)
+            score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
+            if use_similarity_prompt:
+                collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}" if similarity_context_prompt.get('collection') else f"{self.bot}{self.suffix}"
+                search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit, score_threshold=score_threshold)
 
-            similarity_context = "\n".join([item['payload']['content'] for item in search_result['result']])
-            similarity_context = f"{similarity_prompt_name}:\n{similarity_context}\n"
-            if similarity_prompt_instructions:
-                similarity_context += f"Instructions on how to use {similarity_prompt_name}: {similarity_prompt_instructions}\n"
-            context_prompt = f"{context_prompt}\n{similarity_context}"
+                similarity_context = "\n".join([item['payload']['content'] for item in search_result['result']])
+                similarity_context = f"{similarity_prompt_name}:\n{similarity_context}\n"
+                if similarity_prompt_instructions:
+                    similarity_context += f"Instructions on how to use {similarity_prompt_name}: {similarity_prompt_instructions}\n"
+                context_prompt = f"{context_prompt}\n{similarity_context}"
         return context_prompt

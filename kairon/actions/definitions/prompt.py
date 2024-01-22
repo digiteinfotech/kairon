@@ -123,7 +123,8 @@ class ActionPrompt(ActionsBase):
         query_prompt_dict = {}
         history_prompt = None
         is_query_prompt_enabled = False
-        similarity_prompt = {}
+        use_similarity_prompt = False
+        similarity_prompt = []
         params = {}
         num_bot_responses = k_faq_action_config['num_bot_responses']
         for prompt in k_faq_action_config['llm_prompts']:
@@ -133,11 +134,13 @@ class ActionPrompt(ActionsBase):
                 if prompt['source'] == LlmPromptSource.history.value:
                     history_prompt = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
                 elif prompt['source'] == LlmPromptSource.bot_content.value:
-                    similarity_prompt.update({'similarity_prompt_name': prompt['name'],
+                    use_similarity_prompt = True
+                    hyperparameters = prompt.get('hyperparameters', {})
+                    similarity_prompt.append({'similarity_prompt_name': prompt['name'],
                                               'similarity_prompt_instructions': prompt['instructions'],
-                                              'collection': prompt['collection'],
-                                              'use_similarity_prompt': True, 'top_results': prompt.get('top_results'),
-                                              'similarity_threshold': prompt.get('similarity_threshold')})
+                                              'collection': prompt['data'],
+                                              'use_similarity_prompt': use_similarity_prompt, 'top_results': hyperparameters.get('top_results', 10),
+                                              'similarity_threshold': hyperparameters.get('similarity_threshold', 0.70)})
                 elif prompt['source'] == LlmPromptSource.slot.value:
                     slot_data = tracker.get_slot(prompt['data'])
                     context_prompt += f"{prompt['name']}:\n{slot_data}\n"

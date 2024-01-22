@@ -520,10 +520,10 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "similarity_prompt": {"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
                                   'similarity_prompt_name': 'Similarity Prompt',
                                   'similarity_prompt_instructions': 'Answer according to this context.',
-                                  'collection': 'python'}}
+                                  'collection': 'python'}]}
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_completion_request = {"messages": [
             {'role': 'system',
@@ -585,10 +585,10 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "similarity_prompt": {"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
                                   'similarity_prompt_name': 'Similarity Prompt',
                                   'similarity_prompt_instructions': 'Answer according to this context.',
-                                  'collection': 'python'}}
+                                  'collection': 'python'}]}
 
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_completion_request = {"messages": [
@@ -626,19 +626,18 @@ class TestLLM:
 
             response = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [
-                {'messages': [{'role': 'system',
-                               'content': 'You are a personal assistant. Answer the question according to the below context'},
-                              {'role': 'user',
-                               'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}],
-                 'raw_completion_response': {'choices': [{
-                     'message': {
-                         'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                         'role': 'assistant'}}]},
-                 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
+            print(gpt3.logs)
+            assert gpt3.logs == [{'messages': [{'role': 'system',
+                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                               {'role': 'user',
+                                                'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}],
+                                  'raw_completion_response': {'choices': [{'message': {
+                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                                      'role': 'assistant'}}]}, 'type': 'answer_query',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                      'logit_bias': {}}}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
@@ -661,10 +660,10 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "similarity_prompt": {"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
                                   'similarity_prompt_name': 'Similarity Prompt',
                                   'similarity_prompt_instructions': 'Answer according to this context.',
-                                  "collection": "java"},
+                                  "collection": "java"}],
             'instructions': ['Answer in a short way.', 'Keep it simple.']}
 
         hyperparameters = Utility.get_llm_hyperparameters()
@@ -703,24 +702,18 @@ class TestLLM:
 
             response = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [
-                {'messages': [{'role': 'system',
-                               'content': 'You are a personal assistant. Answer the question according to the below context'},
-                              {'role': 'user',
-                               'content': 'Based on below context answer question, if answer not in context '
-                                          'check previous logs.\nSimilarity Prompt:\nJava is a high-level, general-purpose '
-                                          'programming language. Java is known for its write once, run anywhere capability. '
-                                          '\nInstructions on how to use Similarity Prompt: Answer according to this context.'
-                                          '\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:'}],
-                 'raw_completion_response': {
-                     'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, '
-                                                         'high level, general purpose programming.',
-                                              'role': 'assistant'}}]},
-                 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1,
-                                     'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                     'logit_bias': {}}}]
+            print(gpt3.logs)
+            assert gpt3.logs == [{'messages': [{'role': 'system',
+                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                               {'role': 'user',
+                                                'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nJava is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. \nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:'}],
+                                  'raw_completion_response': {'choices': [{'message': {
+                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                                      'role': 'assistant'}}]}, 'type': 'answer_query',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                      'logit_bias': {}}}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
@@ -745,10 +738,10 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "similarity_prompt": {"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
                                   'similarity_prompt_name': 'Similarity Prompt',
                                   'similarity_prompt_instructions': 'Answer according to this context.',
-                                  "collection": 'python'}}
+                                  "collection": 'python'}]}
 
         def __mock_connection_error(*args, **kwargs):
             import openai
@@ -783,10 +776,10 @@ Python is a high-level, general-purpose programming language. Its design philoso
 Instructions on how to use Similarity Prompt: Answer according to this context.
 """
             assert mock_completion.call_args.kwargs == {
-                'similarity_prompt': {'top_results': 10, 'similarity_threshold': 0.7, 'use_similarity_prompt': True,
+                'similarity_prompt': [{'top_results': 10, 'similarity_threshold': 0.7, 'use_similarity_prompt': True,
                                       'similarity_prompt_name': 'Similarity Prompt',
                                       'similarity_prompt_instructions': 'Answer according to this context.',
-                                      'collection': 'python'}}
+                                      'collection': 'python'}]}
             assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
@@ -805,10 +798,10 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "similarity_prompt": {"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
                                   'similarity_prompt_name': 'Similarity Prompt',
                                   'similarity_prompt_instructions': 'Answer according to this context.',
-                                  "collection": 'python'}}
+                                  "collection": 'python'}]}
 
         mock_embedding.return_value = embedding
         mock_llm_request.side_effect = ClientConnectionError()
@@ -867,9 +860,9 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
                 {'role': 'user', 'content': 'hello'},
                 {'role': 'assistant', 'content': 'how are you'},
             ],
-            "similarity_prompt": {'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+            "similarity_prompt": [{'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
                                   'similarity_prompt_instructions': 'Answer according to this context.',
-                                  "collection": 'python'}}
+                                  "collection": 'python'}]}
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_completion_request = {"messages": [
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
@@ -934,8 +927,8 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         k_faq_action_config = {
             "query_prompt": {"query_prompt": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
             "use_query_prompt": True},
-            "similarity_prompt": {'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.', "collection": 'python'}
+            "similarity_prompt": [{'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+            'similarity_prompt_instructions': 'Answer according to this context.', "collection": 'python'}]
         }
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_rephrase_request = {"messages": [

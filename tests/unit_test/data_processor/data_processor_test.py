@@ -173,13 +173,9 @@ class TestMongoProcessor:
              'is_enabled': True},
             {'name': 'Similarity Prompt',
              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection",
-             'top_results': 10,
-             'similarity_threshold': 1.70,
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
-                                 'top_p': 0.0,
-                                 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                 'frequency_penalty': 0.0, 'logit_bias': {}},
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection",
+             'hyperparameters': {'top_results': 10,
+             'similarity_threshold': 1.70},
              },
             {'name': 'Identification Prompt',
              'data': 'info',
@@ -200,13 +196,9 @@ class TestMongoProcessor:
              'is_enabled': True},
             {'name': 'Similarity Prompt',
              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection",
-             'top_results': 10,
-             'similarity_threshold': 1.70,
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
-                                 'top_p': 0.0,
-                                 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                 'frequency_penalty': 0.0, 'logit_bias': {}},
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection",
+             'hyperparameters': {'top_results': 10,
+             'similarity_threshold': 1.70},
              },
             {'name': 'Http action Prompt',
              'data': 'test_http_action',
@@ -226,14 +218,9 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True,  "collection": "Bot_collection",
-                                    'top_results': 10,
-                                    'similarity_threshold': 1.70,
-                                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                        'model': 'gpt - 3.5 - turbo',
-                                                        'top_p': 0.0,
-                                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                        'frequency_penalty': 0.0, 'logit_bias': {}},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True,  "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 10,
+                                    'similarity_threshold': 1.70},
                                     },
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
@@ -256,14 +243,9 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection",
-                                    'top_results': 40,
-                                    'similarity_threshold': 0.70,
-                                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                        'model': 'gpt - 3.5 - turbo',
-                                                        'top_p': 0.0,
-                                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                        'frequency_penalty': 0.0, 'logit_bias': {}},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 40,
+                                    'similarity_threshold': 0.70},
                                     },
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
@@ -295,7 +277,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="Collection is required for bot content prompts!"):
+        with pytest.raises(ValidationError, match="Data must contain collection name is required for bot content prompts!"):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_query_prompt(self):
@@ -307,7 +289,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -325,7 +307,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -349,7 +331,7 @@ class TestMongoProcessor:
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -375,7 +357,7 @@ class TestMongoProcessor:
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -397,7 +379,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -419,7 +401,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': '', 'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True},
@@ -442,7 +424,7 @@ class TestMongoProcessor:
                                    {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection"},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -455,29 +437,6 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Only one history source can be present!"):
             processor.add_prompt_action(request, bot, user)
 
-    def test_add_prompt_action_with_multiple_bot_content_source_prompts(self):
-        processor = MongoProcessor()
-        bot = 'test_bot'
-        user = 'test_user'
-        request = {'name': 'test_add_prompt_action_with_multiple_bot_content_source_prompts',
-                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
-                                   {'name': 'Query Prompt',
-                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Another Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"}
-                                   ],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
-        with pytest.raises(ValidationError, match="Only one bot_content source can be present!"):
-            processor.add_prompt_action(request, bot, user)
-
     def test_add_prompt_action_with_no_system_prompts(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -487,10 +446,10 @@ class TestMongoProcessor:
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection"},
                                    {'name': 'Another Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "collection": "Bot_collection"}
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, "data": "Bot_collection"}
                                    ],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="System prompt is required!"):
@@ -526,17 +485,15 @@ class TestMongoProcessor:
         print(action)
         assert action == [{'name': 'test_add_prompt_action_faq_action_with_default_values', 'num_bot_responses': 5,
                            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'}, 'llm_prompts': [
-                {'name': 'System Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}},
-                 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static', 'is_enabled': True},
-                {'name': 'History Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}, 'type': 'user', 'source': 'history',
-                 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                           'instructions': ['Answer in a short manner.', 'Keep it simple.'],
                            'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
                                          {'name': 'gpt_result_type', 'value': '${data.type}',
                                           'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}]
@@ -550,14 +507,12 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 0.0,
                                                   'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                  'frequency_penalty': 0.0, 'logit_bias': {}},
-                              }]}
+                                                  'frequency_penalty': 0.0, 'logit_bias': {}}
+                              }
         with pytest.raises(ValidationError, match="Temperature must be between 0.0 and 2.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -570,15 +525,13 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 0.0,
                                                   'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"],
                                                   'presence_penalty': 0.0,
                                                   'frequency_penalty': 0.0, 'logit_bias': {}},
-                              }]}
+                              }
         with pytest.raises(ValidationError, match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
             processor.add_prompt_action(request, bot, user)
 
@@ -591,14 +544,12 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 0.0,
                                                   'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': -3.0,
                                                   'frequency_penalty': 0.0, 'logit_bias': {}},
-                              }]}
+                              }
         with pytest.raises(ValidationError, match="Presence penalty must be between -2.0 and 2.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -611,14 +562,12 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 0.0,
                                                   'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                                   'frequency_penalty': 3.0, 'logit_bias': {}},
-                              }]}
+                              }
         with pytest.raises(ValidationError, match="Frequency penalty must be between -2.0 and 2.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -631,14 +580,12 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 0.0,
                                                   'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                                   'frequency_penalty': 0.0, 'logit_bias': {}},
-                              }]}
+                              }
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -651,14 +598,12 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 0.0,
                                                   'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                                   'frequency_penalty': 0.0, 'logit_bias': {}},
-                              }]}
+                              }
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -671,14 +616,12 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 3.0,
                                                   'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                                   'frequency_penalty': 0.0, 'logit_bias': {}},
-                              }]}
+                              }
         with pytest.raises(ValidationError, match="top_p must be between 0.0 and 1.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -691,14 +634,12 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 0.0,
                                                   'n': 7, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                                   'frequency_penalty': 0.0, 'logit_bias': {}},
-                              }]}
+                              }
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -711,14 +652,12 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 0.0,
                                                   'n': 0, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                                   'frequency_penalty': 0.0, 'logit_bias': {}},
-                              }]}
+                              }
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -731,14 +670,12 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                              'top_results': 20,
-                              'similarity_threshold': 0.70,
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
                                                   'top_p': 0.0,
                                                   'n': 2, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                                   'frequency_penalty': 0.0, 'logit_bias': 'a'},
-                              }]}
+                              }
         with pytest.raises(ValidationError, match="logit_bias must be a dictionary!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -769,7 +706,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, 'collection': 'Bot_collection'},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True, 'data': 'Bot_collection'},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -792,7 +729,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True,'collection': 'Bot_collection'},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True,'data': 'Bot_collection'},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -814,37 +751,24 @@ class TestMongoProcessor:
         print(action)
         assert action == [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message', 'user_question': {'type': 'from_user_message'},
-                           'llm_prompts': [{'name': 'System Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                                'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                                'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                                'frequency_penalty': 0.0, 'logit_bias': {}},
-                                            'data': 'You are a personal assistant.', 'type': 'system',
-                                            'source': 'static', 'is_enabled': True},
-                                           {'name': 'Similarity Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                                'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                                'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                                'frequency_penalty': 0.0, 'logit_bias': {}},
-                                            'collection': 'Bot_collection',
-                                            'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                            'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                           {'name': 'Query Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                                'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                                'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                                'frequency_penalty': 0.0, 'logit_bias': {}},
-                                            'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                            'instructions': 'Answer according to the context', 'type': 'query',
-                                            'source': 'static', 'is_enabled': True},
-                                           {'name': 'Query Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                                'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                                'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                                'frequency_penalty': 0.0, 'logit_bias': {}},
-                                            'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                            'instructions': 'Answer according to the context', 'type': 'query',
-                                            'source': 'static', 'is_enabled': True}], 'instructions': [],
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
+                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                                                                               'instructions': 'Answer according to the context',
+                                                                                               'type': 'query',
+                                                                                               'source': 'static',
+                                                                                               'is_enabled': True},
+                               {'name': 'Query Prompt',
+                                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                                'is_enabled': True}], 'instructions': [],
                            'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
                                          {'name': 'gpt_result_type', 'value': '${data.type}',
                                           'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}]
@@ -858,12 +782,13 @@ class TestMongoProcessor:
         print(action)
         assert action == [{'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5,
                            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'}, 'llm_prompts': [
-                {'name': 'System Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}},
-                 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static', 'is_enabled': True}],
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True}],
                            'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
                            'dispatch_response': True, 'status': True}]
 
@@ -878,13 +803,7 @@ class TestMongoProcessor:
                         'source': 'static', 'is_enabled': True},
                        {'name': 'Similarity Prompt',
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                        'type': 'user', 'source': 'bot_content', 'is_enabled': True,'collection': 'Bot_collection',
-                        "top_results": 10, "similarity_threshold": 0.70,
-                        "hyperparameters": {"temperature": 0.0,
-                                            "max_tokens": 300,
-                                            "model": "gpt-3.5-turbo",
-                                            "top_p": 0.0,
-                                            "n": 1}
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True,'data': 'Bot_collection',
                         },
                        {'name': 'Query Prompt',
                         'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
@@ -895,6 +814,11 @@ class TestMongoProcessor:
                         'instructions': 'Answer according to the context', 'type': 'query',
                         'source': 'static', 'is_enabled': True}],
                    "failure_message": "updated_failure_message",
+                   "hyperparameters": {"temperature": 0.0,
+                                       "max_tokens": 300,
+                                       "model": "gpt-3.5-turbo",
+                                       "top_p": 0.0,
+                                       "n": 1},
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
                    "num_bot_responses": 5}
 
@@ -904,32 +828,26 @@ class TestMongoProcessor:
         print(action)
         assert action == [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message',
-                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'}, 'llm_prompts': [
-                {'name': 'System Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}},
-                 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static', 'is_enabled': True},
-                {'name': 'Similarity Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1}, 'collection': 'Bot_collection',
-                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                {'name': 'Query Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}},
-                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True}, {'name': 'Query Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                                       'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                           'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                           'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                           'frequency_penalty': 0.0, 'logit_bias': {}},
-                                       'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                       'instructions': 'Answer according to the context', 'type': 'query',
-                                       'source': 'static', 'is_enabled': True}], 'instructions': [], 'set_slots': [],
-                           'dispatch_response': True, 'status': True}]
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
+                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                                                                               'instructions': 'Answer according to the context',
+                                                                                               'type': 'query',
+                                                                                               'source': 'static',
+                                                                                               'is_enabled': True},
+                               {'name': 'Query Prompt',
+                                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                                'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
+                           'status': True}]
 
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -945,32 +863,26 @@ class TestMongoProcessor:
         print(action)
         assert action == [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message',
-                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'}, 'llm_prompts': [
-                {'name': 'System Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}},
-                 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static', 'is_enabled': True},
-                {'name': 'Similarity Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1}, 'collection': 'Bot_collection',
-                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                {'name': 'Query Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}},
-                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True}, {'name': 'Query Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                                       'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                           'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                           'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                           'frequency_penalty': 0.0, 'logit_bias': {}},
-                                       'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                       'instructions': 'Answer according to the context', 'type': 'query',
-                                       'source': 'static', 'is_enabled': True}], 'instructions': [], 'set_slots': [],
-                           'dispatch_response': True, 'status': True}]
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
+                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                                                                               'instructions': 'Answer according to the context',
+                                                                                               'type': 'query',
+                                                                                               'source': 'static',
+                                                                                               'is_enabled': True},
+                               {'name': 'Query Prompt',
+                                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                                'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
+                           'status': True}]
 
     def test_delete_prompt_action(self):
         processor = MongoProcessor()
@@ -2989,7 +2901,7 @@ class TestMongoProcessor:
         file_info_actions = zip_file.getinfo('actions.yml')
         file_content_actions = zip_file.read(file_info_actions)
         print(file_content_actions)
-        expected_content = b"email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action:\n- dispatch_response: false\n  failure_message: I'm sorry, I didn't quite understand that. Could you rephrase?\n  instructions: []\n  llm_prompts:\n  - data: You are a personal assistant.\n    hyperparameters:\n      frequency_penalty: 0.0\n      logit_bias: {}\n      max_tokens: 300\n      model: gpt-3.5-turbo\n      n: 1\n      presence_penalty: 0.0\n      stop: null\n      stream: false\n      temperature: 0.0\n      top_p: 0.0\n    is_enabled: true\n    name: System Prompt\n    similarity_threshold: 0.7\n    source: static\n    top_results: 10\n    type: system\n  - hyperparameters:\n      frequency_penalty: 0.0\n      logit_bias: {}\n      max_tokens: 300\n      model: gpt-3.5-turbo\n      n: 1\n      presence_penalty: 0.0\n      stop: null\n      stream: false\n      temperature: 0.0\n      top_p: 0.0\n    is_enabled: true\n    name: History Prompt\n    similarity_threshold: 0.7\n    source: history\n    top_results: 10\n    type: user\n  - data: A programming language is a system of notation for writing computer programs.[1]\n      Most programming languages are text-based formal languages, but they may also\n      be graphical. They are a kind of computer language.\n    hyperparameters:\n      frequency_penalty: 0.0\n      logit_bias: {}\n      max_tokens: 300\n      model: gpt-3.5-turbo\n      n: 1\n      presence_penalty: 0.0\n      stop: null\n      stream: false\n      temperature: 0.0\n      top_p: 0.0\n    instructions: Answer according to the context\n    is_enabled: true\n    name: Query Prompt\n    similarity_threshold: 0.7\n    source: static\n    top_results: 10\n    type: query\n  name: prompt_action_with_default_values\n  num_bot_responses: 5\n  set_slots:\n  - evaluation_type: expression\n    name: gpt_result\n    value: ${data}\n  - evaluation_type: script\n    name: gpt_result_type\n    value: ${data.type}\n  status: true\n  user_question:\n    type: from_user_message\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n"
+        expected_content = b"email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action:\n- dispatch_response: false\n  failure_message: I'm sorry, I didn't quite understand that. Could you rephrase?\n  hyperparameters:\n    frequency_penalty: 0.0\n    logit_bias: {}\n    max_tokens: 300\n    model: gpt-3.5-turbo\n    n: 1\n    presence_penalty: 0.0\n    stop: null\n    stream: false\n    temperature: 0.0\n    top_p: 0.0\n  instructions: []\n  llm_prompts:\n  - data: You are a personal assistant.\n    is_enabled: true\n    name: System Prompt\n    source: static\n    type: system\n  - is_enabled: true\n    name: History Prompt\n    source: history\n    type: user\n  - data: A programming language is a system of notation for writing computer programs.[1]\n      Most programming languages are text-based formal languages, but they may also\n      be graphical. They are a kind of computer language.\n    instructions: Answer according to the context\n    is_enabled: true\n    name: Query Prompt\n    source: static\n    type: query\n  name: prompt_action_with_default_values\n  num_bot_responses: 5\n  set_slots:\n  - evaluation_type: expression\n    name: gpt_result\n    value: ${data}\n  - evaluation_type: script\n    name: gpt_result_type\n    value: ${data.type}\n  status: true\n  user_question:\n    type: from_user_message\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n"
         assert file_content_actions == expected_content
         assert file_content_actions.__contains__(expected_content)
         zip_file.close()
@@ -14753,7 +14665,7 @@ class TestMongoProcessor:
                        {'name': 'Similarity Prompt',
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content',
-                        'is_enabled': True, 'collection': 'python'}
+                        'is_enabled': True, 'data': 'python'}
                    ],
                    'instructions': ['Answer in a short manner.', 'Keep it simple.'],
                    "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},

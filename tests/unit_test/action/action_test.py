@@ -2671,24 +2671,18 @@ class TestActions:
         actual_config.pop("timestamp")
         actual_config.pop("status")
         actual_config.pop("user")
+        print(actual_config)
         assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5,
                                  'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                  'user_question': {'type': 'from_user_message'}, 'bot': 'test_action_server',
-                                 'llm_prompts': [
-                                     {'name': 'System Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                                      'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                          'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                          'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                          'frequency_penalty': 0.0, 'logit_bias': {}},
-                                      'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
-                                      'is_enabled': True},
-                                     {'name': 'History Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                                      'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                          'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                          'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                          'frequency_penalty': 0.0, 'logit_bias': {}}, 'type': 'user',
-                                      'source': 'history', 'is_enabled': True}], 'instructions': [], 'set_slots': [],
-                                 'dispatch_response': True}
+                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                     'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                     'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                     'logit_bias': {}}, 'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
+                 'is_enabled': True},
+                {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                                 'instructions': [], 'set_slots': [], 'dispatch_response': True}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
         bot_settings.pop("status")
@@ -3969,17 +3963,16 @@ class TestActions:
         assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5,
                                        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                        'user_question': {'type': 'from_user_message'}, 'bot': 'test_bot_action_test',
-                                       'user': 'test_user_action_test', 'llm_prompts': [
-                {'name': 'System Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}},
-                 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static', 'is_enabled': True},
-                {'name': 'History Prompt', 'top_results': 10, 'similarity_threshold': 0.7,
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}, 'type': 'user', 'source': 'history',
-                 'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}
+                                       'user': 'test_user_action_test',
+                                       'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
+                                                           'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                                           'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                                           'frequency_penalty': 0.0, 'logit_bias': {}}, 'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
+                 'is_enabled': True},
+                {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                                       'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}
+
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

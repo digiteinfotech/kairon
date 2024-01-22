@@ -472,39 +472,54 @@ class TestTrainingDataValidator:
         assert len(error_summary['google_search_actions']) == 2
         assert len(error_summary['zendesk_actions']) == 2
         assert len(error_summary['pipedrive_leads_actions']) == 3
-        assert len(error_summary['prompt_actions']) == 50
+        assert len(error_summary['prompt_actions']) == 49
         assert len(error_summary['razorpay_actions']) == 3
         assert len(error_summary['pyscript_actions']) == 3
-        required_fields_error = error_summary["prompt_actions"][22]
+        required_fields_error = error_summary["prompt_actions"][21]
         assert re.match(r"Required fields .* not found in action: prompt_action_with_no_llm_prompts", required_fields_error)
-        del error_summary["prompt_actions"][22]
+        del error_summary["prompt_actions"][21]
         print(error_summary['prompt_actions'])
-        assert error_summary['prompt_actions'] == [
-            'top_results should not be greater than 30 and of type int: Similarity Prompt',
-            'similarity_threshold should be within 0.3 and 1 and of type int or float: Similarity Prompt',
-            'Collection is required for bot content prompts!', 'System prompt is required',
-            'Query prompt must have static source', 'Name cannot be empty', 'System prompt is required',
-            'num_bot_responses should not be greater than 5 and of type int: prompt_action_invalid_num_bot_responses',
-            'Collection is required for bot content prompts!', 'data field in prompts should of type string.',
-            'data is required for static prompts', 'System prompt must have static source',
-            'Temperature must be between 0.0 and 2.0!', 'max_tokens must be between 5 and 4096!',
-            'top_p must be between 0.0 and 1.0!', 'n must be between 1 and 5!',
-            'presence_penality must be between -2.0 and 2.0!', 'frequency_penalty must be between -2.0 and 2.0!',
-            'logit_bias must be a dictionary!', 'Collection is required for bot content prompts!',
-            'Collection is required for bot content prompts!', 'Only one bot_content source can be present',
-            'Duplicate action found: test_add_prompt_action_one',
-            'Invalid action configuration format. Dictionary expected.', 'Only one system prompt can be present',
-            'Invalid prompt type', 'Invalid prompt source', 'Only one system prompt can be present',
-            'Temperature must be between 0.0 and 2.0!', 'max_tokens must be between 5 and 4096!',
-            'top_p must be between 0.0 and 1.0!', 'n must be between 1 and 5!',
-            'Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.',
-            'presence_penality must be between -2.0 and 2.0!', 'frequency_penalty must be between -2.0 and 2.0!',
-            'logit_bias must be a dictionary!', 'Invalid prompt type', 'Invalid prompt source',
-            'type in LLM Prompts should be of type string.', 'source in LLM Prompts should be of type string.',
-            'Instructions in LLM Prompts should be of type string.', 'Only one system prompt can be present',
-            'Data must contain action name', 'Only one system prompt can be present', 'Data must contain slot name',
-            'Only one system prompt can be present', 'Only one system prompt can be present',
-            'Only one system prompt can be present', 'Only one history source can be present']
+        assert error_summary['prompt_actions'] == ['top_results should not be greater than 30 and of type int!',
+                                                   'similarity_threshold should be within 0.3 and 1.0 and of type int or float!',
+                                                   'Collection is required for bot content prompts!',
+                                                   'System prompt is required', 'Query prompt must have static source',
+                                                   'Name cannot be empty', 'System prompt is required',
+                                                   'num_bot_responses should not be greater than 5 and of type int: prompt_action_invalid_num_bot_responses',
+                                                   'Collection is required for bot content prompts!',
+                                                   'data field in prompts should of type string.',
+                                                   'data is required for static prompts',
+                                                   'Temperature must be between 0.0 and 2.0!',
+                                                   'max_tokens must be between 5 and 4096!',
+                                                   'top_p must be between 0.0 and 1.0!', 'n must be between 1 and 5!',
+                                                   'presence_penality must be between -2.0 and 2.0!',
+                                                   'frequency_penalty must be between -2.0 and 2.0!',
+                                                   'logit_bias must be a dictionary!',
+                                                   'System prompt must have static source',
+                                                   'Collection is required for bot content prompts!',
+                                                   'Collection is required for bot content prompts!',
+                                                   'Duplicate action found: test_add_prompt_action_one',
+                                                   'Invalid action configuration format. Dictionary expected.',
+                                                   'Temperature must be between 0.0 and 2.0!',
+                                                   'max_tokens must be between 5 and 4096!',
+                                                   'top_p must be between 0.0 and 1.0!', 'n must be between 1 and 5!',
+                                                   'Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.',
+                                                   'presence_penality must be between -2.0 and 2.0!',
+                                                   'frequency_penalty must be between -2.0 and 2.0!',
+                                                   'logit_bias must be a dictionary!',
+                                                   'Only one system prompt can be present', 'Invalid prompt type',
+                                                   'Invalid prompt source', 'Only one system prompt can be present',
+                                                   'Invalid prompt type', 'Invalid prompt source',
+                                                   'type in LLM Prompts should be of type string.',
+                                                   'source in LLM Prompts should be of type string.',
+                                                   'Instructions in LLM Prompts should be of type string.',
+                                                   'Only one system prompt can be present',
+                                                   'Data must contain action name',
+                                                   'Only one system prompt can be present',
+                                                   'Data must contain slot name',
+                                                   'Only one system prompt can be present',
+                                                   'Only one system prompt can be present',
+                                                   'Only one system prompt can be present',
+                                                   'Only one history source can be present']
         assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 9,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
                                    'zendesk_actions': 4, 'pipedrive_leads_actions': 5, 'prompt_actions': 8,

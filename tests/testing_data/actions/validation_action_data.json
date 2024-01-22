@@ -513,8 +513,9 @@
          "llm_prompts":[
             {
                "name":"Similarity Prompt",
+               "hyperparameters": {
                "top_results":40,
-               "similarity_threshold":2,
+               "similarity_threshold":2},
                "instructions":"Answer question based on the context above, if answer is not in the context go check previous logs.",
                "type":"user",
                "source":"bot_content",
@@ -584,8 +585,16 @@
                "instructions":"Answer question based on the context above, if answer is not in the context go check previous logs.",
                "type":"user",
                "source":"bot_content",
-               "is_enabled":true,
-               "hyperparameters": {
+               "is_enabled":true},
+            {
+               "name":"Similarity Prompt two",
+               "instructions":"Answer question based on the context above, if answer is not in the context go check previous logs.",
+               "type":"user",
+               "source":"bot_content",
+               "is_enabled":true
+            }
+         ],
+         "hyperparameters": {
                   "temperature": 3.0,
                   "max_tokens": 5000,
                   "model": "gpt - 3.5 - turbo",
@@ -598,16 +607,7 @@
                   "frequency_penalty": 5,
                   "logit_bias": [
                   ]
-               }
-            },
-            {
-               "name":"Similarity Prompt two",
-               "instructions":"Answer question based on the context above, if answer is not in the context go check previous logs.",
-               "type":"user",
-               "source":"bot_content",
-               "is_enabled":true
-            }
-         ],
+               },
          "failure_message":"DEFAULT_NLU_FALLBACK_RESPONSE",
          "num_bot_responses":5
       },
@@ -703,27 +703,7 @@
                "instructions":50,
                "type":1,
                "source":2,
-               "is_enabled":true,
-               "hyperparameters": {
-                  "temperature": 3.0,
-                  "max_tokens": 5000,
-                  "model": "gpt - 3.5 - turbo",
-                  "top_p": 4,
-                  "n": 10,
-                  "stream": false,
-                  "stop": [
-                     "a",
-                     "b",
-                     "c",
-                     "d",
-                     "e"
-                  ],
-                  "presence_penalty": 5,
-                  "frequency_penalty": 5,
-                  "logit_bias": [
-                  ]
-               }
-            },
+               "is_enabled":true},
             {
                "name":"Http action Prompt",
                "data":"",
@@ -753,6 +733,25 @@
                "is_enabled":true
             }
          ],
+         "hyperparameters": {
+                  "temperature": 3.0,
+                  "max_tokens": 5000,
+                  "model": "gpt - 3.5 - turbo",
+                  "top_p": 4,
+                  "n": 10,
+                  "stream": false,
+                  "stop": [
+                     "a",
+                     "b",
+                     "c",
+                     "d",
+                     "e"
+                  ],
+                  "presence_penalty": 5,
+                  "frequency_penalty": 5,
+                  "logit_bias": [
+                  ]
+               },
          "dispatch_response":false
       }
    ],

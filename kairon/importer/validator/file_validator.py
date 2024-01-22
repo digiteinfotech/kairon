@@ -673,6 +673,10 @@ class TrainingDataValidator(Validator):
                 if action.get('num_bot_responses') and (action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int)):
                     data_error.append(f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
                 llm_prompts_errors = TrainingDataValidator.__validate_llm_prompts(action['llm_prompts'])
+                if action.get('hyperparameters') is not None:
+                    llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(
+                        action.get('hyperparameters'))
+                    data_error.extend(llm_hyperparameters_errors)
                 data_error.extend(llm_prompts_errors)
                 if action['name'] in actions_present:
                     data_error.append(f'Duplicate action found: {action["name"]}')
@@ -686,26 +690,21 @@ class TrainingDataValidator(Validator):
         error_list = []
         system_prompt_count = 0
         history_prompt_count = 0
-        bot_content_prompt_count = 0
         for prompt in llm_prompts:
-            if prompt.get('top_results') and (prompt['top_results'] > 30 or not isinstance(prompt['top_results'], int)):
-                error_list.append(f'top_results should not be greater than 30 and of type int: {prompt.get("name")}')
-            if prompt.get('similarity_threshold'):
-                if not (0.3 <= prompt['similarity_threshold'] <= 1) or not (
-                        isinstance(prompt['similarity_threshold'], float) or isinstance(prompt['similarity_threshold'],
-                                                                                        int)):
-                    error_list.append(
-                        f'similarity_threshold should be within 0.3 and 1 and of type int or float: {prompt.get("name")}')
             if prompt.get('hyperparameters') is not None:
-                llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(
-                    prompt.get('hyperparameters'))
-                error_list.extend(llm_hyperparameters_errors)
+                hyperparameters = prompt.get('hyperparameters')
+                for key, value in hyperparameters.items():
+                    if key == 'similarity_threshold':
+                        if not (0.3 <= value <= 1.0) or not (
+                                isinstance(key, float) or isinstance(key, int)):
+                            error_list.append(
+                                f"similarity_threshold should be within 0.3 and 1.0 and of type int or float!")
+                    if key == 'top_results' and (value > 30 or not isinstance(key, int)):
+                        error_list.append("top_results should not be greater than 30 and of type int!")
             if prompt.get('type') == 'system':
                 system_prompt_count += 1
             elif prompt.get('source') == 'history':
                 history_prompt_count += 1
-            elif prompt.get('source') == 'bot_content':
-                bot_content_prompt_count += 1
             if prompt.get('type') not in ['user', 'system', 'query']:
                 error_list.append('Invalid prompt type')
             if prompt.get('source') not in ['static', 'slot', 'action', 'history', 'bot_content']:
@@ -738,8 +737,6 @@ class TrainingDataValidator(Validator):
                 error_list.append('System prompt is required')
             if history_prompt_count > 1:
                 error_list.append('Only one history source can be present')
-            if bot_content_prompt_count > 1:
-                error_list.append('Only one bot_content source can be present')
         return error_list
 
     @staticmethod
@@ -762,7 +759,8 @@ class TrainingDataValidator(Validator):
                 error_list.append("logit_bias must be a dictionary!")
             elif key == 'stop':
                 if value and (not isinstance(value, (str, int, list)) or (isinstance(value, list) and len(value) > 4)):
-                    error_list.append("Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
+                    error_list.append(
+                        "Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
         return error_list
 
     @staticmethod
