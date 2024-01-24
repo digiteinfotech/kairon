@@ -3153,8 +3153,12 @@ class MongoProcessor:
         :param bot: bot id
         :return: flow configuration id for saved flow action config
         """
+        from kairon.shared.chat.data_objects import Channels
+
         flow_config['user'] = user
         flow_config['bot'] = bot
+        if not Utility.is_exist(Channels, raise_error=False, bot=bot, connector_type="whatsapp"):
+            raise AppException('Whatsapp Channel not found for this bot!')
         Utility.is_valid_action_name(flow_config.get("name"), bot, FlowActionConfig)
         action_id = FlowActionConfig(**flow_config).save().id.__str__()
         self.add_action(flow_config['name'], bot, user, action_type=ActionType.flow_action.value,

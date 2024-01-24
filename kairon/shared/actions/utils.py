@@ -906,10 +906,10 @@ class ActionUtility:
 
     @staticmethod
     def prepare_flow_body(flow_action_config: dict, tracker: Tracker):
+        api_key = Sysadmin.get_bot_secret(flow_action_config['bot'], BotSecretType.d360_api_key.value, raise_err=False)
         http_url = Utility.environment["flow"]["url"]
         header_key = Utility.environment["flow"]["headers"]["key"]
-        header_value = Utility.environment["flow"]["headers"]["value"]
-        headers = {header_key: header_value}
+        headers = {header_key: api_key}
         flow_body = {
             "recipient_type": "individual",
             "messaging_product": "whatsapp",

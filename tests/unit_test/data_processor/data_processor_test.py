@@ -1050,6 +1050,24 @@ class TestMongoProcessor:
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
 
+    @patch("kairon.shared.data.utils.DataUtility.get_channel_endpoint", autospec=True)
+    def test_add_whatsapp_channel_config(self, mock_get_channel_endpoint):
+        from kairon.shared.chat.processor import ChatDataProcessor
+
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = ChatDataProcessor()
+        channel_endpoint = "https://test@test.com/api/bot/whatsapp/test_bot/access_token"
+        mock_get_channel_endpoint.return_value = channel_endpoint
+        data = {"connector_type": "whatsapp",
+                "config": {
+                    "access_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                    "app_secret": "79f036b9894eef17c064213b90d1042b",
+                    "verify_token": "3396830255712.3396861654876869879",
+                }}
+        endpoint = processor.save_channel_config(configuration=data, bot=bot, user=user)
+        assert endpoint == channel_endpoint
+
     def test_add_flow_action_empty_name(self):
         bot = 'test_bot'
         user = 'test_user'

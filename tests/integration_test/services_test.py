@@ -1150,6 +1150,48 @@ def test_add_flow_action_invalid_flow_action():
     assert not actual["success"]
 
 
+def test_add_flow_action_without_whatsapp_channel():
+    request_body = {
+        "name": "flow_action",
+        "flow_id": {"value": "9191123456789"},
+        "body": "Fill the Sign Up Form",
+        "recipient_phone": {'value': "919911837465"},
+        "initial_screen": "REGISTER",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "data_exchange",
+        "flow_cta": "Sign Up",
+        "response": "Test Response",
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/flow",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Whatsapp Channel not found for this bot!"
+    assert not actual["success"]
+
+
+def test_add_whatsapp_channel(monkeypatch):
+    data = {"connector_type": "whatsapp",
+            "config": {
+                "access_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                "app_secret": "79f036b9894eef17c064213b90d1042b",
+                "verify_token": "3396830255712.3396861654876869879",
+            }}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/add",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Channel added"
+
+
 def test_add_flow_action():
     request_body = {
         "name": "flow_action",

@@ -56,6 +56,8 @@ def test_flow_action_execution(aioresponses):
     action_name = "test_flow_action_execution"
     Actions(name=action_name, type=ActionType.flow_action.value,
             bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    BotSecrets(secret_type=BotSecretType.d360_api_key.value,
+               value="abxyYxCNkabcdefgh9OpMfIAK", bot="5f50fd0a56b698ca10d35d2z", user="user").save()
     FlowActionConfig(
         name=action_name,
         flow_id=CustomActionRequestParameters(value="9191123456789",

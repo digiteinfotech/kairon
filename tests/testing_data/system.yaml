@@ -151,7 +151,6 @@ flow:
   url: ${FLOW_TRIGGERING_ENDPOINT:"https://waba-v2.360dialog.io/messages"}
   headers:
     key: ${FLOW_HEADERS_KEY:"D360-API-KEY"}
-    value: ${FLOW_HEADERS_KEY:"abxyYxCNkabcdefgh9OpMfIAK"}
 
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}
