@@ -15,7 +15,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType, UserMessageType, FlowModes
+    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType, UserMessageType, FlowModes, FlowActionTypes
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -394,6 +394,9 @@ class FlowActionConfig(Auditlog):
     footer = StringField(default=None)
     mode = StringField(default=FlowModes.published.value,
                        choices=[p_type.value for p_type in FlowModes])
+    flow_action = StringField(default=FlowActionTypes.navigate.value,
+                       choices=[p_type.value for p_type in FlowModes])
+    flow_token = StringField(required=True)
     recipient_phone = EmbeddedDocumentField(CustomActionRequestParameters)
     initial_screen = StringField(required=True)
     flow_cta = StringField(required=True)
@@ -416,6 +419,8 @@ class FlowActionConfig(Auditlog):
             raise ValidationError("initial_screen cannot be empty")
         if Utility.check_empty_string(self.flow_cta):
             raise ValidationError("flow_cta cannot be empty")
+        if Utility.check_empty_string(self.flow_token):
+            raise ValidationError("flow_token cannot be empty")
 
 
 @auditlogger.log

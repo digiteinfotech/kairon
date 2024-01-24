@@ -987,6 +987,7 @@ def test_add_flow_action_empty_name():
         "flow_id": {"parameter_type": "value", "value": "9191123456789"},
         "body": "Fill the Sign Up Form",
         "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
         "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
         "initial_screen": "REGISTER",
         "flow_cta": "Sign Up",
@@ -1010,6 +1011,7 @@ def test_add_flow_action_empty_body():
         "flow_id": {"parameter_type": "value", "value": "9191123456789"},
         "body": "",
         "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
         "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
         "initial_screen": "REGISTER",
         "flow_cta": "Sign Up",
@@ -1033,6 +1035,7 @@ def test_add_flow_action_empty_initial_screen():
         "flow_id": {"parameter_type": "value", "value": "9191123456789"},
         "body": "Fill the Sign Up Form",
         "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
         "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
         "initial_screen": "",
         "flow_cta": "Sign Up",
@@ -1057,6 +1060,7 @@ def test_add_flow_action_empty_flow_cta():
         "flow_id": {"parameter_type": "value", "value": "9191123456789"},
         "body": "Fill the Sign Up Form",
         "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
         "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
         "initial_screen": "REGISTER",
         "flow_cta": "",
@@ -1080,6 +1084,56 @@ def test_add_flow_action_with_invalid_mode():
         "flow_id": {"parameter_type": "value", "value": "9191123456789"},
         "body": "Fill the Sign Up Form",
         "mode": "invalid_mode",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
+        "initial_screen": "REGISTER",
+        "flow_cta": "Sign Up",
+        "response": "Test Response",
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/flow",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+
+def test_add_flow_action_empty_flow_token():
+    request_body = {
+        "name": "flow_action",
+        "flow_id": {"parameter_type": "value", "value": "9191123456789"},
+        "body": "Fill the Sign Up Form",
+        "mode": "draft",
+        "flow_token": "",
+        "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
+        "initial_screen": "REGISTER",
+        "flow_cta": "Sign Up",
+        "response": "Test Response",
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/flow",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'flow_token'], 'msg': 'flow_token is required',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_flow_action_invalid_flow_action():
+    request_body = {
+        "name": "flow_action",
+        "flow_id": {"parameter_type": "value", "value": "9191123456789"},
+        "body": "Fill the Sign Up Form",
+        "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "invalid",
         "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
         "initial_screen": "REGISTER",
         "flow_cta": "Sign Up",
@@ -1103,6 +1157,8 @@ def test_add_flow_action():
         "body": "Fill the Sign Up Form",
         "recipient_phone": {'value': "919911837465"},
         "initial_screen": "REGISTER",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "data_exchange",
         "flow_cta": "Sign Up",
         "response": "Test Response",
     }
@@ -1124,6 +1180,8 @@ def test_add_flow_action_with_name_exist():
         "flow_id": {"parameter_type": "slot", "value": "flow_id"},
         "body": "Fill the Sign Up Form",
         "mode": "published",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "data_exchange",
         "recipient_phone": {'value': "phone", "parameter_type": "slot"},
         "initial_screen": "REGISTER",
         "flow_cta": "Sign Up",
@@ -1148,6 +1206,8 @@ def test_add_flow_action_with_slot_values():
         "flow_id": {"parameter_type": "slot", "value": "flow_id"},
         "body": "Fill the Form to Book",
         "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "navigate",
         "recipient_phone": {'value': "phone", "parameter_type": "slot"},
         "initial_screen": "BOOKING",
         "flow_cta": "Book Now",
@@ -1182,6 +1242,8 @@ def test_get_flow_actions():
                                             'value': '9191123456789', 'parameter_type': 'value'}
     assert actual["data"][0]["body"] == "Fill the Sign Up Form"
     assert actual["data"][0]["mode"] == "published"
+    assert actual["data"][0]["flow_action"] == "data_exchange"
+    assert actual["data"][0]["flow_token"] == "AHSKSSLLHLSKLSKS"
     assert actual["data"][0]["recipient_phone"] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
                                                     'value': '919911837465', 'parameter_type': 'value'}
     assert actual["data"][0]["initial_screen"] == "REGISTER"
@@ -1194,6 +1256,8 @@ def test_get_flow_actions():
                                             'value': 'flow_id', 'parameter_type': 'slot'}
     assert actual["data"][1]["body"] == "Fill the Form to Book"
     assert actual["data"][1]["mode"] == "draft"
+    assert actual["data"][1]["flow_action"] == "navigate"
+    assert actual["data"][1]["flow_token"] == "AHSKSSLLHLSKLSKS"
     assert actual["data"][1]["recipient_phone"] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
                                                     'value': 'phone', 'parameter_type': 'slot'}
     assert actual["data"][1]["initial_screen"] == "BOOKING"
@@ -1208,6 +1272,8 @@ def test_update_flow_action_empty_body():
         "flow_id": {"parameter_type": "value", "value": "9191123456789"},
         "body": "",
         "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "navigate",
         "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
         "initial_screen": "REGISTER",
         "flow_cta": "Sign Up",
@@ -1231,6 +1297,8 @@ def test_update_flow_action_empty_initial_screen():
         "flow_id": {"parameter_type": "value", "value": "9191123456789"},
         "body": "Fill the Sign Up Form",
         "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "navigate",
         "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
         "initial_screen": "",
         "flow_cta": "Sign Up",
@@ -1255,6 +1323,8 @@ def test_update_flow_action_empty_flow_cta():
         "flow_id": {"parameter_type": "value", "value": "9191123456789"},
         "body": "Fill the Sign Up Form",
         "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "navigate",
         "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
         "initial_screen": "REGISTER",
         "flow_cta": "",
@@ -1278,6 +1348,57 @@ def test_update_flow_action_with_invalid_mode():
         "flow_id": {"parameter_type": "value", "value": "9191123456789"},
         "body": "Fill the Sign Up Form",
         "mode": "invalid_mode",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "navigate",
+        "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
+        "initial_screen": "REGISTER",
+        "flow_cta": "Sign Up",
+        "response": "Test Response",
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/flow",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+
+def test_update_flow_action_empty_flow_token():
+    request_body = {
+        "name": "flow_action",
+        "flow_id": {"parameter_type": "value", "value": "9191123456789"},
+        "body": "Fill the Sign Up Form",
+        "mode": "draft",
+        "flow_token": "",
+        "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
+        "initial_screen": "REGISTER",
+        "flow_cta": "Sign Up",
+        "response": "Test Response",
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/flow",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'flow_token'], 'msg': 'flow_token is required',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_flow_action_invalid_flow_action():
+    request_body = {
+        "name": "flow_action",
+        "flow_id": {"parameter_type": "value", "value": "9191123456789"},
+        "body": "Fill the Sign Up Form",
+        "mode": "draft",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "invalid",
         "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
         "initial_screen": "REGISTER",
         "flow_cta": "Sign Up",
@@ -1299,6 +1420,8 @@ def test_update_flow_action_does_not_exist():
         "name": "test_update_flow_action_doesnot_exist",
         "flow_id": {"value": "9191123456789"},
         "body": "Fill the Sign Up Form",
+        "flow_token": "AHSKSSLLHLSKLSKS",
+        "flow_action": "navigate",
         "recipient_phone": {'value': "919911837465"},
         "initial_screen": "REGISTER",
         "flow_cta": "Sign Up",
@@ -1323,6 +1446,8 @@ def test_update_flow_action():
         "body": "Fill Your Details",
         "recipient_phone": {'value': "919913456772"},
         "mode": "draft",
+        "flow_token": "AHSKSSLLKAKLLSSLSLSSL",
+        "flow_action": "navigate",
         "initial_screen": "DETAILS",
         "flow_cta": "Fill Form",
         "response": "Form Triggered",
@@ -1355,6 +1480,8 @@ def test_get_flow_actions_after_updated():
                                             'value': 'flow_id', 'parameter_type': 'slot'}
     assert actual["data"][0]["body"] == "Fill Your Details"
     assert actual["data"][0]["mode"] == "draft"
+    assert actual["data"][0]["flow_action"] == "navigate"
+    assert actual["data"][0]["flow_token"] == "AHSKSSLLKAKLLSSLSLSSL"
     assert actual["data"][0]["recipient_phone"] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
                                                     'value': '919913456772', 'parameter_type': 'value'}
     assert actual["data"][0]["initial_screen"] == "DETAILS"
@@ -1367,6 +1494,8 @@ def test_get_flow_actions_after_updated():
                                             'value': 'flow_id', 'parameter_type': 'slot'}
     assert actual["data"][1]["body"] == "Fill the Form to Book"
     assert actual["data"][1]["mode"] == "draft"
+    assert actual["data"][1]["flow_action"] == "navigate"
+    assert actual["data"][1]["flow_token"] == "AHSKSSLLHLSKLSKS"
     assert actual["data"][1]["recipient_phone"] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
                                                     'value': 'phone', 'parameter_type': 'slot'}
     assert actual["data"][1]["initial_screen"] == "BOOKING"
@@ -1395,6 +1524,7 @@ def test_delete_flow_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "flow_action" not found'
+
 
 def test_add_pyscript_action_empty_name():
     script = """

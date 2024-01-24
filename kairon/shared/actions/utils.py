@@ -931,12 +931,14 @@ class ActionUtility:
         recipient_phone = tracker.get_slot(flow_action_config['recipient_phone']['value']) \
             if parameter_type == 'slot' else flow_action_config['recipient_phone']['value']
         parameter_type = flow_action_config['flow_id']['parameter_type']
-        flow_id = tracker.get_slot(flow_action_config['flow_id']['value']) if parameter_type == 'slot' \
-            else flow_action_config['flow_id']['value']
+        flow_id = tracker.get_slot(flow_action_config['flow_id']['value']) \
+            if parameter_type == 'slot' else flow_action_config['flow_id']['value']
         header = flow_action_config.get('header')
         body = flow_action_config['body']
         footer = flow_action_config.get('footer')
         mode = flow_action_config['mode']
+        flow_action = flow_action_config['flow_action']
+        flow_token = flow_action_config['flow_token']
         initial_screen = flow_action_config['initial_screen']
         flow_cta = flow_action_config['flow_cta']
         flow_body["to"] = recipient_phone
@@ -946,6 +948,8 @@ class ActionUtility:
         if footer:
             flow_body["interactive"]["footer"] = {"text": footer}
         flow_body["interactive"]["action"]["parameters"]["mode"] = mode
+        flow_body["interactive"]["action"]["parameters"]["flow_action"] = flow_action
+        flow_body["interactive"]["action"]["parameters"]["flow_token"] = flow_token
         flow_body["interactive"]["action"]["parameters"]["flow_cta"] = flow_cta
         flow_body["interactive"]["action"]["parameters"]["flow_id"] = flow_id
         flow_body["interactive"]["action"]["parameters"]["flow_action_payload"] = {"screen": initial_screen}

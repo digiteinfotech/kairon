@@ -3181,6 +3181,8 @@ class MongoProcessor:
         action.body = request_data['body']
         action.footer = request_data.get('footer', None)
         action.mode = request_data.get('mode')
+        action.flow_action = request_data.get('flow_action')
+        action.flow_token = request_data.get('flow_token')
         action.recipient_phone = CustomActionRequestParameters(**request_data['recipient_phone']) if request_data.get(
             'recipient_phone') else None
         action.initial_screen = request_data['initial_screen']

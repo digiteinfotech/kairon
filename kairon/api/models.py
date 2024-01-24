@@ -9,7 +9,7 @@ from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, DbQueryValueType, \
-    DbActionOperationType, UserMessageType, FlowModes
+    DbActionOperationType, UserMessageType, FlowModes, FlowActionTypes
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
 ValidationFailure = validators.ValidationFailure
@@ -793,6 +793,8 @@ class FlowActionRequest(BaseModel):
     body: str
     footer: str = None
     mode: FlowModes = FlowModes.published.value
+    flow_action: FlowActionTypes = FlowActionTypes.navigate.value
+    flow_token: str
     recipient_phone: CustomActionParameter
     initial_screen: str
     flow_cta: str
@@ -829,6 +831,14 @@ class FlowActionRequest(BaseModel):
 
         if Utility.check_empty_string(v):
             raise ValueError("flow_cta is required")
+        return v
+
+    @validator("flow_token")
+    def validate_flow_token(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("flow_token is required")
         return v
 
 

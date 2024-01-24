@@ -1060,6 +1060,7 @@ class TestMongoProcessor:
             "flow_id": {"parameter_type": "value", "value": "9191123456789"},
             "body": "Fill the Sign Up Form",
             "mode": "draft",
+            "flow_token": "AHSKSSLLHLSKLSKS",
             "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
             "initial_screen": "REGISTER",
             "flow_cta": "Sign Up",
@@ -1078,6 +1079,7 @@ class TestMongoProcessor:
             "flow_id": {"parameter_type": "value", "value": "9191123456789"},
             "body": "",
             "mode": "draft",
+            "flow_token": "AHSKSSLLHLSKLSKS",
             "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
             "initial_screen": "REGISTER",
             "flow_cta": "Sign Up",
@@ -1096,6 +1098,7 @@ class TestMongoProcessor:
             "flow_id": {"parameter_type": "value", "value": "9191123456789"},
             "body": "Fill the Sign Up Form",
             "mode": "draft",
+            "flow_token": "AHSKSSLLHLSKLSKS",
             "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
             "initial_screen": "",
             "flow_cta": "Sign Up",
@@ -1114,12 +1117,32 @@ class TestMongoProcessor:
             "flow_id": {"parameter_type": "value", "value": "9191123456789"},
             "body": "Fill the Sign Up Form",
             "mode": "draft",
+            "flow_token": "AHSKSSLLHLSKLSKS",
             "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
             "initial_screen": "BOOKING",
             "flow_cta": "",
             "response": "Test Response",
         }
         with pytest.raises(ValidationError, match="flow_cta cannot be empty"):
+            processor.add_flow_action(flow_config_dict, user, bot)
+
+    def test_add_flow_action_empty_flow_token(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_flow_action_empty_name"
+        processor = MongoProcessor()
+        flow_config_dict = {
+            "name": action,
+            "flow_id": {"parameter_type": "value", "value": "9191123456789"},
+            "body": "Fill the Sign Up Form",
+            "mode": "draft",
+            "flow_token": "",
+            "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
+            "initial_screen": "BOOKING",
+            "flow_cta": "Sign Up",
+            "response": "Test Response",
+        }
+        with pytest.raises(ValidationError, match="flow_token cannot be empty"):
             processor.add_flow_action(flow_config_dict, user, bot)
 
     def test_add_flow_action(self):
@@ -1133,6 +1156,8 @@ class TestMongoProcessor:
             "body": "Fill the Sign Up Form",
             "recipient_phone": {'value': "919911837465"},
             "initial_screen": "REGISTER",
+            "flow_token": "AHSKSSLLHLSKLSKS",
+            "flow_action": "data_exchange",
             "flow_cta": "Sign Up",
             "response": "Test Response",
         }
@@ -1150,6 +1175,8 @@ class TestMongoProcessor:
             "body": "Fill the Sign Up Form",
             "recipient_phone": {'value': "919911837465"},
             "initial_screen": "REGISTER",
+            "flow_token": "AHSKSSLLHLSKLSKS",
+            "flow_action": "data_exchange",
             "flow_cta": "Sign Up",
             "response": "Test Response",
         }
@@ -1166,6 +1193,8 @@ class TestMongoProcessor:
             "flow_id": {"parameter_type": "slot", "value": "flow_id"},
             "body": "Fill the Form to Book",
             "mode": "draft",
+            "flow_token": "AHSKSSLLHLSKLSKS",
+            "flow_action": "navigate",
             "recipient_phone": {'value': "phone", "parameter_type": "slot"},
             "initial_screen": "BOOKING",
             "flow_cta": "Book Now",
@@ -1188,6 +1217,8 @@ class TestMongoProcessor:
                                                    'value': '9191123456789', 'parameter_type': 'value'}
         assert flow_actions_list[0]["body"] == "Fill the Sign Up Form"
         assert flow_actions_list[0]["mode"] == "published"
+        assert flow_actions_list[0]["flow_action"] == "data_exchange"
+        assert flow_actions_list[0]["flow_token"] == "AHSKSSLLHLSKLSKS"
         assert flow_actions_list[0]["recipient_phone"] == {'_cls': 'CustomActionRequestParameters',
                                                            'encrypt': False, 'value': '919911837465',
                                                            'parameter_type': 'value'}
@@ -1201,6 +1232,8 @@ class TestMongoProcessor:
                                                    'value': 'flow_id', 'parameter_type': 'slot'}
         assert flow_actions_list[1]["body"] == "Fill the Form to Book"
         assert flow_actions_list[1]["mode"] == "draft"
+        assert flow_actions_list[1]["flow_action"] == "navigate"
+        assert flow_actions_list[1]["flow_token"] == "AHSKSSLLHLSKLSKS"
         assert flow_actions_list[1]["recipient_phone"] == {'_cls': 'CustomActionRequestParameters',
                                                            'encrypt': False, 'value': 'phone',
                                                            'parameter_type': 'slot'}
@@ -1219,6 +1252,8 @@ class TestMongoProcessor:
             "flow_id": {"parameter_type": "value", "value": "9191123456789"},
             "body": "",
             "mode": "draft",
+            "flow_token": "AHSKSSLLKAKLLSSLSLSSL",
+            "flow_action": "navigate",
             "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
             "initial_screen": "REGISTER",
             "flow_cta": "Sign Up",
@@ -1237,6 +1272,8 @@ class TestMongoProcessor:
             "flow_id": {"parameter_type": "value", "value": "9191123456789"},
             "body": "Fill the Sign Up Form",
             "mode": "draft",
+            "flow_token": "AHSKSSLLKAKLLSSLSLSSL",
+            "flow_action": "navigate",
             "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
             "initial_screen": "",
             "flow_cta": "Sign Up",
@@ -1255,12 +1292,33 @@ class TestMongoProcessor:
             "flow_id": {"parameter_type": "value", "value": "9191123456789"},
             "body": "Fill the Sign Up Form",
             "mode": "draft",
+            "flow_token": "AHSKSSLLKAKLLSSLSLSSL",
+            "flow_action": "navigate",
             "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
             "initial_screen": "BOOKING",
             "flow_cta": "",
             "response": "Test Response",
         }
         with pytest.raises(ValidationError, match="flow_cta cannot be empty"):
+            processor.update_flow_action(flow_config_dict, user, bot)
+
+    def test_update_flow_action_empty_flow_token(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "flow_action"
+        processor = MongoProcessor()
+        flow_config_dict = {
+            "name": action,
+            "flow_id": {"parameter_type": "value", "value": "9191123456789"},
+            "body": "Fill the Sign Up Form",
+            "mode": "draft",
+            "flow_token": "",
+            "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
+            "initial_screen": "BOOKING",
+            "flow_cta": "Sign Up",
+            "response": "Test Response",
+        }
+        with pytest.raises(ValidationError, match="flow_token cannot be empty"):
             processor.update_flow_action(flow_config_dict, user, bot)
 
     def test_update_flow_action_does_not_exist(self):
@@ -1273,6 +1331,8 @@ class TestMongoProcessor:
             "flow_id": {"parameter_type": "value", "value": "9191123456789"},
             "body": "Fill the Sign Up Form",
             "mode": "draft",
+            "flow_token": "AHSKSSLLKAKLLSSLSLSSL",
+            "flow_action": "navigate",
             "recipient_phone": {'value': "sender_id", "parameter_type": "slot"},
             "initial_screen": "BOOKING",
             "flow_cta": "",
@@ -1292,6 +1352,8 @@ class TestMongoProcessor:
             "body": "Fill Your Details",
             "recipient_phone": {'value': "919913456772"},
             "mode": "draft",
+            "flow_token": "AHSKSSLLKAKLLSSLSLSSL",
+            "flow_action": "navigate",
             "initial_screen": "DETAILS",
             "flow_cta": "Fill Form",
             "response": "Form Triggered",
@@ -1314,6 +1376,8 @@ class TestMongoProcessor:
                                                    'value': 'flow_id', 'parameter_type': 'slot'}
         assert flow_actions_list[0]["body"] == "Fill Your Details"
         assert flow_actions_list[0]["mode"] == "draft"
+        assert flow_actions_list[0]["flow_action"] == "navigate"
+        assert flow_actions_list[0]["flow_token"] == "AHSKSSLLKAKLLSSLSLSSL"
         assert flow_actions_list[0]["recipient_phone"] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
                                                            'value': '919913456772', 'parameter_type': 'value'}
         assert flow_actions_list[0]["initial_screen"] == "DETAILS"
@@ -1326,6 +1390,8 @@ class TestMongoProcessor:
                                                    'value': 'flow_id', 'parameter_type': 'slot'}
         assert flow_actions_list[1]["body"] == "Fill the Form to Book"
         assert flow_actions_list[1]["mode"] == "draft"
+        assert flow_actions_list[1]["flow_action"] == "navigate"
+        assert flow_actions_list[1]["flow_token"] == "AHSKSSLLHLSKLSKS"
         assert flow_actions_list[1]["recipient_phone"] == {'_cls': 'CustomActionRequestParameters',
                                                            'encrypt': False, 'value': 'phone',
                                                            'parameter_type': 'slot'}

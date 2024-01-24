@@ -24,6 +24,11 @@ class FlowModes(str, Enum):
     published = "published"
 
 
+class FlowActionTypes(str, Enum):
+    navigate = "navigate"
+    data_exchange = "data_exchange"
+
+
 class EvaluationType(str, Enum):
     expression = "expression"
     script = "script"
