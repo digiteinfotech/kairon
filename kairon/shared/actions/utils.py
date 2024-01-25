@@ -55,8 +55,7 @@ class ActionUtility:
         kwargs = {"content_type": content_type, "timeout": timeout, "return_json": False}
         client = AioRestClient()
         response = await client.request(request_method, http_url, request_body, headers, **kwargs)
-        # if response.status not in [200, 202, 201, 204]:
-        #     raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
+
         try:
             http_response = await response.json()
         except (ContentTypeError, ValueError) as e:
@@ -64,7 +63,12 @@ class ActionUtility:
             http_response = await response.text()
         status_code = response.status
 
-        return http_response, status_code
+        return http_response, status_code, client.time_elapsed
+
+    @staticmethod
+    def validate_http_response_status(http_response, status_code):
+        if status_code and status_code not in [200, 202, 201, 204]:
+            return f"Got non-200 status code: {status_code} {http_response}"
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,

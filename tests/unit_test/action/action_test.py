@@ -1592,7 +1592,7 @@ class TestActions:
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
-        mock_execute_request_async.return_value = http_response, 200
+        mock_execute_request_async.return_value = http_response, 200, 5
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.http_action.value}

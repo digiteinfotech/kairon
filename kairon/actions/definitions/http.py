@@ -11,7 +11,6 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
-import time
 
 
 class ActionHTTP(ActionsBase):
@@ -65,7 +64,8 @@ class ActionHTTP(ActionsBase):
         dispatch_bot_response = True
         dispatch_type = DispatchType.text.value
         msg_logger = []
-        time_elapsed = 0
+        time_elapsed = None
+        response_status_code = None
         try:
             http_action_config = self.retrieve_config()
             dispatch_bot_response = http_action_config['response']['dispatch']
@@ -85,12 +85,9 @@ class ActionHTTP(ActionsBase):
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
-            req_start_time = time.time()
-            http_response, response_status_code = await ActionUtility.execute_request_async(headers=headers, http_url=http_url,
+            http_response, response_status_code, time_elapsed = await ActionUtility.execute_request_async(headers=headers, http_url=http_url,
                                                                       request_method=request_method, request_body=body,
                                                                       content_type=http_action_config['content_type'])
-            req_done_time = time.time()
-            time_elapsed = (req_done_time - req_start_time) * 1000
             logger.info("http response: " + str(http_response))
             response_context = self.__add_user_context_to_http_response(http_response, response_status_code, tracker_data)
             bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'],
@@ -113,6 +110,7 @@ class ActionHTTP(ActionsBase):
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, bot_response)
                 if message:
                     msg_logger.append(message)
+            fail_reason = ActionUtility.validate_http_response_status(http_response, response_status_code)
             ActionServerLogs(
                 type=ActionType.http_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -125,6 +123,7 @@ class ActionHTTP(ActionsBase):
                 api_response=str(http_response) if http_response else None,
                 bot_response=str(bot_response) if bot_response else None,
                 messages=msg_logger,
+                fail_reason=fail_reason,
                 exception=exception,
                 bot=self.bot,
                 status=status,
