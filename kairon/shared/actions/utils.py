@@ -55,15 +55,20 @@ class ActionUtility:
         kwargs = {"content_type": content_type, "timeout": timeout, "return_json": False}
         client = AioRestClient()
         response = await client.request(request_method, http_url, request_body, headers, **kwargs)
-        if response.status not in [200, 202, 201, 204]:
-            raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
+
         try:
             http_response = await response.json()
         except (ContentTypeError, ValueError) as e:
             logging.error(str(e))
             http_response = await response.text()
+        status_code = response.status
 
-        return http_response
+        return http_response, status_code, client.time_elapsed
+
+    @staticmethod
+    def validate_http_response_status(http_response, status_code):
+        if status_code and status_code not in [200, 202, 201, 204]:
+            return f"Got non-200 status code: {status_code} {http_response}"
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
@@ -250,6 +255,7 @@ class ActionUtility:
             ActionParameterType.intent.value: tracker.get_intent_of_latest_message(),
             ActionParameterType.chat_log.value: msg_trail,
             ActionParameterType.key_vault.value: key_vault,
+            ActionParameterType.latest_message.value : tracker.latest_message,
             KAIRON_USER_MSG_ENTITY: next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None),
             "session_started": iat
         }
@@ -635,7 +641,7 @@ class ActionUtility:
                 f"Skipping evaluation as value is empty"
             ])
         elif evaluation_type == EvaluationType.script.value:
-            result, log = ActionUtility.evaluate_script(response, http_response)
+            result, log, _ = ActionUtility.evaluate_pyscript(response, http_response)
         else:
             result = ActionUtility.prepare_response(response, http_response)
             log.extend([f"evaluation_type: {evaluation_type}", f"expression: {response}", f"data: {http_response}",
@@ -918,6 +924,25 @@ class ActionUtility:
             raise ActionFailure(f'Expression evaluation failed: {resp}')
         result = resp.get('data')
         return result, log
+
+    @staticmethod
+    def evaluate_pyscript(script: Text, data: Any, raise_err_on_failure: bool = True):
+        log = [f"evaluation_type: script", f"script: {script}", f"data: {data}", f"raise_err_on_failure: {raise_err_on_failure}"]
+        if data.get('context'):
+            context = data['context']
+            context['data'] = data['data']
+            context['status_code'] = data['status_code']
+        else:
+            context = data
+        result = ActionUtility.run_pyscript(script, context)
+        slot_values = ActionUtility.filter_out_kairon_system_slots(result.get('slots', {}))
+        if result.get('bot_response'):
+            output = result['bot_response']
+        elif result.get('body'):
+            output = result['body']
+        else:
+            output = {}
+        return output, log, slot_values
 
     @staticmethod
     def trigger_rephrase(bot: Text, text_response: Text):

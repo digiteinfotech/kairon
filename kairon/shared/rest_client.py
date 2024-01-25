@@ -10,6 +10,7 @@ from urllib3.util import parse_url
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.models import HttpRequestContentType
+from datetime import datetime
 
 
 class RestClientBase(ABC):
@@ -28,6 +29,7 @@ class AioRestClient(RestClientBase):
         self.session = ClientSession()
         self.close_session_with_rqst_completion = close_session_with_rqst_completion
         self._streaming_response = None
+        self._time_elapsed = None
 
     @property
     def streaming_response(self):
@@ -56,6 +58,14 @@ class AioRestClient(RestClientBase):
             response = await response.json()
 
         return response
+
+    @property
+    def time_elapsed(self):
+        return self._time_elapsed
+
+    @time_elapsed.setter
+    def time_elapsed(self, time_elapsed):
+        self._time_elapsed = time_elapsed.microseconds / 1000
 
     async def __trigger_request(self, request_method: str, http_url: str, retry_options: ExponentialRetry,
                                 request_body: Union[dict, list] = None, headers: dict = None,
@@ -96,7 +106,9 @@ class AioRestClient(RestClientBase):
         Response object is returned as it is and Streaming response is set into class property.
         """
         is_streaming_resp = kwargs.pop("is_streaming_resp", False)
+        rqst_start_time = datetime.utcnow()
         async with client.request(*args, **kwargs) as response:
+            self.time_elapsed = datetime.utcnow() - rqst_start_time
             logger.debug(f"Content-type: {response.headers['content-type']}")
             logger.debug(f"Status code: {str(response.status)}")
             if is_streaming_resp:

@@ -196,11 +196,7 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         tracker_data = ActionUtility.build_context(tracker, True)
-        assert tracker_data == {'sender_id': 'sender1', 'user_message': 'get intents',
-                                'slot': {'bot': '5j59kk1a76b698ca10d35d2e', 'param2': 'param2value',
-                                         'email': 'nkhare@digite.com', 'firstname': 'nupur'}, 'intent': 'http_action',
-                                'chat_log': [], 'key_vault': {'EMAIL': 'nkhare@digite.com'}, 'kairon_user_msg': None,
-                                'session_started': None}
+        assert tracker_data == {'sender_id': 'sender1', 'user_message': 'get intents', 'slot': {'bot': '5j59kk1a76b698ca10d35d2e', 'param2': 'param2value', 'email': 'nkhare@digite.com', 'firstname': 'nupur'}, 'intent': 'http_action', 'chat_log': [], 'key_vault': {'EMAIL': 'nkhare@digite.com'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}, 'kairon_user_msg': None, 'session_started': None}
 
     def test_build_context_with_keyvault_flag_False(self):
         KeyVault(key="EMAIL", value="nkhare@digite.com", bot="5j59kk1a76b698ca10d35d2e", user="user").save()
@@ -210,11 +206,7 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         tracker_data = ActionUtility.build_context(tracker, False)
-        assert tracker_data == {'sender_id': 'sender1', 'user_message': 'get intents',
-                                'slot': {'bot': '5j59kk1a76b698ca10d35d2e', 'param2': 'param2value',
-                                         'email': 'nkhare@digite.com', 'firstname': 'nupur'}, 'intent': 'http_action',
-                                'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}
-
+        assert tracker_data == {'sender_id': 'sender1', 'user_message': 'get intents', 'slot': {'bot': '5j59kk1a76b698ca10d35d2e', 'param2': 'param2value', 'email': 'nkhare@digite.com', 'firstname': 'nupur'}, 'intent': 'http_action', 'chat_log': [], 'key_vault': {}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}, 'kairon_user_msg': None, 'session_started': None}
     def test_build_context_no_keyvault(self):
         slots = {"bot": "5z11mk1a76b698ca10d15d2e", "param2": "param2value", "email": "nupur@digite.com", "firstname": "nkhare"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
@@ -222,11 +214,8 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         tracker_data = ActionUtility.build_context(tracker, True)
-        assert tracker_data == {'sender_id': 'sender1', 'user_message': 'get intents',
-                                'slot': {'bot': '5z11mk1a76b698ca10d15d2e', 'param2': 'param2value',
-                                         'email': 'nupur@digite.com', 'firstname': 'nkhare'}, 'intent': 'http_action',
-                                'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None,
-                                'session_started': None}
+        assert tracker_data == {'sender_id': 'sender1', 'user_message': 'get intents', 'slot': {'bot': '5z11mk1a76b698ca10d15d2e', 'param2': 'param2value', 'email': 'nupur@digite.com', 'firstname': 'nkhare'}, 'intent': 'http_action', 'chat_log': [], 'key_vault': {}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}, 'kairon_user_msg': None, 'session_started': None}
+
 
     def test_execute_http_request_invalid_method_type(self):
         http_url = 'http://localhost:8080/mock'
@@ -1121,6 +1110,7 @@ class TestActions:
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                         'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
                                         'intent': 'pyscript_action', 'chat_log': [],
                                         'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
@@ -1175,6 +1165,8 @@ class TestActions:
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
+                                                           'text': 'get intents'},
                                         'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
                                         'intent': 'pyscript_action', 'chat_log': [],
                                         'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
@@ -1229,6 +1221,8 @@ class TestActions:
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
+                                                           'text': 'get intents'},
                                         'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
                                         'intent': 'pyscript_action', 'chat_log': [],
                                         'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
@@ -1283,6 +1277,8 @@ class TestActions:
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
+                                                           'text': 'get intents'},
                                         'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
                                         'intent': 'pyscript_action', 'chat_log': [],
                                         'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
@@ -1338,6 +1334,8 @@ class TestActions:
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
+                                                           'text': 'get intents'},
                                         'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
                                         'intent': 'pyscript_action', 'chat_log': [],
                                         'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
@@ -1393,6 +1391,8 @@ class TestActions:
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
+                                                           'text': 'get intents'},
                                         'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
                                         'intent': 'pyscript_action', 'chat_log': [],
                                         'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
@@ -1462,6 +1462,8 @@ class TestActions:
             assert called_args.args[1] == \
                    {'source_code': script,
                     'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                           'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
+                                                              'text': 'get intents'},
                                            'slot': {'bot': '5f50fd0a56b698ca10d35d2a',
                                                     'param2': 'param2value'}, 'intent': 'pyscript_action',
                                            'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None,
@@ -1501,6 +1503,8 @@ class TestActions:
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
+                                                           'text': 'get intents'},
                                         'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
                                         'intent': 'pyscript_action', 'chat_log': [],
                                         'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -1555,6 +1559,8 @@ class TestActions:
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
+                                                           'text': 'get intents'},
                                         'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
                                         'intent': 'pyscript_action', 'chat_log': [],
                                         'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -1586,7 +1592,7 @@ class TestActions:
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
-        mock_execute_request_async.return_value = http_response
+        mock_execute_request_async.return_value = http_response, 200, 5
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.http_action.value}
@@ -1682,7 +1688,7 @@ class TestActions:
         http_url = "http://kairon.com/mock"
         http_response = "This should be response"
         dynamic_params = \
-            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+            "{\"sender_id\": sender_id, \"user_message\": user_message, \"intent\": intent}"
         action = HttpActionConfig(
             action_name="test_run_with_dynamic_params",
             response=HttpActionResponse(value=http_response),
@@ -1702,8 +1708,8 @@ class TestActions:
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": resp_msg},
+            url=Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {"body" : resp_msg}, 'error_code': 0},
             status=200,
         )
         aioresponses.add(
@@ -1945,7 +1951,7 @@ class TestActions:
     async def test_run_with_get_dispatch_type_text_with_json_response(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_get_with_json_response",
-            response=HttpActionResponse(value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+            response=HttpActionResponse(value="bot_response=data",
                                         dispatch=True, evaluation_type="script"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
@@ -1965,16 +1971,15 @@ class TestActions:
         http_url = 'http://localhost:8081/mock'
         responses.reset()
         responses.start()
-        resp_msg = json.dumps({
-            "a": {
-                "b": {
-                    "3": 2,
-                    "43": 30,
-                    "c": [],
-                    "d": ['red', 'buggy', 'bumpers'],
-                }
+        data_obj = {
+            "a": 10,
+            "b": {
+                "name": "Mayank",
+                "arr": ['red', 'green', 'hotpink']
             }
-        })
+        }
+
+        resp_msg = json.dumps(data_obj)
         aioresponses.add(
             method=responses.GET,
             url=http_url,
@@ -1983,20 +1988,20 @@ class TestActions:
         )
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+            url=Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data":  {'bot_response' : data_obj}, 'error_code' : 0},
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
-                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                              'context': {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                          'chat_log': [],
-                                          'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj',
-                                                        'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                          'kairon_user_msg': None,
-                                          'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                    {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                            'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                            'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj', 'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                            'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                               'text': 'get intents'},
+                                            'sender_id': 'default_sender', 'session_started': None,
+                                            'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'status_code': 200,
+                                            'user_message': 'get intents'},
+                     'source_code': "bot_response=data"} )],
         )
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
@@ -2012,7 +2017,7 @@ class TestActions:
         responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
-        assert str(actual[0]['value']) == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
+        assert str(actual[0]['value']) == str(data_obj)
         log = ActionServerLogs.objects(sender="default_sender",
                                        action="test_run_with_get_with_json_response",
                                        status="SUCCESS").get()
@@ -2020,25 +2025,24 @@ class TestActions:
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_get_with_json_response"
-        assert log['api_response'] == "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}"
-        assert log['bot_response'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
+        assert log['api_response'] == str(data_obj)
+        assert log['bot_response'] == str(data_obj)
 
     @pytest.mark.asyncio
     async def test_run_with_get_with_dynamic_params(self, monkeypatch, aioresponses):
-        dynamic_params = "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "\
-                         "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}"
+        dynamic_params = "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}"
         KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         KeyVault(key="API_KEY", value="asdfghjkertyuio", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         action = HttpActionConfig(
             action_name="test_run_with_get_with_dynamic_params",
-            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
+            response=HttpActionResponse(
+                value="bot_response = data['b']['name']",
+                dispatch=True, evaluation_type="script", dispatch_type='text'),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             dynamic_params=dynamic_params,
-            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
-                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
@@ -2050,84 +2054,62 @@ class TestActions:
         responses.reset()
         responses.start()
         resp_msg = {
-            "sender_id": "default_sender",
-            "user_message": "get intents",
-            "intent": "test_run",
-            "EMAIL": "uditpandey@digite.com"
+            'body': {
+                "sender_id": "default",
+                "user_message": "get intents",
+                "intent": "test_run"
+            }
+
         }
+        http_url = 'http://localhost:8081/mock'
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": resp_msg},
+            url=Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": resp_msg, 'error_code': 0},
             status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {"predefined_objects": {"bot": "5f50fd0a56b698ca10d35d2e", "chat_log": [],
+                                            "intent": "test_run", "kairon_user_msg": None,
+                                            "key_vault": {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj', 'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                            "latest_message": {"intent_ranking": [{"name": "test_run"}],
+                                                               "text": "get intents"}, "sender_id": "default_sender",
+                                            "session_started": None, "slot": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                                            "user_message": "get intents"},
+                     "source_code": "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}"})],
         )
-        http_url = 'http://localhost:8081/mock'
-        resp_msg = json.dumps({
-            "a": {
-                "b": {
-                    "3": 2,
-                    "43": 30,
-                    "c": [],
-                    "d": ['red', 'buggy', 'bumpers'],
-                }
+
+        data_obj = {
+            "a": 10,
+            "b": {
+                "name": "Mayank",
+                "arr": ['red', 'green', 'hotpink']
             }
-        })
+        }
+
+        resp_msg = json.dumps(data_obj)
         aioresponses.add(
             method=responses.GET,
-            url=f"{http_url}?sender_id=default_sender&user_message=get%20intents&intent=test_run&EMAIL=uditpandey@digite.com",
+            url=f"{http_url}?sender_id=default&user_message=get%20intents&intent=test_run",
             body=resp_msg,
-            status=200,
+            status=200
         )
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+            url=Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
-                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                              'context': {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                          'chat_log': [],
-                                          'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj',
-                                                        'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                          'kairon_user_msg': None, 'session_started': None,
-                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-        )
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "${a.b.d}",
-                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                              'context': {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                          'chat_log': [],
-                                          'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj',
-                                                        'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                          'kairon_user_msg': None, 'session_started': None,
-                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-        )
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "red"},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "${a.b.d.0}",
-                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                              'context': {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                          'chat_log': [],
-                                          'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj',
-                                                        'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                          'kairon_user_msg': None, 'session_started': None,
-                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                    {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                            'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                            'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj', 'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                            'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                               'text': 'get intents'},
+                                            'sender_id': 'default_sender', 'session_started': None,
+                                            'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'status_code': 200,
+                                            'user_message': 'get intents'},
+                     'source_code': "bot_response = data['b']['name']"})]
         )
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
@@ -2139,26 +2121,25 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_get_with_dynamic_params")
+
+
+
         responses.stop()
         assert actual is not None
-        assert str(actual[0]['name']) == 'val_d'
-        assert str(actual[0]['value']) == "['red', 'buggy', 'bumpers']"
-        assert str(actual[1]['name']) == 'val_d_0'
-        assert str(actual[1]['value']) == "red"
-        assert str(actual[2]['name']) == 'kairon_action_response'
-        assert str(actual[2]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+        assert str(actual[0]['name']) == 'kairon_action_response'
+        assert str(actual[0]['value']) == "Mayank"
+
         log = ActionServerLogs.objects(sender="default_sender",
                                        action="test_run_with_get_with_dynamic_params",
                                        status="SUCCESS").get()
-        print(log.to_mongo().to_dict())
+
         assert not log['exception']
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_get_with_dynamic_params"
-        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                         'intent': 'test_run', 'EMAIL': '*******************om'}
-        assert log['api_response'] == "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}"
-        assert log['bot_response'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
+        assert log['request_params'] ==  {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}
+        assert log['api_response'] == str(data_obj)
+        assert log['bot_response'] == "Mayank"
 
     @pytest.mark.asyncio
     async def test_run_no_connection(self, monkeypatch):
@@ -3797,22 +3778,20 @@ class TestActions:
 
     @responses.activate
     def test_compose_response_using_script(self):
-        script = "${a.b.d}"
+        script = "bot_response=data['name']"
         response_config = {"value": script, "evaluation_type": "script"}
-        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        http_response = {'name' : 'Mayank'}
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
+            url=Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {'bot_response' : 'Mayank'}, 'error_code': 0},
             status=200,
-            match=[responses.matchers.json_params_matcher({'script': script, 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'source_code': script, 'predefined_objects': http_response})],
         )
         result, log = ActionUtility.compose_response(response_config, http_response)
-        assert result == '[\'red\', \'buggy\', \'bumpers\']'
-        assert log == ['evaluation_type: script', 'script: ${a.b.d}',
-                       "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
-                       'raise_err_on_failure: True',
-                       'Evaluator response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}']
+        assert result == 'Mayank'
+
+        assert log ==  ['evaluation_type: script', "script: bot_response=data['name']", "data: {'name': 'Mayank'}", 'raise_err_on_failure: True']
 
     @responses.activate
     def test_compose_response_using_script_failure(self):
@@ -3874,36 +3853,29 @@ class TestActions:
 
     @responses.activate
     def test_fill_slots_from_response_failure(self):
-        set_slots = [{"name": "experience", "value": "${data.a.b.d}", "evaluation_type": "script"},
-                     {"name": "score", "value": "${data.a.b.3}", "evaluation_type": "script"},
-                     {"name": "percentage", "value": "${data.a.b.43}"}]
-        http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+        set_slots = [{"name": "experience", "value": "bot_response=data['exp']dsds", "evaluation_type": "script"},
+                     {"name": "score", "value": "bot_response=data['score']", "evaluation_type": "script"},
+                     ]
+        http_response = {"data": {'name' : 'mayank', 'exp': 30, 'score': 10},
                          "context": {}}
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
+            url=Utility.environment['evaluator']['pyscript']['url'],
             json={"success": False},
             status=200,
-            match=[responses.matchers.json_params_matcher({'script': "${data.a.b.d}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'source_code': "bot_response=data['exp']dsds", 'predefined_objects': http_response})],
         )
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": 2},
+            url=Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {'bot_response' :10}, 'error_code': 0},
             status=200,
-            match=[responses.matchers.json_params_matcher({'script': "${data.a.b.3}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'source_code': "bot_response=data['score']", 'predefined_objects': http_response})],
         )
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
-        assert evaluated_slot_values == {'experience': None, 'score': 2, "percentage": "30"}
-        assert response_log == ['initiating slot evaluation', 'Slot: experience',
-                                "Evaluation error for experience: Expression evaluation failed: {'success': False}",
-                                'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script',
-                                'script: ${data.a.b.3}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
-                                'raise_err_on_failure: True', "Evaluator response: {'success': True, 'data': 2}",
-                                'Slot: percentage', 'evaluation_type: expression', 'expression: ${data.a.b.43}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
-                                'response: 30']
+        assert evaluated_slot_values == {'experience': None, 'score': 10}
+        assert response_log == ['initiating slot evaluation', 'Slot: experience', "Evaluation error for experience: Pyscript evaluation failed: {'success': False}", 'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script', "script: bot_response=data['score']", "data: {'data': {'name': 'mayank', 'exp': 30, 'score': 10}, 'context': {}}", 'raise_err_on_failure: True']
+
     
     def test_retrieve_config_two_stage_fallback(self):
         bot = "test_bot"
