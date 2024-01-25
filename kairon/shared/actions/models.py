@@ -14,6 +14,7 @@ class ActionParameterType(str, Enum):
     slot = "slot"
     sender_id = "sender_id"
     user_message = "user_message"
+    latest_message = "latest_message"
     intent = "intent"
     chat_log = "chat_log"
     key_vault = "key_vault"
