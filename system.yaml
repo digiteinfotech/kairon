@@ -148,7 +148,7 @@ evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://192.168.100.109:8085/evaluate"}
   pyscript:
     trigger_task: ${PYSCRIPT_TRIGGER_TASK:false}
-    url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8080/evaluate"}
+    url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8087/evaluate"}
 
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}

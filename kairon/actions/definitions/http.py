@@ -65,7 +65,7 @@ class ActionHTTP(ActionsBase):
         dispatch_bot_response = True
         dispatch_type = DispatchType.text.value
         msg_logger = []
-        response_time = 0.0
+        time_elapsed = 0
         try:
             http_action_config = self.retrieve_config()
             dispatch_bot_response = http_action_config['response']['dispatch']
@@ -76,7 +76,8 @@ class ActionHTTP(ActionsBase):
             logger.info("headers: " + str(header_log))
             dynamic_params = http_action_config.get('dynamic_params')
             if not ActionUtility.is_empty(dynamic_params):
-                body, body_log = ActionUtility.evaluate_script(dynamic_params, tracker_data)
+                body, body_log, slots = ActionUtility.evaluate_pyscript(dynamic_params, tracker_data)
+                filled_slots.update(slots)
                 msg_logger.extend(body_log)
                 body_log = ActionUtility.encrypt_secrets(body, tracker_data)
             else:
@@ -85,14 +86,13 @@ class ActionHTTP(ActionsBase):
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
             req_start_time = time.time()
-            http_response = await ActionUtility.execute_request_async(headers=headers, http_url=http_url,
+            http_response, response_status_code = await ActionUtility.execute_request_async(headers=headers, http_url=http_url,
                                                                       request_method=request_method, request_body=body,
                                                                       content_type=http_action_config['content_type'])
             req_done_time = time.time()
-            response_time = (req_done_time - req_start_time) * 1000
+            time_elapsed = (req_done_time - req_start_time) * 1000
             logger.info("http response: " + str(http_response))
-            logger.info("time taken: ", f"{response_time:.3}ms")
-            response_context = self.__add_user_context_to_http_response(http_response, tracker_data)
+            response_context = self.__add_user_context_to_http_response(http_response, response_status_code, tracker_data)
             bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'],
                                                                         response_context)
             msg_logger.extend(bot_resp_log)
@@ -129,14 +129,14 @@ class ActionHTTP(ActionsBase):
                 bot=self.bot,
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
-                response_time=response_time
+                time_elapsed=time_elapsed
             ).save()
         filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return filled_slots
 
     @staticmethod
-    def __add_user_context_to_http_response(http_response, tracker_data):
-        response_context = {"data": http_response, 'context': tracker_data}
+    def __add_user_context_to_http_response(http_response, response_status_code, tracker_data):
+        response_context = {"data": http_response, 'context': tracker_data, 'status_code': response_status_code}
         return response_context
 
     @property
