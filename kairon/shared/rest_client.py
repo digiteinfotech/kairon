@@ -11,6 +11,7 @@ from urllib3.util import parse_url
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.models import HttpRequestContentType
+from datetime import datetime
 
 
 class RestClientBase(ABC):
@@ -66,6 +67,14 @@ class AioRestClient(RestClientBase):
             response = await response.json()
 
         return response
+
+    @property
+    def time_elapsed(self):
+        return self._time_elapsed
+
+    @time_elapsed.setter
+    def time_elapsed(self, time_elapsed):
+        self._time_elapsed = time_elapsed.microseconds / 1000
 
     async def __trigger_request(self, request_method: str, http_url: str, retry_options: ExponentialRetry,
                                 request_body: Union[dict, list] = None, headers: dict = None,
