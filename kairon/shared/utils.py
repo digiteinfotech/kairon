@@ -796,9 +796,9 @@ class Utility:
         )
         with tarfile.open(model_file, "r:gz") as model:
             model.extractall(tempdir)
-            domain = Utility.read_yaml(f"{tempdir}/core/domain.yml")
+            domain = Utility.read_yaml(f"{tempdir}/components/domain_provider/domain.yml")
             domain["slots"]["bot"]["initial_value"] = bot
-            yaml.safe_dump(domain, open(f"{tempdir}/core/domain.yml", "w"))
+            yaml.safe_dump(domain, open(f"{tempdir}/components/domain_provider/domain.yml", "w"))
             Utility.build_tar(tempdir, updated_model)
             return updated_model
 
