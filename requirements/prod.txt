@@ -49,3 +49,4 @@ opentelemetry-propagator-aws-xray
 opentelemetry-instrumentation-fastapi
 google-businessmessages==1.0.5
 google-apitools==0.5.32
+orjson==3.9.6
