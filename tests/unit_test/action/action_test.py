@@ -1999,7 +1999,7 @@ class TestActions:
                                             'latest_message': {'intent_ranking': [{'name': 'test_run'}],
                                                                'text': 'get intents'},
                                             'sender_id': 'default_sender', 'session_started': None,
-                                            'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'status_code': 200,
+                                            'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
                                             'user_message': 'get intents'},
                      'source_code': "bot_response=data"} )],
         )
@@ -2107,7 +2107,7 @@ class TestActions:
                                             'latest_message': {'intent_ranking': [{'name': 'test_run'}],
                                                                'text': 'get intents'},
                                             'sender_id': 'default_sender', 'session_started': None,
-                                            'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'status_code': 200,
+                                            'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
                                             'user_message': 'get intents'},
                      'source_code': "bot_response = data['b']['name']"})]
         )
