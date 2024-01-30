@@ -6,12 +6,14 @@ from RestrictedPython import compile_restricted
 from RestrictedPython.Guards import safer_getattr
 from loguru import logger
 from timeout_decorator import timeout_decorator
+import orjson as json
 
 from ..actors.base import BaseActor
 from kairon.exceptions import AppException
 
 global_safe = _safe_globals
 global_safe['_getattr_'] = safer_getattr
+global_safe['json'] = json
 
 
 class PyScriptRunner(BaseActor):
