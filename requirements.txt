@@ -1,5 +1,5 @@
 torchvision==0.14.1
-sentence-transformers
+sentence-transformers==2.2.2
 pyyaml
 torch==1.13.1
 rasa[full]==2.8.15
