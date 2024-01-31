@@ -4,7 +4,7 @@ pytest_httpx
 pytest-asyncio
 responses
 mock
-moto
+moto==4.2.7
 mongomock
 black
 locust
