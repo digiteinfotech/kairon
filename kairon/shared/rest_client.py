@@ -31,6 +31,7 @@ class AioRestClient(RestClientBase):
         self.close_session_with_rqst_completion = close_session_with_rqst_completion
         self._streaming_response = None
         self._time_elapsed = None
+        self._status_code = None
 
     @property
     def streaming_response(self):
@@ -47,6 +48,14 @@ class AioRestClient(RestClientBase):
     @time_elapsed.setter
     def time_elapsed(self, time_elapsed):
         self._time_elapsed = time_elapsed.microseconds / 1000
+
+    @property
+    def status_code(self):
+        return self._status_code
+
+    @status_code.setter
+    def status_code(self, status_code):
+        self._status_code = status_code
 
     async def request(self, request_method: str, http_url: str, request_body: Union[dict, list] = None,
                       headers: dict = None,
@@ -67,14 +76,6 @@ class AioRestClient(RestClientBase):
             response = await response.json()
 
         return response
-
-    @property
-    def time_elapsed(self):
-        return self._time_elapsed
-
-    @time_elapsed.setter
-    def time_elapsed(self, time_elapsed):
-        self._time_elapsed = time_elapsed.microseconds / 1000
 
     async def __trigger_request(self, request_method: str, http_url: str, retry_options: ExponentialRetry,
                                 request_body: Union[dict, list] = None, headers: dict = None,
@@ -98,12 +99,15 @@ class AioRestClient(RestClientBase):
         except ClientConnectionError as e:
             logger.exception(e)
             _, _, host, _, _, _, _ = parse_url(http_url)
+            self.status_code = 503
             raise AppException(f"Failed to connect to service: {host}")
         except asyncio.TimeoutError as e:
             logger.exception(e)
+            self.status_code = 408
             raise AppException(f"Request timed out: {str(e)}")
         except Exception as e:
             logger.exception(e)
+            self.status_code = 500
             raise AppException(f"Failed to execute the url: {str(e)}")
         finally:
             if self.close_session_with_rqst_completion:
@@ -120,6 +124,7 @@ class AioRestClient(RestClientBase):
             self.time_elapsed = datetime.utcnow() - rqst_start_time
             logger.debug(f"Content-type: {response.headers['content-type']}")
             logger.debug(f"Status code: {str(response.status)}")
+            self.status_code = response.status
             if is_streaming_resp:
                 streaming_resp = await AioRestClient.parse_streaming_response(response)
                 self.streaming_response = streaming_resp

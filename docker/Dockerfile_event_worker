@@ -68,6 +68,7 @@ RUN python -m pip install AccessControl
 RUN python -m pip install pykka==3.1.1
 RUN python -m pip install timeout-decorator
 RUN python -m pip install aiohttp-retry
+RUN python -m pip install orjson==3.9.12
 
 RUN mkdir data_generator
 RUN mkdir training_data

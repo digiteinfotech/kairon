@@ -1026,15 +1026,19 @@ class MongoProcessor:
             )
 
         for slot in [s for s in KaironSystemSlots if s.value in {KaironSystemSlots.kairon_action_response.value,
-                                                                 KaironSystemSlots.order.value}]:
+                                                                 KaironSystemSlots.order.value,
+                                                                 KaironSystemSlots.http_status_code.value}]:
+            slot_type = "float" if slot == KaironSystemSlots.http_status_code.value else "any"
             self.add_slot({
-                "name": slot, "type": "any", "initial_value": None, "auto_fill": False,
-                "influence_conversation": False}, bot, user, raise_exception_if_exists=False
+                "name": slot, "type": slot_type, "initial_value": None, "auto_fill": False,
+                "influence_conversation": False, "max_value": 550, "min_value": 100}, bot, user,
+                raise_exception_if_exists=False
             )
 
         for slot in [s for s in KaironSystemSlots if s.value not in {KaironSystemSlots.bot.value,
                                                                      KaironSystemSlots.kairon_action_response.value,
-                                                                     KaironSystemSlots.order.value}]:
+                                                                     KaironSystemSlots.order.value,
+                                                                     KaironSystemSlots.http_status_code.value}]:
             self.add_slot({
                 "name": slot, "type": "text", "auto_fill": True,
                 "initial_value": None, "influence_conversation": True}, bot, user, raise_exception_if_exists=False

@@ -64,8 +64,9 @@ class ActionHTTP(ActionsBase):
         dispatch_bot_response = True
         dispatch_type = DispatchType.text.value
         msg_logger = []
+        slot_values = {}
         time_elapsed = None
-        response_status_code = None
+        resp_status_code = None
         try:
             http_action_config = self.retrieve_config()
             dispatch_bot_response = http_action_config['response']['dispatch']
@@ -85,32 +86,32 @@ class ActionHTTP(ActionsBase):
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
-            http_response, response_status_code, time_elapsed = await ActionUtility.execute_request_async(headers=headers, http_url=http_url,
-                                                                      request_method=request_method, request_body=body,
-                                                                      content_type=http_action_config['content_type'])
+            http_response, resp_status_code, time_elapsed = await ActionUtility.execute_request_async(
+                headers=headers, http_url=http_url,
+                request_method=request_method, request_body=body,
+                content_type=http_action_config['content_type']
+            )
             logger.info("http response: " + str(http_response))
-            response_context = self.__add_user_context_to_http_response(http_response, response_status_code, tracker_data)
-            bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'],
-                                                                        response_context)
+            response_context = self.__add_user_context_to_http_response(http_response, resp_status_code, tracker_data)
+            bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'], response_context)
             msg_logger.extend(bot_resp_log)
             self.__response = bot_response
             self.__is_success = True
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(http_action_config.get('set_slots', []),
                                                                                 response_context)
             msg_logger.extend(slot_eval_log)
-            filled_slots.update(slot_values)
             logger.info("response: " + str(bot_response))
         except Exception as e:
             exception = str(e)
             logger.exception(e)
             status = "FAILURE"
-            bot_response = "I have failed to process your request"
+            bot_response = bot_response if bot_response else "I have failed to process your request"
         finally:
             if dispatch_bot_response:
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, bot_response)
                 if message:
                     msg_logger.append(message)
-            fail_reason = ActionUtility.validate_http_response_status(http_response, response_status_code)
+            fail_reason = ActionUtility.validate_http_response_status(http_response, resp_status_code)
             ActionServerLogs(
                 type=ActionType.http_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -128,14 +129,16 @@ class ActionHTTP(ActionsBase):
                 bot=self.bot,
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
-                time_elapsed=time_elapsed
+                time_elapsed=time_elapsed,
+                http_status_code=resp_status_code
             ).save()
-        filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
+            filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response, "http_status_code": resp_status_code})
+            filled_slots.update(slot_values)
         return filled_slots
 
     @staticmethod
     def __add_user_context_to_http_response(http_response, response_status_code, tracker_data):
-        response_context = {"data": http_response, 'context': tracker_data, 'status_code': response_status_code}
+        response_context = {"data": http_response, 'context': tracker_data, 'http_status_code': response_status_code}
         return response_context
 
     @property

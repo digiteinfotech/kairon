@@ -47,6 +47,8 @@ class ActionUtility:
         @param content_type: request content type HTTP request
         :return: JSON/string response
         """
+        response = None
+        http_response = None
         timeout = Utility.environment['action'].get('request_timeout', 1)
         headers = headers if headers else {}
         headers.update({
@@ -54,21 +56,28 @@ class ActionUtility:
         })
         kwargs = {"content_type": content_type, "timeout": timeout, "return_json": False}
         client = AioRestClient()
-        response = await client.request(request_method, http_url, request_body, headers, **kwargs)
 
         try:
+            response = await client.request(request_method, http_url, request_body, headers, **kwargs)
             http_response = await response.json()
         except (ContentTypeError, ValueError) as e:
             logging.error(str(e))
-            http_response = await response.text()
-        status_code = response.status
+            if response:
+                http_response = await response.text()
+        except Exception as e:
+            logging.error(e)
+        finally:
+            status_code = client.status_code
 
         return http_response, status_code, client.time_elapsed
 
     @staticmethod
-    def validate_http_response_status(http_response, status_code):
+    def validate_http_response_status(http_response, status_code, raise_err = False):
         if status_code and status_code not in [200, 202, 201, 204]:
-            return f"Got non-200 status code: {status_code} {http_response}"
+            fail_reason = f"Got non-200 status code:{status_code} http_response:{http_response}"
+            if raise_err:
+                raise ActionFailure(fail_reason)
+            return fail_reason
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
@@ -643,6 +652,7 @@ class ActionUtility:
         elif evaluation_type == EvaluationType.script.value:
             result, log, _ = ActionUtility.evaluate_pyscript(response, http_response)
         else:
+            ActionUtility.validate_http_response_status(http_response, http_response.get("http_status_code"), True)
             result = ActionUtility.prepare_response(response, http_response)
             log.extend([f"evaluation_type: {evaluation_type}", f"expression: {response}", f"data: {http_response}",
                         f"response: {result}"])
@@ -931,7 +941,7 @@ class ActionUtility:
         if data.get('context'):
             context = data['context']
             context['data'] = data['data']
-            context['status_code'] = data['status_code']
+            context['http_status_code'] = data['http_status_code']
         else:
             context = data
         result = ActionUtility.run_pyscript(script, context)
