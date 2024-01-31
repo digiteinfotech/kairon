@@ -103,6 +103,7 @@ class KMongoTrackerStore(TrackerStore):
         flattened_conversation["data"]['bot_response'] = bot_responses
         data.append(flattened_conversation)
         if data:
+            logger.debug(data)
             self.conversations.insert_many(data)
 
     def _retrieve(
