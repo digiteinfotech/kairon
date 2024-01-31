@@ -853,5 +853,123 @@
             "smtp_userid":""
          }
       ]
+   ],
+   "database_action": [
+      {
+         "name": "db_action1",
+         "collection": "db_collection_1",
+         "query_type": "embedding_search",
+         "db_type": "qdrant",
+         "payload": {
+            "type": "from_value",
+            "value": {
+               "ids": [
+                  0
+               ],
+               "with_payload": true,
+               "with_vector": true
+            }
+         },
+         "response": {
+            "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",
+            "dispatch": true,
+            "evaluation_type": "expression",
+            "dispatch_type": "text"
+         }
+      },
+      {
+         "name": "db_action2",
+         "collection": "db_collection_1",
+         "query_type": "embedding_search",
+         "db_type": "qdrant",
+         "payload": {
+            "type": "from_value",
+            "value": {
+               "ids": [
+                  0
+               ],
+               "with_payload": true,
+               "with_vector": true
+            }
+         },
+         "response": "${RESPONSE}"
+      },
+      {
+         "name": "db_action5",
+         "query_type": "embedding_search",
+         "db_type": "qdrant",
+         "payload": {
+            "type": "from_value",
+            "value": {
+               "ids": [
+                  0
+               ],
+               "with_payload": true,
+               "with_vector": true
+            }
+         },
+         "response": {
+            "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",
+            "dispatch": true,
+            "evaluation_type": "expression",
+            "dispatch_type": "text"
+         }
+      },
+      {
+         "name": "db_action1",
+         "collection": "db_collection_1",
+         "query_type": "undefined_search",
+         "db_type": "qdrant",
+         "payload": {
+            "type": "from_value",
+            "value": {
+               "ids": [
+                  0
+               ],
+               "with_payload": true,
+               "with_vector": true
+            }
+         },
+         "response": {
+            "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",
+            "dispatch": true,
+            "evaluation_type": "expression",
+            "dispatch_type": "text"
+         }
+      },
+       {
+         "name": "db_action3",
+         "collection": "db_collection_1",
+         "query_type": "undefined_search",
+         "db_type": "qdrant",
+         "response": {
+            "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",
+            "dispatch": true,
+            "evaluation_type": "expression",
+            "dispatch_type": "text"
+         }
+      },
+      {
+         "name": "db_action4",
+         "collection": "db_collection_1",
+         "query_type": "embedding_search",
+         "db_type": "qdrant",
+         "payload": {
+            "type": "from_value"
+         },
+         "response": "${RESPONSE}"
+      },
+      [{
+         "name": "db_action3",
+         "collection": "db_collection_1",
+         "query_type": "undefined_search",
+         "db_type": "qdrant",
+         "response": {
+            "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",
+            "dispatch": true,
+            "evaluation_type": "expression",
+            "dispatch_type": "text"
+         }
+      }]
    ]
 }

@@ -795,6 +795,7 @@ class TestTrainingDataValidator:
         assert len(error_summary['prompt_actions']) == 46
         assert len(error_summary['razorpay_actions']) == 3
         assert len(error_summary['pyscript_actions']) == 3
+        assert len(error_summary['database_actions']) == 6
         required_fields_error = error_summary["prompt_actions"][18]
         assert re.match(r"Required fields .* not found in action: prompt_action_with_no_llm_prompts", required_fields_error)
         del error_summary["prompt_actions"][18]
@@ -828,7 +829,7 @@ class TestTrainingDataValidator:
         assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 9,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
                                    'zendesk_actions': 4, 'pipedrive_leads_actions': 5, 'prompt_actions': 8,
-                                   'razorpay_actions': 5, 'pyscript_actions': 5}
+                                   'razorpay_actions': 5, 'pyscript_actions': 5, 'database_actions': 7}
 
     def test_validate_multiflow_stories(self):
         with open(

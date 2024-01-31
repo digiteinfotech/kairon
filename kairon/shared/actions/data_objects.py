@@ -229,7 +229,7 @@ class DatabaseAction(Auditlog):
     name = StringField(required=True)
     collection = StringField(required=True)
     query_type = StringField(required=True, choices=[payload.value for payload in DbActionOperationType])
-    payload = EmbeddedDocumentField(DbQuery, default=DbQuery())
+    payload = EmbeddedDocumentField(DbQuery, required=True)
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
     db_type = StringField(required=True, default="qdrant")

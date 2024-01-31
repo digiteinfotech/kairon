@@ -4414,7 +4414,7 @@ class MongoProcessor:
         Utility.hard_delete_document([
             HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
             ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction, PromptAction,
-            PyscriptActionConfig, RazorpayAction
+            PyscriptActionConfig, RazorpayAction, DatabaseAction
         ], bot=bot)
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
 
@@ -4466,7 +4466,8 @@ class MongoProcessor:
             ActionType.prompt_action.value: PromptAction,
             ActionType.web_search_action.value: WebSearchAction,
             ActionType.razorpay_action.value: RazorpayAction,
-            ActionType.pyscript_action.value: PyscriptActionConfig
+            ActionType.pyscript_action.value: PyscriptActionConfig,
+            ActionType.database_action.value: DatabaseAction
         }
         saved_actions = set(
             Actions.objects(bot=bot, status=True, type__ne=None).values_list("name")
@@ -4506,6 +4507,7 @@ class MongoProcessor:
         action_config.update(self.load_prompt_action(bot))
         action_config.update(self.load_razorpay_action(bot))
         action_config.update(self.load_pyscript_action(bot))
+        action_config.update(self.load_database_action(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -4668,6 +4670,14 @@ class MongoProcessor:
         :return: dict
         """
         return {ActionType.pyscript_action.value: list(self.list_pyscript_actions(bot, False))}
+
+    def load_database_action(self, bot: Text):
+        """
+        Loads Database actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.database_action.value: list(self.list_db_actions(bot, False))}
 
     @staticmethod
     def get_existing_slots(bot: Text):

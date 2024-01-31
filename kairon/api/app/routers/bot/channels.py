@@ -109,7 +109,7 @@ async def initiate_platform_onboarding(
 @router.post("/whatsapp/templates/{bsp_type}", response_model=Response)
 async def add_message_templates(
         request_data: DictData,
-        bsp_type: str = Path(description="Business service provider type", example=WhatsappBSPTypes.bsp_360dialog.value),
+        bsp_type: str = Path(description="Business service provider type", examples=[WhatsappBSPTypes.bsp_360dialog.value]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -123,8 +123,8 @@ async def add_message_templates(
 @router.put("/whatsapp/templates/{bsp_type}/{template_id}", response_model=Response)
 async def edit_message_templates(
         request_data: DictData,
-        template_id: str = Path(description="template id", example="594425479261596"),
-        bsp_type: str = Path(description="Business service provider type", example=WhatsappBSPTypes.bsp_360dialog.value),
+        template_id: str = Path(description="template id", examples=["594425479261596"]),
+        bsp_type: str = Path(description="Business service provider type", examples=[WhatsappBSPTypes.bsp_360dialog.value]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -137,8 +137,8 @@ async def edit_message_templates(
 
 @router.delete("/whatsapp/templates/{bsp_type}/{template_id}", response_model=Response)
 async def delete_message_templates(
-        template_id: str = Path(description="template id", example="594425479261596"),
-        bsp_type: str = Path(description="Business service provider type", example=WhatsappBSPTypes.bsp_360dialog.value),
+        template_id: str = Path(description="template id", examples=["594425479261596"]),
+        bsp_type: str = Path(description="Business service provider type", examples=[WhatsappBSPTypes.bsp_360dialog.value]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """

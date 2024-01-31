@@ -19,8 +19,8 @@ from rasa.validator import Validator
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, \
     ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction, PromptAction, RazorpayAction, \
-    PyscriptActionConfig
-from kairon.shared.actions.models import ActionType, ActionParameterType
+    PyscriptActionConfig, DatabaseAction
+from kairon.shared.actions.models import ActionType, ActionParameterType, DbActionOperationType
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import MultiflowStories
@@ -583,7 +583,11 @@ class TrainingDataValidator(Validator):
                 is_data_invalid = True if errors else False
                 error_summary['pyscript_actions'] = errors
                 component_count['pyscript_actions'] = len(actions_list)
-
+            elif action_type == ActionType.database_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_database_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['database_actions'] = errors
+                component_count['database_actions'] = len(actions_list)
         return is_data_invalid, error_summary, component_count
 
     @staticmethod
@@ -681,6 +685,28 @@ class TrainingDataValidator(Validator):
                     llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(action.get('hyperparameters'))
                     data_error.extend(llm_hyperparameters_errors)
                 data_error.extend(llm_prompts_errors)
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+        return data_error
+
+    @staticmethod
+    def __validate_database_actions(database_actions: list):
+        data_error = []
+        actions_present = set()
+        required_fields = {k for k, v in DatabaseAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in database_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['query_type'] not in [qtype.value for qtype in DbActionOperationType]:
+                    data_error.append(f"Unknown query_type found: {action['query_type']}")
+                if not action['payload'].get('type') or not action['payload'].get('value'):
+                    data_error.append(f"Payload must contain fields 'type' and 'value'!")
                 if action['name'] in actions_present:
                     data_error.append(f'Duplicate action found: {action["name"]}')
                 actions_present.add(action["name"])
