@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Security, Path
+from fastapi import APIRouter, Security, Path, File, UploadFile
 from starlette.requests import Request
 
 from kairon import Utility
@@ -105,6 +105,100 @@ async def initiate_platform_onboarding(
     provider.validate()
     channel_endpoint = provider.save_channel_config(**request.query_params)
     return Response(message='Channel added', data=channel_endpoint)
+
+
+@router.post("/whatsapp/flows/{bsp_type}", response_model=Response)
+async def add_whatsapp_flow(
+        request_data: DictData,
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Adds whatsapp flows for configured bsp account. New Flows are created as drafts.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.add_whatsapp_flow(request_data.data, current_user.get_bot(), current_user.get_user())
+    return Response(data=response)
+
+
+@router.post("/whatsapp/flows/{bsp_type}/{flow_id}", response_model=Response)
+async def edit_whatsapp_flow(
+        flow_id: str = Path(default=None, description="flow id", example="594425479261596"),
+        file: UploadFile = File(...),
+        asset_type: str = "FLOW_JSON",
+        name: str = "flow.json",
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits whatsapp flows for configured bsp account. New Flows are created as drafts.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.edit_whatsapp_flow(flow_id, file, asset_type, name)
+    return Response(data=response)
+
+
+@router.get("/whatsapp/flows/{bsp_type}/{flow_id}", response_model=Response)
+async def preview_whatsapp_flow(
+        flow_id: str = Path(default=None, description="flow id", example="594425479261596"),
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Flows can be previewed through a public link generated with this endpoint.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.preview_whatsapp_flow(flow_id)
+    return Response(data=response)
+
+
+@router.get("/whatsapp/flows/{bsp_type}", response_model=Response)
+async def retrieve_whatsapp_flows(
+        request: Request,
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Retrieves all whatsapp flows for configured bsp account.
+    Query parameters passed are used as filters while retrieving these flows.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    flows = provider.list_whatsapp_flows(**request.query_params)
+    return Response(data={"flows": flows})
+
+
+@router.delete("/whatsapp/flows/{bsp_type}/{flow_id}", response_model=Response)
+async def delete_whatsapp_flow(
+        flow_id: str = Path(default=None, description="flow id", example="594425479261596"),
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes whatsapp flow from configured bsp account.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.delete_flow(flow_id)
+    return Response(data=response)
+
+
+@router.post("/whatsapp/flows/{bsp_type}/{flow_id}/publish", response_model=Response)
+async def publish_whatsapp_flow(
+        flow_id: str = Path(default=None, description="flow id", example="594425479261596"),
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Publishes whatsapp flow from configured bsp account.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.publish_flow(flow_id)
+    return Response(data=response)
 
 
 @router.post("/whatsapp/templates/{bsp_type}", response_model=Response)
