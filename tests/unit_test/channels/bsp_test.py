@@ -292,6 +292,398 @@ class TestBusinessServiceProvider:
                                     'api_key': 'kHCwksdsdsMVYVx0doabaDyRLUQJUAK', 'waba_account_id': 'Cyih7GWA'}
 
     @responses.activate
+    def test_add_whatsapp_flow_with_missing_keys(self):
+        bot = "62bc24b493a0d6b7a46328ff"
+        data = {
+            "name": "flow with multiple categories",
+            "clone_flow_id": "9070429474112345"
+        }
+        with pytest.raises(AppException, match="Missing categories in request body!"):
+            BSP360Dialog(bot, "test").add_whatsapp_flow(data, bot, "test")
+
+    @responses.activate
+    def test_add_whatsapp_flow_with_invalid_category(self):
+        bot = "62bc24b493a0d6b7a46328ff"
+        data = {
+            "name": "flow with multiple categories",
+            "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY", "FLOW"]
+        }
+        with pytest.raises(AppException, match="Invalid categories FLOW in request body!"):
+            BSP360Dialog(bot, "test").add_whatsapp_flow(data, bot, "test")
+
+    def test_add_whatsapp_flow_error(self):
+        bot = "62bc24b493a0d6b7a46328fg"
+        data = {
+            "name": "flow with multiple categories",
+            "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+        }
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").add_whatsapp_flow(data, bot, "user")
+
+    @responses.activate
+    def test_add_whatsapp_flow_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+            data = {
+                "name": "flow with multiple categories",
+                "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+            }
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows"
+            responses.add("POST", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to add flow: *"):
+                BSP360Dialog(bot, "user").add_whatsapp_flow(data, bot, "user")
+
+    @responses.activate
+    def test_add_whatsapp_flow(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            responses.reset()
+            bot = "62bc24b493a0d6b7a46328ff"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+            data = {
+                "name": "flow with multiple categories",
+                "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+            }
+            api_resp = {
+                "id": "9070429474112345"
+            }
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows"
+            responses.add("POST", json=api_resp, url=url, status=201)
+            flow_id = BSP360Dialog(bot, "test").add_whatsapp_flow(data, bot, "test")
+            assert flow_id == {'id': '9070429474112345'}
+            count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user="test", action="activity",
+                                         entity="flow_creation").count()
+            assert count == 1
+
+    @responses.activate
+    def test_edit_whatsapp_flow_channel_not_found(self):
+        from fastapi import UploadFile
+
+        bot = "62bc24b493a0d6b7a46328fg"
+        flow_id = "test_id"
+        file = UploadFile(filename="flow.json", file=(open("tests/testing_data/flow/sample_flow.json", "rb")))
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").edit_whatsapp_flow(flow_id=flow_id, file=file,
+                                                         asset_type="FLOW_JSON", name="flow.json")
+
+    @responses.activate
+    def test_edit_whatsapp_flow_failure(self, monkeypatch):
+        from fastapi import UploadFile
+
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+            file = UploadFile(filename="flow.json", file=(open("tests/testing_data/flow/sample_flow.json", "rb")))
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/assets"
+            responses.add("POST", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to edit flow: *"):
+                BSP360Dialog(bot, "user").edit_whatsapp_flow(flow_id=flow_id, file=file,
+                                                             asset_type="FLOW_JSON", name="flow.json")
+
+    @responses.activate
+    def test_edit_whatsapp_flow(self, monkeypatch):
+        from fastapi import UploadFile
+
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+            file = UploadFile(filename="flow.json", file=(open("tests/testing_data/flow/sample_flow.json", "rb")))
+            api_response = {
+                "success": True,
+                "validation_errors": []
+            }
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/assets"
+            responses.add("POST", json=api_response, url=url)
+
+            response = BSP360Dialog(bot, "user").edit_whatsapp_flow(flow_id=flow_id, file=file,
+                                                         asset_type="FLOW_JSON", name="flow.json")
+            assert response == api_response
+
+    @responses.activate
+    def test_preview_whatsapp_flow_channel_not_found(self):
+        bot = "62bc24b493a0d6b7a46328fg"
+        flow_id = "test_id"
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").preview_whatsapp_flow(flow_id)
+
+    @responses.activate
+    def test_preview_whatsapp_flow_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/preview"
+            responses.add("GET", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to get flow: *"):
+                BSP360Dialog(bot, "user").preview_whatsapp_flow(flow_id)
+
+    @responses.activate
+    def test_preview_whatsapp_flow(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+            api_response = {
+                "id": "9070429474112345",
+                "preview": {
+                    "expires_at": "2024-02-29T06:35:40+0000",
+                    "preview_url": "https://business.facebook.com/wa/manage/flows/9070429474112345/preview/?token=ec58dcaa-dd30-4fee-a8a7-3d7e297ac3c9"
+                }
+            }
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/preview"
+            responses.add("GET", json=api_response, url=url)
+            response = BSP360Dialog(bot, "user").preview_whatsapp_flow(flow_id)
+            assert response == api_response
+
+    @responses.activate
+    def test_list_whatsapp_flows_channel_not_found(self):
+        bot = "62bc24b493a0d6b7a46328fg"
+        flow_id = "test_id"
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").list_whatsapp_flows()
+
+    @responses.activate
+    def test_list_whatsapp_flows_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows"
+            responses.add("GET", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to get flows: *"):
+                BSP360Dialog(bot, "user").list_whatsapp_flows()
+
+    @responses.activate
+    def test_list_whatsapp_flows_with_query_params(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+            api_response = [
+                {
+                    "id": "9070429474112345",
+                    "name": "flow with multiple categories"
+                },
+                {
+                    "id": "5432129474112345",
+                    "name": "my first flow"
+                }
+            ]
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows?fields=id,name"
+            responses.add("GET", json=api_response, url=url)
+            response = BSP360Dialog(bot, "user").list_whatsapp_flows(fields='id,name')
+            assert response == api_response
+
+    @responses.activate
+    def test_list_whatsapp_flows(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+            api_response = [
+                {
+                    "categories": [
+                        "APPOINTMENT_BOOKING",
+                        "OTHER",
+                        "SURVEY"
+                    ],
+                    "id": "9070429474112345",
+                    "name": "flow with multiple categories",
+                    "status": "DRAF",
+                    "validation_errors": []
+                },
+                {
+                    "categories": [
+                        "SIGN_UP"
+                    ],
+                    "id": "5432129474112345",
+                    "name": "my first flow",
+                    "status": "PUBLISHED",
+                    "validation_errors": []
+                }
+            ]
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows"
+            responses.add("GET", json=api_response, url=url)
+            response = BSP360Dialog(bot, "user").list_whatsapp_flows()
+            assert response == api_response
+
+    @responses.activate
+    def test_delete_flow_channel_not_found(self):
+        bot = "62bc24b493a0d6b7a46328fg"
+        flow_id = "test_id"
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").delete_flow(flow_id)
+
+    @responses.activate
+    def test_delete_flow_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}"
+            responses.add("DELETE", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to delete flow: *"):
+                BSP360Dialog(bot, "user").delete_flow(flow_id)
+
+    @responses.activate
+    def test_delete_flow(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}"
+            responses.add("DELETE", json={"success": True}, url=url)
+
+            response = BSP360Dialog(bot, "user").delete_flow(flow_id)
+            assert response == {"success": True}
+
+    @responses.activate
+    def test_publish_flow_channel_not_found(self):
+        bot = "62bc24b493a0d6b7a46328fg"
+        flow_id = "test_id"
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").publish_flow(flow_id)
+
+    @responses.activate
+    def test_publish_flow_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/publish"
+            responses.add("POST", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to publish flow: *"):
+                BSP360Dialog(bot, "user").publish_flow(flow_id)
+
+    @responses.activate
+    def test_publish_flow(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/publish"
+            responses.add("POST", json={"success": True}, url=url)
+
+            response = BSP360Dialog(bot, "user").publish_flow(flow_id)
+            assert response == {"success": True}
+
+    @responses.activate
     def test_add_template(self, monkeypatch):
         with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
             responses.reset()
@@ -343,7 +735,8 @@ class TestBusinessServiceProvider:
             responses.add("POST", json=api_resp, url=url, status=201)
             template = BSP360Dialog(bot, "test").add_template(data, bot, "test")
             assert template == {'category': 'MARKETING', 'id': '594425479261596', 'status': 'PENDING'}
-            count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user="test", action="activity").count()
+            count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user="test", action="activity",
+                                         entity="template_creation").count()
             assert count == 1
 
     @responses.activate
