@@ -80,8 +80,9 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def add_event_log(bot: Text, log_type: Text, reference_id: Text = None, status: Text = None, **kwargs):
+        is_new_log = log_type in {MessageBroadcastLogType.send.value, MessageBroadcastLogType.self.value} or kwargs.pop("is_new_log", None)
         try:
-            if log_type in {MessageBroadcastLogType.send.value, MessageBroadcastLogType.self.value}:
+            if is_new_log:
                 raise DoesNotExist()
             log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type).get()
         except DoesNotExist:

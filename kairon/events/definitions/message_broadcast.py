@@ -134,6 +134,6 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         config["pyscript_timeout"] = bot_settings["dynamic_broadcast_execution_timeout"]
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, user=self.user, config=config,
-            status=EVENT_STATUS.INPROGRESS.value, reference_id=event_id
+            status=EVENT_STATUS.INPROGRESS.value, reference_id=event_id, is_new_log=True
         )
         return config
