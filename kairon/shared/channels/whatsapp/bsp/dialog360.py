@@ -82,6 +82,102 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         }
         return ChatDataProcessor.save_channel_config(conf, self.bot, self.user)
 
+    def get_flow_endpoint_url(self):
+        config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
+        partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
+        waba_account_id = config.get("config", {}).get("waba_account_id")
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+            "hub_base_url"]
+        flow_endpoint = f'/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows'
+        return base_url, flow_endpoint
+
+    def add_whatsapp_flow(self, data: Dict, bot: Text, user: Text):
+        try:
+            Utility.validate_add_flow_request(data)
+            base_url, flow_endpoint = self.get_flow_endpoint_url()
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{flow_endpoint}"
+            resp = Utility.execute_http_request(request_method="POST", http_url=url, request_body=data, headers=headers,
+                                                validate_status=True, err_msg="Failed to add flow: ",
+                                                expected_status_code=201)
+            UserActivityLogger.add_log(a_type=UserActivityType.flow_creation.value, email=user, bot=bot,
+                                       message=['Flow created!'])
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+
+    def edit_whatsapp_flow(self, flow_id, file, asset_type, name):
+        try:
+            base_url, flow_endpoint = self.get_flow_endpoint_url()
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{flow_endpoint}/{flow_id}/assets"
+            request_body = {
+                "asset_type": asset_type,
+                "name": name
+            }
+            resp = Utility.execute_http_request(request_method="POST", http_url=url, request_body=request_body,
+                                                headers=headers, validate_status=True, err_msg="Failed to edit flow: ",
+                                                expected_status_code=200,
+                                                files={'file': (file.filename, file.file, file.content_type)})
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(str(e))
+
+    def preview_whatsapp_flow(self, flow_id: str):
+        try:
+            base_url, flow_endpoint = self.get_flow_endpoint_url()
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{flow_endpoint}/{flow_id}/preview"
+            resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers,
+                                                validate_status=True, err_msg="Failed to get flow: ")
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+
+    def list_whatsapp_flows(self, **kwargs):
+        fields = kwargs.get("fields")
+
+        try:
+            base_url, flow_endpoint = self.get_flow_endpoint_url()
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{flow_endpoint}?fields={fields}" if fields else f"{base_url}{flow_endpoint}"
+            resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers,
+                                                validate_status=True, err_msg="Failed to get flows: ")
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+
+    def delete_flow(self, flow_id: str):
+        try:
+            base_url, flow_endpoint = self.get_flow_endpoint_url()
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{flow_endpoint}/{flow_id}"
+            resp = Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
+                                                validate_status=True, err_msg="Failed to delete flow: ")
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+
+    def publish_flow(self, flow_id: str):
+        try:
+            base_url, flow_endpoint = self.get_flow_endpoint_url()
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{flow_endpoint}/{flow_id}/publish"
+            resp = Utility.execute_http_request(request_method="POST", http_url=url, headers=headers,
+                                                validate_status=True, err_msg="Failed to publish flow: ")
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+
     def add_template(self, data: Dict, bot: Text, user: Text):
         try:
             Utility.validate_create_template_request(data)

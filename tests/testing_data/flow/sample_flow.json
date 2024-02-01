@@ -1,0 +1,205 @@
+{
+    "version": "3.0",
+    "screens": [
+        {
+            "id": "ADDRESS",
+            "title": "Address",
+            "data": {},
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "form",
+                        "children": [
+                            {
+                                "type": "TextHeading",
+                                "text": "Please Enter Your Details!"
+                            },
+                            {
+                                "type": "TextBody",
+                                "text": "First, we'll need a few details from you."
+                            },
+                            {
+                                "type": "TextInput",
+                                "name": "firstName",
+                                "label": "First Name",
+                                "input-type": "text",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "label": "Last Name",
+                                "name": "lastName",
+                                "input-type": "text",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "label": "Email Address",
+                                "name": "email",
+                                "input-type": "email",
+                                "required": true
+                            },
+                            {
+                                "type": "DatePicker",
+                                "label": "Date of Birth",
+                                "name": "dateOfBirth",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "label": "House Number",
+                                "name": "houseNumber",
+                                "input-type": "text",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "label": "Landmark",
+                                "name": "landmark",
+                                "input-type": "text",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "label": "District",
+                                "name": "district",
+                                "input-type": "text",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "label": "Pincode",
+                                "name": "pincode",
+                                "input-type": "text",
+                                "required": true
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Continue to survey",
+                                "on-click-action": {
+                                    "name": "navigate",
+                                    "next": {
+                                        "type": "screen",
+                                        "name": "SURVEY"
+                                    },
+                                    "payload": {
+                                        "firstName": "${form.firstName}",
+                                        "lastName": "${form.lastName}",
+                                        "email": "${form.email}",
+                                        "dateOfBirth": "${form.dateOfBirth}",
+                                        "houseNumber": "${form.houseNumber}",
+                                        "landmark": "${form.landmark}",
+                                        "district": "${form.district}",
+                                        "pincode": "${form.pincode}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "SURVEY",
+            "title": "Thank you",
+            "data": {
+                "firstName": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "lastName": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "email": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "dateOfBirth": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "houseNumber": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "landmark": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "district": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "pincode": {
+                    "type": "string",
+                    "__example__": "Example"
+                }
+            },
+            "terminal": true,
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "form",
+                        "children": [
+                            {
+                                "type": "TextHeading",
+                                "text": "Before you go"
+                            },
+                            {
+                                "type": "TextBody",
+                                "text": "How did you hear about us?"
+                            },
+                            {
+                                "type": "RadioButtonsGroup",
+                                "label": "Choose one",
+                                "required": false,
+                                "name": "source",
+                                "data-source": [
+                                    {
+                                        "id": "FRIEND_RECOMMENDATION",
+                                        "title": "Friend's recommendation"
+                                    },
+                                    {
+                                        "id": "TV_ADVERTISEMENT",
+                                        "title": "TV advertisement"
+                                    },
+                                    {
+                                        "id": "SEARCH_ENGINE",
+                                        "title": "Search engine"
+                                    },
+                                    {
+                                        "id": "SOCIAL_MEDIA",
+                                        "title": "Social media"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Next",
+                                "on-click-action": {
+                                    "name": "complete",
+                                    "payload": {
+                                        "source": "${form.source}",
+                                        "firstName": "${data.firstName}",
+                                        "lastName": "${data.lastName}",
+                                        "email": "${data.email}",
+                                        "dateOfBirth": "${data.dateOfBirth}",
+                                        "houseNumber": "${data.houseNumber}",
+                                        "landmark": "${data.landmark}",
+                                        "district": "${data.district}",
+                                        "pincode": "${data.pincode}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}

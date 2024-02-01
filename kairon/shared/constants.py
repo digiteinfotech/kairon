@@ -58,6 +58,7 @@ class UserActivityType(str, Enum):
     login_refresh_token = "login_refresh_token"
     invalid_login = 'invalid_login'
     template_creation = 'template_creation'
+    flow_creation = "flow_creation"
     model_reload = "model_reload"
 
 
@@ -122,6 +123,17 @@ class ElementTypes(str, Enum):
 
 class WhatsappBSPTypes(str, Enum):
     bsp_360dialog = "360dialog"
+
+
+class FlowCategories(str, Enum):
+    SIGN_UP = "SIGN_UP"
+    SIGN_IN = "SIGN_IN"
+    APPOINTMENT_BOOKING = "APPOINTMENT_BOOKING"
+    LEAD_GENERATION = "LEAD_GENERATION"
+    CONTACT_US = "CONTACT_US"
+    CUSTOMER_SUPPORT = "CUSTOMER_SUPPORT"
+    SURVEY = "SURVEY"
+    OTHER = "OTHER"
 
 
 class GPT3ResourceTypes(str, Enum):
