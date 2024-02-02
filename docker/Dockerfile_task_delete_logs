@@ -41,6 +41,7 @@ RUN python -m pip install google-cloud-translate
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install croniter
 RUN python -m pip install uuid6
+RUN python -m pip install orjson==3.9.12
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp

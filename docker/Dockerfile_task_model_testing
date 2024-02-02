@@ -48,6 +48,7 @@ RUN python -m pip install torch==1.11.0
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install croniter
 RUN python -m pip install uuid6
+RUN python -m pip install orjson==3.9.12
 
 RUN mkdir ssl
 RUN mkdir testing_data

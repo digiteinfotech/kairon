@@ -2,6 +2,7 @@ import time
 from datetime import datetime
 from typing import Text, Dict
 
+from bson import ObjectId
 from loguru import logger
 
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
@@ -46,11 +47,12 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         Execute the event.
         """
         config = None
+        reference_id = None
         status = EVENT_STATUS.FAIL.value
         exception = None
         try:
-            config = self.__retrieve_config(event_id)
-            broadcast = MessageBroadcastFactory.get_instance(config["connector_type"]).from_config(config, event_id)
+            config, reference_id = self.__retrieve_config(event_id)
+            broadcast = MessageBroadcastFactory.get_instance(config["connector_type"]).from_config(config, event_id, reference_id)
             recipients = broadcast.get_recipients()
             broadcast.send(recipients)
             status = EVENT_STATUS.COMPLETED.value
@@ -59,9 +61,9 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             exception = str(e)
         finally:
             time.sleep(5)
-            MessageBroadcastProcessor.insert_status_received_on_channel_webhook(event_id, config["name"])
+            MessageBroadcastProcessor.insert_status_received_on_channel_webhook(reference_id, config["name"])
             MessageBroadcastProcessor.add_event_log(
-                self.bot, MessageBroadcastLogType.common.value, reference_id=event_id, status=status, exception=exception
+                self.bot, MessageBroadcastLogType.common.value, reference_id, status=status, exception=exception
             )
             if config and not config.get("scheduler_config"):
                 MessageBroadcastProcessor.delete_task(event_id, self.bot, False)
@@ -129,11 +131,12 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             raise e
 
     def __retrieve_config(self, event_id: Text):
+        reference_id = ObjectId().__str__()
         config = MessageBroadcastProcessor.get_settings(event_id, self.bot)
         bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
         config["pyscript_timeout"] = bot_settings["dynamic_broadcast_execution_timeout"]
         MessageBroadcastProcessor.add_event_log(
-            self.bot, MessageBroadcastLogType.common.value, user=self.user, config=config,
-            status=EVENT_STATUS.INPROGRESS.value, reference_id=event_id
+            self.bot, MessageBroadcastLogType.common.value, reference_id, user=self.user, config=config,
+            status=EVENT_STATUS.INPROGRESS.value, event_id=event_id, is_new_log=True
         )
-        return config
+        return config, reference_id

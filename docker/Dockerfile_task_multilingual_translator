@@ -26,6 +26,7 @@ RUN python -m pip install fastapi_sso
 RUN python -m pip install uvicorn>=0.12.3
 RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
+RUN python -m pip install aiohttp-retry
 RUN python -m pip install transformers==4.23.0
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install blinker
@@ -38,6 +39,7 @@ RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install croniter
 RUN python -m pip install uuid6
+RUN python -m pip install orjson==3.9.12
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp
