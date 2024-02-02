@@ -14,7 +14,8 @@ from starlette.requests import Request
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.constants import ChannelTypes
+from kairon.shared.concurrency.actors.factory import ActorFactory
+from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.models import User
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
@@ -441,6 +442,7 @@ class InstagramHandler(MessengerHandler):
             return {"status": "failure, invalid verify_token"}
 
     async def handle_message(self):
+        msg = "success"
         messenger_conf = ChatDataProcessor.get_channel_config("instagram", self.bot, mask_characters=False)
 
         fb_secret = messenger_conf["config"]["app_secret"]
@@ -458,5 +460,6 @@ class InstagramHandler(MessengerHandler):
 
         metadata = self.get_metadata(self.request) or {}
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "instagram", "tabname": "default"})
-        await messenger.handle(await self.request.json(), metadata, self.bot)
-        return "success"
+        actor = ActorFactory.get_instance(ActorType.callable_runner.value)
+        actor.execute(messenger.handle, self.request.json(), metadata, self.bot)
+        return msg
