@@ -7,8 +7,7 @@ from moto.ec2 import utils as ec2_utils
 from cloud_functions.aws import model_training
 
 
-@moto.mock_ec2
-@moto.mock_ecs
+@moto.mock_aws
 def test_model_training():
     ecs = client('ecs', region_name="us-east-1")
     ecs.create_cluster(

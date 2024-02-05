@@ -18,7 +18,7 @@ from mongomock import MongoClient
 
 class TestMultilingualProcessor:
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope="class")
     async def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()

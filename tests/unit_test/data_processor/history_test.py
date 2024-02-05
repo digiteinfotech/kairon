@@ -58,7 +58,7 @@ db_url_jumbled_events, mongoclient_jumbled_events = load_jumbled_events_data()
 
 class TestHistory:
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope="class")
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
