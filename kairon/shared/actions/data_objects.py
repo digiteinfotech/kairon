@@ -710,8 +710,20 @@ class KaironTwoStageFallbackAction(Auditlog):
         self.name = self.name.strip().lower()
 
 
+class PromptHyperparameter(EmbeddedDocument):
+    top_results = IntField(default=10)
+    similarity_threshold = FloatField(default=0.70)
+
+    def validate(self, clean=True):
+        if not 0.3 <= self.similarity_threshold <= 1:
+            raise ValidationError("similarity_threshold should be within 0.3 and 1")
+        if self.top_results > 30:
+            raise ValidationError("top_results should not be greater than 30")
+
+
 class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
+    hyperparameters = EmbeddedDocumentField(PromptHyperparameter)
     data = StringField()
     instructions = StringField()
     type = StringField(
@@ -740,6 +752,8 @@ class LlmPrompt(EmbeddedDocument):
             and self.source != LlmPromptSource.static.value
         ):
             raise ValidationError("System prompt must have static source!")
+        if self.hyperparameters:
+            self.hyperparameters.validate()
 
 
 class UserQuestion(EmbeddedDocument):
@@ -753,9 +767,6 @@ class UserQuestion(EmbeddedDocument):
 class PromptAction(Auditlog):
     name = StringField(required=True)
     num_bot_responses = IntField(default=5)
-    top_results = IntField(default=10)
-    similarity_threshold = FloatField(default=0.70)
-    enable_response_cache = BooleanField(default=False)
     failure_message = StringField(default=DEFAULT_NLU_FALLBACK_RESPONSE)
     user_question = EmbeddedDocumentField(UserQuestion, default=UserQuestion())
     bot = StringField(required=True)
@@ -764,7 +775,6 @@ class PromptAction(Auditlog):
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
     instructions = ListField(StringField())
-    collection = StringField(default=None)
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)
@@ -781,12 +791,10 @@ class PromptAction(Auditlog):
             self.clean()
         if self.num_bot_responses > 5:
             raise ValidationError("num_bot_responses should not be greater than 5")
-        if not 0.3 <= self.similarity_threshold <= 1:
-            raise ValidationError("similarity_threshold should be within 0.3 and 1")
-        if self.top_results > 30:
-            raise ValidationError("top_results should not be greater than 30")
         if not self.llm_prompts:
             raise ValidationError("llm_prompts are required!")
+        for prompts in self.llm_prompts:
+            prompts.validate()
         dict_data = self.to_mongo().to_dict()
         Utility.validate_kairon_faq_llm_prompts(
             dict_data["llm_prompts"], ValidationError

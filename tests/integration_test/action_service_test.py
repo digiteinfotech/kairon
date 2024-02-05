@@ -30,7 +30,7 @@ from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.utils import Utility
 from deepdiff import DeepDiff
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin
 
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -9716,7 +9716,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content',
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
 
@@ -9757,21 +9757,16 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     assert mock_completion.call_args.args[
                3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
     print(mock_completion.call_args.kwargs)
-    assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
-                                                'enable_response_cache': False,
-                                                'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                                    'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                                    'stream': False, 'stop': None,
-                                                                    'presence_penalty': 0.0,
-                                                                    'frequency_penalty': 0.0, 'logit_bias': {}},
-                                                'query_prompt': '', 'use_query_prompt': False,
-                                                'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
-                                                                           {'role': 'assistant',
-                                                                            'content': 'how are you'}],
-                                                'use_similarity_prompt': True,
-                                                'similarity_prompt_name': 'Similarity Prompt',
-                                                'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                'instructions': [], 'collection': None}
+    assert mock_completion.call_args.kwargs == {
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}}, 'enable_response_cache': False, 'query_prompt': {},
+        'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
+                                   {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [
+            {'similarity_prompt_name': 'Similarity Prompt',
+             'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'collection': 'python', 'use_similarity_prompt': True, 'top_results': 10, 'similarity_threshold': 0.7}],
+        'instructions': []}
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -9797,7 +9792,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content',
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
 
@@ -9838,21 +9833,16 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
     assert mock_completion.call_args.args[
                3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
     print(mock_completion.call_args.kwargs)
-    assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
-                                                'enable_response_cache': False,
-                                                'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                                    'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                                    'stream': False, 'stop': None,
-                                                                    'presence_penalty': 0.0,
-                                                                    'frequency_penalty': 0.0, 'logit_bias': {}},
-                                                'query_prompt': '', 'use_query_prompt': False,
-                                                'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
-                                                                           {'role': 'assistant',
-                                                                            'content': 'how are you'}],
-                                                'use_similarity_prompt': True,
-                                                'similarity_prompt_name': 'Similarity Prompt',
-                                                'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                'instructions': [], 'collection': None}
+    assert mock_completion.call_args.kwargs == {
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}}, 'enable_response_cache': False, 'query_prompt': {},
+        'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
+                                   {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [
+            {'similarity_prompt_name': 'Similarity Prompt',
+             'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'collection': 'python', 'use_similarity_prompt': True, 'top_results': 10, 'similarity_threshold': 0.7}],
+        'instructions': []}
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -9880,7 +9870,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content',
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
 
@@ -9922,22 +9912,16 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     assert mock_completion.call_args.args[
                3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
     print(mock_completion.call_args.kwargs)
-    assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
-                                                'enable_response_cache': False,
-                                                'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                                    'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                                    'stream': False, 'stop': None,
-                                                                    'presence_penalty': 0.0,
-                                                                    'frequency_penalty': 0.0, 'logit_bias': {}},
-                                                'query_prompt': '', 'use_query_prompt': False,
-                                                'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
-                                                                           {'role': 'assistant',
-                                                                            'content': 'how are you'}],
-                                                'use_similarity_prompt': True,
-                                                'similarity_prompt_name': 'Similarity Prompt',
-                                                'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                'instructions': ['Answer in a short way.', 'Keep it simple.'],
-                                                'collection': None}
+    assert mock_completion.call_args.kwargs == {
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}}, 'enable_response_cache': False, 'query_prompt': {},
+        'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
+                                   {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [
+            {'similarity_prompt_name': 'Similarity Prompt',
+             'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'collection': 'python', 'use_similarity_prompt': True, 'top_results': 10, 'similarity_threshold': 0.7}],
+        'instructions': ['Answer in a short way.', 'Keep it simple.']}
 
 
 @mock.patch.object(GPT3Resources, "invoke", autospec=True)
@@ -9961,7 +9945,8 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
          'type': 'system', 'source': 'static', 'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+         'data': 'python', 'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
         {'name': 'Query Prompt',
          'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
@@ -10018,8 +10003,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_response_action(mock_search, mock_embedding, mock_completion):
+def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from uuid6 import uuid7
 
@@ -10030,17 +10014,33 @@ def test_prompt_response_action(mock_search, mock_embedding, mock_completion):
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    bot_content_two = "Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data."
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content', 'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
+        {'name': 'Data science prompt',
+         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content', 'data': 'data_science'}
     ]
+    aioresponses.add(
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/5f50fd0a56b698ca10d35d2e_python_faq_embd/points/search"),
+        method="POST",
+        status=200,
+        payload={
+            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]})
+    aioresponses.add(
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/5f50fd0a56b698ca10d35d2e_data_science_faq_embd/points/search"),
+        method="POST",
+        status=200,
+        payload={
+            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content_two}}]})
     embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
     mock_embedding.return_value = embedding
     mock_completion.return_value = generated_text
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -10081,7 +10081,8 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content', 'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}}
     ]
     embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
     mock_embedding.return_value = embedding
@@ -10127,8 +10128,14 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content', 'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}}
     ]
+    hyperparameters = {'temperature': 0.0, 'max_tokens': 300,
+                       'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                       'stream': True, 'stop': None,
+                       'presence_penalty': 0.0,
+                       'frequency_penalty': 0.0, 'logit_bias': {}}
 
     embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
     mock_embedding.return_value = embedding
@@ -10137,10 +10144,7 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    hyperparameters = Utility.get_llm_hyperparameters().copy()
-    hyperparameters['stream'] = True
-    PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters,
-                 llm_prompts=llm_prompts).save()
+    PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -10157,13 +10161,12 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
         ]
-    assert mock_completion.call_args.kwargs == {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant.\n'},
-        {'role': 'user',
-         'content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above.\n \nQ: What kind of language is python? \nA:'}],
-        'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-        'top_p': 0.0, 'n': 1, 'stream': True, 'stop': None,
-        'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+    print(mock_completion.call_args.kwargs)
+    assert mock_completion.call_args.kwargs == {
+        'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
+                                                                                        'content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above.\n \nQ: What kind of language is python? \nA:'}],
+        'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1, 'stream': True,
+        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert mock_completion.call_args.args[1] == 'chat/completions'
 
 
@@ -10278,7 +10281,8 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
          'type': 'system', 'source': 'static', 'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'is_enabled': True, 'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
         {'name': 'Python Prompt',
          'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
          'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
@@ -10392,7 +10396,8 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
          'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True,
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
         {'name': 'Python Prompt',
          'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
          'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
@@ -10585,7 +10590,7 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
          'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
         {'name': 'Language Prompt',
          'data': 'type',
          'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
@@ -10734,7 +10739,7 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
          'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
         {'name': 'Language Prompt',
          'data': 'type',
          'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
@@ -10810,7 +10815,7 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
          'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
     ]
 
     def mock_completion_for_answer(*args, **kwargs):
