@@ -3,12 +3,9 @@ FROM $BASE_IMAGE
 
 WORKDIR ${KAIRON_HOME}
 
-RUN python -m pip install granian
-USER 1001
-
-ENV APP_MODULE=kairon.actions.server:action TIMEOUT=120
+ENV APP_MODULE=kairon.actions.server:action TIMEOUT=120 LOG=info
 
 
 EXPOSE 5055
-CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5055 --no-server-header --no-access-log --log-level error --timeout-keep-alive ${TIMEOUT}
+CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5055 --no-server-header --no-access-log --log-level ${LOG} --timeout-keep-alive ${TIMEOUT}
 
