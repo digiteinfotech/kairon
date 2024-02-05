@@ -2079,7 +2079,6 @@ class Utility:
     def validate_kairon_faq_llm_prompts(llm_prompts: List, exception_class):
         system_prompt_count = 0
         history_prompt_count = 0
-        bot_content_prompt_count = 0
         for prompt in llm_prompts:
             if (
                 prompt["type"] == LlmPromptType.system.value
@@ -2103,6 +2102,8 @@ class Utility:
                 and prompt["source"] == LlmPromptSource.static.value
             ):
                 raise exception_class("data is required for static prompts!")
+            if Utility.check_empty_string(prompt.get('data')) and prompt['source'] == LlmPromptSource.bot_content.value:
+                raise exception_class("Data must contain collection name is required for bot content prompts!")
             if (
                 prompt["type"] == LlmPromptType.query.value
                 and prompt["source"] != LlmPromptSource.static.value
@@ -2112,16 +2113,12 @@ class Utility:
                 system_prompt_count += 1
             elif prompt.get("source") == LlmPromptSource.history.value:
                 history_prompt_count += 1
-            elif prompt.get("source") == LlmPromptSource.bot_content.value:
-                bot_content_prompt_count += 1
         if system_prompt_count > 1:
             raise exception_class("Only one system prompt can be present!")
         if system_prompt_count == 0:
             raise exception_class("System prompt is required!")
         if history_prompt_count > 1:
             raise exception_class("Only one history source can be present!")
-        if bot_content_prompt_count > 1:
-            raise exception_class("Only one bot_content source can be present!")
 
     @staticmethod
     def get_client_ip(request):

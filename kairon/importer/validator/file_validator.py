@@ -675,11 +675,6 @@ class TrainingDataValidator(Validator):
                     continue
                 if action.get('num_bot_responses') and (action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int)):
                     data_error.append(f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
-                if action.get('top_results') and (action['top_results'] > 30 or not isinstance(action['top_results'], int)):
-                    data_error.append(f'top_results should not be greater than 30 and of type int: {action.get("name")}')
-                if action.get('similarity_threshold'):
-                    if not (0.3 <= action['similarity_threshold'] <= 1) or not (isinstance(action['similarity_threshold'], float) or isinstance(action['similarity_threshold'], int)):
-                        data_error.append(f'similarity_threshold should be within 0.3 and 1 and of type int or float: {action.get("name")}')
                 llm_prompts_errors = TrainingDataValidator.__validate_llm_prompts(action['llm_prompts'])
                 if action.get('hyperparameters') is not None:
                     llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(action.get('hyperparameters'))
@@ -719,14 +714,22 @@ class TrainingDataValidator(Validator):
         error_list = []
         system_prompt_count = 0
         history_prompt_count = 0
-        bot_content_prompt_count = 0
         for prompt in llm_prompts:
+            if prompt.get('hyperparameters') is not None:
+                hyperparameters = prompt.get('hyperparameters')
+                for key, value in hyperparameters.items():
+                    if key == 'similarity_threshold':
+                        if not (0.3 <= value <= 1.0) or not (
+                                isinstance(key, float) or isinstance(key, int)):
+                            error_list.append(
+                                f"similarity_threshold should be within 0.3 and 1.0 and of type int or float!")
+                    if key == 'top_results' and (value > 30 or not isinstance(key, int)):
+                        error_list.append("top_results should not be greater than 30 and of type int!")
+
             if prompt.get('type') == 'system':
                 system_prompt_count += 1
             elif prompt.get('source') == 'history':
                 history_prompt_count += 1
-            elif prompt.get('source') == 'bot_content':
-                bot_content_prompt_count += 1
             if prompt.get('type') not in ['user', 'system', 'query']:
                 error_list.append('Invalid prompt type')
             if prompt.get('source') not in ['static', 'slot', 'action', 'history', 'bot_content']:
@@ -751,14 +754,14 @@ class TrainingDataValidator(Validator):
                 error_list.append('data field in prompts should of type string.')
             if not prompt.get('data') and prompt.get('source') == 'static':
                 error_list.append('data is required for static prompts')
+            if Utility.check_empty_string(prompt.get('collection')) and prompt.get('source') == 'bot_content':
+                error_list.append("Collection is required for bot content prompts!")
             if system_prompt_count > 1:
                 error_list.append('Only one system prompt can be present')
             if system_prompt_count == 0:
                 error_list.append('System prompt is required')
             if history_prompt_count > 1:
                 error_list.append('Only one history source can be present')
-            if bot_content_prompt_count > 1:
-                error_list.append('Only one bot_content source can be present')
         return error_list
 
     @staticmethod

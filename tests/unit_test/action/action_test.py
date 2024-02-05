@@ -2679,17 +2679,17 @@ class TestActions:
         actual_config.pop("timestamp")
         actual_config.pop("status")
         actual_config.pop("user")
-        assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
-                                 'user_question': {'type': 'from_user_message'},
-                                 'similarity_threshold': 0.7,
+        assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5,
                                  'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                                 'bot': 'test_action_server', 'enable_response_cache': False,
+                                 'user_question': {'type': 'from_user_message'}, 'bot': 'test_action_server',
                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
-                                                     'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}
-                                                     },
-                                 'dispatch_response': True, 'set_slots': [], 'llm_prompts': llm_prompts,
-                                 'instructions': []}
+                                                     'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                     'logit_bias': {}}, 'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
+                 'is_enabled': True},
+                {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                                 'instructions': [], 'set_slots': [], 'dispatch_response': True}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
         bot_settings.pop("status")
@@ -3962,9 +3962,7 @@ class TestActions:
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
         k_faq_action_config = ActionUtility.get_faq_action_config(bot, "kairon_faq_action")
         k_faq_action_config.pop('timestamp')
-        assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
-                                       'similarity_threshold': 0.7,
-                                       'enable_response_cache': False,
+        assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5,
                                        'user_question': {'type': 'from_user_message'},
                                        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                        'bot': 'test_bot_action_test', 'user': 'test_user_action_test',

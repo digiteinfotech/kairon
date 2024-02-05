@@ -1733,7 +1733,7 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
                                'source': 'static', 'is_enabled': True},
                               {'name': 'Similarity Prompt',
                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                               'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
                               {'name': 'Query Prompt',
                                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                'instructions': 'Answer according to the context', 'type': 'query',
@@ -1743,9 +1743,8 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
                                'instructions': 'Answer according to the context', 'type': 'query',
                                'source': 'static', 'is_enabled': True}],
               'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-              'collection': 'python',
               'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -2433,7 +2432,11 @@ def test_get_kairon_faq_action_with_no_actions():
     assert actual["data"] == []
 
 
-def test_add_prompt_action_with_invalid_similarity_threshold():
+def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action_with_invalid_similarity_threshold",
         "llm_prompts": [
@@ -2446,6 +2449,8 @@ def test_add_prompt_action_with_invalid_similarity_threshold():
             },
             {
                 "name": "Similarity Prompt",
+                'hyperparameters': {"top_results": 10, "similarity_threshold": 1.70},
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -2470,8 +2475,6 @@ def test_add_prompt_action_with_invalid_similarity_threshold():
         ],
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 1.70,
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -2479,19 +2482,19 @@ def test_add_prompt_action_with_invalid_similarity_threshold():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [
-        {
-            "loc": ["body", "similarity_threshold"],
-            "msg": "similarity_threshold should be within 0.3 and 1",
-            "type": "value_error",
-        }
-    ]
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
+                                  'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
 
 
-def test_add_prompt_action_with_invalid_top_results():
+def test_add_prompt_action_with_invalid_top_results(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action_with_invalid_top_results",
         "llm_prompts": [
@@ -2504,6 +2507,8 @@ def test_add_prompt_action_with_invalid_top_results():
             },
             {
                 "name": "Similarity Prompt",
+                'hyperparameters': {"top_results": 40, "similarity_threshold": 0.70},
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -2528,8 +2533,6 @@ def test_add_prompt_action_with_invalid_top_results():
         ],
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 40,
-        "similarity_threshold": 0.70,
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -2537,13 +2540,9 @@ def test_add_prompt_action_with_invalid_top_results():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [
-        {
-            "loc": ["body", "top_results"],
-            "msg": "top_results should not be greater than 30",
-            "type": "value_error",
-        }
-    ]
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
+                                  'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -2562,6 +2561,7 @@ def test_add_prompt_action_with_invalid_query_prompt():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -2578,8 +2578,6 @@ def test_add_prompt_action_with_invalid_query_prompt():
         ],
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -2587,6 +2585,7 @@ def test_add_prompt_action_with_invalid_query_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == [
         {
             "loc": ["body", "llm_prompts"],
@@ -2612,6 +2611,7 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -2635,8 +2635,6 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
             },
         ],
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
         "num_bot_responses": 10,
     }
     response = client.post(
@@ -2645,6 +2643,7 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == [
         {
             "loc": ["body", "num_bot_responses"],
@@ -2670,6 +2669,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -2693,9 +2693,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -2703,6 +2701,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == [
         {
             "loc": ["body", "llm_prompts"],
@@ -2736,6 +2735,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -2759,9 +2759,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -2794,6 +2792,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -2817,9 +2816,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -2852,6 +2849,7 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -2875,9 +2873,7 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -2922,6 +2918,7 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -2937,9 +2934,7 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -2951,69 +2946,6 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
         {
             "loc": ["body", "llm_prompts"],
             "msg": "Only one history source can be present!",
-            "type": "value_error",
-        }
-    ]
-    assert not actual["data"]
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-
-
-def test_add_prompt_action_with_multiple_bot_content_source_prompts():
-    action = {
-        "name": "test_add_prompt_action_with_multiple_bot_content_source_prompts",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
-            {
-                "name": "History Prompt",
-                "type": "user",
-                "source": "history",
-                "is_enabled": True,
-            },
-            {
-                "name": "Similarity Prompt",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
-                "type": "user",
-                "source": "bot_content",
-                "is_enabled": True,
-            },
-            {
-                "name": "Query Prompt",
-                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
-                "type": "query",
-                "source": "static",
-                "is_enabled": True,
-            },
-            {
-                "name": "Another Similarity Prompt",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
-                "type": "user",
-                "source": "bot_content",
-                "is_enabled": True,
-            },
-        ],
-        "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
-    }
-    response = client.post(
-        f"/api/bot/{pytest.bot}/action/prompt",
-        json=action,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["message"] == [
-        {
-            "loc": ["body", "llm_prompts"],
-            "msg": "Only one bot_content source can be present!",
             "type": "value_error",
         }
     ]
@@ -3035,6 +2967,7 @@ def test_add_prompt_action_with_gpt_feature_disabled():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3098,6 +3031,7 @@ def test_add_prompt_action(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Bot_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3121,11 +3055,8 @@ def test_add_prompt_action(monkeypatch):
             },
         ],
         "instructions": ["Answer in a short manner.", "Keep it simple."],
-              'collection': 'Bot_collection',
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3150,7 +3081,7 @@ def test_add_prompt_action_already_exist(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     action = {
-        "name": "test_add_prompt_action",
+        "name": "test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
             {
                 "name": "System Prompt",
@@ -3161,6 +3092,7 @@ def test_add_prompt_action_already_exist(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Bot_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3183,10 +3115,9 @@ def test_add_prompt_action_already_exist(monkeypatch):
                 "is_enabled": True,
             },
         ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3213,6 +3144,7 @@ def test_update_prompt_action_does_not_exist():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Bot_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3236,9 +3168,7 @@ def test_update_prompt_action_does_not_exist():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/61512cc2c6219f0aae7bba3d",
@@ -3265,6 +3195,8 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Bot_collection",
+                'hyperparameters': {"top_results": 9, "similarity_threshold": 1.50},
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3288,9 +3220,7 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": "updated_failure_message",
-        "top_results": 9,
-        "similarity_threshold": 1.50,
+        "failure_message": "updated_failure_message"
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -3298,13 +3228,9 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [
-        {
-            "loc": ["body", "similarity_threshold"],
-            "msg": "similarity_threshold should be within 0.3 and 1",
-            "type": "value_error",
-        }
-    ]
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
+                                  'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -3323,6 +3249,8 @@ def test_update_prompt_action_with_invalid_top_results():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Bot_collection"
+                , 'hyperparameters': {"top_results": 39, "similarity_threshold": 0.50},
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3338,9 +3266,7 @@ def test_update_prompt_action_with_invalid_top_results():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": "updated_failure_message",
-        "top_results": 39,
-        "similarity_threshold": 0.50,
+        "failure_message": "updated_failure_message"
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -3348,13 +3274,9 @@ def test_update_prompt_action_with_invalid_top_results():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [
-        {
-            "loc": ["body", "top_results"],
-            "msg": "top_results should not be greater than 30",
-            "type": "value_error",
-        }
-    ]
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
+                                  'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -3373,6 +3295,7 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3388,9 +3311,7 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
             },
         ],
         "num_bot_responses": 50,
-        "failure_message": "updated_failure_message",
-        "top_results": 39,
-        "similarity_threshold": 0.50,
+        "failure_message": "updated_failure_message"
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -3398,19 +3319,11 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
 
     assert actual["message"] == [
-        {
-            "loc": ["body", "num_bot_responses"],
-            "msg": "num_bot_responses should not be greater than 5",
-            "type": "value_error",
-        },
-        {
-            "loc": ["body", "top_results"],
-            "msg": "top_results should not be greater than 30",
-            "type": "value_error",
-        },
-    ]
+        {'loc': ['body', 'num_bot_responses'], 'msg': 'num_bot_responses should not be greater than 5',
+         'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -3429,6 +3342,7 @@ def test_update_prompt_action_with_invalid_query_prompt():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Bot_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3444,8 +3358,6 @@ def test_update_prompt_action_with_invalid_query_prompt():
             },
         ],
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
         "num_bot_responses": 5,
         "use_query_prompt": True,
         "query_prompt": "",
@@ -3480,6 +3392,7 @@ def test_update_prompt_action_with_query_prompt_with_false():
             },
             {
                 "name": "Similarity Prompt",
+                "data": "Bot_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3495,8 +3408,6 @@ def test_update_prompt_action_with_query_prompt_with_false():
             },
         ],
         "failure_message": "updated_failure_message",
-        "top_results": 9,
-        "similarity_threshold": 0.50,
         "num_bot_responses": 5,
         "set_slots": [
             {"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
@@ -3538,6 +3449,7 @@ def test_update_prompt_action():
             },
             {
                 "name": "Similarity_analytical Prompt",
+                "data": "Bot_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -3562,9 +3474,7 @@ def test_update_prompt_action():
         ],
         "instructions": ["Answer in a short manner.", "Keep it simple."],
         "num_bot_responses": 5,
-        "failure_message": "updated_failure_message",
-        "top_results": 9,
-        "similarity_threshold": 0.50,
+        "failure_message": "updated_failure_message"
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -3589,27 +3499,26 @@ def test_get_prompt_action():
     assert actual["error_code"] == 0
     assert not actual["message"]
     actual["data"][0].pop("_id")
-
+    print(actual["data"])
     assert actual["data"] == [
-        {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'top_results': 9, 'similarity_threshold': 0.5,
-         'enable_response_cache': False, 'failure_message': 'updated_failure_message',
+        {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'failure_message': 'updated_failure_message',
          'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                              'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                             'logit_bias': {}},
-         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                          'source': 'static', 'is_enabled': True},
-                         {'name': 'Similarity_analytical Prompt',
-                          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                          'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                         {'name': 'Query Prompt',
-                          'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
-                         {'name': 'Query Prompt',
-                          'data': 'If there is no specific query, assume that user is aking about java programming language,',
-                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-         'set_slots': [], 'dispatch_response': True, 'status': True}]
+                             'logit_bias': {}}, 'llm_prompts': [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
+             'is_enabled': True}, {'name': 'Similarity_analytical Prompt', 'data': 'Bot_collection',
+                                   'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                   'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Query Prompt',
+             'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+             'is_enabled': True}, {'name': 'Query Prompt',
+                                   'data': 'If there is no specific query, assume that user is aking about java programming language,',
+                                   'instructions': 'Answer according to the context', 'type': 'query',
+                                   'source': 'static', 'is_enabled': True}],
+         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [], 'dispatch_response': True,
+         'status': True}]
 
 
 def test_delete_prompt_action_not_exists():
