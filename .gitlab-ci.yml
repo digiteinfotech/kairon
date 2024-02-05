@@ -36,6 +36,7 @@ build-dev:
     - master
   stage: build-dev
   script:
+    -  docker pull amazonlinux:latest
     -  docker build -f ./docker/Dockerfile_Base -t kairon-base-dev:latest .
     -  docker build -f ./docker/Dockerfile_api --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-api-dev:latest .
     -  docker build -f ./docker/Dockerfile_task --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-task-dev:latest .
@@ -63,6 +64,7 @@ build-release:
     - upgrade-rasa3
   stage: build-release
   script:
+    -  docker pull amazonlinux:latest
     -  docker build -f ./docker/Dockerfile_Base -t kairon-base:3.0.0 .
     -  docker build -f ./docker/Dockerfile_api --build-arg BASE_IMAGE=kairon-base:3.0.0 -t kairon-api:3.0.0 .
     -  docker build -f ./docker/Dockerfile_task --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-task:3.0.0 .
