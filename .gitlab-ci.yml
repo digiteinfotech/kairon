@@ -46,7 +46,7 @@ build-dev:
     -  docker build -f ./docker/Dockerfile_task_training_data_generator --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-task-data-gen-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_data_importer --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-data-importer-dev:latest .
     -  docker build -f ./docker/Dockerfile_history_server --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-history-server-dev:latest .
-    -  docker build -f ./docker/Dockerfile_evaluator_server -t kairon-script-runner-dev:latest .
+    -  docker build -f ./docker/Dockerfile_evaluator_server --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-script-runner-dev:latest .
     -  docker build -f ./docker/Dockerfile_chat --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-chat-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_model_testing --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-model-tester-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_history --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-delete-history-dev:latest .
