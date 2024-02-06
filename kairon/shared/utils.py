@@ -77,7 +77,6 @@ from .constants import (
 )
 from .data.constant import (
     TOKEN_TYPE,
-
     KAIRON_TWO_STAGE_FALLBACK,
     SLOT_TYPE,
 )
@@ -162,7 +161,9 @@ class Utility:
         for metadata_dict in metadata["metadata"]:
             column_name = metadata_dict["column_name"]
             if column_name in data.keys():
-                converted_value = CognitionDataProcessor.validate_column_values(data, metadata_dict)
+                converted_value = CognitionDataProcessor.validate_column_values(
+                    data, metadata_dict
+                )
                 if converted_value and metadata_dict["enable_search"]:
                     search_payload[column_name] = converted_value
                 if converted_value and metadata_dict["create_embeddings"]:
@@ -796,16 +797,20 @@ class Utility:
         )
         with tarfile.open(model_file, "r:gz") as model:
             model.extractall(tempdir)
-            domain = Utility.read_yaml(f"{tempdir}/components/domain_provider/domain.yml")
+            domain = Utility.read_yaml(
+                f"{tempdir}/components/domain_provider/domain.yml"
+            )
             domain["slots"]["bot"]["initial_value"] = bot
-            yaml.safe_dump(domain, open(f"{tempdir}/components/domain_provider/domain.yml", "w"))
+            yaml.safe_dump(
+                domain, open(f"{tempdir}/components/domain_provider/domain.yml", "w")
+            )
             Utility.build_tar(tempdir, updated_model)
             return updated_model
 
     @staticmethod
     def build_tar(source_dir: Text, output_filename: Text):
         with tarfile.open(output_filename, "w:gz") as tar:
-            tar.add(source_dir, arcname=".")
+            tar.add(source_dir, arcname="")
 
     @staticmethod
     def initiate_apm_client_config():
@@ -1227,11 +1232,18 @@ class Utility:
         exc = None
         status = "Initiated"
         try:
-            if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
+            if Utility.environment.get("model") and Utility.environment["model"][
+                "agent"
+            ].get("url"):
                 from kairon.shared.auth import Authentication
-                agent_url = Utility.environment['model']['agent'].get('url')
-                token, _ = Authentication.generate_integration_token(bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value)
-                response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, email)
+
+                agent_url = Utility.environment["model"]["agent"].get("url")
+                token, _ = Authentication.generate_integration_token(
+                    bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value
+                )
+                response = Utility.http_request(
+                    "get", urljoin(agent_url, f"/api/bot/{bot}/reload"), token, email
+                )
                 return json.loads(response)
             else:
                 raise AppException("Agent config not found!")
@@ -1241,21 +1253,27 @@ class Utility:
             status = "Failed"
             raise AppException(e)
         finally:
-            UserActivityLogger.add_log(a_type=UserActivityType.model_reload.value,
-                                       email=email, bot=bot, data={"username": email, "exception": exc, "status": status})
+            UserActivityLogger.add_log(
+                a_type=UserActivityType.model_reload.value,
+                email=email,
+                bot=bot,
+                data={"username": email, "exception": exc, "status": status},
+            )
 
     @staticmethod
     def validate_create_template_request(data: Dict):
-        required_keys = ['name', 'category', 'components', 'language']
+        required_keys = ["name", "category", "components", "language"]
         missing_keys = [key for key in required_keys if key not in data]
         if missing_keys:
             raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
 
     @staticmethod
     def validate_edit_template_request(data: Dict):
-        non_editable_keys = ['name', 'category', 'language']
+        non_editable_keys = ["name", "category", "language"]
         if any(key in data for key in non_editable_keys):
-            raise AppException('Only "components" and "allow_category_change" fields can be edited!')
+            raise AppException(
+                'Only "components" and "allow_category_change" fields can be edited!'
+            )
 
     @staticmethod
     def initiate_fastapi_apm_client():
@@ -1651,7 +1669,7 @@ class Utility:
                     headers=headers,
                     timeout=kwargs.get("timeout"),
                 )
-            elif request_method.lower() in ['post', 'put', 'patch']:
+            elif request_method.lower() in ["post", "put", "patch"]:
                 response = session.request(
                     request_method.upper(),
                     http_url,
@@ -2102,8 +2120,13 @@ class Utility:
                 and prompt["source"] == LlmPromptSource.static.value
             ):
                 raise exception_class("data is required for static prompts!")
-            if Utility.check_empty_string(prompt.get('data')) and prompt['source'] == LlmPromptSource.bot_content.value:
-                raise exception_class("Data must contain collection name is required for bot content prompts!")
+            if (
+                Utility.check_empty_string(prompt.get("data"))
+                and prompt["source"] == LlmPromptSource.bot_content.value
+            ):
+                raise exception_class(
+                    "Data must contain collection name is required for bot content prompts!"
+                )
             if (
                 prompt["type"] == LlmPromptType.query.value
                 and prompt["source"] != LlmPromptSource.static.value
