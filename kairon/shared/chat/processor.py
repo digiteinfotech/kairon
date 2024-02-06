@@ -149,3 +149,10 @@ class ChatDataProcessor:
             bot=bot,
             user=user
         ).save()
+
+    @staticmethod
+    def get_instagram_static_comment(bot: str) -> str:
+        channel = ChatDataProcessor.get_channel_config(bot=bot, connector_type="instagram", mask_characters=False)
+        comment_response = channel.get("config", {}).get("static_comment_reply")
+        return comment_response
+

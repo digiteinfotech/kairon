@@ -37,6 +37,9 @@ class Channels(Auditlog):
             })
             Utility.register_telegram_webhook(Utility.decrypt_message(self.config['access_token']), webhook_url)
 
+        if self.connector_type == "instagram" and self.config.get("static_comment_reply") is None:
+            self.config["static_comment_reply"] = "Thanks for reaching us, please check your inbox"
+
 
 @auditlogger.log
 @push_notification.apply
