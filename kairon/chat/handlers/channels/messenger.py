@@ -362,6 +362,7 @@ class MessengerHandler(InputChannel, ChannelHandlerBase):
             return {"status": "failure, invalid verify_token"}
 
     async def handle_message(self):
+        msg = "success"
         messenger_conf = ChatDataProcessor.get_channel_config("messenger", self.bot, mask_characters=False)
 
         fb_secret = messenger_conf["config"]["app_secret"]
@@ -380,8 +381,9 @@ class MessengerHandler(InputChannel, ChannelHandlerBase):
         metadata = self.get_metadata(self.request) or {}
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "messenger",
                          "tabname": "default"})
-        await messenger.handle(await self.request.json(), metadata, self.bot)
-        return "success"
+        actor = ActorFactory.get_instance(ActorType.callable_runner.value)
+        actor.execute(messenger.handle, self.request.json(), metadata, self.bot)
+        return msg
 
     @staticmethod
     def validate_hub_signature(
