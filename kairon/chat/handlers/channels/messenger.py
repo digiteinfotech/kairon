@@ -382,7 +382,7 @@ class MessengerHandler(InputChannel, ChannelHandlerBase):
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "messenger",
                          "tabname": "default"})
         actor = ActorFactory.get_instance(ActorType.callable_runner.value)
-        actor.execute(messenger.handle, self.request.json(), metadata, self.bot)
+        actor.execute(messenger.handle, await self.request.json(), metadata, self.bot)
         return msg
 
     @staticmethod
@@ -463,5 +463,5 @@ class InstagramHandler(MessengerHandler):
         metadata = self.get_metadata(self.request) or {}
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "instagram", "tabname": "default"})
         actor = ActorFactory.get_instance(ActorType.callable_runner.value)
-        actor.execute(messenger.handle, self.request.json(), metadata, self.bot)
+        actor.execute(messenger.handle, await self.request.json(), metadata, self.bot)
         return msg
