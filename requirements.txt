@@ -2,8 +2,8 @@ torchvision==0.14.1
 sentence-transformers==2.2.2
 pyyaml
 torch==1.13.1
-rasa[full]==2.8.15
-fastapi~=0.78.0
+rasa==3.5.6
+fastapi~=0.109.1
 mongomock==4.1.2
 pytest==6.1.2
 pytest-html==3.0.0
@@ -18,11 +18,11 @@ python-multipart==0.0.5
 py3dns==3.2.1
 black==21.12b0
 uvicorn>=0.18.2
-validators==0.20.0
+validators==0.21.0
 secure
 password-strength==0.0.3.post2
 loguru
-transformers==4.23.0
+transformers==4.37.0
 smart-config==0.1.3
 moto==3.1.18
 botocore==1.23.23
@@ -41,15 +41,15 @@ cryptography
 pyparsing==2.4.7
 nlpaug
 websockets==10.1
-aiohttp==3.8.0
+aiohttp==3.9.2
 networkx==2.6
 fastapi_sso
 pytest-httpx==0.15.0
 json2html
-numpy==1.22.0
+numpy==1.22.2
 protobuf==3.20.2
 google-api-python-client
-nltk==3.6.6
+nltk==3.8.1
 blinker
 jira
 zenpy==2.0.36
@@ -70,7 +70,7 @@ boto3==1.26.100
 APScheduler
 croniter
 faiss-cpu
-urllib3==1.26.15
+urllib3==1.26.18
 pytest-metadata==2.0.4
 tiktoken
 RestrictedPython
@@ -86,3 +86,14 @@ pydantic==1.10.13
 google-businessmessages==1.0.5
 google-apitools==0.5.32
 orjson==3.9.12
+aio-pika>=9.1.5 # not directly required, pinned by Snyk to avoid a vulnerability
+gevent>=23.9.0 # not directly required, pinned by Snyk to avoid a vulnerability
+joblib>=1.1.1 # not directly required, pinned by Snyk to avoid a vulnerability
+pillow>=10.2.0 # not directly required, pinned by Snyk to avoid a vulnerability
+prompt-toolkit>=3.0.13 # not directly required, pinned by Snyk to avoid a vulnerability
+redis>=4.3.6 # not directly required, pinned by Snyk to avoid a vulnerability
+sanic>=20.12.6 # not directly required, pinned by Snyk to avoid a vulnerability
+sentry-sdk>=1.14.0 # not directly required, pinned by Snyk to avoid a vulnerability
+starlette>=0.27.0 # not directly required, pinned by Snyk to avoid a vulnerability
+ujson>=5.4.0 # not directly required, pinned by Snyk to avoid a vulnerability
+werkzeug>=2.3.8 # not directly required, pinned by Snyk to avoid a vulnerability
