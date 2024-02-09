@@ -83,7 +83,7 @@ async def add_intents(
 
 @router.delete("/intents/{intent}/{delete_dependencies}", response_model=Response)
 async def delete_intent(
-        intent: str = Path(default=None, description="intent name", example="greet"),
+        intent: str = Path(description="intent name", example="greet"),
         delete_dependencies: bool = Path(
             default=True,
             description="""if True delete bot data related to this intent otherwise only delete intent""",
@@ -512,7 +512,7 @@ async def train(
 
 @router.post("/abort/{event_type}", response_model=Response)
 async def abort_event(
-        event_type: EventClass = Path(default=None, description="Event type", example=[e.value for e in EventClass]),
+        event_type: EventClass = Path(description="Event type", example=[e.value for e in EventClass]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
@@ -731,7 +731,7 @@ async def set_endpoint(
 
 @router.delete("/endpoint/{endpoint_type}", response_model=Response)
 async def delete_endpoint(
-        endpoint_type: ENDPOINT_TYPE = Path(default=None, description="One of bot_endpoint, action_endpoint, "
+        endpoint_type: ENDPOINT_TYPE = Path(description="One of bot_endpoint, action_endpoint, "
                                                                       "history_endpoint", example="bot_endpoint"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
@@ -942,7 +942,7 @@ async def add_slots(
 
 @router.delete("/slots/{slot}", response_model=Response)
 async def delete_slots(
-        slot: str = Path(default=None, description="slot name", example="bot"),
+        slot: str = Path(description="slot name", example="bot"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -1178,8 +1178,8 @@ async def get_chat_client_config_url(
 
 @router.get("/chat/client/config/{token}", response_model=Response)
 async def get_client_config_using_uid(
-        request: Request, bot: Text = Path(default=None, description="Bot id"),
-        token: Text = Path(default=None, description="Token generated from api server"),
+        request: Request, bot: Text = Path(description="Bot id"),
+        token: Text = Path(description="Token generated from api server"),
         token_claims: Dict = Security(Authentication.validate_bot_specific_token, scopes=TESTER_ACCESS)
 ):
     config = mongo_processor.get_client_config_using_uid(bot, token_claims)
@@ -1250,7 +1250,7 @@ async def edit_regex(
 
 @router.delete("/regex/{name}", response_model=Response)
 async def delete_regex(
-        name: str = Path(default=None, description="regex name", example="bot"),
+        name: str = Path(description="regex name", example="bot"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -1434,7 +1434,7 @@ async def get_slot_mapping(
 
 
 @router.delete("/slots/mapping/{name}", response_model=Response)
-async def delete_slot_mapping(name: str = Path(default=None, description="Name of the mapping"),
+async def delete_slot_mapping(name: str = Path(description="Name of the mapping"),
                               current_user: User = Security(Authentication.get_current_user_and_bot,
                                                             scopes=DESIGNER_ACCESS)):
     """
@@ -1467,7 +1467,7 @@ async def list_forms(current_user: User = Security(Authentication.get_current_us
 
 @router.get("/forms/{form_id}", response_model=Response)
 async def get_form(
-        form_id: str = Path(default=None, description="Form id"),
+        form_id: str = Path(description="Form id"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -1567,8 +1567,8 @@ async def get_auditlog_config(current_user: User = Security(Authentication.get_c
 @router.get("/auditlog/data/{from_date}/{to_date}", response_model=Response)
 async def get_auditlog_for_bot(
         start_idx: int = 0, page_size: int = 10,
-        from_date: date = Path(default=None, description="from date in yyyy-mm-dd format", example="1999-01-01"),
-        to_date: date = Path(default=None, description="to date in yyyy-mm-dd format", example="1999-01-01"),
+        from_date: date = Path(description="from date in yyyy-mm-dd format", example="1999-01-01"),
+        to_date: date = Path(description="to date in yyyy-mm-dd format", example="1999-01-01"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     logs, row_cnt = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date, start_idx, page_size)
