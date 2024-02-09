@@ -3686,6 +3686,9 @@ data: [DONE]\n\n"""
 
     def test_copy_pretrained_model(self):
         import tarfile
+        import tempfile
+
+        tempdir = tempfile.TemporaryDirectory().name
 
         bot = "copy_bot"
         output_path = f"models/{bot}"
@@ -3694,3 +3697,12 @@ data: [DONE]\n\n"""
         with tarfile.open(model_file, "r:gz") as model:
             members = model.getnames()
             assert all(item in members for item in ["components", "metadata.json"])
+            model.extractall(tempdir)
+
+            metadata = json.load(open(f"{tempdir}/metadata.json"))
+            domain = Utility.read_yaml(
+                f"{tempdir}/components/domain_provider/domain.yml"
+            )
+
+            assert domain["slots"]["bot"]["initial_value"] == bot
+            assert metadata["domain"]["slots"]["bot"]["initial_value"] == bot
