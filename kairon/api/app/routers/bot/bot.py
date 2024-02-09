@@ -85,7 +85,6 @@ async def add_intents(
 async def delete_intent(
         intent: str = Path(description="intent name", example="greet"),
         delete_dependencies: bool = Path(
-            default=True,
             description="""if True delete bot data related to this intent otherwise only delete intent""",
         ),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -325,7 +324,7 @@ async def edit_custom_responses(
 @router.delete("/response/{delete_utterance}", response_model=Response)
 async def remove_responses(
         request_data: TextData,
-        delete_utterance: bool = Path(default=False, description="Deletes utterance if True"),
+        delete_utterance: bool = Path(description="Deletes utterance if True"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -484,7 +483,7 @@ async def chat(
 @router.post("/chat/{user}", response_model=Response)
 async def augment_chat(
         request_data: TextData,
-        user: str = Path(default="default", description="user for which the chats needs to be log"),
+        user: str = Path(description="user for which the chats needs to be log"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     """
