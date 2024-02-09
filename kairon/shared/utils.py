@@ -797,6 +797,11 @@ class Utility:
         )
         with tarfile.open(model_file, "r:gz") as model:
             model.extractall(tempdir)
+
+            metadata = json.load(open(f"{tempdir}/metadata.json"))
+            metadata["domain"]["slots"]["bot"]["initial_value"] = bot
+            json.dump(metadata, open(f"{tempdir}/metadata.json", "w"))
+
             domain = Utility.read_yaml(
                 f"{tempdir}/components/domain_provider/domain.yml"
             )
