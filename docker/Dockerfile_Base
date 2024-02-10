@@ -29,7 +29,6 @@ RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
     rm -rf requirements
 
 RUN python -m pip install pyston_lite_autoload
-RUN dnf update kernel --releasever 2023.3.20240205
 COPY . .
 
 ENV HF_HOME="/home/cache" SENTENCE_TRANSFORMERS_HOME="/home/cache"
