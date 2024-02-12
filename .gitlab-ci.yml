@@ -37,12 +37,7 @@ build-dev:
   stage: build-dev
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task -t kairon-task-dev:latest .
-    -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase-dev:latest .
-    -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation-dev:latest .
     -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task_data_importer -t kairon-data-importer-dev:latest .
     -  docker build -f ./docker/Dockerfile_history_server -t kairon-history-server-dev:latest .
     -  docker build -f ./docker/Dockerfile_evaluator_server -t kairon-script-runner-dev:latest .
     -  docker build -f ./docker/Dockerfile_chat -t kairon-chat-dev:latest .
@@ -53,6 +48,11 @@ build-dev:
     -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_logs -t kairon-delete-logs-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_message_broadcast -t kairon-broadcast-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task -t kairon-task-dev:latest .
+    -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase-dev:latest .
+    -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_data_importer -t kairon-data-importer-dev:latest .
 
 build-release:
   tags:
@@ -62,9 +62,6 @@ build-release:
   stage: build-release
   script:
     -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
-    -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
-    -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase:latest .
-    -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation:latest .
     -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server:latest .
     -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen:latest .
     -  docker build -f ./docker/Dockerfile_task_data_importer -t kairon-data-importer:latest .
@@ -78,6 +75,10 @@ build-release:
     -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_logs -t kairon-delete-logs:latest .
     -  docker build -f ./docker/Dockerfile_task_message_broadcast -t kairon-broadcast:latest .
+    -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
+    -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase:latest .
+    -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation:latest .
+
 cleanup:
   stage: cleanup
   script:
