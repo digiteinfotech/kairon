@@ -37,7 +37,7 @@ RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install croniter
-RUN python -m pip install fastapi
+RUN python -m pip install fastapi==0.78.0
 RUN python -m pip install pydantic==1.10.11
 RUN python -m pip install fastapi_sso
 RUN python -m pip install openai==0.27.0

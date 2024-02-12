@@ -25,7 +25,7 @@ RUN python -m pip install cryptography~=3.4.8
 RUN python -m pip install websockets==10.1
 RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install fastapi-keycloak
-RUN python -m pip install fastapi==0.68.1
+RUN python -m pip install fastapi==0.78.0
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install pytest
 RUN python -m pip install fastapi_sso

@@ -9,7 +9,7 @@ RUN amazon-linux-extras install python3.8
 RUN rm /usr/bin/python
 RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
-RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi==0.78.0
 RUN python -m pip install nltk==3.6.6
 RUN python -m pip install transformers==4.23.0
 RUN python -m pip install sentencepiece

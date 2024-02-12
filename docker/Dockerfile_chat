@@ -18,7 +18,7 @@ RUN python -m pip install password-strength
 RUN python -m pip install loguru~=0.5.3
 RUN python -m pip install elastic-apm
 RUN python -m pip install passlib[bcrypt]
-RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi==0.78.0
 RUN python -m pip install pydantic==1.10.11
 RUN python -m pip install numpy==1.22.0
 RUN python -m spacy download en_core_web_md
