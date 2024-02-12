@@ -1,4 +1,4 @@
-FROM amazonlinux:2.0.20230307.0
+FROM amazonlinux:2.0.20240131.0
 
 WORKDIR /app
 USER root
@@ -52,6 +52,7 @@ RUN python -m pip install pykka==3.1.1
 RUN python -m pip install timeout-decorator
 RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install secure
+RUN python -m pip install orjson==3.9.12
 
 RUN mkdir -p /home/cache
 RUN chmod -R 777 /home/cache

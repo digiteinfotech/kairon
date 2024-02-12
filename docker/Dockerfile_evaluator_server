@@ -1,4 +1,4 @@
-FROM amazonlinux:2.0.20230307.0
+FROM amazonlinux:2.0.20240131.0
 
 WORKDIR /app
 RUN yum update -y
@@ -42,6 +42,7 @@ RUN python -m pip install pykka==3.1.1
 RUN python -m pip install timeout-decorator==0.5.0
 RUN python -m pip install RestrictedPython==6.1
 RUN python -m pip install AccessControl==6.1
+RUN python -m pip install orjson==3.9.12
 
 COPY kairon /app/kairon
 COPY system.yaml /app/system.yaml

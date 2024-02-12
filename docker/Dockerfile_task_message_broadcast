@@ -1,4 +1,4 @@
-FROM amazonlinux:2.0.20230307.0
+FROM amazonlinux:2.0.20240131.0
 
 SHELL ["/bin/bash", "-c"]
 
@@ -46,6 +46,7 @@ RUN python -m pip install AccessControl
 RUN python -m pip install pykka==3.1.1
 RUN python -m pip install timeout-decorator
 RUN python -m pip install uuid6
+RUN python -m pip install orjson==3.9.12
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp

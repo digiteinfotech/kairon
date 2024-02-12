@@ -57,6 +57,7 @@ class UserActivityType(str, Enum):
     login = 'login'
     login_refresh_token = "login_refresh_token"
     invalid_login = 'invalid_login'
+    download = "download"
     template_creation = 'template_creation'
     model_reload = "model_reload"
 
@@ -116,6 +117,7 @@ class ElementTypes(str, Enum):
     LINK = "link"
     IMAGE = "image"
     VIDEO = "video"
+    AUDIO = "audio"
     BUTTON = "button"
     DROPDOWN = "dropdown"
 
@@ -143,7 +145,10 @@ class KaironSystemSlots(str, Enum):
     document = "document"
     doc_url = "doc_url"
     order = "order"
+    longitude = "longitude"
+    latitude = "latitude"
     flow_reply = "flow_reply"
+    http_status_code = "http_status_code"
 
 
 class VectorEmbeddingsDatabases(str, Enum):

@@ -20,6 +20,8 @@ class WhatsappCloud(object):
     MESSAGING_TYPES = {
         'text',
         'image',
+        'video',
+        'audio',
         'location',
         'contacts',
         'interactive',

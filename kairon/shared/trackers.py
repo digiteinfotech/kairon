@@ -19,6 +19,7 @@ from rasa.shared.core.trackers import (
     DialogueStateTracker,
 )
 from uuid6 import uuid7
+from loguru import logger
 
 
 class KMongoTrackerStore(TrackerStore):
@@ -102,6 +103,7 @@ class KMongoTrackerStore(TrackerStore):
         flattened_conversation["data"]['bot_response'] = bot_responses
         data.append(flattened_conversation)
         if data:
+            logger.debug(data)
             self.conversations.insert_many(data)
 
     def _retrieve(
@@ -175,12 +177,50 @@ class KMongoTrackerStore(TrackerStore):
             return None
         return stored[0]['events']
 
-    def _additional_events(self, tracker: DialogueStateTracker) -> Iterator:
-        events = self.get_stored_events(tracker.sender_id, False)
-        if events:
-            number_events_since_last_session = len(events)
-            return itertools.islice(
-                tracker.events, number_events_since_last_session, len(tracker.events)
+    def get_latest_session_events_count(self, sender_id: Text):
+        filter_query = {"sender_id": sender_id}
+
+        last_session = list(
+            self.conversations.aggregate(
+                [
+                    {
+                        "$match": {
+                            "sender_id": sender_id,
+                            "event.event": "session_started",
+                        }
+                    },
+                    {"$sort": {"event.timestamp": 1}},
+                    {"$group": {"_id": "$sender_id", "event": {"$last": "$event"}}},
+                ]
             )
+        )
+        filter_query["event.event"] = {"$ne": "session_started"}
+
+        if last_session:
+            filter_query["event.timestamp"] = {
+                "$gte": last_session[0]["event"]["timestamp"]
+            }
+
+        stored = list(
+            self.conversations.aggregate(
+                [
+                    {"$match": filter_query},
+                    {"$sort": {"event.timestamp": 1}},
+                    {"$group": {"_id": "$sender_id", "count": {"$sum": 1}}},
+                    {"$project": {"sender_id": "$_id", "count": 1, "_id": 0}},
+                ]
+            )
+        )
+        if stored:
+            return stored[0]["count"]
         else:
-            return tracker.events
+            return None
+
+    def _additional_events(self, tracker: DialogueStateTracker) -> Iterator:
+        count = self.get_latest_session_events_count(tracker.sender_id)
+        total_events = len(tracker.events)
+        logger.debug(f"tracker existing events : {count}")
+        logger.debug(f"tracker total events : {total_events}")
+        if count:
+            return itertools.islice(tracker.events, count, total_events)
+        return tracker.events

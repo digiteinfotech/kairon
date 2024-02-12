@@ -2,7 +2,6 @@ import json
 from datetime import datetime
 from typing import Text, Dict
 
-from bson import ObjectId
 from loguru import logger
 from mongoengine import DoesNotExist, Document
 
@@ -13,6 +12,7 @@ from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, 
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
 from kairon.shared.constants import ChannelTypes
+from kairon.shared.data.constant import EVENT_STATUS
 
 
 class MessageBroadcastProcessor:
@@ -81,13 +81,14 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def add_event_log(bot: Text, log_type: Text, reference_id: Text = None, status: Text = None, **kwargs):
+        event_completion_states = [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]
+        is_new_log = log_type in {MessageBroadcastLogType.send.value, MessageBroadcastLogType.self.value} or kwargs.pop("is_new_log", None)
         try:
-            if log_type in {MessageBroadcastLogType.send.value, MessageBroadcastLogType.self.value}:
+            if is_new_log:
                 raise DoesNotExist()
-            log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type).get()
+            log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type,
+                                               status__nin=event_completion_states).get()
         except DoesNotExist:
-            if not reference_id:
-                reference_id = ObjectId().__str__()
             log = MessageBroadcastLogs(bot=bot, reference_id=reference_id, log_type=log_type)
         if status:
             log.status = status
@@ -95,7 +96,6 @@ class MessageBroadcastProcessor:
             if not getattr(log, key, None) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
         log.save()
-        return reference_id
 
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
@@ -122,7 +122,7 @@ class MessageBroadcastProcessor:
         return broadcast_logs
 
     @staticmethod
-    def __add_broadcast_logs_status_and_errors(reference_id: Text, broadcast_logs: Dict[Text, Document]):
+    def __add_broadcast_logs_status_and_errors(reference_id: Text, campaign_name: Text, broadcast_logs: Dict[Text, Document]):
         message_ids = list(broadcast_logs.keys())
         channel_logs = ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value)
         for log in channel_logs:
@@ -130,19 +130,32 @@ class MessageBroadcastProcessor:
                 msg_id = log["message_id"]
                 broadcast_logs[msg_id].update(errors=log['errors'], status="Failed")
 
-        ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id)
+        ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id, campaign_name=campaign_name)
 
     @staticmethod
-    def insert_status_received_on_channel_webhook(reference_id: Text):
+    def insert_status_received_on_channel_webhook(reference_id: Text, broadcast_name: Text):
         broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
         if broadcast_logs:
-            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_logs)
+            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_name, broadcast_logs)
 
     @staticmethod
     def get_channel_metrics(channel_type: Text, bot: Text):
         result = list(ChannelLogs.objects.aggregate([
-            {'$match': {'bot': bot, "type": channel_type}},
+            {'$match': {'bot': bot, 'type': channel_type}},
             {'$group': {'_id': {'campaign_id': '$campaign_id', 'status': '$status'}, 'count': {'$sum': 1}}},
-            {'$project': {'status': '$_id.status', 'campaign_id': '$_id.campaign_id', 'count': '$count', '_id': 0}}
+            {'$group': {'_id': '$_id.campaign_id', 'status': {'$push': {'k': '$_id.status', 'v': '$count'}}}},
+            {'$project': {'campaign_id': '$_id', 'status': {'$arrayToObject': '$status'}, '_id': 0}}
         ]))
         return result
+
+    @staticmethod
+    def get_campaign_id(message_id: Text):
+        campaign_id = None
+        try:
+            log = MessageBroadcastLogs.objects(api_response__messages__id=message_id, log_type=MessageBroadcastLogType.send.value)
+            if log:
+                campaign_id = log[0].reference_id
+        except Exception as e:
+            logger.debug(e)
+
+        return campaign_id

@@ -208,6 +208,7 @@ class AuditlogActions(str, Enum):
     BULK_INSERT = "bulk_insert"
     BULK_UPDATE = "bulk_update"
     ACTIVITY = "activity"
+    DOWNLOAD = "download"
 
 
 class LogType(str, Enum):

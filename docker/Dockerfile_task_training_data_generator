@@ -1,4 +1,4 @@
-FROM amazonlinux:2.0.20230307.0
+FROM amazonlinux:2.0.20240131.0
 
 SHELL ["/bin/bash", "-c"]
 
@@ -35,6 +35,7 @@ RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install croniter
 RUN python -m pip install uuid6
+RUN python -m pip install orjson==3.9.12
 
 COPY augmentation ${KG_HOME}/augmentation
 COPY system.yaml ${KG_HOME}/

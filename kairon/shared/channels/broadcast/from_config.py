@@ -11,15 +11,21 @@ from kairon.shared.data.constant import EVENT_STATUS
 
 class MessageBroadcastFromConfig(MessageBroadcastBase, ABC):
 
-    def __init__(self, bot: Text, user: Text, config: Dict, reference_id: Text = None):
+    def __init__(self, bot: Text, user: Text, config: Dict, event_id: Text, reference_id: Text):
+        """
+        event_id: This is unique for each broadcast config.
+        reference_id: Identifies each running broadcast event and associated sent/custom logs uniquely among multiple
+                    recurring broadcasts.
+        """
         self.bot = bot
         self.user = user
         self.config = config
+        self.event_id = event_id
         self.reference_id = reference_id
 
     @classmethod
-    def from_config(cls, config: Dict, reference_id: Text = None):
-        return cls(config["bot"], config["user"], config, reference_id)
+    def from_config(cls, config: Dict, event_id: Text, reference_id: Text):
+        return cls(config["bot"], config["user"], config, event_id, reference_id)
 
     def _get_template_parameters(self, template_config: Dict):
         template_params = template_config.get("data")
@@ -31,6 +37,6 @@ class MessageBroadcastFromConfig(MessageBroadcastBase, ABC):
             raise AppException(f"Failed to evaluate template: {str(e)}")
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, template_params=template_params,
-            status=EVENT_STATUS.EVALUATE_TEMPLATE.value
+            status=EVENT_STATUS.EVALUATE_TEMPLATE.value, event_id=self.event_id
         )
         return template_params

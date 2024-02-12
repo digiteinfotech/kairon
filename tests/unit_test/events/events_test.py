@@ -1291,8 +1291,7 @@ class TestEventExecution:
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0]
-        print(logged_config)
-        assert logged_config == {'reference_id': reference_id, 'log_type': 'send',
+        assert logged_config == {'reference_id': reference_id, 'log_type': 'send', "event_id": event_id,
                                  'bot': 'test_execute_message_broadcast_with_logs_modification', 'status': 'Failed',
                                  'api_response': {
                                      'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
@@ -1310,7 +1309,7 @@ class TestEventExecution:
         assert ChannelLogs.objects(bot=bot,
                                    message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ').get().campaign_id == reference_id
         result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
-        assert result == [{'status': 'Failed', 'campaign_id': reference_id, 'count': 1}]
+        assert result == [{'campaign_id': reference_id, 'status': {'Failed': 1}}]
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -1398,14 +1397,12 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
-        print(logs)
-        assert logs[0][1] == {'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
-                              'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
-                              'failure_cnt': 0, 'total': 2,
+        assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
+                              'user': 'test_user', 'recipients': ['918958030541', ''], 'failure_cnt': 0, 'total': 2,
                               'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
                               }
         logs[0][0].pop("timestamp")
-        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send',
+        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send',
                               'bot': 'test_execute_message_broadcast', 'status': 'Success', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '918958030541', 'template_params': None, "template": template}
@@ -1510,9 +1507,8 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
-        assert logs[0][2] == {'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
-                              'status': 'Completed', 'user': 'test_user', 'broadcast_id': event_id,
-                              'recipients': ['9876543210', '876543212345'],
+        assert logs[0][2] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
+                              'status': 'Completed', 'user': 'test_user', 'recipients': ['9876543210', '876543212345'],
                               'template_params': [[{'type': 'header', 'parameters': [{'type': 'document', 'document': {
                                   'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                   'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
@@ -1524,7 +1520,7 @@ class TestEventExecution:
         logs[0][1].pop("timestamp")
         logs[0][1].pop("recipient")
         logs[0][0].pop("recipient")
-        assert logs[0][1] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+        assert logs[0][1] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'template_params': [{'type': 'header', 'parameters': [
@@ -1532,7 +1528,7 @@ class TestEventExecution:
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                       'filename': 'Brochure.pdf'}}]}], "template": template}
         logs[0][0].pop("timestamp")
-        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'template_params': [{'type': 'header', 'parameters': [
@@ -1604,8 +1600,8 @@ class TestEventExecution:
         assert not logged_config.pop("recipients_config")
         config.pop("recipients_config")
         assert logged_config == config
-        assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user,
-                              'broadcast_id': event_id, 'exception': "Failed to evaluate recipients: 'recipients'"
+        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user,
+                              'exception': "Failed to evaluate recipients: 'recipients'"
                               }
 
         with pytest.raises(AppException, match="Notification settings not found!"):
@@ -1711,9 +1707,7 @@ class TestEventExecution:
         assert logged_config == config
         exception = logs[0][0].pop("exception")
         assert exception.startswith("Whatsapp channel config not found!")
-        assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user,
-                              'broadcast_id': event_id,
-                              'recipients': ['918958030541']}
+        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user, 'recipients': ['918958030541']}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
@@ -1797,7 +1791,7 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 
-        coll = WhatsappBroadcast(bot, user, {})._WhatsappBroadcast__get_db_client()
+        coll = WhatsappBroadcast(bot, user, {}, event_id, "")._WhatsappBroadcast__get_db_client()
         history = list(coll.find({}))
         print(history)
         history[0].pop("timestamp")
@@ -1816,13 +1810,13 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         assert logged_config == config
-        assert logs[0][1] == {'log_type': 'common', 'bot': bot, 'status': 'Completed',
-                              'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
-                              'template_params': [[{'body': 'Udit Pandey'}]], 'failure_cnt': 0, 'total': 2,
+        assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
+                              'user': 'test_user', 'recipients': ['918958030541', ''], 'failure_cnt': 0, 'total': 2,
+                              'template_params': [[{'body': 'Udit Pandey'}]],
                               'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
                               }
         logs[0][0].pop("timestamp")
-        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send', 'template': template,
+        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'template': template,
                               'bot': bot, 'status': 'Success', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '918958030541', 'template_params': [{'body': 'Udit Pandey'}]}
@@ -1970,8 +1964,8 @@ class TestEventExecution:
         assert len(logs[0]) == logs[1] == 1
         [log.pop("timestamp") for log in logs[0]]
         reference_id = logs[0][0].get("reference_id")
-        expected_logs = [{'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
-                          'user': 'test_user', 'broadcast_id': event_id, 'failure_cnt': 0, 'total': 0,
+        expected_logs = [{"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
+                          'user': 'test_user', 'failure_cnt': 0, 'total': 0,
                           'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
                               'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                               'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
@@ -2037,7 +2031,6 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
-        [log.pop("timestamp") for log in logs[0]]
         reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0].pop("config")
         logged_config.pop('pyscript_timeout')
@@ -2046,10 +2039,10 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         assert logged_config.pop("template_config") == []
         assert logged_config == config
+        logs[0][0].pop("timestamp", None)
 
-        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
-                              'user': user, 'broadcast_id': event_id,
-                              "exception": "Script execution error: import of 'time' is unauthorized"}
+        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
+                              'user': user, "exception": "Script execution error: import of 'time' is unauthorized"}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
@@ -2108,8 +2101,8 @@ class TestEventExecution:
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 
-        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
-                              'user': user, 'broadcast_id': event_id, 'exception': 'Operation timed out: 1 seconds'}
+        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
+                              'user': user, 'exception': 'Operation timed out: 1 seconds'}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)

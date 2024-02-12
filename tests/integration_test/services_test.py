@@ -2911,7 +2911,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 9
+    assert len(actual['data']) == 12
     assert actual["success"]
 
 
@@ -3036,8 +3036,8 @@ def test_list_entities():
     assert actual["error_code"] == 0
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                                                    'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
-                                                   'audio', 'image', 'doc_url', 'document', 'video', 'order',
-                                                   'flow_reply'}
+                                                   'audio', 'image', 'doc_url', 'document', 'video', 'order', 'latitude',
+                                                   'longitude', 'flow_reply', 'http_status_code'}
     assert actual["success"]
 
 
@@ -3438,7 +3438,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 16
+    assert len(actual["data"]) == 19
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -14198,9 +14198,7 @@ def test_get_channel_logs():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == [{'status': 'delivered', 'campaign_id': '6779002886649302', 'count': 1},
-                              {'status': 'read', 'campaign_id': '6779002886649302', 'count': 1},
-                              {'status': 'sent', 'campaign_id': '6779002886649302', 'count': 1}]
+    assert actual["data"] == [{'campaign_id': '6779002886649302', 'status': {'delivered': 1, 'read': 1, 'sent': 1}}]
 
 
 @responses.activate

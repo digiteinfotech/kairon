@@ -28,8 +28,9 @@ from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     VIEW_ACCESS, EventClass
 from kairon.shared.data.assets_processor import AssetsProcessor
+from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
-    TrainingDataSourceType
+    TrainingDataSourceType, AuditlogActions
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -634,6 +635,9 @@ async def download_data(
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
     )
+    AuditDataProcessor.log("Training Data", current_user.account, current_user.get_bot(), current_user.get_user(),
+                           data={"download_multiflow_stories": download_multiflow_stories},
+                           action=AuditlogActions.DOWNLOAD.value)
     response.headers[
         "Content-Disposition"
     ] = "attachment; filename=" + os.path.basename(file)
@@ -655,6 +659,8 @@ async def download_model(
             filename=os.path.basename(model_path),
             background=background_tasks,
         )
+        AuditDataProcessor.log("Model", current_user.account, current_user.get_bot(), current_user.get_user(),
+                               action=AuditlogActions.DOWNLOAD.value)
         response.headers[
             "Content-Disposition"
         ] = "attachment; filename=" + os.path.basename(model_path)

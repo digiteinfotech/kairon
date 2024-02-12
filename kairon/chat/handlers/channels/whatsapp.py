@@ -56,6 +56,9 @@ class Whatsapp:
             if message['type'] == "voice":
                 message['type'] = "audio"
             text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
+        elif message.get("type") == "location":
+            logger.debug(message['location'])
+            text = f"/k_multimedia_msg{{\"latitude\": \"{message['location']['latitude']}\", \"longitude\": \"{message['location']['longitude']}\"}}"
         elif message.get("type") == "order":
             logger.debug(message['order'])
             entity = json.dumps({message["type"]: message['order']})
@@ -183,8 +186,8 @@ class WhatsappBot(OutputChannel):
         type_list = Utility.system_metadata.get("type_list")
         message = json_message.get("data")
         messagetype = json_message.get("type")
-        content_type = {"link": "text", "video": "text", "image": "image", "button": "interactive",
-                        "dropdown": "interactive"}
+        content_type = {"link": "text", "video": "video", "image": "image", "button": "interactive",
+                        "dropdown": "interactive", "audio": "audio"}
         if messagetype is not None and messagetype in type_list:
             messaging_type = content_type.get(messagetype)
             from kairon.chat.converters.channels.response_factory import ConverterFactory
