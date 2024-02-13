@@ -231,7 +231,7 @@ class MessengerBot(OutputChannel):
             self, comment_id: Text, bot: Text, **kwargs: Any
     ):
         body = {}
-        r = self.messenger_client.session.post(
+        _r = self.messenger_client.session.post(
             '{graph_url}/{comment_id}/replies?message={message}'.
             format(graph_url=self.messenger_client.graph_url,
                    comment_id=comment_id,
