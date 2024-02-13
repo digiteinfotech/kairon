@@ -39,7 +39,10 @@ class Messenger:
         self.last_message: Dict[Text, Any] = {}
 
     def get_user_id(self) -> Text:
-        return self.last_message.get("sender", {}).get("id", "")
+        sender_id = self.last_message.get("sender", {}).get("id", "")
+        if sender_id == '':
+            sender_id = self.last_message.get("value", {}).get("from", {}).get("id", "")
+        return sender_id
 
     @staticmethod
     def _is_audio_message(message: Dict[Text, Any]) -> bool:
@@ -78,6 +81,10 @@ class Messenger:
         )
 
     @staticmethod
+    def _is_comment(message: Dict[Text, Any]) -> bool:
+        return  message.get("field", "") == "comments"
+
+    @staticmethod
     def _is_user_message(message: Dict[Text, Any]) -> bool:
         """Check if the message is a message from the user"""
         return (
@@ -97,12 +104,16 @@ class Messenger:
 
     async def handle(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
         for entry in payload["entry"]:
-            for message in entry["messaging"]:
+            for message in entry.get("messaging", []):
                 self.last_message = message
                 if message.get("message"):
                     return await self.message(message, metadata, bot)
                 elif message.get("postback"):
                     return await self.postback(message, metadata, bot)
+            for change in entry.get("changes",[]):
+                self.last_message = change
+                if change.get("value"):
+                    return await self.comment(change, metadata, bot)
 
     async def message(
             self, message: Dict[Text, Any], metadata: Optional[Dict[Text, Any]], bot: str
@@ -144,6 +155,20 @@ class Messenger:
         text = message["postback"]["payload"]
         await self._handle_user_message(text, self.get_user_id(), metadata, bot)
 
+    async def comment(
+            self, message: Dict[Text, Any], metadata: Optional[Dict[Text, Any]], bot: str
+    ):
+        if self._is_comment(message):
+            static_comment_reply = ChatDataProcessor.get_instagram_static_comment(bot=bot)
+            text = message["value"]["text"]
+            parent_id = message.get("value", {}).get("parent_id", None)
+            comment_id = message["value"]["id"]
+            user = message["value"]["from"]["username"]
+            metadata["comment_id"] = comment_id
+            metadata["static_comment_reply"] = f"@{user} {static_comment_reply}"
+            if not parent_id:
+                await self._handle_user_message(text, self.get_user_id(), metadata, bot)
+
     async def _handle_user_message(
             self, text: Text, sender_id: Text, metadata: Optional[Dict[Text, Any]], bot: str
     ) -> None:
@@ -156,6 +181,9 @@ class Messenger:
             text, out_channel, sender_id, input_channel=self.name(), metadata=metadata
         )
         await out_channel.send_action(sender_id, sender_action="typing_on")
+
+        if metadata.get("comment_id"):
+            await out_channel.reply_on_comment(**metadata)
         # noinspection PyBroadException
         try:
             await self.process_message(bot, user_msg)
@@ -198,6 +226,19 @@ class MessengerBot(OutputChannel):
 
         for message_part in text.strip().split("\n\n"):
             self.send(recipient_id, FBText(text=message_part))
+
+    async def reply_on_comment(
+            self, comment_id: Text, bot: Text, **kwargs: Any
+    ):
+        body = {}
+        _r = self.messenger_client.session.post(
+            '{graph_url}/{comment_id}/replies?message={message}'.
+            format(graph_url=self.messenger_client.graph_url,
+                   comment_id=comment_id,
+                   message=kwargs.get("static_comment_reply")),
+            params=self.messenger_client.auth_args,
+            json=body
+        )
 
     async def send_image_url(
             self, recipient_id: Text, image: Text, **kwargs: Any
