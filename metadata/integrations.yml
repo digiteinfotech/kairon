@@ -47,7 +47,7 @@ channels:
       - page_access_token
       - verify_token
     optional_fields:
-      - static_comment_reply: Thanks for reaching us, please check your inbox
+      - static_comment_reply
   whatsapp:
     required_fields:
       - app_secret
