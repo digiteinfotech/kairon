@@ -56,7 +56,7 @@ async def list_channel_config(
 
 @router.get("/{name}/endpoint", response_model=Response)
 async def get_channel_endpoint(
-        name: str = Path(default=None, description="channel name", example="slack"),
+        name: str = Path(description="channel name", example="slack"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -67,7 +67,7 @@ async def get_channel_endpoint(
 
 @router.delete("/{channel_id}", response_model=Response)
 async def delete_channel_config(
-        channel_id: str = Path(default=None, description="channel id", example="698705012345"),
+        channel_id: str = Path(description="channel id", example="698705012345"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -94,7 +94,7 @@ async def refresh_bsp_credentials(
 @router.post("/whatsapp/{bsp_type}/onboarding", response_model=Response)
 async def initiate_platform_onboarding(
         request: Request,
-        bsp_type: str = Path(default=None, description="Business service provider type",
+        bsp_type: str = Path(description="Business service provider type",
                              example=WhatsappBSPTypes.bsp_360dialog.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
@@ -110,7 +110,7 @@ async def initiate_platform_onboarding(
 @router.post("/whatsapp/templates/{bsp_type}", response_model=Response)
 async def add_message_templates(
         request_data: DictData,
-        bsp_type: str = Path(default=None, description="Business service provider type",
+        bsp_type: str = Path(description="Business service provider type",
                              example=WhatsappBSPTypes.bsp_360dialog.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
@@ -125,8 +125,8 @@ async def add_message_templates(
 @router.put("/whatsapp/templates/{bsp_type}/{template_id}", response_model=Response)
 async def edit_message_templates(
         request_data: DictData,
-        template_id: str = Path(default=None, description="template id", example="594425479261596"),
-        bsp_type: str = Path(default=None, description="Business service provider type",
+        template_id: str = Path(description="template id", example="594425479261596"),
+        bsp_type: str = Path(description="Business service provider type",
                              example=WhatsappBSPTypes.bsp_360dialog.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
@@ -140,8 +140,8 @@ async def edit_message_templates(
 
 @router.delete("/whatsapp/templates/{bsp_type}/{template_id}", response_model=Response)
 async def delete_message_templates(
-        template_id: str = Path(default=None, description="template id", example="594425479261596"),
-        bsp_type: str = Path(default=None, description="Business service provider type",
+        template_id: str = Path(description="template id", example="594425479261596"),
+        bsp_type: str = Path(description="Business service provider type",
                              example=WhatsappBSPTypes.bsp_360dialog.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
@@ -156,7 +156,7 @@ async def delete_message_templates(
 @router.get("/whatsapp/templates/{bsp_type}/list", response_model=Response)
 async def retrieve_message_templates(
         request: Request,
-        bsp_type: str = Path(default=None, description="Business service provider type",
+        bsp_type: str = Path(description="Business service provider type",
                              example=WhatsappBSPTypes.bsp_360dialog.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):

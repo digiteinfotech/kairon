@@ -32,7 +32,7 @@ async def add_custom_widget(
 @router.put("/custom/{widget_id}", response_model=Response)
 async def update_custom_widget(
         request_data: CustomWidgetsRequest,
-        widget_id: Text = Path(default=None, description="Configuration id"),
+        widget_id: Text = Path(description="Configuration id"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
@@ -64,7 +64,7 @@ async def get_custom_widget_config(
 
 @router.delete("/custom/{widget_id}", response_model=Response)
 async def delete_custom_widget(
-        widget_id: Text = Path(default=None, description="Configuration id"),
+        widget_id: Text = Path(description="Configuration id"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
@@ -77,7 +77,7 @@ async def delete_custom_widget(
 @router.get("/custom/trigger/{widget_id}", response_model=Response)
 async def trigger_widget(
         request: Request,
-        widget_id: str = Path(default=None, description="Custom widget configuration id."),
+        widget_id: str = Path(description="Custom widget configuration id."),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=VIEW_ACCESS)
 ):
     """

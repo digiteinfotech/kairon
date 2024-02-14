@@ -40,7 +40,7 @@ async def get_idp_config(current_user: User = Depends(Authentication.get_current
 
 @router.delete("/config/{realm_name}", response_model=Response)
 async def delete_idp_config(current_user: User = Depends(Authentication.get_current_user),
-                            realm_name: str = Path(default=None, description="Realm name", example="DOMAIN")):
+                            realm_name: str = Path(description="Realm name", example="DOMAIN")):
     """
     Disable the idp config
     """

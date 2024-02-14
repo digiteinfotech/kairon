@@ -19,7 +19,7 @@ from starlette.testclient import TestClient
 from kairon.api.models import RegisterAccount
 from kairon.chat.agent.agent import KaironAgent
 from kairon.chat.agent.message_processor import KaironMessageProcessor
-from kairon.chat.handlers.channels.messenger import MessengerHandler
+from kairon.chat.handlers.channels.messenger import MessengerHandler, InstagramHandler
 from kairon.chat.server import app
 from kairon.chat.utils import ChatUtils
 from kairon.exceptions import AppException
@@ -153,6 +153,16 @@ ChatDataProcessor.save_channel_config({"connector_type": "messenger",
                                        }
                                        },
                                       bot, user="test@chat.com")
+
+ChatDataProcessor.save_channel_config({"connector_type": "instagram",
+                                       "config": {
+                                           "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
+                                           "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
+                                           "verify_token": "kairon-instagram-token",
+                                       }
+                                       },
+                                      bot, user="test@chat.com")
+
 responses.stop()
 
 
@@ -2897,4 +2907,109 @@ def test_chat_with_chatwoot_agent_outof_workinghours(mock_validatebusiness, mock
             actual = response.json()
             assert actual["data"]["agent_handoff"][
                        "businessworking"] == "We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 ."
+
+
+@responses.activate
+def test_instagram_comment():
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    message = "@kairon_user_123 Thanks for reaching us, please check your inbox"
+    access_token = "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD"
+    responses.add(
+        "POST", f"https://graph.facebook.com/v2.12/18009764417219041/replies?message={message}&access_token={access_token}", json={}
+    )
+    responses.add(
+        "POST", f"https://graph.facebook.com/v2.12/me/messages?access_token={access_token}", json={}
+    )
+
+    with mock.patch.object(EndpointConfig, "request") as mock_action_execution:
+        mock_action_execution.return_value = {"responses": [{"response": "Welcome to kairon!"}], "events": []}
+
+        with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = client.post(
+                f"/api/bot/instagram/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "entry": [
+                        {
+                            "id": "17841456706109718",
+                            "time": 1707144192,
+                            "changes": [
+                                {
+                                    "value": {
+                                        "from": {
+                                            "id": "6489091794524304",
+                                            "username": "kairon_user_123"
+                                        },
+                                        "media": {
+                                            "id": "18013303267972611",
+                                            "media_product_type": "REELS"
+                                        },
+                                        "id": "18009764417219041",
+                                        "text": "Hi"
+                                    },
+                                    "field": "comments"
+                                }
+                            ]
+                        }
+                    ],
+                    "object": "instagram"
+                })
+        time.sleep(5)
+        mock_action_execution.assert_awaited_once()
+
+    actual = response.json()
+    print(f"Actual response for instagram is {actual}")
+    assert actual == 'success'
+    assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                              channel_type="instagram") > 0
+
+
+@responses.activate
+def test_instagram_comment_with_parent_comment():
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    with mock.patch.object(EndpointConfig, "request") as mock_action_execution:
+        mock_action_execution.return_value = {"responses": [{"response": "Welcome to kairon!"}], "events": []}
+
+        with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = client.post(
+                f"/api/bot/instagram/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "entry": [
+                        {
+                            "id": "17841456706109718",
+                            "time": 1707144192,
+                            "changes": [
+                                {
+                                    "value": {
+                                        "from": {
+                                            "id": "6489091794524304",
+                                            "username": "_hdg_photography"
+                                        },
+                                        "media": {
+                                            "id": "18013303267972611",
+                                            "media_product_type": "REELS"
+                                        },
+                                        "id": "18009764417219042",
+                                        "parent_id": "18009764417219041",
+                                        "text": "Hi"
+                                    },
+                                    "field": "comments"
+                                }
+                            ]
+                        }
+                    ],
+                    "object": "instagram"
+                })
+
+    actual = response.json()
+    print(f"Actual response for instagram is {actual}")
+    assert actual == 'success'
+    assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                              channel_type="instagram") > 0
+
 

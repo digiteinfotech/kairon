@@ -1,4 +1,4 @@
-FROM amazonlinux:2.0.20230307.0
+FROM amazonlinux:2.0.20240131.0
 
 WORKDIR /app
 USER root
@@ -17,7 +17,7 @@ python -m pip install dnspython && \
 python -m pip install pyjwt && \
 python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
-RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi==0.78.0
 RUN python -m pip install fastapi_sso
 RUN python -m pip install password-strength
 RUN python -m pip install passlib[bcrypt]

@@ -1,4 +1,4 @@
-FROM amazonlinux:2.0.20230307.0
+FROM amazonlinux:2.0.20240131.0
 
 ENV RASA_NLU_DOCKER="YES" \
     RASA_NLU_HOME=/app
@@ -25,7 +25,6 @@ RUN python -m pip install cryptography~=3.4.8
 RUN python -m pip install websockets==10.1
 RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install fastapi-keycloak
-RUN python -m pip install fastapi==0.68.1
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install pytest
 RUN python -m pip install fastapi_sso
@@ -50,6 +49,7 @@ RUN python -m pip install tiktoken
 RUN python -m pip install validators==0.20.0
 RUN python -m pip install aiohttp-retry
 RUN python -m pip install pqdict
+RUN python -m pip install fastapi==0.78.0
 
 RUN mkdir ssl
 RUN mkdir data_generator

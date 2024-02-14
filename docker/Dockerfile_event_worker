@@ -1,4 +1,4 @@
-FROM amazonlinux:2.0.20230307.0
+FROM amazonlinux:2.0.20240131.0
 
 WORKDIR /app
 USER root
@@ -17,7 +17,7 @@ python -m pip install dnspython && \
 python -m pip install pyjwt && \
 python -m pip install elastic-apm
 RUN python -m pip install pymongo==3.12.0
-RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi==0.78.0
 RUN python -m pip install fastapi_sso
 RUN python -m pip install loguru
 RUN python -m pip install pydantic~=1.8.2
@@ -48,7 +48,7 @@ RUN python -m pip install dramatiq-mongodb==0.6.1
 RUN python -m pip install google-cloud-translate
 RUN python -m pip install transformers==4.23.0
 RUN python -m pip install numpy==1.22.0
-RUN python -m pip install sentence-transformers
+RUN python -m pip install sentence-transformers==2.2.2
 RUN python -m pip install keybert
 RUN python -m pip install bs4
 RUN python -m pip install mongoengine==0.23.1
