@@ -155,6 +155,36 @@ async def preview_whatsapp_flow(
     return Response(data=response)
 
 
+@router.get("/whatsapp/flows/{bsp_type}/{flow_id}/assets", response_model=Response)
+async def get_whatsapp_flow_assets(
+        flow_id: str = Path(default=None, description="flow id", example="594425479261596"),
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Returns all assets attached to a specified flow with this endpoint.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.get_whatsapp_flow_assets(flow_id)
+    return Response(data=response)
+
+
+@router.post("/whatsapp/flows/{bsp_type}/{flow_id}/deprecate", response_model=Response)
+async def deprecate_whatsapp_flow(
+        flow_id: str = Path(default=None, description="flow id", example="594425479261596"),
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Flow can be deprecated with this endpoint.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.deprecate_whatsapp_flow(flow_id)
+    return Response(data=response)
+
+
 @router.get("/whatsapp/flows/{bsp_type}", response_model=Response)
 async def retrieve_whatsapp_flows(
         request: Request,

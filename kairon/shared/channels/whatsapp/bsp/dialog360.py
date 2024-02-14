@@ -140,6 +140,30 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             logger.exception(e)
             raise AppException("Channel not found!")
 
+    def get_whatsapp_flow_assets(self, flow_id: str):
+        try:
+            base_url, flow_endpoint = self.get_flow_endpoint_url()
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{flow_endpoint}/{flow_id}/assets"
+            resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers,
+                                                validate_status=True, err_msg="Failed to get flow assets: ")
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+
+    def deprecate_whatsapp_flow(self, flow_id: str):
+        try:
+            base_url, flow_endpoint = self.get_flow_endpoint_url()
+            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            url = f"{base_url}{flow_endpoint}/{flow_id}/deprecate"
+            resp = Utility.execute_http_request(request_method="POST", http_url=url, headers=headers,
+                                                validate_status=True, err_msg="Failed to deprecate flow: ")
+            return resp
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Channel not found!")
+
     def list_whatsapp_flows(self, **kwargs):
         fields = kwargs.get("fields")
 

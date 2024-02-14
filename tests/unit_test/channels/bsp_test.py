@@ -436,6 +436,112 @@ class TestBusinessServiceProvider:
             assert response == api_response
 
     @responses.activate
+    def test_get_whatsapp_flow_assets_channel_not_found(self):
+        bot = "62bc24b493a0d6b7a46328fg"
+        flow_id = "test_id"
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").get_whatsapp_flow_assets(flow_id)
+
+    @responses.activate
+    def test_get_whatsapp_flow_assets_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/assets"
+            responses.add("GET", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to get flow assets: *"):
+                BSP360Dialog(bot, "user").get_whatsapp_flow_assets(flow_id)
+
+    @responses.activate
+    def test_get_whatsapp_flow_assets(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+            api_response = {
+                "assets": [
+                    {
+                        "asset_type": "FLOW_JSON",
+                        "download_url": "https://mmg.whatsapp.net/m1/v/t24/An8n-Ot0L5sxj8lupzxfUTfHYhsdsdsdsRyqAZRySBcATvtUGgPjP76UJKS0wMopyj6SNTmNmf_F1pLAt04wbP3B9kFCIpvy7oOG6CM3HK4wFY61Z7TiLDxjGvzEgXjdog6A?ccb=10-5&oh=01_AdTq_Njj-foFgD0-KlMXq4AbdhrqLoNm6_CtlsxZxC03rA&oe=65F414CD&_nc_sid=471a72",
+                        "name": "flow.json"
+                    }
+                ],
+                "count": 1,
+                "total": 1
+            }
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/assets"
+            responses.add("GET", json=api_response, url=url)
+            response = BSP360Dialog(bot, "user").get_whatsapp_flow_assets(flow_id)
+            assert response == api_response
+
+    @responses.activate
+    def test_deprecate_whatsapp_flow_channel_not_found(self):
+        bot = "62bc24b493a0d6b7a46328fg"
+        flow_id = "test_id"
+
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSP360Dialog(bot, "user").deprecate_whatsapp_flow(flow_id)
+
+    @responses.activate
+    def test_deprecate_whatsapp_flow_failure(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/deprecate"
+            responses.add("POST", json={}, url=url, status=500)
+
+            with pytest.raises(AppException, match=r"Failed to deprecate flow: *"):
+                BSP360Dialog(bot, "user").deprecate_whatsapp_flow(flow_id)
+
+    @responses.activate
+    def test_deprecate_whatsapp_flow(self, monkeypatch):
+        with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
+            bot = "62bc24b493a0d6b7a46328ff"
+            flow_id = "test_id"
+            partner_id = "new_partner_id"
+            waba_account_id = "Cyih7GWA"
+            api_response = {"success": True}
+
+            def _get_partners_auth_token(*args, **kwargs):
+                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "hub_base_url"]
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/deprecate"
+            responses.add("POST", json=api_response, url=url)
+            response = BSP360Dialog(bot, "user").deprecate_whatsapp_flow(flow_id)
+            assert response == api_response
+
+    @responses.activate
     def test_preview_whatsapp_flow_channel_not_found(self):
         bot = "62bc24b493a0d6b7a46328fg"
         flow_id = "test_id"
