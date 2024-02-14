@@ -14252,6 +14252,34 @@ def test_publish_whatsapp_flow_error(mock_get_partner_auth_token):
     assert actual["data"] is None
 
 
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+def test_get_whatsapp_flow_assets_error(mock_get_partner_auth_token):
+    mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/flows/360dialog/test_flow_id/assets",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Channel not found!"
+    assert actual["data"] is None
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+def test_deprecate_whatsapp_flow_error(mock_get_partner_auth_token):
+    mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/flows/360dialog/test_flow_id/deprecate",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Channel not found!"
+    assert actual["data"] is None
+
+
 def test_get_channel_logs():
     from kairon.shared.chat.data_objects import ChannelLogs
     ChannelLogs(
@@ -14695,6 +14723,54 @@ def test_publish_whatsapp_flow(mock_publish_flow):
 
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/whatsapp/flows/360dialog/test_flow_id/publish",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == api_response
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_whatsapp_flow_assets", autospec=True)
+def test_get_whatsapp_flow_assets(mock_get_whatsapp_flow_assets):
+    data = {
+        "name": "flow with multiple categories",
+        "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+    }
+    api_response = {
+        "assets": [
+            {
+                "asset_type": "FLOW_JSON",
+                "download_url": "https://mmg.whatsapp.net/m1/v/t24/An8n-Ot0L5sxj8lupzxfUTfHYhsdsdsdsRyqAZRySBcATvtUGgPjP76UJKS0wMopyj6SNTmNmf_F1pLAt04wbP3B9kFCIpvy7oOG6CM3HK4wFY61Z7TiLDxjGvzEgXjdog6A?ccb=10-5&oh=01_AdTq_Njj-foFgD0-KlMXq4AbdhrqLoNm6_CtlsxZxC03rA&oe=65F414CD&_nc_sid=471a72",
+                "name": "flow.json"
+            }
+        ],
+        "count": 1,
+        "total": 1
+    }
+    mock_get_whatsapp_flow_assets.return_value = api_response
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/flows/360dialog/test_flow_id/assets",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == api_response
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.deprecate_whatsapp_flow", autospec=True)
+def test_deprecate_whatsapp_flow(mock_deprecate_whatsapp_flow):
+    data = {
+        "name": "flow with multiple categories",
+        "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+    }
+    api_response = {"success": True}
+    mock_deprecate_whatsapp_flow.return_value = api_response
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/flows/360dialog/test_flow_id/deprecate",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
