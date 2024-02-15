@@ -6846,7 +6846,7 @@ class TestMongoProcessor:
              '_has_been_set': False},
             {'name': 'kairon_action_response', 'type': 'any', 'auto_fill': False, 'influence_conversation': False,
              '_has_been_set': False},
-            {'name': 'order', 'type': 'any', 'auto_fill': False, 'influence_conversation': False,
+            {'name': 'order', 'type': 'any', 'auto_fill': True, 'influence_conversation': False,
              '_has_been_set': False},
             {'name': 'http_status_code', 'type': 'float', 'auto_fill': False, 'influence_conversation': False,
              '_has_been_set': False, 'max_value': 550.0, 'min_value': 100.0},
