@@ -13006,8 +13006,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": "test@demo.com",
-                        "to_email": ["test@test.com", "test1@test.com"],
+                        "from_email": {"value": "from_email", "parameter_type": "slot"},
+                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13022,8 +13022,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": "test@demo.com",
-                        "to_email": ["test@test.com", "test1@test.com"],
+                        "from_email": {"value": "from_email", "parameter_type": "slot"},
+                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False,
@@ -13060,8 +13060,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": "test@demo.com",
-                        "to_email": "test@test.com",
+                        "from_email": {"value": "from_email", "parameter_type": "slot"},
+                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13085,20 +13085,32 @@ class TestMongoProcessor:
             email_config['smtp_url'] = temp
 
             temp = email_config['from_email']
-            email_config['from_email'] = "test@test"
+            email_config['from_email'] = {"value": "test@test", "parameter_type": "value"}
             with pytest.raises(ValidationError, match="Invalid From or To email address"):
+                processor.add_email_action(email_config, "TEST", "tests")
+
+            email_config['from_email'] = {"value": "", "parameter_type": "slot"}
+            with pytest.raises(ValidationError, match="Provide name of the slot as value"):
                 processor.add_email_action(email_config, "TEST", "tests")
             email_config['from_email'] = temp
 
             temp = email_config['to_email']
-            email_config['to_email'] = "test@test"
+            email_config['to_email'] = {"value": "test@test", "parameter_type": "value"}
+            with pytest.raises(ValidationError, match="Provide list of emails as value"):
+                processor.add_email_action(email_config, "TEST", "tests")
+
+            email_config['to_email'] = {"value": ["test@test"], "parameter_type": "value"}
             with pytest.raises(ValidationError, match="Invalid From or To email address"):
                 processor.add_email_action(email_config, "TEST", "tests")
-            email_config['to_email'] = ["test@demo.com"]
+
+            email_config['to_email'] = {"value": "", "parameter_type": "slot"}
+            with pytest.raises(ValidationError, match="Provide name of the slot as value"):
+                processor.add_email_action(email_config, "TEST", "tests")
+            email_config['to_email'] = temp
+
             email_config["custom_text"] = {"value": "custom_text_slot", "parameter_type": "sender_id"}
             with pytest.raises(ValidationError, match="custom_text can only be of type value or slot!"):
                 processor.add_email_action(email_config, "TEST", "tests")
-
 
     def test_add_email_action_duplicate(self):
         processor = MongoProcessor()
@@ -13107,8 +13119,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": "test@demo.com",
-                        "to_email": ["test@test.com"],
+                        "from_email": {"value": "from_email", "parameter_type": "slot"},
+                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13124,8 +13136,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": "test@demo.com",
-                        "to_email": ["test@test.com"],
+                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+                        "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13141,8 +13153,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": "test@demo.com",
-                        "to_email": ["test@test.com", "test1@test.com"],
+                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+                        "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13161,8 +13173,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": "test@demo.com",
-                        "to_email": "test@test.com",
+                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+                        "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13186,14 +13198,26 @@ class TestMongoProcessor:
             email_config['smtp_url'] = temp
 
             temp = email_config['from_email']
-            email_config['from_email'] = "test@test"
+            email_config['from_email'] = {"value": "test@demo", "parameter_type": "value"}
             with pytest.raises(ValidationError, match="Invalid From or To email address"):
+                processor.edit_email_action(email_config, "TEST", "tests")
+
+            email_config['from_email'] = {"value": "", "parameter_type": "slot"}
+            with pytest.raises(ValidationError, match="Provide name of the slot as value"):
                 processor.edit_email_action(email_config, "TEST", "tests")
             email_config['from_email'] = temp
 
             temp = email_config['to_email']
-            email_config['to_email'] = "test@test"
+            email_config['to_email'] = {"value": "test@test", "parameter_type": "value"}
+            with pytest.raises(ValidationError, match="Provide list of emails as value"):
+                processor.edit_email_action(email_config, "TEST", "tests")
+
+            email_config['to_email'] = {"value": ["test@test"], "parameter_type": "value"}
             with pytest.raises(ValidationError, match="Invalid From or To email address"):
+                processor.edit_email_action(email_config, "TEST", "tests")
+
+            email_config['to_email'] = {"value": "", "parameter_type": "slot"}
+            with pytest.raises(ValidationError, match="Provide name of the slot as value"):
                 processor.edit_email_action(email_config, "TEST", "tests")
             email_config['to_email'] = temp
 
@@ -13204,8 +13228,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": "test@demo.com",
-                        "to_email": "test@test.com",
+                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+                        "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -14060,8 +14084,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": smtp_userid_list,
                         "smtp_password": {'value': "test"},
-                        "from_email": "test@demo.com",
-                        "to_email": ["test@test.com", "test1@test.com"],
+                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+                        "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
