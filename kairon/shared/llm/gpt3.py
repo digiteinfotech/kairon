@@ -199,13 +199,24 @@ class GPT3FAQEmbedding(LLMBase):
         similarity_prompt_name = kwargs.pop('similarity_prompt_name')
         similarity_prompt_instructions = kwargs.pop('similarity_prompt_instructions')
         limit = kwargs.pop('top_results', 10)
+        similarity_context = ""
+        extracted_values = []
         score_threshold = kwargs.pop('similarity_threshold', 0.70)
         if use_similarity_prompt:
             collection_name = f"{self.bot}_{kwargs.get('collection')}{self.suffix}" if kwargs.get('collection') else f"{self.bot}{self.suffix}"
             search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit, score_threshold=score_threshold)
 
-            similarity_context = "\n".join([item['payload']['content'] for item in search_result['result']])
-            similarity_context = f"{similarity_prompt_name}:\n{similarity_context}\n"
+            for entry in search_result['result']:
+                extracted_payload = {}
+                if 'content' not in entry['payload']:
+                    for key, value in entry['payload'].items():
+                        if key != 'collection_name':
+                            extracted_payload[key] = value
+                    extracted_values.append(extracted_payload)
+                    similarity_context = f"{similarity_prompt_name}:\n{extracted_values}\n"
+                else:
+                    similarity_context = entry['payload']['content']
+                    similarity_context = f"{similarity_prompt_name}:\n{similarity_context}\n"
             if similarity_prompt_instructions:
                 similarity_context += f"Instructions on how to use {similarity_prompt_name}: {similarity_prompt_instructions}\n"
             context_prompt = f"{context_prompt}\n{similarity_context}"
