@@ -86,4 +86,4 @@ build-release:
 cleanup:
   stage: cleanup
   script:
-    -  docker system prune --all --filter "until=720h" -f
+    -  docker system prune --all --filter "until=720h"

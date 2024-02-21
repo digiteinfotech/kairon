@@ -85,7 +85,7 @@ class OpenAIFeaturizer(DenseFeaturizer, GraphComponent, ABC):
 
     def get_embeddings(self, text):
         embedding = openai.Embedding.create(
-            model="text-embedding-ada-002",
+            model="text-embedding-3-small",
             input=text,
             api_key=self.api_key
         )['data'][0]['embedding']

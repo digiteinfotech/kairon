@@ -100,7 +100,7 @@ class GPT3FAQEmbedding(LLMBase):
 
     async def __get_embedding(self, text: Text) -> List[float]:
         truncated_text = self.truncate_text(text)
-        result, _ = await self.client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002",
+        result, _ = await self.client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-3-small",
                                              input=truncated_text)
         return result
 

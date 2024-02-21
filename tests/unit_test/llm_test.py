@@ -106,7 +106,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix,
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": test_content.data}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
 
@@ -212,13 +212,13 @@ class TestLLM:
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'name': f"{gpt3.bot}_country_details{gpt3.suffix}",
                                                                                  'vectors': gpt3.vector_config}
 
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": '{"country":"Spain","lang":"spanish"}'}
             assert list(aioresponses.requests.values())[3][0].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  'input': '{"lang":"spanish","role":"ds"}'}
             assert list(aioresponses.requests.values())[3][1].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[3][2].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[3][2].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": '{"name":"Nupur","city":"Pune"}'}
             assert list(aioresponses.requests.values())[3][2].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {'points': [{'id': test_content_two.vector_id,
@@ -288,7 +288,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'test_embed_faq_json_payload_with_int_faq_embd',
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": json.dumps(input)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
@@ -360,7 +360,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'test_int_embd_int_faq_embd',
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": json.dumps(input)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             expected_payload = test_content.data
@@ -427,7 +427,7 @@ class TestLLM:
                 await gpt3.train()
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": test_content.data}
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": test_content.data}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
                                                                   'vector': embedding, 'payload': {'collection_name': f"{bot}{gpt3.suffix}",'content': test_content.data}}]}
@@ -493,7 +493,7 @@ class TestLLM:
                 await gpt3.train()
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'payload_upsert_error_error_json_faq_embd', 'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": json.dumps(test_content.data)}
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": json.dumps(test_content.data)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             expected_payload = test_content.data
             expected_payload['collection_name'] = 'payload_upsert_error_error_json_faq_embd'
@@ -562,7 +562,7 @@ class TestLLM:
             response = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
@@ -642,7 +642,7 @@ class TestLLM:
                                      'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
@@ -725,7 +725,7 @@ class TestLLM:
                                      'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                      'logit_bias': {}}}]
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
@@ -910,7 +910,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         response = await gpt3.predict(query, **k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                              "input": query}
         assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
@@ -994,7 +994,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         response = await gpt3.predict(query, **k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                              "input": query}
         assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
         assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,

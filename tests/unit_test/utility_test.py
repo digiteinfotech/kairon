@@ -3076,14 +3076,14 @@ class TestUtility:
         )
         formatted_response, raw_response = await GPT3Resources(api_key).invoke(
             GPT3ResourceTypes.embeddings.value,
-            model="text-embedding-ada-002",
+            model="text-embedding-3-small",
             input=query,
         )
         assert formatted_response == embedding
         assert raw_response == {"data": [{"embedding": embedding}]}
 
         assert list(aioresponses.requests.values())[0][0].kwargs["json"] == {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "input": query,
         }
         assert (
@@ -3106,7 +3106,7 @@ class TestUtility:
         ):
             await GPT3Resources(api_key).invoke(
                 GPT3ResourceTypes.embeddings.value,
-                model="text-embedding-ada-002",
+                model="text-embedding-3-small",
                 input=query,
             )
 
@@ -3123,12 +3123,12 @@ class TestUtility:
         ):
             await GPT3Resources(api_key).invoke(
                 GPT3ResourceTypes.embeddings.value,
-                model="text-embedding-ada-002",
+                model="text-embedding-3-small",
                 input=query,
             )
 
         assert list(aioresponses.requests.values())[0][0].kwargs["json"] == {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "input": query,
         }
         assert (
@@ -3137,7 +3137,7 @@ class TestUtility:
         )
 
         assert list(aioresponses.requests.values())[0][1].kwargs["json"] == {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "input": query,
         }
         assert (
@@ -3481,14 +3481,14 @@ data: [DONE]\n\n"""
         )(api_key, **llm_settings)
         formatted_response, raw_response = await client.invoke(
             GPT3ResourceTypes.embeddings.value,
-            model="text-embedding-ada-002",
+            model="text-embedding-3-small",
             input=query,
         )
         assert formatted_response == embedding
         assert raw_response == {"data": [{"embedding": embedding}]}
 
         assert list(aioresponses.requests.values())[0][0].kwargs["json"] == {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "input": query,
         }
         assert (
@@ -3527,12 +3527,12 @@ data: [DONE]\n\n"""
         ):
             await client.invoke(
                 GPT3ResourceTypes.embeddings.value,
-                model="text-embedding-ada-002",
+                model="text-embedding-3-small",
                 input=query,
             )
 
         assert list(aioresponses.requests.values())[0][0].kwargs["json"] == {
-            "model": "text-embedding-ada-002",
+            "model": "text-embedding-3-small",
             "input": query,
         }
         assert (
