@@ -306,10 +306,10 @@ async def download_conversations(
         f'/api/history/{current_user.get_bot()}/conversations/download?from_date={from_date}&to_date={to_date}',
         return_json=False
     )
+
     response.headers[
         "Content-Disposition"
     ] = f"attachment; filename=conversation_history_{current_user.get_bot()}{date.today().strftime('_%d_%m_%y.csv')}"
-
     return StreamingResponse(BytesIO(response.content), media_type='text/csv')
 
 
