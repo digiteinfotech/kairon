@@ -310,7 +310,7 @@ async def download_conversations(
     response.headers[
         "Content-Disposition"
     ] = f"attachment; filename=conversation_history_{current_user.get_bot()}{date.today().strftime('_%d_%m_%y.csv')}"
-    return StreamingResponse(BytesIO(response.content), headers=response.headers)
+    return StreamingResponse(BytesIO(response.content), media_type='text/csv')
 
 
 @router.get("/metrics/intents/topmost", response_model=Response)

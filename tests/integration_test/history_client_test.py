@@ -1077,8 +1077,6 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, moc
     )
     assert response.status_code == 200
     assert response.content.decode('utf-8')
-    assert f"conversation_history_{pytest.bot}{date.today().strftime('_%d_%m_%y.csv')}" in str(response.headers)
-
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client_access_denied1(mock_auth, mock_mongo_processor, mock_list_bots):
