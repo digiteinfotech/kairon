@@ -103,13 +103,17 @@ class GPT3FAQEmbedding(LLMBase):
         return result
 
     async def __get_answer(self, query, system_prompt: Text, context: Text, **kwargs):
-        query_prompt = kwargs.get('query_prompt')
-        use_query_prompt = kwargs.get('use_query_prompt')
+        use_query_prompt = False
+        query_prompt = ''
+        if kwargs.get('query_prompt', {}):
+            query_prompt_dict = kwargs.pop('query_prompt')
+            query_prompt = query_prompt_dict.get('query_prompt', '')
+            use_query_prompt = query_prompt_dict.get('use_query_prompt')
+
         previous_bot_responses = kwargs.get('previous_bot_responses')
         hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyperparameters())
         instructions = kwargs.get('instructions', [])
         instructions = '\n'.join(instructions)
-
         if use_query_prompt and query_prompt:
             query = await self.__rephrase_query(query, system_prompt, query_prompt, hyperparameters=hyperparameters)
         messages = [
@@ -195,29 +199,31 @@ class GPT3FAQEmbedding(LLMBase):
         return self.__logs
 
     async def __attach_similarity_prompt_if_enabled(self, query_embedding, context_prompt, **kwargs):
-        use_similarity_prompt = kwargs.pop('use_similarity_prompt')
-        similarity_prompt_name = kwargs.pop('similarity_prompt_name')
-        similarity_prompt_instructions = kwargs.pop('similarity_prompt_instructions')
-        limit = kwargs.pop('top_results', 10)
-        similarity_context = ""
-        extracted_values = []
-        score_threshold = kwargs.pop('similarity_threshold', 0.70)
-        if use_similarity_prompt:
-            collection_name = f"{self.bot}_{kwargs.get('collection')}{self.suffix}" if kwargs.get('collection') else f"{self.bot}{self.suffix}"
-            search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit, score_threshold=score_threshold)
+        similarity_prompt = kwargs.pop('similarity_prompt')
+        for similarity_context_prompt in similarity_prompt:
+            use_similarity_prompt = similarity_context_prompt.get('use_similarity_prompt')
+            similarity_prompt_name = similarity_context_prompt.get('similarity_prompt_name')
+            similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
+            limit = similarity_context_prompt.get('top_results', 10)
+            score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
+            similarity_context = ""
+            extracted_values = []
+            if use_similarity_prompt:
+                collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}" if similarity_context_prompt.get('collection') else f"{self.bot}{self.suffix}"
+                search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit, score_threshold=score_threshold)
 
-            for entry in search_result['result']:
-                extracted_payload = {}
-                if 'content' not in entry['payload']:
-                    for key, value in entry['payload'].items():
-                        if key != 'collection_name':
-                            extracted_payload[key] = value
-                    extracted_values.append(extracted_payload)
-                    similarity_context = f"{similarity_prompt_name}:\n{extracted_values}\n"
-                else:
-                    similarity_context = entry['payload']['content']
-                    similarity_context = f"{similarity_prompt_name}:\n{similarity_context}\n"
-            if similarity_prompt_instructions:
-                similarity_context += f"Instructions on how to use {similarity_prompt_name}: {similarity_prompt_instructions}\n"
-            context_prompt = f"{context_prompt}\n{similarity_context}"
+                for entry in search_result['result']:
+                    extracted_payload = {}
+                    if 'content' not in entry['payload']:
+                        for key, value in entry['payload'].items():
+                            if key != 'collection_name':
+                                extracted_payload[key] = value
+                        extracted_values.append(extracted_payload)
+                        similarity_context = f"{similarity_prompt_name}:\n{extracted_values}\n"
+                    else:
+                        similarity_context = entry['payload']['content']
+                        similarity_context = f"{similarity_prompt_name}:\n{similarity_context}\n"
+                    if similarity_prompt_instructions:
+                        similarity_context += f"Instructions on how to use {similarity_prompt_name}: {similarity_prompt_instructions}\n"
+                context_prompt = f"{context_prompt}\n{similarity_context}"
         return context_prompt

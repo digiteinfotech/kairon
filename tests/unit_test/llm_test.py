@@ -508,9 +508,10 @@ class TestLLM:
         bot = "test_embed_faq_predict"
         user = "test"
         value = "knupur"
+        collection = 'python'
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot=bot, user=user).save()
+            collection=collection, bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
@@ -519,9 +520,10 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.'}
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  'collection': 'python'}]}
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_completion_request = {"messages": [
             {'role': 'system',
@@ -550,7 +552,7 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
                 payload={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
@@ -590,10 +592,11 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.',
-            'collection': 'city'}
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                   'similarity_prompt_name': 'Similarity Prompt',
+                                   'similarity_prompt_instructions': 'Answer according to this context.',
+                                   'collection': 'city'
+                                   }]}
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_completion_request = {'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\n[{'city': 'delhi', 'emp': 'one'}, {'city': 'mumbai', 'emp': 'two'}]\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What is the city of one? \nA:"}], 'temperature': 0.0, 'max_tokens': 300, 'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}, 'model': 'gpt-3.5-turbo'}
         mock_completion_request.update(hyperparameters)
@@ -650,16 +653,17 @@ class TestLLM:
 
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot="test_embed_faq_predict", user="test").save()
+            collection='python', bot="test_embed_faq_predict", user="test").save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.'}
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  'collection': 'python'}]}
 
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_completion_request = {"messages": [
@@ -689,7 +693,7 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
                 payload={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
@@ -697,19 +701,18 @@ class TestLLM:
 
             response = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [
-                {'messages': [{'role': 'system',
-                               'content': 'You are a personal assistant. Answer the question according to the below context'},
-                              {'role': 'user',
-                               'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}],
-                 'raw_completion_response': {'choices': [{
-                     'message': {
-                         'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                         'role': 'assistant'}}]},
-                 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
+            print(gpt3.logs)
+            assert gpt3.logs == [{'messages': [{'role': 'system',
+                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                               {'role': 'user',
+                                                'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}],
+                                  'raw_completion_response': {'choices': [{'message': {
+                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                                      'role': 'assistant'}}]}, 'type': 'answer_query',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                      'logit_bias': {}}}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
@@ -725,16 +728,17 @@ class TestLLM:
 
         test_content = CognitionData(
             data="Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ",
-            bot="test_embed_faq_predict", user="test").save()
+            collection='java', bot="test_embed_faq_predict", user="test").save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.',
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  "collection": "java"}],
             'instructions': ['Answer in a short way.', 'Keep it simple.']}
 
         hyperparameters = Utility.get_llm_hyperparameters()
@@ -765,7 +769,7 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
                 payload={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
@@ -773,24 +777,18 @@ class TestLLM:
 
             response = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [
-                {'messages': [{'role': 'system',
-                               'content': 'You are a personal assistant. Answer the question according to the below context'},
-                              {'role': 'user',
-                               'content': 'Based on below context answer question, if answer not in context '
-                                          'check previous logs.\nSimilarity Prompt:\nJava is a high-level, general-purpose '
-                                          'programming language. Java is known for its write once, run anywhere capability. '
-                                          '\nInstructions on how to use Similarity Prompt: Answer according to this context.'
-                                          '\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:'}],
-                 'raw_completion_response': {
-                     'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, '
-                                                         'high level, general purpose programming.',
-                                              'role': 'assistant'}}]},
-                 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1,
-                                     'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                     'logit_bias': {}}}]
+            print(gpt3.logs)
+            assert gpt3.logs == [{'messages': [{'role': 'system',
+                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                               {'role': 'user',
+                                                'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nJava is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. \nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:'}],
+                                  'raw_completion_response': {'choices': [{'message': {
+                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                                      'role': 'assistant'}}]}, 'type': 'answer_query',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                      'logit_bias': {}}}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
@@ -808,16 +806,17 @@ class TestLLM:
 
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot="test_embed_faq_predict", user="test").save()
+            collection='python', bot="test_embed_faq_predict", user="test").save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.', "enable_response_cache": True}
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  "collection": 'python'}]}
 
         def __mock_connection_error(*args, **kwargs):
             import openai
@@ -831,7 +830,7 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
                 payload={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
@@ -851,10 +850,10 @@ Similarity Prompt:
 Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.
 Instructions on how to use Similarity Prompt: Answer according to this context.
 """
-            assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
-                                                        'use_similarity_prompt': True, 'enable_response_cache': True,
-                                                        'similarity_prompt_name': 'Similarity Prompt',
-                                                        'similarity_prompt_instructions': 'Answer according to this context.'}
+            assert mock_completion.call_args.kwargs == {'similarity_prompt': [
+                {'top_results': 10, 'similarity_threshold': 0.7, 'use_similarity_prompt': True,
+                 'similarity_prompt_name': 'Similarity Prompt',
+                 'similarity_prompt_instructions': 'Answer according to this context.', 'collection': 'python'}]}
             assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
@@ -867,15 +866,16 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
 
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot="test_embed_faq_predict", user="test").save()
+            collection='python', bot="test_embed_faq_predict", user="test").save()
 
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.', "enable_response_cache": True}
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  "collection": 'python'}]}
 
         mock_embedding.return_value = embedding
         mock_llm_request.side_effect = ClientConnectionError()
@@ -904,8 +904,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
-            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, "enable_response_cache": True}
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs."}
 
         mock_embedding.side_effect = [openai.error.APIConnectionError("Connection reset by peer!"), embedding]
 
@@ -926,7 +925,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         user = "test"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot=bot, user=user).save()
+            collection='python', bot=bot, user=user).save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
@@ -934,8 +933,10 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             "previous_bot_responses": [
                 {'role': 'user', 'content': 'hello'},
                 {'role': 'assistant', 'content': 'how are you'},
-            ], 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.'}
+            ],"similarity_prompt": [{'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+                                   'similarity_prompt_instructions': 'Answer according to this context.',
+                                   "collection": 'python'}]
+        }
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_completion_request = {"messages": [
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
@@ -964,7 +965,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
         aioresponses.add(
-            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
             method="POST",
             payload={'result': [
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
@@ -992,22 +993,25 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         user = "test"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot=bot, user=user).save()
+            collection='python', bot=bot, user=user).save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         rephrased_query = "Explain python is called high level programming language in laymen terms?"
-        k_faq_action_config = {
+        k_faq_action_config = {"query_prompt": {
             "query_prompt": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-            "use_query_prompt": True, 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.'
+            "use_query_prompt": True},
+            "similarity_prompt": [
+                {'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+                 'similarity_prompt_instructions': 'Answer according to this context.',
+                 "collection": 'python'}]
         }
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_rephrase_request = {"messages": [
             {"role": "system",
              "content": DEFAULT_SYSTEM_PROMPT},
             {"role": "user",
-             "content": f"{k_faq_action_config['query_prompt']}\n\n Q: {query}\n A:"}
+             "content": f"{k_faq_action_config.get('query_prompt')['query_prompt']}\n\n Q: {query}\n A:"}
         ]}
 
         mock_completion_request = {"messages": [
@@ -1045,7 +1049,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
         aioresponses.add(
-            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
             method="POST",
             payload={'result': [
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
