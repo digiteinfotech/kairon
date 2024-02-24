@@ -1,8 +1,0 @@
-ARG BASE_IMAGE=kairon-base:latest
-FROM $BASE_IMAGE
-
-USER 1001
-EXPOSE 5056
-
-ENV APP_MODULE=kairon.events.server:app
-CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5056 --no-server-header --no-access-log
