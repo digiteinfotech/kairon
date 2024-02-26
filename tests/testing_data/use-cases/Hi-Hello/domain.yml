@@ -32,6 +32,9 @@ responses:
   utter_default:
     - text: "Sorry I didn't get that. Can you rephrase?"
 
+  utter_please_rephrase:
+    - text: "Sorry I didn't get that. Can you rephrase?"
+
 session_config:
   session_expiration_time: 60
   carry_over_slots_to_new_session: true

@@ -5,12 +5,16 @@ import time
 from datetime import datetime, timedelta
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
+from kairon.shared.utils import Utility
+
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+os.environ["ASYNC_TEST_TIMEOUT"] = "3600"
+Utility.load_environment()
 
 import pytest
 import responses
 from mock import patch
 from mongoengine import connect
-from rasa.utils.endpoints import EndpointConfig
 from slack_sdk.web.slack_response import SlackResponse
 from starlette.exceptions import HTTPException
 from starlette.testclient import TestClient
@@ -35,14 +39,9 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
-from kairon.shared.utils import Utility
 from kairon.train import start_training
 from deepdiff import DeepDiff
 
-
-os.environ["system_file"] = "./tests/testing_data/system.yaml"
-os.environ["ASYNC_TEST_TIMEOUT"] = "3600"
-Utility.load_environment()
 connect(**Utility.mongoengine_connection())
 
 loop = asyncio.new_event_loop()
@@ -880,22 +879,20 @@ def test_chat_with_limited_access():
         access_limit=["/api/bot/.+/chat"],
         name="integration token",
     )
-    with patch.object(EndpointConfig, "request") as mocked:
-        mocked.return_value = action_response
-        response = client.post(
-            f"/api/bot/{bot2}/chat",
-            json={"data": "Hi"},
-            headers={
-                "Authorization": f"{token_type} {access_token}",
-                "X-USER": "testUser",
-            },
-        )
+    response = client.post(
+        f"/api/bot/{bot2}/chat",
+        json={"data": "Hi"},
+        headers={
+            "Authorization": f"{token_type} {access_token}",
+            "X-USER": "testUser",
+        },
+    )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
     assert actual["data"]["response"] == [
-        {"recipient_id": "testUser", "text": "I'm sorry, I didn't quite understand that. Could you rephrase?"}
+        {"recipient_id": "testUser", "text": "Sorry I didn't get that. Can you rephrase?"}
     ]
     data = MeteringProcessor.get_logs(
         bot_account, metric_type=MetricType.prod_chat, bot=bot2
@@ -948,16 +945,14 @@ def test_chat_with_limited_access_without_integration():
     access_token = Authentication.create_access_token(
         data={"sub": "test@chat.com", "access-limit": ["/api/bot/.+/chat"]},
     )
-    with patch.object(EndpointConfig, "request") as mocked:
-        mocked.return_value = action_response
-        response = client.post(
-            f"/api/bot/{bot2}/chat",
-            json={"data": "Hi"},
-            headers={
-                "Authorization": f"{token_type} {access_token}",
-                "X-USER": "testUser",
-            },
-        )
+    response = client.post(
+        f"/api/bot/{bot2}/chat",
+        json={"data": "Hi"},
+        headers={
+            "Authorization": f"{token_type} {access_token}",
+            "X-USER": "testUser",
+        },
+    )
     actual = response.json()
     assert actual["data"]["response"][0]
 
@@ -1958,7 +1953,6 @@ def test_whatsapp_valid_order_message_request():
 
 @responses.activate
 def test_whatsapp_valid_flows_message_request():
-    responses.reset()
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
