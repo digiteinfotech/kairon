@@ -167,11 +167,11 @@ class ChatUtils:
         return metadata
 
     @staticmethod
-    def add_telemetry_metadata(x_telemetry_uid: Text, x_session_id: Text, metadata: Dict = None):
+    def add_telemetry_metadata(x_telemetry_uid: Text, x_telemetry_sid: Text, metadata: Dict = None):
         if not metadata:
             metadata = {}
-        if x_telemetry_uid and x_session_id:
+        if x_telemetry_uid and x_telemetry_sid:
             #TODO: validate x_telemetry_uid and x_session_id for the botid
             metadata["telemetry-uid"] = x_telemetry_uid
-            metadata["session-id"] = x_session_id
+            metadata["telemetry-sid"] = x_telemetry_sid
         return metadata

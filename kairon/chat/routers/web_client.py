@@ -21,13 +21,13 @@ router = APIRouter()
 @router.post("/chat", response_model=Response)
 async def get_agent_response_for_web_client(request: ChatRequest,
                                             x_telemetry_uid: Text = Header(None),
-                                            x_session_id: Text = Header(None),
+                                            x_telemetry_sid: Text = Header(None),
                                             current_user: User = Security(Authentication.get_current_user_and_bot,
                                                                           scopes=CHAT_ACCESS)):
     """
     Retrieves agent response for user message.
     """
-    request.metadata = ChatUtils.add_telemetry_metadata(x_telemetry_uid, x_session_id, request.metadata)
+    request.metadata = ChatUtils.add_telemetry_metadata(x_telemetry_uid, x_telemetry_sid, request.metadata)
     response = await ChatUtils.chat(request.data, current_user.bot_account, current_user.get_bot(),
                                     current_user.get_user(),
                                     current_user.is_integration_user, request.metadata)
