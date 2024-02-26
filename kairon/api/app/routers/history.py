@@ -306,11 +306,7 @@ async def download_conversations(
         f'/api/history/{current_user.get_bot()}/conversations/download?from_date={from_date}&to_date={to_date}',
         return_json=False
     )
-
-    response.headers[
-        "Content-Disposition"
-    ] = f"attachment; filename=conversation_history_{current_user.get_bot()}{date.today().strftime('_%d_%m_%y.csv')}"
-    return StreamingResponse(BytesIO(response.content), media_type='text/csv', headers=response.headers)
+    return StreamingResponse(BytesIO(response.content), media_type='text/csv', headers={'Content-Disposition': f"attachment; filename=conversation_history_{current_user.get_bot()}{date.today().strftime('_%d_%m_%y.csv')}"})
 
 
 @router.get("/metrics/intents/topmost", response_model=Response)
@@ -472,7 +468,7 @@ async def unsuccessful_session_count(
     fallback_intent = DataUtility.get_fallback_intent(current_user.get_bot(), current_user.get_user())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
-        f'/api/history/{current_user.get_bot()}/metrics/sessions/unsuccessful?from_date={from_date}'
+            f'/api/history/{current_user.get_bot()}/metrics/sessions/unsuccessful?from_date={from_date}'
         f'&to_date={to_date}&fallback_intent={fallback_intent}'
     )
 
