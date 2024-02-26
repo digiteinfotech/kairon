@@ -19,7 +19,7 @@ class LinkedinSSO(KaironSSO):
     discovery_url = "https://www.linkedin.com/oauth/v2"
     profile_url = "https://api.linkedin.com/v2"
     grant_type = "authorization_code"
-    scope = 'r_liteprofile r_emailaddress'
+    scope = 'profile email'
 
     @property
     async def useremail_endpoint(self) -> Optional[str]:
