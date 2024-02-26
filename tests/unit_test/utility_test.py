@@ -1778,6 +1778,33 @@ class TestUtility:
         assert expected_output == response
 
     @pytest.mark.asyncio
+    async def test_messageConverter_messenger_button_one(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_one")
+        messenger = ConverterFactory.getConcreteInstance("button", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_button_op_one")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_button_two(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_two")
+        messenger = ConverterFactory.getConcreteInstance("button", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_button_op_two")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_button_three(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_three")
+        messenger = ConverterFactory.getConcreteInstance("button", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_button_op_three")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
     async def test_messageConverter_whatsapp_button_three(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("button_three")
