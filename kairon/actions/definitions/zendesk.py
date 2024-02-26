@@ -8,7 +8,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, ZendeskAction
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType
+from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
 
@@ -58,7 +58,8 @@ class ActionZendeskTicket(ActionsBase):
         try:
             tracker_data = ActionUtility.build_context(tracker)
             api_token = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_token, self.bot)
-            comment = ActionUtility.prepare_email_body(tracker.events, action_config['subject'])
+            comment = ActionUtility.prepare_email_body(tracker_data[ActionParameterType.chat_log.value],
+                                                       action_config['subject'])
             ActionUtility.create_zendesk_ticket(
                 subdomain=action_config['subdomain'],
                 user_name=action_config['user_name'],
