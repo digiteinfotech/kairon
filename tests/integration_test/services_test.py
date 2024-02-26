@@ -1339,7 +1339,6 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_one = response_one.json()
-    print(actual_one)
     pytest.schema_id_one = actual_one["data"]["_id"]
     assert actual_one["message"] == "Schema saved!"
     assert actual_one["data"]["_id"]
