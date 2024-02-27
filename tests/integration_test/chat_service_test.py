@@ -648,6 +648,79 @@ def test_chat_with_telemetry_headers():
             assert metadata.args[0].metadata['telemetry-sid'] == 'test_session'
 
 
+def test_chat_with_telemetry_no_headers():
+    with patch.object(Utility, "get_local_mongo_store") as mocked:
+        mocked.side_effect = empty_store
+        patch.dict(Utility.environment['action'], {"url": None})
+
+        with patch.object(KaironMessageProcessor, "handle_message") as mocked_handle_message:
+            mocked_handle_message.return_value = {
+                "nlu": "intent_prediction",
+                "action": "action_prediction",
+                "response": "response_data",
+                "slots": "slot_data",
+                "events": "event_data",
+            }
+
+            request_body = {
+                "data": "Hi",
+                "metadata": {
+                    "name": "test_chat",
+                        "tabname": "coaching"
+                    }
+                }
+
+            response = client.post(
+                f"/api/bot/{bot}/chat",
+                json=request_body,
+                headers={"Authorization": token_type + " " + token,
+                         },
+            )
+            actual = response.json()
+            assert actual['success']
+            assert actual['error_code'] == 0
+            metadata = mocked_handle_message.call_args
+            assert metadata.args[0].metadata['name'] == 'test_chat'
+            assert metadata.args[0].metadata.get('telemetry-uid') == None
+            assert metadata.args[0].metadata.get('telemetry-sid') == None
+
+
+def test_chat_with_telemetry_partly_missing_headers():
+    with patch.object(Utility, "get_local_mongo_store") as mocked:
+        mocked.side_effect = empty_store
+        patch.dict(Utility.environment['action'], {"url": None})
+
+        with patch.object(KaironMessageProcessor, "handle_message") as mocked_handle_message:
+            mocked_handle_message.return_value = {
+                "nlu": "intent_prediction",
+                "action": "action_prediction",
+                "response": "response_data",
+                "slots": "slot_data",
+                "events": "event_data",
+            }
+
+            request_body = {
+                "data": "Hi",
+                "metadata": {
+                    "name": "test_chat",
+                        "tabname": "coaching"
+                    }
+                }
+
+            response = client.post(
+                f"/api/bot/{bot}/chat",
+                json=request_body,
+                headers={"Authorization": token_type + " " + token,
+                         "X-TELEMETRY-UID": "test_telemetry",
+                         },
+            )
+            actual = response.json()
+            assert actual['success']
+            assert actual['error_code'] == 0
+            metadata = mocked_handle_message.call_args
+            assert metadata.args[0].metadata['name'] == 'test_chat'
+            assert metadata.args[0].metadata.get('telemetry-uid') == None
+            assert metadata.args[0].metadata.get('telemetry-sid') == None
 
 
 def test_chat_with_user_with_invalid_metadata():
