@@ -1456,7 +1456,7 @@ def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(mock
 def test_whatsapp_valid_button_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
-
+    responses.reset()
     responses.add(
         "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
     )

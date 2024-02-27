@@ -571,6 +571,80 @@ class TestLLM:
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
 
     @pytest.mark.asyncio
+    async def test_gpt3_faq_embedding_predict_with_payload(self, aioresponses):
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        bot = "test_embed_faq_predict_with_payload"
+        user = "testone"
+        value = "knupur"
+        test_content = CognitionData(
+            data={'city': 'Delhi', 'emp': 'one'},
+            content_type="json",
+            collection='city',
+            bot=bot, user=user).save()
+        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        generated_text = "The city of one is Delhi."
+        query = "What is the city of one?"
+
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+            'similarity_prompt_name': 'Similarity Prompt',
+            'similarity_prompt_instructions': 'Answer according to this context.',
+            'collection': 'city'}
+        hyperparameters = Utility.get_llm_hyperparameters()
+        mock_completion_request = {'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\n[{'city': 'delhi', 'emp': 'one'}, {'city': 'mumbai', 'emp': 'two'}]\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What is the city of one? \nA:"}], 'temperature': 0.0, 'max_tokens': 300, 'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}, 'model': 'gpt-3.5-turbo'}
+        mock_completion_request.update(hyperparameters)
+        request_header = {"Authorization": "Bearer knupur"}
+
+        aioresponses.add(
+            url="https://api.openai.com/v1/embeddings",
+            method="POST",
+            status=200,
+            payload={'data': [{'embedding': embedding}]}
+        )
+
+        aioresponses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=200,
+            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        )
+
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
+                method="POST",
+                payload={'result': [
+                    {'id': test_content.vector_id,
+                     'score': 0.80, "payload": {'city': 'delhi', 'collection_name': '65cf5452b7fd22267aefa901_test_two_faq_embd', 'emp': 'one'}},
+                    {'id': test_content.vector_id,
+                     'score': 0.80,
+                     "payload": {'city': 'mumbai', 'collection_name': '65cf5452b7fd22267aefa901_test_two_faq_embd',
+                                 'emp': 'two'}}
+                ]
+                }
+            )
+
+            response = await gpt3.predict(query, **k_faq_action_config)
+            assert response['content'] == generated_text
+
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+                                                                                 "input": query}
+            assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
+            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                                 'with_payload': True,
+                                                                                 'score_threshold': 0.70}
+
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
+            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+
+    @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_values(self, aioresponses):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
 

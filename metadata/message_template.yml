@@ -86,6 +86,8 @@ messenger:
 }'
   link: '{"text":"<data>"}'
   video: '{"text":"<data>"}'
+  button: '{"text":"<data>"}'
+  body_message: "Please select from quick buttons:"
 
 whatsapp:
   image: '{
