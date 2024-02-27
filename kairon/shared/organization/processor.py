@@ -1,14 +1,14 @@
 import logging
+
 from mongoengine import DoesNotExist
 
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.idp.data_objects import IdpConfig
-from kairon.idp.processor import IDPProcessor
 from kairon.shared.account.data_objects import Organization
 from kairon.shared.data.constant import FeatureMappings
-from kairon.shared.data.data_objects import UserOrgMappings
 from kairon.shared.data.constant import ORG_SETTINGS_MESSAGES
+from kairon.shared.data.data_objects import UserOrgMappings
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,8 @@ class OrgProcessor:
 
     @staticmethod
     def delete_org(account, org_id):
+        from kairon.idp.processor import IDPProcessor
+
         try:
             org = Organization.objects(name=org_id, account__contains=account).get()
             org_name = org.name
