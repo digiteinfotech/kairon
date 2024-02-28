@@ -16,7 +16,7 @@ from validators import email, ValidationFailure
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, TagType
 from kairon.shared.utils import Utility
 
 
@@ -68,12 +68,23 @@ class BotMetaData(EmbeddedDocument):
     from_template = DynamicField(default=None)
 
 
+class Tagging(EmbeddedDocument):
+    tag = StringField()
+    type = StringField(choices=[TagType.ADMIN.value, TagType.USER.value], default=None)
+
+
+@auditlogger.log
+class Tags(Auditlog):
+    tags = EmbeddedDocumentField(Tagging, default=None)
+
+
 @auditlogger.log
 @push_notification.apply
 class Bot(Auditlog):
     name = StringField(required=True)
     account = LongField(required=True)
     user = StringField(required=True)
+    tags = ListField(EmbeddedDocumentField(Tagging, default=None))
     metadata = EmbeddedDocumentField(BotMetaData, default=BotMetaData())
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
