@@ -155,7 +155,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test_user'
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
             processor.add_prompt_action(request, bot, user)
@@ -167,8 +167,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_slots', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 10,
-                   'similarity_threshold': 1.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
@@ -177,6 +175,9 @@ class TestMongoProcessor:
              'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
              'is_enabled': True},
             {'name': 'Similarity Prompt',
+             "data": "Bot_collection",
+             'hyperparameters': {'top_results': 10,
+                                 'similarity_threshold': 1.70},
              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
             {'name': 'Identification Prompt',
@@ -193,8 +194,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_http_action', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 10,
-                   'similarity_threshold': 1.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
@@ -204,7 +203,10 @@ class TestMongoProcessor:
              'is_enabled': True},
             {'name': 'Similarity Prompt',
              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+             "data": "Bot_collection",
+             'hyperparameters': {'top_results': 10,
+                                 'similarity_threshold': 1.70}},
             {'name': 'Http action Prompt',
              'data': 'test_http_action',
              'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
@@ -219,8 +221,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_prompt_action_similarity', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 10,
-                   'similarity_threshold': 1.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
@@ -229,7 +229,11 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+                                    "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 10,
+                                                        'similarity_threshold': 1.70},
+                                    },
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -247,8 +251,6 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {'name': 'test_prompt_action_invalid_top_results', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 40,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
@@ -256,6 +258,9 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
+                                    "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 40,
+                                                        'similarity_threshold': 0.3},
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -269,30 +274,13 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="top_results should not be greater than 30"):
             processor.add_prompt_action(request, bot, user)
 
-    def test_add_prompt_action_with_invalid_query_prompt(self):
+    def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'name': 'test_add_prompt_action_with_invalid_query_prompt',
-                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'history', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
-                   "num_bot_responses": 5}
-        with pytest.raises(ValidationError, match="Query prompt must have static source!"):
-            processor.add_prompt_action(request, bot, user)
-
-    def test_add_prompt_action_with_invalid_num_bot_responses(self):
-        processor = MongoProcessor()
-        bot = 'test_bot'
-        user = 'test_user'
-        request = {'name': 'test_add_prompt_action_with_invalid_num_bot_responses',
+        request = {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
+                   'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
@@ -305,8 +293,49 @@ class TestMongoProcessor:
                                    {'name': 'Query Prompt',
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}]}
+        with pytest.raises(ValidationError,
+                           match="Collection is required for bot content prompts!"):
+            processor.add_prompt_action(request, bot, user)
+
+    def test_add_prompt_action_with_invalid_query_prompt(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'name': 'test_add_prompt_action_with_invalid_query_prompt',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',  "data": "Bot_collection",
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'history', 'is_enabled': True}],
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+                   "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="Query prompt must have static source!"):
+            processor.add_prompt_action(request, bot, user)
+
+    def test_add_prompt_action_with_invalid_num_bot_responses(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'name': 'test_add_prompt_action_with_invalid_num_bot_responses',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
                    "num_bot_responses": 15}
         with pytest.raises(ValidationError, match="num_bot_responses should not be greater than 5"):
             processor.add_prompt_action(request, bot, user)
@@ -319,7 +348,7 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'history',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -330,8 +359,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="System prompt must have static source!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -346,7 +374,7 @@ class TestMongoProcessor:
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
                                     'source': 'static',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -357,8 +385,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Only one system prompt can be present!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -369,7 +396,7 @@ class TestMongoProcessor:
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompt_name',
                    'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',  'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -380,8 +407,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Name cannot be empty!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -392,7 +418,7 @@ class TestMongoProcessor:
         request = {'name': 'test_add_prompt_action_with_empty_data_for_static_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -402,11 +428,9 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="data is required for static prompts!"):
             processor.add_prompt_action(request, bot, user)
-
 
     def test_add_prompt_action_with_multiple_history_source_prompts(self):
         processor = MongoProcessor()
@@ -417,7 +441,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -428,33 +452,8 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Only one history source can be present!"):
-            processor.add_prompt_action(request, bot, user)
-
-    def test_add_prompt_action_with_multiple_bot_content_source_prompts(self):
-        processor = MongoProcessor()
-        bot = 'test_bot'
-        user = 'test_user'
-        request = {'name': 'test_add_prompt_action_with_multiple_bot_content_source_prompts',
-                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Another Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}
-                                   ],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
-        with pytest.raises(ValidationError, match="Only one bot_content source can be present!"):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_no_system_prompts(self):
@@ -464,15 +463,14 @@ class TestMongoProcessor:
         request = {'name': 'test_add_prompt_action_with_no_system_prompts',
                    'llm_prompts': [
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Another Similarity Prompt',
+                                   {'name': 'Another Similarity Prompt', "data": "Bot_collection_two",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True}
                                    ],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="System prompt is required!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -482,8 +480,6 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompts', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
@@ -509,22 +505,20 @@ class TestMongoProcessor:
         pytest.action_id = processor.add_prompt_action(request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_add_prompt_action_faq_action_with_default_values',
-             'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-             'enable_response_cache': False, 'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
-             'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-             'status': True, "set_slots": [
-                {"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
-                {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
-             "dispatch_response": False}]
+        assert action == [{'name': 'test_add_prompt_action_faq_action_with_default_values', 'num_bot_responses': 5,
+                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                           'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+                           'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                                         {'name': 'gpt_result_type', 'value': '${data.type}',
+                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}]
 
     def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
         processor = MongoProcessor()
@@ -533,8 +527,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_temperature_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
@@ -552,8 +544,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_stop_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"], 'presence_penalty': 0.0,
@@ -571,8 +561,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': -3.0,
@@ -590,8 +578,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
@@ -609,8 +595,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
@@ -628,8 +612,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
@@ -647,8 +629,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_top_p_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 3.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
@@ -666,8 +646,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 7, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
@@ -685,8 +663,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 0, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
@@ -704,8 +680,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_logit_bias_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 2, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
@@ -735,7 +709,7 @@ class TestMongoProcessor:
         request = {'name': 'test_edit_prompt_action_does_not_exist',
             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -746,7 +720,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Action not found"):
             processor.edit_prompt_action(action_id, request, bot, user)
@@ -759,7 +733,7 @@ class TestMongoProcessor:
                    'user_question': {'type': 'from_user_message'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -770,7 +744,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
+                   "failure_message": "updated_failure_message",
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
                    "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters(),
                    "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
@@ -780,27 +754,29 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5, 'top_results': 10,
-             'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'user_question': {'type': 'from_user_message'},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt',
-                              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                             {'name': 'Query Prompt',
-                              'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': [],
-             "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
-                           {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
-             "dispatch_response": False}]
+        assert action == [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
+                           'failure_message': 'updated_failure_message', 'user_question': {'type': 'from_user_message'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
+                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                                                                               'instructions': 'Answer according to the context',
+                                                                                               'type': 'query',
+                                                                                               'source': 'static',
+                                                                                               'is_enabled': True},
+                               {'name': 'Query Prompt',
+                                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                                'is_enabled': True}], 'instructions': [],
+                           'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                                         {'name': 'gpt_result_type', 'value': '${data.type}',
+                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}]
         request = {'name': 'test_edit_prompt_action_faq_action_again',
                    'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -808,19 +784,17 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5, 'top_results': 10,
-             'similarity_threshold': 0.7, 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-             'enable_response_cache': False,
-             'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True}], 'status': True,
-             "set_slots": [], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-             "dispatch_response": True
-             }]
+        assert action == [{'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5,
+                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True}],
+                           'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
+                           'dispatch_response': True, 'status': True}]
 
     def test_edit_prompt_action_with_less_hyperparameters(self):
         processor = MongoProcessor()
@@ -831,7 +805,7 @@ class TestMongoProcessor:
                    'llm_prompts': [
                        {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                         'source': 'static', 'is_enabled': True},
-                       {'name': 'Similarity Prompt',
+                       {'name': 'Similarity Prompt', 'data': 'Bot_collection',
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                        {'name': 'Query Prompt',
@@ -853,22 +827,28 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
-             'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
+        assert action == [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
+                           'failure_message': 'updated_failure_message',
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
+                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                                                                               'instructions': 'Answer according to the context',
+                                                                                               'type': 'query',
+                                                                                               'source': 'static',
+                                                                                               'is_enabled': True},
+                               {'name': 'Query Prompt',
+                                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                                'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
+                           'status': True}]
 
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -881,22 +861,28 @@ class TestMongoProcessor:
         bot = 'test_bot'
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
-             'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
+        assert action == [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
+                           'failure_message': 'updated_failure_message',
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
+                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                                                                               'instructions': 'Answer according to the context',
+                                                                                               'type': 'query',
+                                                                                               'source': 'static',
+                                                                                               'is_enabled': True},
+                               {'name': 'Query Prompt',
+                                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                                'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
+                           'status': True}]
 
     def test_delete_prompt_action(self):
         processor = MongoProcessor()
@@ -14680,13 +14666,12 @@ class TestMongoProcessor:
                        {'name': 'Query Prompt', 'data': "What kind of language is python?",
                         'instructions': 'Rephrase the query.',
                         'type': 'query', 'source': 'static', 'is_enabled': False},
-                       {'name': 'Similarity Prompt',
+                       {'name': 'Similarity Prompt', "data": "python",
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content',
                         'is_enabled': True}
                    ],
                    'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-                   'collection': 'python',
                    "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                                  {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
                    "dispatch_response": False

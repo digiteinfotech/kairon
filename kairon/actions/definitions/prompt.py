@@ -70,8 +70,9 @@ class ActionPrompt(ActionsBase):
             bot_response = llm_response['content']
             tracker_data = ActionUtility.build_context(tracker, True)
             response_context = self.__add_user_context_to_http_response(bot_response, tracker_data)
-            slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(k_faq_action_config.get('set_slots', []),
-                                                                                response_context)
+            slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(
+                k_faq_action_config.get('set_slots', []),
+                response_context)
             if slot_values:
                 slots_to_fill.update(slot_values)
         except Exception as e:
@@ -79,7 +80,8 @@ class ActionPrompt(ActionsBase):
             logger.debug(e)
             exception = str(e)
             status = "FAILURE"
-            bot_response = FAQ_DISABLED_ERR if str(e) == FAQ_DISABLED_ERR else k_faq_action_config.get("failure_message") or DEFAULT_NLU_FALLBACK_RESPONSE
+            bot_response = FAQ_DISABLED_ERR if str(e) == FAQ_DISABLED_ERR else k_faq_action_config.get(
+                "failure_message") or DEFAULT_NLU_FALLBACK_RESPONSE
         finally:
             if llm:
                 llm_logs = llm.logs
@@ -104,7 +106,8 @@ class ActionPrompt(ActionsBase):
 
         return slots_to_fill
 
-    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker,
+                               domain: Dict[Text, Any]):
         implementations = {
             "GPT3_FAQ_EMBED": self.__get_gpt_params,
         }
@@ -112,19 +115,21 @@ class ActionPrompt(ActionsBase):
         llm_type = Utility.environment['llm']["faq"]
         if not implementations.get(llm_type):
             raise ActionFailure(f'{llm_type} type LLM is not supported')
-        return await implementations[Utility.environment['llm']["faq"]](k_faq_action_config, dispatcher, tracker, domain)
+        return await implementations[Utility.environment['llm']["faq"]](k_faq_action_config, dispatcher, tracker,
+                                                                        domain)
 
-    async def __get_gpt_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def __get_gpt_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker,
+                               domain: Dict[Text, Any]):
         from kairon.actions.definitions.factory import ActionFactory
 
         system_prompt = None
         context_prompt = ''
         query_prompt = ''
+        query_prompt_dict = {}
         history_prompt = None
         is_query_prompt_enabled = False
-        similarity_prompt_name = None
-        similarity_prompt_instructions = None
         use_similarity_prompt = False
+        similarity_prompt = []
         params = {}
         num_bot_responses = k_faq_action_config['num_bot_responses']
         for prompt in k_faq_action_config['llm_prompts']:
@@ -134,9 +139,15 @@ class ActionPrompt(ActionsBase):
                 if prompt['source'] == LlmPromptSource.history.value:
                     history_prompt = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
                 elif prompt['source'] == LlmPromptSource.bot_content.value:
-                    similarity_prompt_name = prompt['name']
-                    similarity_prompt_instructions = prompt['instructions']
                     use_similarity_prompt = True
+                    hyperparameters = prompt.get('hyperparameters', {})
+                    similarity_prompt.append({'similarity_prompt_name': prompt['name'],
+                                              'similarity_prompt_instructions': prompt['instructions'],
+                                              'collection': prompt['data'],
+                                              'use_similarity_prompt': use_similarity_prompt,
+                                              'top_results': hyperparameters.get('top_results', 10),
+                                              'similarity_threshold': hyperparameters.get('similarity_threshold',
+                                                                                          0.70)})
                 elif prompt['source'] == LlmPromptSource.slot.value:
                     slot_data = tracker.get_slot(prompt['data'])
                     context_prompt += f"{prompt['name']}:\n{slot_data}\n"
@@ -159,28 +170,22 @@ class ActionPrompt(ActionsBase):
                 if prompt['instructions']:
                     query_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 is_query_prompt_enabled = True
+                query_prompt_dict.update({'query_prompt': query_prompt, 'use_query_prompt': is_query_prompt_enabled})
 
-        params["top_results"] = k_faq_action_config.get('top_results', 10)
-        params["similarity_threshold"] = k_faq_action_config.get('similarity_threshold', 0.70)
         params["hyperparameters"] = k_faq_action_config.get('hyperparameters', Utility.get_llm_hyperparameters())
-        params['enable_response_cache'] = k_faq_action_config.get('enable_response_cache', False)
         params["system_prompt"] = system_prompt
         params["context_prompt"] = context_prompt
-        params["query_prompt"] = query_prompt
-        params["use_query_prompt"] = is_query_prompt_enabled
+        params["query_prompt"] = query_prompt_dict
         params["previous_bot_responses"] = history_prompt
-        params['use_similarity_prompt'] = use_similarity_prompt
-        params['similarity_prompt_name'] = similarity_prompt_name
-        params['similarity_prompt_instructions'] = similarity_prompt_instructions
+        params["similarity_prompt"] = similarity_prompt
         params['instructions'] = k_faq_action_config.get('instructions', [])
-        params['collection'] = k_faq_action_config.get('collection')
         return params
 
     @staticmethod
     def __add_user_context_to_http_response(http_response, tracker_data):
         response_context = {"data": http_response, 'context': tracker_data}
         return response_context
-    
+
     @staticmethod
     def __get_user_msg(tracker: Tracker, user_question: Dict):
         user_question_type = user_question.get('type')
