@@ -1569,6 +1569,7 @@ def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(mock
 
 @responses.activate
 def test_whatsapp_valid_button_message_request():
+    responses.reset()
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
     responses.add(
