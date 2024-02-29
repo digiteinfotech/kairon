@@ -47,7 +47,6 @@ from networkx import (
 from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
-from pymongo import MongoClient
 from pymongo.common import _CaseInsensitiveDictionary
 from pymongo.errors import InvalidURI
 from pymongo.uri_parser import (
@@ -820,9 +819,9 @@ class Utility:
     @staticmethod
     def initiate_apm_client_config():
         logger.debug(
-            f'apm_enable: {Utility.environment["elasticsearch"].get("enable")}'
+            f'apm_enable: {Utility.environment.get("elasticsearch", {}).get("enable")}'
         )
-        if Utility.environment["elasticsearch"].get("enable"):
+        if Utility.environment.get("elasticsearch", {}).get("enable"):
             server_url = Utility.environment["elasticsearch"].get("apm_server_url")
             service_name = Utility.environment["elasticsearch"].get("service_name")
             env = Utility.environment["elasticsearch"].get("env_type")
@@ -1292,7 +1291,7 @@ class Utility:
     def record_custom_metric_apm(**kwargs):
         import elasticapm
 
-        if Utility.environment["elasticsearch"]["enable"]:
+        if Utility.environment.get("elasticsearch", {}).get("enable"):
             elasticapm.label(**kwargs)
 
     @staticmethod
@@ -1872,10 +1871,15 @@ class Utility:
 
     @staticmethod
     def create_mongo_client(url: Text):
-        config = Utility.extract_db_config(url)
-        logger.debug(f"Loading host:{config.get('host')}, db:{config.get('db')}")
-        client = MongoClient(host=url)
-        return client
+        if Utility.environment["env"] == "test":
+            from mongomock import MongoClient
+
+            return MongoClient(
+                host=url
+            )
+        else:
+            from pymongo import MongoClient
+            return MongoClient(host=url)
 
     @staticmethod
     def get_masked_value(value: Text):

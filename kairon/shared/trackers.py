@@ -37,7 +37,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                 authSource=auth_source,
                 connect=False,
             )
-            self.db = self.client.db
+            self.db = self.client.get_database(db)
         else:
             from pymongo.database import Database
             from pymongo import MongoClient
@@ -56,6 +56,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         super().__init__(domain, event_broker, **kwargs)
 
         self._ensure_indices()
+        logger.debug(f"collection: {collection}, db: {db}, env: {Utility.environment.get('env')}")
 
     @property
     def conversations(self) -> Collection:
@@ -133,6 +134,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             data.append(flattened_conversation)
             if data:
                 self.conversations.insert_many(data)
+                logger.info(f"db: {self.db.name}, collection: {self.collection}, env: {Utility.environment['env']}")
 
     async def _retrieve(
         self, sender_id: Text, fetch_events_from_all_sessions: bool

@@ -96,7 +96,8 @@ data_generation:
 nudge:
   server_url: ${NUDGE_SERVER_URL:"http://nudgeserver"}
 
-elasticsearch:
+apm:
+  type: ${APM_TYPE}
   enable: ${ENABLE_APM:false}
   apm_server_url: ${APM_SERVER_URL}
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
