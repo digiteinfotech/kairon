@@ -13,7 +13,6 @@ jira_action: []
 pipedrive_leads_action: []
 prompt_action:
 - dispatch_response: true
-  enable_response_cache: false
   failure_message: Kindly share more details so I can assist you effectively.
   hyperparameters:
     frequency_penalty: 0
@@ -47,9 +46,7 @@ prompt_action:
   name: kairon_faq_action
   num_bot_responses: 5
   set_slots: []
-  similarity_threshold: 0.7
   status: true
-  top_results: 10
 slot_set_action: []
 two_stage_fallback: []
 zendesk_action: []

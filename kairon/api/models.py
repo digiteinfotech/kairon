@@ -872,8 +872,22 @@ class TwoStageFallbackConfigRequest(BaseModel):
         return values
 
 
+class PromptHyperparameters(BaseModel):
+    top_results: int = 10
+    similarity_threshold: float = 0.70
+
+    @root_validator
+    def check(cls, values):
+        if not 0.3 <= values.get('similarity_threshold') <= 1:
+            raise ValueError("similarity_threshold should be within 0.3 and 1")
+        if values.get('top_results') > 30:
+            raise ValueError("top_results should not be greater than 30")
+        return values
+
+
 class LlmPromptRequest(BaseModel):
     name: str
+    hyperparameters: PromptHyperparameters = None
     data: str = None
     instructions: str = None
     type: LlmPromptType
@@ -891,33 +905,17 @@ class PromptActionConfigRequest(BaseModel):
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     user_question: UserQuestionModel = UserQuestionModel()
-    top_results: int = 10
-    similarity_threshold: float = 0.70
-    enable_response_cache: bool = False
     hyperparameters: dict = None
     llm_prompts: List[LlmPromptRequest]
     instructions: List[str] = []
-    collection: str = None
     set_slots: List[SetSlotsUsingActionResponse] = []
     dispatch_response: bool = True
-
-    @validator("similarity_threshold")
-    def validate_similarity_threshold(cls, v, values, **kwargs):
-        if not 0.3 <= v <= 1:
-            raise ValueError("similarity_threshold should be within 0.3 and 1")
-        return v
 
     @validator("llm_prompts")
     def validate_llm_prompts(cls, v, values, **kwargs):
         from kairon.shared.utils import Utility
 
         Utility.validate_kairon_faq_llm_prompts([vars(value) for value in v], ValueError)
-        return v
-
-    @validator("top_results")
-    def validate_top_results(cls, v, values, **kwargs):
-        if v > 30:
-            raise ValueError("top_results should not be greater than 30")
         return v
 
     @validator("num_bot_responses")
