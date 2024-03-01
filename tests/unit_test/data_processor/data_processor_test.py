@@ -15441,6 +15441,18 @@ class TestModelProcessor:
 
         assert str(exp.value) == "Daily model training limit exceeded."
 
+    @patch("kairon.chat.agent.agent.KaironAgent.load", autospec=True)
+    def test_start_training_load_model_fail(self, mock_agent, monkeypatch):
+        def mongo_store(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+        mock_agent.side_effect = Exception("invalid model file")
+        start_training("tests", "testUser")
+        model_training = ModelTraining.objects(bot="tests", status="Fail")
+        assert model_training.__len__() == 2
+        assert model_training.first().exception in str("Failed to load the model for the bot.")
+
     def test_get_training_history(self):
         actual_response = ModelProcessor.get_training_history("tests")
         assert actual_response
