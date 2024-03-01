@@ -15451,7 +15451,8 @@ class TestModelProcessor:
         start_training("tests", "testUser")
         model_training = ModelTraining.objects(bot="tests", status="Fail")
         assert model_training.__len__() == 2
-        assert model_training.first().exception in str("Failed to load the model for the bot.")
+        print(model_training[1].to_mongo().to_dict())
+        assert model_training[1].exception in str("Failed to load the model for the bot.")
 
     def test_get_training_history(self):
         actual_response = ModelProcessor.get_training_history("tests")
