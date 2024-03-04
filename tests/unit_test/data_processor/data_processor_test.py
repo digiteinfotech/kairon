@@ -15454,6 +15454,18 @@ class TestModelProcessor:
         print(model_training[1].to_mongo().to_dict())
         assert model_training[1].exception in str("Failed to load the model for the bot.")
 
+    def test_train_model_for_bot(self):
+        model = train_model_for_bot("tests")
+        created_model_file = os.path.basename(model)
+        tar_files = glob.glob('models/tests/*.tar.gz')
+        actual_model_file = os.path.basename(tar_files[0])
+        folder = os.path.join("models/tests", '*.tar.gz')
+
+        assert model
+        assert len(list(glob.glob(folder))) == 1
+        assert actual_model_file == created_model_file
+
+
     def test_get_training_history(self):
         actual_response = ModelProcessor.get_training_history("tests")
         assert actual_response
