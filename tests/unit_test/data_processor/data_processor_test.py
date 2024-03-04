@@ -15465,7 +15465,6 @@ class TestModelProcessor:
         assert len(list(glob.glob(folder))) == 1
         assert actual_model_file == created_model_file
 
-
     def test_get_training_history(self):
         actual_response = ModelProcessor.get_training_history("tests")
         assert actual_response
