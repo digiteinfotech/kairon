@@ -458,7 +458,7 @@ class TestUtility:
 
     def test_initiate_apm_client_enabled(self):
         with patch.dict(
-            Utility.environment["elasticsearch"],
+            Utility.environment["apm"],
             {"enable": False, "service_name": "kairon", "apm_server_url": None},
             clear=True,
         ):
@@ -466,7 +466,7 @@ class TestUtility:
 
     def test_initiate_apm_client_server_url_not_present(self):
         with patch.dict(
-            Utility.environment["elasticsearch"],
+            Utility.environment["apm"],
             {"enable": True, "service_name": "kairon", "apm_server_url": None},
             clear=True,
         ):
@@ -474,7 +474,7 @@ class TestUtility:
 
     def test_initiate_apm_client_service_url_not_present(self):
         with patch.dict(
-            Utility.environment["elasticsearch"],
+            Utility.environment["apm"],
             {"enable": True, "service_name": None, "apm_server_url": None},
             clear=True,
         ):
@@ -482,7 +482,7 @@ class TestUtility:
 
     def test_initiate_apm_client_env_not_present(self):
         with patch.dict(
-            Utility.environment["elasticsearch"],
+            Utility.environment["apm"],
             {
                 "enable": True,
                 "service_name": None,
@@ -495,7 +495,7 @@ class TestUtility:
 
     def test_initiate_apm_client_with_url_present(self):
         with patch.dict(
-            Utility.environment["elasticsearch"],
+            Utility.environment["apm"],
             {
                 "enable": True,
                 "service_name": "kairon",

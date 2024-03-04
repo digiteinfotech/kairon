@@ -819,19 +819,19 @@ class Utility:
     @staticmethod
     def initiate_apm_client_config():
         logger.debug(
-            f'apm_enable: {Utility.environment.get("elasticsearch", {}).get("enable")}'
+            f'apm_enable: {Utility.environment.get("apm", {}).get("enable")}'
         )
-        if Utility.environment.get("elasticsearch", {}).get("enable"):
-            server_url = Utility.environment["elasticsearch"].get("apm_server_url")
-            service_name = Utility.environment["elasticsearch"].get("service_name")
-            env = Utility.environment["elasticsearch"].get("env_type")
+        if Utility.environment.get("apm", {}).get("enable"):
+            server_url = Utility.environment["apm"].get("apm_server_url")
+            service_name = Utility.environment["apm"].get("service_name")
+            env = Utility.environment["apm"].get("env_type")
             config = {
                 "SERVER_URL": server_url,
                 "SERVICE_NAME": service_name,
                 "ENVIRONMENT": env,
             }
-            if Utility.environment["elasticsearch"].get("secret_token"):
-                config["SECRET_TOKEN"] = Utility.environment["elasticsearch"].get(
+            if Utility.environment["apm"].get("secret_token"):
+                config["SECRET_TOKEN"] = Utility.environment["apm"].get(
                     "secret_token"
                 )
             logger.debug(f"apm: {config}")
@@ -1291,7 +1291,7 @@ class Utility:
     def record_custom_metric_apm(**kwargs):
         import elasticapm
 
-        if Utility.environment.get("elasticsearch", {}).get("enable"):
+        if Utility.environment.get("apm", {}).get("enable"):
             elasticapm.label(**kwargs)
 
     @staticmethod
@@ -1446,7 +1446,7 @@ class Utility:
                 "google": Utility.check_is_enabled("google", False),
             },
             "enable_sso_only": Utility.environment["app"]["enable_sso_only"],
-            "enable_apm": Utility.environment["elasticsearch"]["enable"],
+            "enable_apm": Utility.environment.get("apm", {}).get("enable", False),
             "enable_notifications": Utility.environment["notifications"]["enable"],
             "enable_multilingual": Utility.environment["multilingual"]["enable"],
             "validate_trusted_device": Utility.environment["user"][
