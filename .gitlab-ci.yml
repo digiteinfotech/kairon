@@ -1,8 +1,5 @@
 stages:
   - test
-  - build-dev
-  - build-release
-  - cleanup
 
 before_script:
   - echo "Stage Started for " $CI_COMMIT_REF_NAME
