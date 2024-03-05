@@ -2,32 +2,141 @@
     "version": "3.1",
     "screens": [
         {
-            "id": "WELCOME_SCREEN",
+            "id": "SIGN_UP",
+            "title": "Sign Up",
+            "data": {},
             "layout": {
                 "type": "SingleColumnLayout",
                 "children": [
                     {
-                        "type": "TextHeading",
-                        "text": "Hello World"
-                    },
-                    {
-                        "type": "TextBody",
-                        "text": "Let's start building things!"
-                    },
-                    {
-                        "type": "Footer",
-                        "label": "Complete",
-                        "on-click-action": {
-                            "name": "complete",
-                            "payload": {}
-                        }
+                        "type": "Form",
+                        "name": "form",
+                        "children": [
+                            {
+                                "type": "TextHeading",
+                                "text": "Join our next webinar!"
+                            },
+                            {
+                                "type": "TextBody",
+                                "text": "First, we'll need a few details from you."
+                            },
+                            {
+                                "type": "TextInput",
+                                "name": "firstName",
+                                "label": "First Name",
+                                "input-type": "text",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "label": "Last Name",
+                                "name": "lastName",
+                                "input-type": "text",
+                                "required": true
+                            },
+                            {
+                                "type": "TextInput",
+                                "label": "Email Address",
+                                "name": "email",
+                                "input-type": "email",
+                                "required": true
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Continue",
+                                "on-click-action": {
+                                    "name": "navigate",
+                                    "next": {
+                                        "type": "screen",
+                                        "name": "SURVEY"
+                                    },
+                                    "payload": {
+                                        "firstName": "${form.firstName}",
+                                        "lastName": "${form.lastName}",
+                                        "email": "${form.email}"
+                                    }
+                                }
+                            }
+                        ]
                     }
                 ]
+            }
+        },
+        {
+            "id": "SURVEY",
+            "title": "Thank you",
+            "data": {
+                "firstName": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "lastName": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "email": {
+                    "type": "string",
+                    "__example__": "Example"
+                }
             },
-            "title": "Welcome",
             "terminal": true,
             "success": true,
-            "data": {}
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "form",
+                        "children": [
+                            {
+                                "type": "TextHeading",
+                                "text": "Before you go"
+                            },
+                            {
+                                "type": "TextBody",
+                                "text": "How did you hear about us?"
+                            },
+                            {
+                                "type": "RadioButtonsGroup",
+                                "label": "Choose one",
+                                "required": false,
+                                "name": "source",
+                                "data-source": [
+                                    {
+                                        "id": "0",
+                                        "title": "Friend's recommendation"
+                                    },
+                                    {
+                                        "id": "1",
+                                        "title": "TV advertisement"
+                                    },
+                                    {
+                                        "id": "2",
+                                        "title": "Search engine"
+                                    },
+                                    {
+                                        "id": "3",
+                                        "title": "Social media"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Done",
+                                "on-click-action": {
+                                    "name": "complete",
+                                    "payload": {
+                                        "source": "${form.source}",
+                                        "firstName": "${data.firstName}",
+                                        "lastName": "${data.lastName}",
+                                        "email": "${data.email}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
         }
     ]
 }

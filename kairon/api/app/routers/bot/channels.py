@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Security, Path, File, UploadFile
+from fastapi import APIRouter, Security, Path
 from starlette.requests import Request
 
 from kairon import Utility
