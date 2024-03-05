@@ -63,7 +63,7 @@ from websockets import connect
 
 from .actions.models import ActionParameterType
 from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes, UserActivityType, \
-    EventClass, FlowCategories
+    EventClass, FlowCategories, FlowTemplates
 from .data.constant import TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
@@ -1080,15 +1080,19 @@ class Utility:
 
     @staticmethod
     def validate_add_flow_request(data: Dict):
-        required_keys = ['name', 'categories']
+        required_keys = ['name', 'categories', 'template']
         missing_keys = [key for key in required_keys if key not in data]
         if missing_keys:
             raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
         categories = data.get('categories')
+        template = data.get('template')
         invalid_categories = [category for category in categories
                               if category not in [flow_category.value for flow_category in FlowCategories]]
+        invalid_template = template if template not in [flow_template.value for flow_template in FlowTemplates] else ""
         if invalid_categories:
             raise AppException(f'Invalid categories {", ".join(invalid_categories)} in request body!')
+        if invalid_template:
+            raise AppException(f'Invalid template {template} in request body!')
 
     @staticmethod
     def validate_create_template_request(data: Dict):

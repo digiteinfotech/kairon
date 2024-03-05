@@ -124,10 +124,8 @@ async def add_whatsapp_flow(
 
 @router.post("/whatsapp/flows/{bsp_type}/{flow_id}", response_model=Response)
 async def edit_whatsapp_flow(
+        request_data: DictData,
         flow_id: str = Path(default=None, description="flow id", example="594425479261596"),
-        file: UploadFile = File(...),
-        asset_type: str = "FLOW_JSON",
-        name: str = "flow.json",
         bsp_type: str = Path(default=None, description="Business service provider type",
                              example=WhatsappBSPTypes.bsp_360dialog.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
@@ -136,7 +134,7 @@ async def edit_whatsapp_flow(
     Edits whatsapp flows for configured bsp account. New Flows are created as drafts.
     """
     provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
-    response = provider.edit_whatsapp_flow(flow_id, file, asset_type, name)
+    response = provider.edit_whatsapp_flow(flow_id, request_data.data.get("flow_json"))
     return Response(data=response)
 
 

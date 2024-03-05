@@ -1,4 +1,5 @@
 import ast
+import json
 from typing import Text, Dict
 
 from loguru import logger
@@ -94,12 +95,18 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
     def add_whatsapp_flow(self, data: Dict, bot: Text, user: Text):
         try:
             Utility.validate_add_flow_request(data)
+            template_name = data.pop('template')
+            flow_json = self.get_flow_json_from_template(template_name)
+
             base_url, flow_endpoint = self.get_flow_endpoint_url()
             headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
             url = f"{base_url}{flow_endpoint}"
             resp = Utility.execute_http_request(request_method="POST", http_url=url, request_body=data, headers=headers,
                                                 validate_status=True, err_msg="Failed to add flow: ",
                                                 expected_status_code=201)
+            if not data.get('clone_flow_id'):
+                flow_id = resp["id"]
+                self.edit_whatsapp_flow(flow_id, flow_json)
             UserActivityLogger.add_log(a_type=UserActivityType.flow_creation.value, email=user, bot=bot,
                                        message=['Flow created!'])
             return resp
@@ -107,15 +114,37 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             logger.exception(e)
             raise AppException("Channel not found!")
 
-    def edit_whatsapp_flow(self, flow_id, file, asset_type, name):
+    @staticmethod
+    def get_flow_json_from_template(template_name):
+        with open("metadata/flows/default_meta_flows.json", 'r') as file:
+            content = json.load(file)
+            flow_json = {}
+            for template in content["data"]["xfb_wa_flows_creation_options"]["templates"]:
+                if template_name == template['id']:
+                    flow_json = template['flow_json']
+                    break
+            return flow_json
+
+    @staticmethod
+    def write_flow_json_into_file(flow_json):
+        with open("metadata/flows/flow_json.json", 'w') as file:
+            json.dump(json.loads(flow_json), file, indent=4)
+
+    def edit_whatsapp_flow(self, flow_id, flow_json):
+        from starlette.datastructures import UploadFile
+
         try:
             base_url, flow_endpoint = self.get_flow_endpoint_url()
             headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
             url = f"{base_url}{flow_endpoint}/{flow_id}/assets"
             request_body = {
-                "asset_type": asset_type,
-                "name": name
+                "asset_type": "FLOW_JSON",
+                "name": "flow.json"
             }
+            self.write_flow_json_into_file(flow_json)
+
+            file = UploadFile(filename="flow_json.json", file=(open("metadata/flows/flow_json.json", "rb")))
+
             resp = Utility.execute_http_request(request_method="POST", http_url=url, request_body=request_body,
                                                 headers=headers, validate_status=True, err_msg="Failed to edit flow: ",
                                                 expected_status_code=200,

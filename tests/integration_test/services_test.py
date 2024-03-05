@@ -14160,7 +14160,8 @@ def test_add_whatsapp_flow_error(mock_get_partner_auth_token):
     mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
     data = {
         "name": "flow with multiple categories",
-        "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+        "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"],
+        "template": "FLOWS_OFFSITE_CALL_TO_ACTION",
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/whatsapp/flows/360dialog",
@@ -14178,16 +14179,12 @@ def test_add_whatsapp_flow_error(mock_get_partner_auth_token):
 def test_edit_whatsapp_flow_error(mock_get_partner_auth_token):
     mock_get_partner_auth_token.return_value = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
     data = {
-        "name": "flow.json",
-        "asset_type": "FLOW_JSON",
+        "flow_json": "{\n    \"version\": \"3.1\",\n    \"screens\": [\n        {\n            \"id\": \"WELCOME_SCREEN\",\n            \"layout\": {\n                \"type\": \"SingleColumnLayout\",\n                \"children\": [\n                    {\n                        \"type\": \"TextHeading\",\n                        \"text\": \"Hello World\"\n                    },\n                    {\n                        \"type\": \"TextBody\",\n                        \"text\": \"Let's start building things!\"\n                    },\n                    {\n                        \"type\": \"Footer\",\n                        \"label\": \"Complete\",\n                        \"on-click-action\": {\n                            \"name\": \"complete\",\n                            \"payload\": {}\n                        }\n                    }\n                ]\n            },\n            \"title\": \"Welcome\",\n            \"terminal\": true,\n            \"success\": true,\n            \"data\": {}\n        }\n    ]\n}"
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/whatsapp/flows/360dialog/test_flow_id",
-        json=data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files={"file": (
-            "tests/testing_data/flow/sample_flow.json",
-            open("tests/testing_data/flow/sample_flow.json", "rb"))}
+        json={"data": data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
     assert not actual["success"]
@@ -14617,8 +14614,7 @@ def test_add_whatsapp_flow(mock_add_whatsapp_flow):
 @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.edit_whatsapp_flow", autospec=True)
 def test_edit_whatsapp_flow(mock_edit_whatsapp_flow):
     data = {
-        "name": "flow with multiple categories",
-        "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+        "flow_json": "{\n    \"version\": \"3.1\",\n    \"screens\": [\n        {\n            \"id\": \"WELCOME_SCREEN\",\n            \"layout\": {\n                \"type\": \"SingleColumnLayout\",\n                \"children\": [\n                    {\n                        \"type\": \"TextHeading\",\n                        \"text\": \"Hello World\"\n                    },\n                    {\n                        \"type\": \"TextBody\",\n                        \"text\": \"Let's start building things!\"\n                    },\n                    {\n                        \"type\": \"Footer\",\n                        \"label\": \"Complete\",\n                        \"on-click-action\": {\n                            \"name\": \"complete\",\n                            \"payload\": {}\n                        }\n                    }\n                ]\n            },\n            \"title\": \"Welcome\",\n            \"terminal\": true,\n            \"success\": true,\n            \"data\": {}\n        }\n    ]\n}"
     }
     api_resp = {
         "success": True,
@@ -14628,13 +14624,11 @@ def test_edit_whatsapp_flow(mock_edit_whatsapp_flow):
 
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/whatsapp/flows/360dialog/test_flow_id",
-        json=data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files={"file": (
-            "tests/testing_data/flow/sample_flow.json",
-            open("tests/testing_data/flow/sample_flow.json", "rb"))}
+        json={"data": data},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == api_resp

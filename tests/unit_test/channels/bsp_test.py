@@ -296,7 +296,8 @@ class TestBusinessServiceProvider:
         bot = "62bc24b493a0d6b7a46328ff"
         data = {
             "name": "flow with multiple categories",
-            "clone_flow_id": "9070429474112345"
+            "clone_flow_id": "9070429474112345",
+            "template": "FLOWS_OFFSITE_CALL_TO_ACTION",
         }
         with pytest.raises(AppException, match="Missing categories in request body!"):
             BSP360Dialog(bot, "test").add_whatsapp_flow(data, bot, "test")
@@ -306,16 +307,29 @@ class TestBusinessServiceProvider:
         bot = "62bc24b493a0d6b7a46328ff"
         data = {
             "name": "flow with multiple categories",
-            "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY", "FLOW"]
+            "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY", "FLOW"],
+            "template": "FLOWS_OFFSITE_CALL_TO_ACTION",
         }
         with pytest.raises(AppException, match="Invalid categories FLOW in request body!"):
+            BSP360Dialog(bot, "test").add_whatsapp_flow(data, bot, "test")
+
+    @responses.activate
+    def test_add_whatsapp_flow_with_invalid_template(self):
+        bot = "62bc24b493a0d6b7a46328ff"
+        data = {
+            "name": "flow with multiple categories",
+            "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"],
+            "template": "INVALID_TEMPLATE",
+        }
+        with pytest.raises(AppException, match="Invalid template INVALID_TEMPLATE in request body!"):
             BSP360Dialog(bot, "test").add_whatsapp_flow(data, bot, "test")
 
     def test_add_whatsapp_flow_error(self):
         bot = "62bc24b493a0d6b7a46328fg"
         data = {
             "name": "flow with multiple categories",
-            "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+            "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"],
+            "template": "FLOWS_OFFSITE_CALL_TO_ACTION",
         }
 
         with pytest.raises(AppException, match="Channel not found!"):
@@ -329,7 +343,8 @@ class TestBusinessServiceProvider:
             waba_account_id = "Cyih7GWA"
             data = {
                 "name": "flow with multiple categories",
-                "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+                "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"],
+                "template": "FLOWS_OFFSITE_CALL_TO_ACTION",
             }
             def _get_partners_auth_token(*args, **kwargs):
                 return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
@@ -351,7 +366,8 @@ class TestBusinessServiceProvider:
             waba_account_id = "Cyih7GWA"
             data = {
                 "name": "flow with multiple categories",
-                "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"]
+                "categories": ["APPOINTMENT_BOOKING", "OTHER", "SURVEY"],
+                "template": "FLOWS_OFFSITE_CALL_TO_ACTION",
             }
             api_resp = {
                 "id": "9070429474112345"
@@ -365,6 +381,13 @@ class TestBusinessServiceProvider:
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
             url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows"
             responses.add("POST", json=api_resp, url=url, status=201)
+            flow_id = api_resp['id']
+            api_response = {
+                "success": True,
+                "validation_errors": []
+            }
+            url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/assets"
+            responses.add("POST", json=api_response, url=url)
             flow_id = BSP360Dialog(bot, "test").add_whatsapp_flow(data, bot, "test")
             assert flow_id == {'id': '9070429474112345'}
             count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user="test", action="activity",
@@ -373,26 +396,21 @@ class TestBusinessServiceProvider:
 
     @responses.activate
     def test_edit_whatsapp_flow_channel_not_found(self):
-        from fastapi import UploadFile
-
         bot = "62bc24b493a0d6b7a46328fg"
         flow_id = "test_id"
-        file = UploadFile(filename="flow.json", file=(open("tests/testing_data/flow/sample_flow.json", "rb")))
+        flow_json = "{\n    \"version\": \"3.1\",\n    \"screens\": [\n        {\n            \"id\": \"WELCOME_SCREEN\",\n            \"layout\": {\n                \"type\": \"SingleColumnLayout\",\n                \"children\": [\n                    {\n                        \"type\": \"TextHeading\",\n                        \"text\": \"Hello World\"\n                    },\n                    {\n                        \"type\": \"TextBody\",\n                        \"text\": \"Let's start building things!\"\n                    },\n                    {\n                        \"type\": \"Footer\",\n                        \"label\": \"Complete\",\n                        \"on-click-action\": {\n                            \"name\": \"complete\",\n                            \"payload\": {}\n                        }\n                    }\n                ]\n            },\n            \"title\": \"Welcome\",\n            \"terminal\": true,\n            \"success\": true,\n            \"data\": {}\n        }\n    ]\n}"
 
         with pytest.raises(AppException, match="Channel not found!"):
-            BSP360Dialog(bot, "user").edit_whatsapp_flow(flow_id=flow_id, file=file,
-                                                         asset_type="FLOW_JSON", name="flow.json")
+            BSP360Dialog(bot, "user").edit_whatsapp_flow(flow_id=flow_id, flow_json=flow_json)
 
     @responses.activate
     def test_edit_whatsapp_flow_failure(self, monkeypatch):
-        from fastapi import UploadFile
-
         with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
             bot = "62bc24b493a0d6b7a46328ff"
             flow_id = "test_id"
             partner_id = "new_partner_id"
             waba_account_id = "Cyih7GWA"
-            file = UploadFile(filename="flow.json", file=(open("tests/testing_data/flow/sample_flow.json", "rb")))
+            flow_json = "{\n    \"version\": \"3.1\",\n    \"screens\": [\n        {\n            \"id\": \"WELCOME_SCREEN\",\n            \"layout\": {\n                \"type\": \"SingleColumnLayout\",\n                \"children\": [\n                    {\n                        \"type\": \"TextHeading\",\n                        \"text\": \"Hello World\"\n                    },\n                    {\n                        \"type\": \"TextBody\",\n                        \"text\": \"Let's start building things!\"\n                    },\n                    {\n                        \"type\": \"Footer\",\n                        \"label\": \"Complete\",\n                        \"on-click-action\": {\n                            \"name\": \"complete\",\n                            \"payload\": {}\n                        }\n                    }\n                ]\n            },\n            \"title\": \"Welcome\",\n            \"terminal\": true,\n            \"success\": true,\n            \"data\": {}\n        }\n    ]\n}"
 
             def _get_partners_auth_token(*args, **kwargs):
                 return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
@@ -404,19 +422,16 @@ class TestBusinessServiceProvider:
             responses.add("POST", json={}, url=url, status=500)
 
             with pytest.raises(AppException, match=r"Failed to edit flow: *"):
-                BSP360Dialog(bot, "user").edit_whatsapp_flow(flow_id=flow_id, file=file,
-                                                             asset_type="FLOW_JSON", name="flow.json")
+                BSP360Dialog(bot, "user").edit_whatsapp_flow(flow_id=flow_id, flow_json=flow_json)
 
     @responses.activate
     def test_edit_whatsapp_flow(self, monkeypatch):
-        from fastapi import UploadFile
-
         with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
             bot = "62bc24b493a0d6b7a46328ff"
             flow_id = "test_id"
             partner_id = "new_partner_id"
             waba_account_id = "Cyih7GWA"
-            file = UploadFile(filename="flow.json", file=(open("tests/testing_data/flow/sample_flow.json", "rb")))
+            flow_json = "{\n    \"version\": \"3.1\",\n    \"screens\": [\n        {\n            \"id\": \"WELCOME_SCREEN\",\n            \"layout\": {\n                \"type\": \"SingleColumnLayout\",\n                \"children\": [\n                    {\n                        \"type\": \"TextHeading\",\n                        \"text\": \"Hello World\"\n                    },\n                    {\n                        \"type\": \"TextBody\",\n                        \"text\": \"Let's start building things!\"\n                    },\n                    {\n                        \"type\": \"Footer\",\n                        \"label\": \"Complete\",\n                        \"on-click-action\": {\n                            \"name\": \"complete\",\n                            \"payload\": {}\n                        }\n                    }\n                ]\n            },\n            \"title\": \"Welcome\",\n            \"terminal\": true,\n            \"success\": true,\n            \"data\": {}\n        }\n    ]\n}"
             api_response = {
                 "success": True,
                 "validation_errors": []
@@ -431,8 +446,7 @@ class TestBusinessServiceProvider:
             url = f"{base_url}/api/v2/partners/{partner_id}/waba_accounts/{waba_account_id}/flows/{flow_id}/assets"
             responses.add("POST", json=api_response, url=url)
 
-            response = BSP360Dialog(bot, "user").edit_whatsapp_flow(flow_id=flow_id, file=file,
-                                                         asset_type="FLOW_JSON", name="flow.json")
+            response = BSP360Dialog(bot, "user").edit_whatsapp_flow(flow_id=flow_id, flow_json=flow_json)
             assert response == api_response
 
     @responses.activate
