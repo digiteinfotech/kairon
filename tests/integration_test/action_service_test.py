@@ -79,12 +79,14 @@ def test_pyscript_action_execution():
         json={"success": True, "data": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
               "message": None, "error_code": 0},
-        match=[responses.matchers.json_params_matcher(
-            {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
-                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
-                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+        match=[responses.matchers.json_params_matcher( {'source_code': script,
+                                                        'predefined_objects': {'chat_log': [], 'intent': 'pyscript_action',
+                                                        'kairon_user_msg': None, 'key_vault': {}, 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
+                                                        'sender_id': 'default', 'session_started': None,
+                                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'langauge': 'Kannada', 'location': 'Bangalore'},
+                                                           'user_message': 'get intents'}
+
+                                                        })]
     )
 
     request_object = {
@@ -161,7 +163,7 @@ def test_pyscript_action_execution_with_multiple_utterances():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -241,7 +243,7 @@ def test_pyscript_action_execution_with_multiple_integer_utterances():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -319,7 +321,7 @@ def test_pyscript_action_execution_with_bot_response_none():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -394,7 +396,7 @@ def test_pyscript_action_execution_with_type_json_bot_response_none():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -469,7 +471,7 @@ def test_pyscript_action_execution_with_type_json_bot_response_str():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -546,7 +548,7 @@ def test_pyscript_action_execution_with_other_type():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -621,7 +623,7 @@ def test_pyscript_action_execution_with_slots_not_dict_type():
                                         "slots": "invalid slots values"}, "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -734,7 +736,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url(mock_trigger_l
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == \
                {'source_code': script,
-                'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                        'slot': {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore",
                                                 "langauge": "Kannada"},
                                        'intent': 'pyscript_action', 'chat_log': [], 'key_vault': {},
@@ -837,7 +839,7 @@ def test_pyscript_action_execution_with_error():
         "POST", Utility.environment['evaluator']['pyscript']['url'], callback=raise_custom_exception,
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -908,7 +910,7 @@ def test_pyscript_action_execution_with_invalid_response():
               "error_code": 422},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -1030,18 +1032,21 @@ def test_http_action_execution(aioresponses):
     response = client.post("/webhook", json=request_object)
     result = response.json()
     assert response.status_code == 200
-    assert len(result['events']) == 3
+    assert len(result['events']) == 4
     assert len(result['responses']) == 1
     assert result['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+        {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200},
+        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
+        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"}]
     assert result['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
+    assert log["time_elapsed"]
+    log.pop('time_elapsed')
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution',
                    'sender': 'default',
                    'headers': {'botid': '**********************2e', 'userid': '****', 'tag': '******ot',
@@ -1053,15 +1058,16 @@ def test_http_action_execution(aioresponses):
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
                    'messages': ['evaluation_type: expression',
                                 'expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
                                 "response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
                                 'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
                                 'expression: ${data.a.b.d}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
                                 "response: ['red', 'buggy', 'bumpers']", 'Slot: val_d_0',
                                 'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
                                 'response: red'],
+                   'fail_reason': None, 'http_status_code': 200,
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
 
@@ -1141,13 +1147,14 @@ def test_http_action_execution_returns_custom_json(aioresponses):
     response = client.post("/webhook", json=request_object)
     result = response.json()
     assert response.status_code == 200
-    assert len(result['events']) == 3
+    assert len(result['events']) == 4
     assert len(result['responses']) == 1
     assert result['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}]
+         "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}},
+        {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200},
+        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
+        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"}]
     assert result['responses'][0]['custom'] == {
         'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
 
@@ -1228,13 +1235,14 @@ def test_http_action_execution_custom_json_with_invalid_json_response(aiorespons
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
+    assert len(response_json['events']) == 4
     assert len(response_json['responses']) == 1
     assert not DeepDiff(response_json['events'], [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": 'INVALID {"a":{"b":{"3":2,"43":30,"c":[],"d":["red","buggy","bumpers"]}}}'}], ignore_order=True)
+         "value": 'INVALID {"a":{"b":{"3":2,"43":30,"c":[],"d":["red","buggy","bumpers"]}}}'},
+        {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200},
+        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
+        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"}], ignore_order=True)
     assert response_json['responses'][0][
                'text'] == 'INVALID {"a":{"b":{"3":2,"43":30,"c":[],"d":["red","buggy","bumpers"]}}}'
 
@@ -1245,7 +1253,7 @@ def test_http_action_execution_return_custom_json_with_script_evaluation(aioresp
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
         action_name=action_name,
-        response=HttpActionResponse(value="${RESPONSE}", dispatch=True, evaluation_type="script",
+        response=HttpActionResponse(value="bot_response=data", dispatch=True, evaluation_type="script",
                                     dispatch_type=DispatchType.json.value),
         http_url="http://localhost:8081/mock",
         request_method="GET",
@@ -1265,16 +1273,16 @@ def test_http_action_execution_return_custom_json_with_script_evaluation(aioresp
     ).save()
 
     http_url = 'http://localhost:8081/mock'
-    resp_msg = json.dumps({
-        "a": {
-            "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
-            }
+
+    data_obj = {
+        "a" : 10,
+        "b" : {
+            "name" : "Mayank",
+            "arr" : ['red', 'green', 'hotpink']
         }
-    })
+    }
+
+    resp_msg = json.dumps(data_obj)
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
@@ -1284,19 +1292,18 @@ def test_http_action_execution_return_custom_json_with_script_evaluation(aioresp
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {'bot_response' : data_obj}, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "${RESPONSE}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None, 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response=data"})]
     )
 
     request_object = {
@@ -1330,13 +1337,13 @@ def test_http_action_execution_return_custom_json_with_script_evaluation(aioresp
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 1
+    assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}]
-    assert response_json['responses'][0]['custom'] == {
-        'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                                        'value': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}},
+                                       {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200},]
+
+    assert response_json['responses'][0]['custom'] == data_obj
 
 
 @responses.activate
@@ -1345,7 +1352,7 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2d", user="user").save()
     HttpActionConfig(
         action_name=action_name,
-        response=HttpActionResponse(value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+        response=HttpActionResponse(value="bot_response = data['b']['name']",
                                     dispatch=True, evaluation_type="script", dispatch_type=DispatchType.text.value),
         http_url="http://localhost:8081/mock",
         request_method="GET",
@@ -1365,16 +1372,15 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
     ).save()
 
     http_url = 'http://localhost:8081/mock'
-    resp_msg = json.dumps({
-        "a": {
-            "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
-            }
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
         }
-    })
+    }
+    resp_msg = json.dumps(data_obj)
+
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
@@ -1384,17 +1390,17 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {'bot_response' : 'Mayank'}, "error_code": 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'intent': 'test_run',
-                                      'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None,
-                                      'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2d'}}})],
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2d', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None, 'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'http_status_code': 200, 'user_message': 'get intents'},
+                                         'source_code': "bot_response = data['b']['name']"})]
     )
 
     request_object = {
@@ -1428,12 +1434,11 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 1
+    assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
-    assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Mayank'},
+                                       {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200},]
+    assert response_json['responses'][0]['text'] == "Mayank"
 
 
 @responses.activate
@@ -1508,38 +1513,20 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
+    assert len(response_json['events']) == 4
     assert len(response_json['responses']) == 0
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
-    assert response_json['responses'] == []
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
-    assert log == {'type': 'http_action', 'intent': 'test_run',
-                   'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default',
-                   'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
-                   'url': 'http://localhost:8081/mock', 'request_method': 'GET',
-                   'request_params': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011', 'tag': '******ot'},
-                   'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
-                   'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
-                   'messages': ['evaluation_type: expression',
-                                'expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
-                                "response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
-                                'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
-                                'expression: ${data.a.b.d}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
-                                "response: ['red', 'buggy', 'bumpers']", 'Slot: val_d_0',
-                                'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
-                                'response: red'],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
-
+    log.pop('time_elapsed')
+    assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution_no_response_dispatch',
+                   'sender': 'default', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
+                   'url': 'http://localhost:8081/mock', 'request_method': 'GET', 'request_params': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011', 'tag': '******ot'},
+                   'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}", 'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                   'messages': ['evaluation_type: expression', 'expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}',
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}", "response: The value of 2 in red is ['red', 'buggy', 'bumpers']", 'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression', 'expression: ${data.a.b.d}', "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}", "response: ['red', 'buggy', 'bumpers']",
+                                'Slot: val_d_0', 'evaluation_type: expression', 'expression: ${data.a.b.d.0}', "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}", 'response: red'],
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'fail_reason': None, 'http_status_code': 200,}
 
 @responses.activate
 def test_http_action_execution_script_evaluation(aioresponses):
@@ -1549,86 +1536,50 @@ def test_http_action_execution_script_evaluation(aioresponses):
         action_name=action_name,
         content_type="json",
         response=HttpActionResponse(
-            value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-            dispatch=False, evaluation_type="script"),
+            value="bot_response = data['b']['name']",
+            dispatch=True, evaluation_type="script", dispatch_type=DispatchType.text.value),
         http_url="http://localhost:8081/mock",
         request_method="GET",
         headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                  HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                  HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
-                     HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
-                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
-                   SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"
     ).save()
 
     http_url = 'http://localhost:8081/mock'
-    resp_msg = json.dumps({
-        "a": {
-            "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
-            }
+
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
         }
-    })
+    }
+
+    resp_msg = json.dumps(data_obj)
     aioresponses.add(
         method=responses.GET,
-        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot",
         body=resp_msg,
         status=200
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "red"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d.0}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                           'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response = data['b']['name']"})]
     )
 
     request_object = {
@@ -1662,69 +1613,195 @@ def test_http_action_execution_script_evaluation(aioresponses):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 0
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
-    assert response_json['responses'] == []
+    assert len(response_json) == 2
+    assert len(response_json['events']) == 2
+    assert response_json['responses'][0]['text'] == 'Mayank'
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    log.pop('time_elapsed')
+    assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution_script_evaluation', 'sender': 'default', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET', 'request_params': {},
+                   'api_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}", 'bot_response': 'Mayank',
+                   'messages': ['evaluation_type: script', "script: bot_response = data['b']['name']", "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}", 'raise_err_on_failure: True', 'initiating slot evaluation'],
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'fail_reason': None, 'http_status_code': 200,}
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponses):
-    action_name = "test_http_action_execution_script_evaluation_with_dynamic_params"
+def test_http_action_execution_script_evaluation_with_dynamic_params_post(aioresponses):
+    action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_post"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
         action_name=action_name,
         content_type="json",
         response=HttpActionResponse(
-            value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-            dispatch=True, evaluation_type="script"),
+            value="bot_response = data['b']['name']",
+            dispatch=True, evaluation_type="script", dispatch_type=DispatchType.text.value),
         http_url="http://localhost:8081/mock",
-        request_method="GET",
+        request_method="POST",
         dynamic_params=
-        "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+        "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
         headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                  HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                  HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
-                   SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"
     ).save()
     resp_msg = {
-        "sender_id": "default",
-        "user_message": "get intents",
-        "intent": "test_run"
+        'body': {
+            "sender_id": "default",
+            "user_message": "get intents",
+            "intent": "test_run"
+        }
+
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": resp_msg},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": resp_msg, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {
-                    'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
-                    'data': {'sender_id': 'default', 'user_message': 'get intents',
-                             'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                             'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                             'kairon_user_msg': None, 'session_started': None,
-                             'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                {"predefined_objects": {"bot": "5f50fd0a56b698ca10d35d2e", "chat_log": [],
+                                        "intent": "test_run", "kairon_user_msg": None, "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"},
+                                        "latest_message": {"intent_ranking": [{"name": "test_run"}], "text": "get intents"}, "sender_id": "default",
+                                        "session_started": None, "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "user_message": "get intents"},
+                 "source_code": "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}"})],
     )
-    resp_msg = json.dumps({
-        "a": {
+
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
+        }
+    }
+
+    resp_msg = json.dumps(data_obj)
+    aioresponses.add(
+        method=responses.POST,
+        url=f"{http_url}",
+        body=resp_msg,
+        status=200
+    )
+    responses.add(
+        method=responses.POST,
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
+        status=200,
+        match=[
+            responses.matchers.json_params_matcher(
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                           'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response = data['b']['name']"})]
+    )
+
+
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json) == 2
+    assert len(response_json['events']) == 2
+    assert response_json['responses'][0]['text'] == 'Mayank'
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    log.pop('time_elapsed')
+    assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_post', 'sender': 'default', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST', 'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
+                   'api_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}", 'bot_response': 'Mayank',
+                   'messages': ['evaluation_type: script', "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}", "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}", 'raise_err_on_failure: True', 'evaluation_type: script', "script: bot_response = data['b']['name']", "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}", 'raise_err_on_failure: True', 'initiating slot evaluation'],
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'fail_reason': None,
+                   'http_status_code': 200}
+
+
+    @responses.activate
+    def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponses):
+        action_name = "test_http_action_execution_script_evaluation_with_dynamic_params"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        HttpActionConfig(
+            action_name=action_name,
+            content_type="json",
+            response=HttpActionResponse(
+                value="bot_response = data['b']['name']",
+                dispatch=True, evaluation_type="script", dispatch_type=DispatchType.text.value),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            dynamic_params=
+            "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+        resp_msg = {
+            'body': {
+                "sender_id": "default",
+                "user_message": "get intents",
+                "intent": "test_run"
+            }
+
+        }
+        http_url = 'http://localhost:8081/mock'
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": resp_msg, 'error_code': 0},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {"predefined_objects": {"bot": "5f50fd0a56b698ca10d35d2e", "chat_log": [],
+                                            "intent": "test_run", "kairon_user_msg": None,
+                                            "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"},
+                                            "latest_message": {"intent_ranking": [{"name": "test_run"}],
+                                                               "text": "get intents"}, "sender_id": "default",
+                                            "session_started": None, "slot": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                                            "user_message": "get intents"},
+                     "source_code": "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}"})],
+        )
+
+        data_obj = {
+            "a": 10,
             "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
+                "name": "Mayank",
+                "arr": ['red', 'green', 'hotpink']
             }
         }
-    })
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
@@ -1780,77 +1857,60 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                                       'bot': '5f50fd0a56b698ca10d35d2e'}}})],
     )
 
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "default",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
-    assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
-    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-    print(log)
-    assert log == {'type': 'http_action', 'intent': 'test_run',
-                   'action': 'test_http_action_execution_script_evaluation_with_dynamic_params',
-                   'sender': 'default',
-                   'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
-                   'url': 'http://localhost:8081/mock', 'request_method': 'GET',
-                   'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
-                   'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
-                   'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
-                   'messages': ['evaluation_type: script',
-                                'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}"}',
-                                "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
-                                'raise_err_on_failure: True',
-                                "Evaluator response: {'success': True, 'data': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}}",
-                                'evaluation_type: script',
-                                "script: 'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
-                                'raise_err_on_failure: True',
-                                'Evaluator response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
-                                'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: script',
-                                'script: ${a.b.d}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
-                                'raise_err_on_failure: True',
-                                'Evaluator response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
-                                'Slot: val_d_0', 'evaluation_type: script', 'script: ${a.b.d.0}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
-                                'raise_err_on_failure: True',
-                                "Evaluator response: {'success': True, 'data': 'red'}"],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert len(response_json) == 2
+        assert len(response_json['events']) == 1
+        assert response_json['responses'][0]['text'] == 'Mayank'
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        log.pop('time_elapsed')
+        assert log == {'type': 'http_action', 'intent': 'test_run',
+                       'action': 'test_http_action_execution_script_evaluation_with_dynamic_params',
+                       'sender': 'default',
+                       'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
+                       'url': 'http://localhost:8081/mock', 'request_method': 'GET',
+                       'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
+                       'api_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
+                       'bot_response': 'Mayank', 'messages': ['evaluation_type: script',
+                                                              "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
+                                                              "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
+                                                              'raise_err_on_failure: True', 'evaluation_type: script',
+                                                              "script: bot_response = data['b']['name']",
+                                                              "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'status_code': 200}",
+                                                              'raise_err_on_failure: True',
+                                                              'initiating slot evaluation'],
+                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
 
 @responses.activate
@@ -1861,105 +1921,75 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
         action_name=action_name,
         content_type="json",
         response=HttpActionResponse(
-            value="${RESPONSE}",
-            dispatch=True, evaluation_type="expression", dispatch_type=DispatchType.json.value),
+            value="bot_response = data",
+            dispatch=True, evaluation_type="script", dispatch_type=DispatchType.json.value),
         http_url="http://localhost:8081/mock",
         request_method="GET",
         dynamic_params=
-        "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+        "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
         headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                  HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                  HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
-                   SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"
     ).save()
     resp_msg = {
-        "sender_id": "default",
-        "user_message": "get intents",
-        "intent": "test_run"
+        'body': {
+            "sender_id": "default",
+            "user_message": "get intents",
+            "intent": "test_run"
+        }
+
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": resp_msg},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": resp_msg, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {
-                    'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
-                    'data': {'sender_id': 'default', 'user_message': 'get intents',
-                             'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                             'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                             'kairon_user_msg': None, 'session_started': None,
-                             'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                {"predefined_objects": {"bot": "5f50fd0a56b698ca10d35d2e", "chat_log": [],
+                                        "intent": "test_run", "kairon_user_msg": None,
+                                        "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"},
+                                        "latest_message": {"intent_ranking": [{"name": "test_run"}],
+                                                           "text": "get intents"}, "sender_id": "default",
+                                        "session_started": None, "slot": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                                        "user_message": "get intents"},
+                 "source_code": "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}"})],
     )
-    resp_msg = json.dumps({
-        "a": {
-            "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
-            }
+
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
         }
-    })
+    }
+
+    resp_msg = json.dumps(data_obj)
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
         body=resp_msg,
         status=200
     )
-
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {'bot_response': data_obj}, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "red"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d.0}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                           'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response = data"})]
     )
 
     request_object = {
@@ -1992,18 +2022,20 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}]
-    assert response_json['responses'][0]['custom'] == {
-        'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
-
+    assert len(response_json) == 2
+    assert len(response_json['events']) == 2
+    assert response_json['responses'][0]['custom'] == data_obj
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    log.pop('time_elapsed')
+    assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json', 'sender': 'default', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
+                   'url': 'http://localhost:8081/mock', 'request_method': 'GET',
+                   'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}, 'api_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}", 'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}", 'messages': ['evaluation_type: script', "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}", "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}", 'raise_err_on_failure: True', 'evaluation_type: script', 'script: bot_response = data', "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}", 'raise_err_on_failure: True', 'initiating slot evaluation'],
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'fail_reason': None,
+                   'http_status_code': 200,
+                   }
 
 @responses.activate
 def test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch(aioresponses):
@@ -2013,51 +2045,53 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
         action_name=action_name,
         content_type="json",
         response=HttpActionResponse(
-            value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-            dispatch=False, evaluation_type="script"),
+            value="bot_response = data['b']['name']",
+            dispatch=False, evaluation_type="script", dispatch_type=DispatchType.text.value),
         http_url="http://localhost:8081/mock",
         request_method="GET",
         dynamic_params=
-        "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+        "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
         headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                  HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                  HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
-                   SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"
     ).save()
     resp_msg = {
-        "sender_id": "default",
-        "user_message": "get intents",
-        "intent": "test_run"
+        'body': {
+            "sender_id": "default",
+            "user_message": "get intents",
+            "intent": "test_run"
+        }
+
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": resp_msg},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": resp_msg, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {
-                    'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
-                    'data': {'sender_id': 'default', 'user_message': 'get intents',
-                             'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                             'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                             'kairon_user_msg': None, 'session_started': None,
-                             'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                {"predefined_objects": {"bot": "5f50fd0a56b698ca10d35d2e", "chat_log": [],
+                                        "intent": "test_run", "kairon_user_msg": None,
+                                        "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"},
+                                        "latest_message": {"intent_ranking": [{"name": "test_run"}],
+                                                           "text": "get intents"}, "sender_id": "default",
+                                        "session_started": None, "slot": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                                        "user_message": "get intents"},
+                 "source_code": "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}"})],
     )
-    resp_msg = json.dumps({
-        "a": {
-            "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
-            }
+
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
         }
-    })
+    }
+
+    resp_msg = json.dumps(data_obj)
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
@@ -2066,51 +2100,20 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "red"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d.0}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                           'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response = data['b']['name']"})]
     )
 
     request_object = {
@@ -2144,69 +2147,75 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 0
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert len(response_json) == 2
+    assert len(response_json['events']) == 2
     assert response_json['responses'] == []
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    log.pop('time_elapsed')
+    assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch', 'sender': 'default', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
+                   'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}, 'api_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}", 'bot_response': 'Mayank',
+                   'messages': ['evaluation_type: script', "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}", "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}", 'raise_err_on_failure: True', 'evaluation_type: script', "script: bot_response = data['b']['name']", "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}", 'raise_err_on_failure: True', 'initiating slot evaluation'],
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'fail_reason': None,
+                   'http_status_code': 200}
 
 
 @responses.activate
 def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch(aioresponses):
-    action_name = "test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch"
+    action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
         action_name=action_name,
         content_type="json",
         response=HttpActionResponse(
-            value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-            dispatch=False, evaluation_type="script"),
+            value="bot_response = data['b']['name']asdf",
+            dispatch=False, evaluation_type="script", dispatch_type=DispatchType.text.value),
         http_url="http://localhost:8081/mock",
         request_method="GET",
         dynamic_params=
-        "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+        "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
         headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                  HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                  HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
-                   SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"
     ).save()
     resp_msg = {
-        "sender_id": "default",
-        "user_message": "get intents",
-        "intent": "test_run"
+        'body': {
+            "sender_id": "default",
+            "user_message": "get intents",
+            "intent": "test_run"
+        }
+
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": resp_msg},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": resp_msg, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {
-                    'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
-                    'data': {'sender_id': 'default', 'user_message': 'get intents',
-                             'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                             'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                             'kairon_user_msg': None, 'session_started': None,
-                             'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                {"predefined_objects": {"bot": "5f50fd0a56b698ca10d35d2e", "chat_log": [],
+                                        "intent": "test_run", "kairon_user_msg": None,
+                                        "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"},
+                                        "latest_message": {"intent_ranking": [{"name": "test_run"}],
+                                                           "text": "get intents"}, "sender_id": "default",
+                                        "session_started": None, "slot": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                                        "user_message": "get intents"},
+                 "source_code": "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}"})],
     )
-    resp_msg = json.dumps({
-        "a": {
-            "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
-            }
+
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
         }
-    })
+    }
+
+    resp_msg = json.dumps(data_obj)
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
@@ -2215,51 +2224,20 @@ def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": 'some error'},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "red"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d.0}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                           'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'status_code': 200,
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response = data['b']['name']asdf"})]
     )
 
     request_object = {
@@ -2293,13 +2271,7 @@ def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 0
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": 'red'},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert len(response_json) == 2
     assert response_json['responses'] == []
 
 
@@ -2376,11 +2348,11 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_failure():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 1
+    assert len(response_json['events']) == 2
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                                        'value': 'I have failed to process your request'},
+                                       {"event": "slot", "timestamp": None, "name": "http_status_code", "value": None},]
     assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "I have failed to process your request"}]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
 
 
@@ -2388,60 +2360,59 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_failure():
 def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-    KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-    KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
         action_name=action_name,
         content_type="json",
         response=HttpActionResponse(
-            value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-            dispatch=True, evaluation_type="script"),
+            value="bot_response = data['b']['name']",
+            dispatch=True, evaluation_type="script", dispatch_type=DispatchType.text.value),
         http_url="http://localhost:8081/mock",
         request_method="GET",
-        dynamic_params="{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "
-                       "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}",
+        dynamic_params="body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
         headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                  HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                  HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
         params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
                      HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
                      HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
-                   SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"
     ).save()
     resp_msg = {
-        "sender_id": "default",
-        "user_message": "get intents",
-        "intent": "test_run",
-        "user_details": {"email": "uditpandey@digite.com"}
+        'body': {
+            "sender_id": "default",
+            "user_message": "get intents",
+            "intent": "test_run"
+        }
+
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": resp_msg},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": resp_msg, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "
-                           "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}",
-                 'data': {'sender_id': 'default', 'user_message': 'get intents',
-                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                          'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                {"predefined_objects": {"bot": "5f50fd0a56b698ca10d35d2e", "chat_log": [],
+                                        "intent": "test_run", "kairon_user_msg": None,
+                                        "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"},
+                                        "latest_message": {"intent_ranking": [{"name": "test_run"}],
+                                                           "text": "get intents"}, "sender_id": "default",
+                                        "session_started": None, "slot": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                                        "user_message": "get intents"},
+                 "source_code": "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}"})],
     )
-    resp_msg = json.dumps({
-        "a": {
-            "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
-            }
+
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
         }
-    })
+    }
+
+    resp_msg = json.dumps(data_obj)
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run",
@@ -2451,51 +2422,20 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "red"},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${a.b.d.0}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                           'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response = data['b']['name']"})]
     )
 
     request_object = {
@@ -2529,84 +2469,55 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
-    assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
+    assert len(response_json) == 2
+    assert len(response_json['events']) == 2
+    assert response_json['responses'][0]['text'] == 'Mayank'
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
-    assert log == {'type': 'http_action', 'intent': 'test_run',
-                   'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list',
-                   'sender': 'default',
-                   'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
-                   'url': 'http://localhost:8081/mock', 'request_method': 'GET',
-                   'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
-                                      'user_details': {'email': '*******************om'}},
-                   'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
-                   'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
-                   'messages': ['evaluation_type: script',
-                                'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}", "EMAIL": "${key_vault.EMAIL}"}',
-                                "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
-                                'raise_err_on_failure: True',
-                                "Evaluator response: {'success': True, 'data': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run', 'user_details': {'email': 'uditpandey@digite.com'}}}",
-                                'evaluation_type: script',
-                                "script: 'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
-                                'raise_err_on_failure: True',
-                                'Evaluator response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
-                                'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: script',
-                                'script: ${a.b.d}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
-                                'raise_err_on_failure: True',
-                                'Evaluator response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
-                                'Slot: val_d_0', 'evaluation_type: script', 'script: ${a.b.d.0}',
-                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
-                                'raise_err_on_failure: True',
-                                "Evaluator response: {'success': True, 'data': 'red'}"],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+    log.pop('time_elapsed')
+    assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list', 'sender': 'default', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
+                   'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}, 'api_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}", 'bot_response': 'Mayank',
+                   'messages': ['evaluation_type: script', "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}", "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}", 'raise_err_on_failure: True', 'evaluation_type: script', "script: bot_response = data['b']['name']", "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}", 'raise_err_on_failure: True', 'initiating slot evaluation'],
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents', 'fail_reason': None,
+                   'http_status_code': 200}
 
 
 @responses.activate
 def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_no_dispatch"
-    Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+    Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2d", user="user").save()
     HttpActionConfig(
         action_name=action_name,
-        content_type="json",
-        response=HttpActionResponse(
-            value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-            dispatch=False, evaluation_type="script"),
+        response=HttpActionResponse(value="bot_response = data['b']['name']asdf",
+                                    dispatch=False, evaluation_type="script", dispatch_type=DispatchType.text.value),
         http_url="http://localhost:8081/mock",
         request_method="GET",
-        headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
+        headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
                  HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
-                 HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
+                 HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                 HttpActionRequestBody(key="email", parameter_type="key_vault", value="EMAIL", encrypt=False)],
+        params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
                      HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
-                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        set_slots=[SetSlotsFromResponse(name="val_d", value="${e}", evaluation_type="script"),
-                   SetSlotsFromResponse(name="val_d_0", value="${a.b.d}", evaluation_type="script")],
-        bot="5f50fd0a56b698ca10d35d2e",
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                     HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME",
+                                           encrypt=False),
+                     HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT",
+                                           encrypt=False)],
+        bot="5f50fd0a56b698ca10d35d2d",
         user="user"
     ).save()
 
     http_url = 'http://localhost:8081/mock'
-    resp_msg = json.dumps({
-        "a": {
-            "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
-            }
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
         }
-    })
+    }
+    resp_msg = json.dumps(data_obj)
+
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
@@ -2615,35 +2526,20 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponse
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": "error", },
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": False, "data": None},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${e}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2d', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                           'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'status_code': 200,
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response = data['b']['name']asdf"})]
     )
 
     request_object = {
@@ -2651,7 +2547,7 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponse
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2d"},
             "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
@@ -2666,7 +2562,7 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponse
             "session_config": {},
             "intents": [],
             "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2d"},
             "responses": {},
             "actions": [],
             "forms": {},
@@ -2677,51 +2573,49 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponse
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 0
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": None},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": None},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    print(response_json)
+    assert len(response_json['events']) == 2
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                                        'value': 'I have failed to process your request'},
+                                       {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200},]
     assert response_json['responses'] == []
 
 
 @responses.activate
 def test_http_action_execution_script_evaluation_failure_and_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_and_dispatch"
-    Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+    Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2d", user="user").save()
     HttpActionConfig(
         action_name=action_name,
-        content_type="json",
-        response=HttpActionResponse(
-            value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-            dispatch=True, evaluation_type="script"),
+        response=HttpActionResponse(value="bot_response = data['b']['name']asdf",
+                                    dispatch=True, evaluation_type="script", dispatch_type=DispatchType.text.value),
         http_url="http://localhost:8081/mock",
         request_method="GET",
-        headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
+        headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
                  HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
-                 HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
+                 HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                 HttpActionRequestBody(key="email", parameter_type="key_vault", value="EMAIL", encrypt=False)],
+        params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
                      HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
-                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-        set_slots=[SetSlotsFromResponse(name="val_d", value="${e}", evaluation_type="script"),
-                   SetSlotsFromResponse(name="val_d_0", value="${a.b.d}", evaluation_type="script")],
-        bot="5f50fd0a56b698ca10d35d2e",
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                     HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME",
+                                           encrypt=False),
+                     HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT",
+                                           encrypt=False)],
+        bot="5f50fd0a56b698ca10d35d2d",
         user="user"
     ).save()
 
     http_url = 'http://localhost:8081/mock'
-    resp_msg = json.dumps({
-        "a": {
-            "b": {
-                "3": 2,
-                "43": 30,
-                "c": [],
-                "d": ['red', 'buggy', 'bumpers'],
-            }
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
         }
-    })
+    }
+    resp_msg = json.dumps(data_obj)
+
     aioresponses.add(
         method=responses.GET,
         url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
@@ -2730,35 +2624,20 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch(aiorespons
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+        url=Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": "error", },
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
-    )
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": False, "data": None},
-        status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'script': "${e}",
-                 'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                          'context': {'sender_id': 'default', 'user_message': 'get intents',
-                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
-                                      'chat_log': [],
-                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                      'kairon_user_msg': None, 'session_started': None,
-                                      'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2d', 'chat_log': [],
+                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                           'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'status_code': 200,
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response = data['b']['name']asdf"})]
     )
 
     request_object = {
@@ -2766,7 +2645,7 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch(aiorespons
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2d"},
             "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
@@ -2781,7 +2660,7 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch(aiorespons
             "session_config": {},
             "intents": [],
             "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2d"},
             "responses": {},
             "actions": [],
             "forms": {},
@@ -2792,14 +2671,12 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch(aiorespons
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
+    assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "val_d", "value": None},
-        {"event": "slot", "timestamp": None, "name": "val_d_0", "value": None},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
-    assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                                        'value': 'I have failed to process your request'},
+                                       {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200},]
+    assert response_json['responses'][0]['text'] == "I have failed to process your request"
 
 
 @responses.activate
@@ -2895,11 +2772,12 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2(aiorespo
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 1
+    assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "I have failed to process your request"}]
+         "value": "I have failed to process your request"},
+    {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200},]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
 
 
@@ -2959,21 +2837,19 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 1
+    assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request"}]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
+    assert log["exception"].startswith("Got non-200 status code:408")
+    log.pop('exception')
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET', 'request_params': {},
-                   'bot_response': 'I have failed to process your request',
-                   'exception': 'Request timed out: 408', 'messages': [],
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents'}
+                   'bot_response': 'I have failed to process your request', 'http_status_code': 408,
+                   'messages': [], 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'FAILURE', 'user_msg': 'get intents',
+                   'time_elapsed': None, 'fail_reason': 'Got non-200 status code:408 http_response:None'}
 
 
 def test_http_action_missing_action_name():
@@ -3122,8 +2998,6 @@ def test_vectordb_action_execution_embedding_search_from_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
@@ -3196,8 +3070,6 @@ def test_vectordb_action_execution_payload_search_from_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
@@ -3258,14 +3130,11 @@ def test_vectordb_action_execution_payload_search_from_value_json_decode_error()
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 1
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'I have failed to process your request.'}]
     assert response_json['responses'][0]['text'] == 'I have failed to process your request.'
     log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
-    print(log)
     assert log['exception'] == "Error converting payload to JSON: {'filter'}"
     log.pop('_id')
     log.pop('timestamp')
@@ -3345,8 +3214,6 @@ def test_vectordb_action_execution_payload_search_from_slot():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
@@ -3431,8 +3298,6 @@ def test_vectordb_action_execution_no_response_dispatch():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json['events'])
-    print(response_json['responses'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 0
     assert response_json['events'] == [
@@ -3888,9 +3753,8 @@ def test_form_validation_action_valid_slot_value():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
                                'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {
-                     'EMAIL': 'uditpandey@digite.com',
-                     'FIRSTNAME': 'udit'
-                 },
+                     'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                      'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -3955,9 +3819,8 @@ def test_form_validation_action_with_custom_value():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
                                'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
-                                    'FIRSTNAME': 'udit'
-                                    },
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                      'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -4021,9 +3884,8 @@ def test_form_validation_action_with_custom_value_none():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
                                'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
-                                    'FIRSTNAME': 'udit'
-                                    },
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                      'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -4086,9 +3948,8 @@ def test_form_validation_action_with_form_slot_type_slot():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
                                'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
-                                    'FIRSTNAME': 'udit'
-                                    },
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com','FIRSTNAME': 'udit'},
+                      'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -4253,8 +4114,8 @@ def test_form_validation_action_valid_slot_value_with_utterance():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'user_id': 'pandey.udit867@gmail.com',
                                'requested_slot': 'user_id'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
-                                    'FIRSTNAME': 'udit'},
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                      'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -4324,8 +4185,8 @@ def test_form_validation_action_invalid_slot_value():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
                                'requested_slot': 'current_location'},
-                      'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com',
-                                                                          'FIRSTNAME': 'udit'},
+                      'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                      'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -4393,8 +4254,9 @@ def test_form_validation_action_invalid_slot_value_with_utterance():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'profession': 'computer programmer',
                                'requested_slot': 'profession'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
-                                    'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None}}
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com','FIRSTNAME': 'udit'},
+                      'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
+                      'kairon_user_msg': None, 'session_started': None}}
         )],
     )
 
@@ -4609,7 +4471,9 @@ def test_form_validation_action_with_is_required_false_and_semantics():
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
                                'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
                       'key_vault': {'EMAIL': 'uditpandey@digite.com',
-                                    'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None}}
+                                    'FIRSTNAME': 'udit'},
+                      'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
+                      'kairon_user_msg': None, 'session_started': None}}
         )],
     )
 
@@ -4773,6 +4637,7 @@ def test_form_validation_action_with_is_required_true_and_semantics():
                       'key_vault': {'EMAIL': 'uditpandey@digite.com',
                                     'FIRSTNAME': 'udit'
                                     },
+                      'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -6819,7 +6684,6 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
         mocked.side_effect = _perform_web_search
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        print(response_json)
         assert response.status_code == 200
         assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
@@ -9754,6 +9618,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     assert mock_completion.call_args.args[1] == 'What kind of language is python?'
     assert mock_completion.call_args.args[
                2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[
                3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
     print(mock_completion.call_args.kwargs)
@@ -9830,6 +9695,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
     assert mock_completion.call_args.args[1] == 'What kind of language is python?'
     assert mock_completion.call_args.args[
                2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[
                3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
     print(mock_completion.call_args.kwargs)
@@ -9909,6 +9775,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     assert mock_completion.call_args.args[1] == 'What kind of language is python?'
     assert mock_completion.call_args.args[
                2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[
                3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
     print(mock_completion.call_args.kwargs)
@@ -9995,10 +9862,9 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
         ]
     print(mock_completion.call_args.kwargs['messages'])
     assert mock_completion.call_args.kwargs['messages'] == [
-        {'role': 'system',
-         'content': 'You are a personal assistant. Answer question based on the context below.\n'},
+        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user',
-         'content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:'}]
+         'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:"}]
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -10456,6 +10322,7 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     with open('tests/testing_data/actions/action_prompt.txt', 'r') as file:
         prompt_data = file.read()
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[3] == prompt_data
 
 @responses.activate
@@ -10534,7 +10401,6 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What is kanban'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
-    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[
                3] == 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n'
 
@@ -10638,6 +10504,7 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
         prompt_data = file.read()
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[3] == prompt_data
 
 
@@ -10704,7 +10571,6 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'api_type', 'value': 'filter'},
                                        {'event': 'slot', 'timestamp': None, 'name': 'query',
                                         'value': '{"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}'},
@@ -10790,6 +10656,7 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
         prompt_data = file.read()
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[3] == prompt_data
 
 
@@ -10855,8 +10722,9 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
         ]
     assert mock_completion.call_args[0][1] == 'Kanban And Scrum Together?'
     assert mock_completion.call_args[0][2] == 'You are a personal assistant.\n'
+    print(mock_completion.call_args[0][3])
     assert mock_completion.call_args[0][3] == """
-Similarity Prompt:
-Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.
-Instructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.
+Instructions on how to use Similarity Prompt:
+['Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.']
+Answer question based on the context above, if answer is not in the context go check previous logs.
 """

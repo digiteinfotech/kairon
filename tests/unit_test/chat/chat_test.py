@@ -612,3 +612,50 @@ class TestChat:
 
         with pytest.raises(NotImplementedError):
             await ChannelHandlerBase().handle_message()
+
+    def test_save_channel_config_insta_with_default_comment_reply(self, monkeypatch):
+        bot = '5e564fbcdcf0d5fad89e3acd'
+
+        def _get_integration_token(*args, **kwargs):
+            return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
+
+        monkeypatch.setattr(Authentication, "generate_integration_token", _get_integration_token)
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "instagram", "config": {
+                "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
+                "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
+                "verify_token": "kairon-instagram-token",
+            }}, bot, "test@chat.com")
+        insta_webhook = ChatDataProcessor.get_channel_endpoint("instagram", bot)
+        hashcode = channel_url.split("/", -1)[-1]
+        dbhashcode = insta_webhook.split("/", -1)[-1]
+        assert hashcode == dbhashcode
+
+        insta = ChatDataProcessor.get_channel_config("instagram", bot, False)
+
+        static_comment_reply_actual = insta.get("config", {}).get("static_comment_reply")
+        assert "Thanks for reaching us, please check your inbox" == static_comment_reply_actual
+
+    def test_save_channel_config_insta_with_custom_comment_reply(self, monkeypatch):
+        bot = '5e564fbcdcf0d5fad89e3acd'
+
+        def _get_integration_token(*args, **kwargs):
+            return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
+
+        monkeypatch.setattr(Authentication, "generate_integration_token", _get_integration_token)
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "instagram", "config": {
+                "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
+                "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
+                "verify_token": "kairon-instagram-token",
+                "static_comment_reply": "Dhanyawad"
+            }}, bot, "test@chat.com")
+        insta_webhook = ChatDataProcessor.get_channel_endpoint("instagram", bot)
+        hashcode = channel_url.split("/", -1)[-1]
+        dbhashcode = insta_webhook.split("/", -1)[-1]
+        assert hashcode == dbhashcode
+
+        insta = ChatDataProcessor.get_channel_config("instagram", bot, False)
+
+        static_comment_reply_actual = insta.get("config", {}).get("static_comment_reply")
+        assert "Dhanyawad" == static_comment_reply_actual

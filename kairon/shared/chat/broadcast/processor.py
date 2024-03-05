@@ -12,6 +12,7 @@ from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, 
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
 from kairon.shared.constants import ChannelTypes
+from kairon.shared.data.constant import EVENT_STATUS
 
 
 class MessageBroadcastProcessor:
@@ -80,10 +81,13 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def add_event_log(bot: Text, log_type: Text, reference_id: Text = None, status: Text = None, **kwargs):
+        event_completion_states = [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]
+        is_new_log = log_type in {MessageBroadcastLogType.send.value, MessageBroadcastLogType.self.value} or kwargs.pop("is_new_log", None)
         try:
-            if log_type in {MessageBroadcastLogType.send.value, MessageBroadcastLogType.self.value}:
+            if is_new_log:
                 raise DoesNotExist()
-            log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type).get()
+            log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type,
+                                               status__nin=event_completion_states).get()
         except DoesNotExist:
             log = MessageBroadcastLogs(bot=bot, reference_id=reference_id, log_type=log_type)
         if status:
@@ -129,10 +133,10 @@ class MessageBroadcastProcessor:
         ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id, campaign_name=campaign_name)
 
     @staticmethod
-    def insert_status_received_on_channel_webhook(event_id: Text, broadcast_name: Text):
-        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(event_id)
+    def insert_status_received_on_channel_webhook(reference_id: Text, broadcast_name: Text):
+        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
         if broadcast_logs:
-            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(event_id, broadcast_name, broadcast_logs)
+            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_name, broadcast_logs)
 
     @staticmethod
     def get_channel_metrics(channel_type: Text, bot: Text):

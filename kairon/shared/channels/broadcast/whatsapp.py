@@ -38,7 +38,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, recipients=recipients,
-            status=EVENT_STATUS.EVALUATE_RECIPIENTS.value, evaluation_log=eval_log
+            status=EVENT_STATUS.EVALUATE_RECIPIENTS.value, evaluation_log=eval_log, event_id=self.event_id
         )
         return recipients
 
@@ -63,8 +63,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
-                status=status, recipient=recipient, template_params=components,
-                template=raw_template
+                status=status, recipient=recipient, template_params=components, template=raw_template,
+                event_id=self.event_id
             )
             self.__log_broadcast_in_conversation_history(template_id, recipient, components, raw_template, client)
 
@@ -72,7 +72,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         def log(**kwargs):
             MessageBroadcastProcessor.add_event_log(
-                self.bot, MessageBroadcastLogType.self.value, self.reference_id, **kwargs
+                self.bot, MessageBroadcastLogType.self.value, self.reference_id, event_id=self.event_id, **kwargs
             )
 
         script_variables = ActorOrchestrator.run(
@@ -84,7 +84,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
-            **script_variables
+            event_id=self.event_id, **script_variables
         )
 
     def __send_using_configuration(self, recipients: List):
@@ -120,12 +120,12 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
                     MessageBroadcastProcessor.add_event_log(
                         self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
-                        status=status, recipient=recipient, template_params=t_params,
-                        template=raw_template
+                        status=status, recipient=recipient, template_params=t_params, template=raw_template,
+                        event_id=self.event_id
                     )
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
-                **evaluation_log
+                event_id=self.event_id, **evaluation_log
             )
 
     def __get_client(self):

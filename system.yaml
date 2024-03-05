@@ -151,7 +151,7 @@ evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://192.168.100.109:8085/evaluate"}
   pyscript:
     trigger_task: ${PYSCRIPT_TRIGGER_TASK:false}
-    url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8080/evaluate"}
+    url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8087/evaluate"}
 
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}
@@ -200,7 +200,8 @@ channels:
     partner_id: ${360_DIALOG_PARTNER_ID}
     partner_username: ${360_DIALOG_PARTNER_USERNAME}
     partner_password: ${360DIALOG_PARTNER_PASSWORD}
-
+  instagram:
+    static_comment_reply: ${INSTA_STATIC_COMMENT_REPLY:Thanks for reaching us, please check your inbox}
 llm:
   faq: ${LLM_FAQ_TYPE:GPT3_FAQ_EMBED}
   key: ${TEMPLATE_LLM_KEY}

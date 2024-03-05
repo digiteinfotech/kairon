@@ -3553,7 +3553,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 11
+    assert len(actual['data']) == 12
     assert actual["success"]
 
 
@@ -3737,32 +3737,10 @@ def test_list_entities():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert not DeepDiff(
-        {e["name"] for e in actual["data"]},
-        {
-            "bot",
-            "file",
-            "category",
-            "file_text",
-            "ticketid",
-            "file_error",
-            "priority",
-            "requested_slot",
-            "fdresponse",
-            "kairon_action_response",
-            "audio",
-            "image",
-            "doc_url",
-            "document",
-            "video",
-            "name",
-            "order",
-            'latitude',
-            'longitude',
-            'flow_reply'
-        },
-        ignore_order=True,
-    )
+    assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
+                                                   'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
+                                                   'audio', 'image', 'doc_url', 'document', 'video', 'order', 'latitude',
+                                                   'longitude', 'flow_reply', 'http_status_code'}
     assert actual["success"]
 
 
@@ -4378,7 +4356,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 18
+    assert len(actual["data"]) == 19
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -5409,7 +5387,7 @@ def test_add_story_invalid_event_type():
                     "PYSCRIPT_ACTION",
                     "PROMPT_ACTION",
                     "DATABASE_ACTION",
-                    "WEB_SEARCH_ACTION", 
+                    "WEB_SEARCH_ACTION",
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
@@ -10764,29 +10742,8 @@ def test_update_http_action_wrong_parameter():
     actual = response.json()
     assert actual["error_code"] == 422
     print(actual["message"])
-    assert actual["message"] == [
-        {
-            "loc": ["body", "params_list", 0, "parameter_type"],
-            "msg": "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault'",
-            "type": "type_error.enum",
-            "ctx": {
-                "enum_values": [
-                    "value",
-                    "slot",
-                    "sender_id",
-                    "user_message",
-                    "intent",
-                    "chat_log",
-                    "key_vault",
-                ]
-            },
-        },
-        {
-            "loc": ["body", "set_slots", 0, "name"],
-            "msg": "slot name is required",
-            "type": "value_error",
-        },
-    ]
+    assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'], 'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault']}}, {'loc': ['body', 'set_slots', 0, 'name'], 'msg': 'slot name is required', 'type': 'value_error'}]
+
     assert not actual["success"]
 
     request_body = {
@@ -10809,29 +10766,8 @@ def test_update_http_action_wrong_parameter():
     actual = response.json()
     assert actual["error_code"] == 422
     print(actual["message"])
-    assert actual["message"] == [
-        {
-            "loc": ["body", "params_list", 0, "parameter_type"],
-            "msg": "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault'",
-            "type": "type_error.enum",
-            "ctx": {
-                "enum_values": [
-                    "value",
-                    "slot",
-                    "sender_id",
-                    "user_message",
-                    "intent",
-                    "chat_log",
-                    "key_vault",
-                ]
-            },
-        },
-        {
-            "loc": ["body", "set_slots", 0, "value"],
-            "msg": "expression is required to evaluate value of slot",
-            "type": "value_error",
-        },
-    ]
+    assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'], 'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault']}}, {'loc': ['body', 'set_slots', 0, 'value'], 'msg': 'expression is required to evaluate value of slot', 'type': 'value_error'}]
+
     assert not actual["success"]
 
     request_body = {
@@ -10854,34 +10790,8 @@ def test_update_http_action_wrong_parameter():
     actual = response.json()
     assert actual["error_code"] == 422
     print(actual["message"])
-    assert actual["message"] == [
-        {
-            "loc": ["body", "response", "__root__"],
-            "msg": "response is required for dispatch",
-            "type": "value_error",
-        },
-        {
-            "loc": ["body", "params_list", 0, "parameter_type"],
-            "msg": "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault'",
-            "type": "type_error.enum",
-            "ctx": {
-                "enum_values": [
-                    "value",
-                    "slot",
-                    "sender_id",
-                    "user_message",
-                    "intent",
-                    "chat_log",
-                    "key_vault",
-                ]
-            },
-        },
-        {
-            "loc": ["body", "set_slots", 0, "value"],
-            "msg": "expression is required to evaluate value of slot",
-            "type": "value_error",
-        },
-    ]
+    assert actual["message"] == [{'loc': ['body', 'response', '__root__'], 'msg': 'response is required for dispatch', 'type': 'value_error'}, {'loc': ['body', 'params_list', 0, 'parameter_type'], 'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault']}}, {'loc': ['body', 'set_slots', 0, 'value'], 'msg': 'expression is required to evaluate value of slot', 'type': 'value_error'}]
+
     assert not actual["success"]
 
 
@@ -16920,24 +16830,7 @@ def test_add_hubspot_forms_action_invalid_param_type():
     assert not actual["success"]
     assert actual["error_code"] == 422
     print(actual["message"])
-    assert actual["message"] == [
-        {
-            "loc": ["body", "fields", 0, "parameter_type"],
-            "msg": "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'intent', 'chat_log', 'key_vault'",
-            "type": "type_error.enum",
-            "ctx": {
-                "enum_values": [
-                    "value",
-                    "slot",
-                    "sender_id",
-                    "user_message",
-                    "intent",
-                    "chat_log",
-                    "key_vault",
-                ]
-            },
-        }
-    ]
+    assert actual["message"] == [{'loc': ['body', 'fields', 0, 'parameter_type'], 'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault']}}]
 
 
 def test_add_hubspot_forms_exists():

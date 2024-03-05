@@ -144,7 +144,7 @@ class GPT3FAQEmbedding(LLMBase):
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'rephrase_query', 'hyperparameters': hyperparameters})
         return completion
-
+    
     async def __delete_collections(self):
         client = AioRestClient(False)
         try:
