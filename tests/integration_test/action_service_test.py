@@ -2901,8 +2901,8 @@ def test_vectordb_action_execution_embedding_search_from_value():
         collection='test_vectordb_action_execution',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
-        response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
-        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
+        response=HttpActionResponse(value="The value of ${data.0.id} is ${data.0.vector}"),
+        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.0.vector}")],
         bot="5f50fd0a56b698ca10d75d2e",
         user="user"
     ).save()
@@ -2912,7 +2912,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
         {
             "time": 0,
             "status": "ok",
-            "result": [
+            "result": {"points": [
                 {
                     "id": 0,
                     "payload": {},
@@ -2920,7 +2920,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
                         0
                     ]
                 }
-            ]
+            ]}
         }
     )
     responses.add(
@@ -2962,11 +2962,12 @@ def test_vectordb_action_execution_embedding_search_from_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
+    print(response_json['events'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 0 is [0]'}]
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
+                                       {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                                        'value': 'The value of 0 is [0]'}]
     assert response_json['responses'][0]['text'] == "The value of 0 is [0]"
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56b698ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
@@ -2984,15 +2985,21 @@ def test_vectordb_action_execution_payload_search_from_value():
         collection='test_vectordb_action_execution_payload_search_from_value',
         query_type=DbActionOperationType.payload_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
-        response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+        response=HttpActionResponse(value="The value of ${data.0.payload.city} with color ${data.0.payload.color} is ${data.0.payload.id}"),
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
         bot="5f50md0a56b698ca10d35d2e",
         user="user"
     ).save()
 
     http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_value_faq_embd/points/scroll'
+    # resp_msg = json.dumps(
+    #     [{"id": 2, "city": "London", "color": "red"}]
+    # )
     resp_msg = json.dumps(
-        [{"id": 2, "city": "London", "color": "red"}]
+        {'result': {'points': [{'id': 1238, 'payload': {'city': 'London', 'color': 'red',
+                                                        'collection_name': '65cafe9c47cf10ac07f1c71d_test_faq_embd',
+                                                        'id': '2'}, 'vector': 'null'}],
+                    'next_page_offset': 'null'}, 'status': 'ok', 'time': 0.000329181}
     )
     json_params_matcher = {'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
     responses.add(
@@ -3034,12 +3041,12 @@ def test_vectordb_action_execution_payload_search_from_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
+    print(response_json['events'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': 'The value of London with color red is 2'}]
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '1238'},
+                                       {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                                        'value': 'The value of London with color red is 2'}]
     assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
     log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
     log.pop('_id')
@@ -3118,8 +3125,8 @@ def test_vectordb_action_execution_payload_search_from_slot():
         collection='test_vectordb_action_execution_embedding_search_from_slot',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_slot", value='name'),
-        response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
-        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
+        response=HttpActionResponse(value="The value of ${data.0.id} is ${data.0.vector}"),
+        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.0.vector}")],
         bot="5f50fx0a56b698ca10d35d2e",
         user="user"
     ).save()
@@ -3129,7 +3136,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
         {
             "time": 0,
             "status": "ok",
-            "result": [
+            "result": {"points": [
                 {
                     "id": 15,
                     "payload": {},
@@ -3137,7 +3144,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
                         15
                     ]
                 }
-            ]
+            ]}
         }
     )
     responses.add(
@@ -3178,11 +3185,12 @@ def test_vectordb_action_execution_payload_search_from_slot():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
+    print(response_json['events'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[15]'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 15 is [15]'}]
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[15]'},
+                                       {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                                        'value': 'The value of 15 is [15]'}]
     assert response_json['responses'][0]['text'] == "The value of 15 is [15]"
     log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56b698ca10d35d2e').get().to_mongo().to_dict()
     log.pop('_id')
@@ -3200,9 +3208,9 @@ def test_vectordb_action_execution_no_response_dispatch():
         collection='test_vectordb_action_execution_no_response_dispatch',
         query_type=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
-        response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
+        response=HttpActionResponse(value="The value of ${data.0.id} is ${data.0.vector}",
                                     dispatch=False),
-        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
+        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.0.vector}")],
         bot="5f50fd0a56v098ca10d75d2e",
         user="user"
     ).save()
@@ -3212,7 +3220,7 @@ def test_vectordb_action_execution_no_response_dispatch():
         {
             "time": 0,
             "status": "ok",
-            "result": [
+            "result": {"points": [
                 {
                     "id": 0,
                     "payload": {},
@@ -3220,7 +3228,7 @@ def test_vectordb_action_execution_no_response_dispatch():
                         0
                     ]
                 }
-            ]
+            ]}
         }
     )
     responses.add(
@@ -3262,6 +3270,7 @@ def test_vectordb_action_execution_no_response_dispatch():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
+    print(response_json['events'])
     assert len(response_json['events']) == 2
     assert len(response_json['responses']) == 0
     assert response_json['events'] == [
