@@ -144,7 +144,7 @@ class GPT3FAQEmbedding(LLMBase):
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'rephrase_query', 'hyperparameters': hyperparameters})
         return completion
-    
+
     async def __delete_collections(self):
         client = AioRestClient(False)
         try:
@@ -208,15 +208,23 @@ class GPT3FAQEmbedding(LLMBase):
             similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
             limit = similarity_context_prompt.get('top_results', 10)
             score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
+            extracted_values = []
             if use_similarity_prompt:
                 collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}" if similarity_context_prompt.get(
                     'collection') else f"{self.bot}{self.suffix}"
                 search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
                                                                  score_threshold=score_threshold)
 
-                similarity_context = "\n".join([item['payload']['content'] for item in search_result['result']])
-                similarity_context = f"{similarity_prompt_name}:\n{similarity_context}\n"
-                if similarity_prompt_instructions:
-                    similarity_context += f"Instructions on how to use {similarity_prompt_name}: {similarity_prompt_instructions}\n"
+                for entry in search_result['result']:
+                    if 'content' not in entry['payload']:
+                        extracted_payload = {}
+                        for key, value in entry['payload'].items():
+                            if key != 'collection_name':
+                                extracted_payload[key] = value
+                        extracted_values.append(extracted_payload)
+                    else:
+                        extracted_values.append(entry['payload']['content'])
+            if similarity_prompt_instructions:
+                similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
                 context_prompt = f"{context_prompt}\n{similarity_context}"
         return context_prompt

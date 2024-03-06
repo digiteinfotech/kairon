@@ -530,7 +530,7 @@ class TestLLM:
             {'role': 'system',
              'content': 'You are a personal assistant. Answer the question according to the below context'},
             {'role': 'user',
-             'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}
+             'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
@@ -596,7 +596,7 @@ class TestLLM:
             {"role": "system",
              "content": "You are a personal assistant. Answer the question according to the below context"},
             {'role': 'user',
-             'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}
+             'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
@@ -627,12 +627,11 @@ class TestLLM:
 
             response = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            print(gpt3.logs)
             assert gpt3.logs == [
                 {'messages': [{'role': 'system',
                                'content': 'You are a personal assistant. Answer the question according to the below context'},
                               {'role': 'user',
-                               'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}],
+                               'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
                  'raw_completion_response': {'choices': [{
                      'message': {
                          'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
@@ -674,7 +673,7 @@ class TestLLM:
             {'role': 'system',
              'content': 'You are a personal assistant. Answer the question according to the below context'},
             {'role': 'user',
-             'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nJava is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. \nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:'}
+             'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
@@ -705,16 +704,11 @@ class TestLLM:
 
             response = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            print(gpt3.logs)
             assert gpt3.logs == [
                 {'messages': [{'role': 'system',
                                'content': 'You are a personal assistant. Answer the question according to the below context'},
                               {'role': 'user',
-                               'content': 'Based on below context answer question, if answer not in context '
-                                          'check previous logs.\nSimilarity Prompt:\nJava is a high-level, general-purpose '
-                                          'programming language. Java is known for its write once, run anywhere capability. '
-                                          '\nInstructions on how to use Similarity Prompt: Answer according to this context.'
-                                          '\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:'}],
+                               'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
                  'raw_completion_response': {
                      'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, '
                                                          'high level, general purpose programming.',
@@ -772,6 +766,7 @@ class TestLLM:
             )
 
             response = await gpt3.predict(query, **k_faq_action_config)
+            print(mock_completion.call_args.args[3])
 
             assert response == {'exception': "Connection reset by peer!", 'is_failure': True, "content": None}
 
@@ -780,11 +775,7 @@ class TestLLM:
             assert mock_completion.call_args.args[1] == 'What kind of language is python?'
             assert mock_completion.call_args.args[
                        2] == 'You are a personal assistant. Answer the question according to the below context'
-            assert mock_completion.call_args.args[3] == """Based on below context answer question, if answer not in context check previous logs.
-Similarity Prompt:
-Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.
-Instructions on how to use Similarity Prompt: Answer according to this context.
-"""
+            assert mock_completion.call_args.args[3] == """Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n"""
             assert mock_completion.call_args.kwargs == {'similarity_prompt': [
                 {'top_results': 10, 'similarity_threshold': 0.7, 'use_similarity_prompt': True,
                  'similarity_prompt_name': 'Similarity Prompt',
@@ -879,7 +870,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             {'role': 'user', 'content': 'hello'},
             {'role': 'assistant', 'content': 'how are you'},
             {'role': 'user',
-             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}
+             'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
@@ -908,6 +899,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         )
 
         response = await gpt3.predict(query, **k_faq_action_config)
+        print(list(aioresponses.requests.values())[2][0].kwargs['json'])
         assert response['content'] == generated_text
 
         assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
@@ -954,7 +946,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             {"role": "system",
              "content": DEFAULT_SYSTEM_PROMPT},
             {'role': 'user',
-             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:'}
+             'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:"}
         ]}
         mock_rephrase_request.update(hyperparameters)
         mock_completion_request.update(hyperparameters)
@@ -992,6 +984,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         )
 
         response = await gpt3.predict(query, **k_faq_action_config)
+        print(list(aioresponses.requests.values())[2][1].kwargs['json'])
         assert response['content'] == generated_text
 
         assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",

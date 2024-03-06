@@ -101,6 +101,7 @@ def pytest_configure():
         "content_id": None,
     }
 
+
 async def mock_smtp(*args, **kwargs):
     return None
 
@@ -180,8 +181,8 @@ def test_book_a_demo(trigger_smtp_mock, validate_recaptcha_mock, monkeypatch):
         mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
         response = client.post("/api/user/demo", json=form_data).json()
     assert (
-        response["message"]
-        == "Thank You for your interest in Kairon. We will reach out to you soon."
+            response["message"]
+            == "Thank You for your interest in Kairon. We will reach out to you soon."
     )
     assert not response["data"]
     assert response["error_code"] == 0
@@ -225,8 +226,8 @@ def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock):
     form_data = {"data": data, "recaptcha_response": "1234567890"}
 
     with patch.dict(
-        Utility.environment["security"],
-        {"validate_recaptcha": True, "recaptcha_secret": "asdfghjkl1234567890"},
+            Utility.environment["security"],
+            {"validate_recaptcha": True, "recaptcha_secret": "asdfghjkl1234567890"},
     ):
         with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
             mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
@@ -259,7 +260,8 @@ def test_account_registration_error():
     )
     actual = response.json()
     assert actual["message"] == [
-        {'loc': ['body', 'password'], 'msg': 'Password length must be 10\nMissing 1 uppercase letter', 'type': 'value_error'}]
+        {'loc': ['body', 'password'], 'msg': 'Password length must be 10\nMissing 1 uppercase letter',
+         'type': 'value_error'}]
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -403,8 +405,8 @@ def test_account_registation_temporary_email():
     email = "test@temporay.com"
     api_key = "test"
     with patch.dict(
-        Utility.environment,
-        {"verify": {"email": {"type": "quickemail", "key": api_key, "enable": True}}},
+            Utility.environment,
+            {"verify": {"email": {"type": "quickemail", "key": api_key, "enable": True}}},
     ):
         responses.add(
             responses.GET,
@@ -455,8 +457,8 @@ def test_account_registation_invalid_email():
     email = "test@temporay.com"
     api_key = "test"
     with patch.dict(
-        Utility.environment,
-        {"verify": {"email": {"type": "quickemail", "key": api_key, "enable": True}}},
+            Utility.environment,
+            {"verify": {"email": {"type": "quickemail", "key": api_key, "enable": True}}},
     ):
         responses.add(
             responses.GET,
@@ -506,12 +508,12 @@ def test_account_registation_invalid_email():
         email = "test@temporay.com"
         api_key = "test"
         with patch.dict(
-            Utility.environment,
-            {
-                "verify": {
-                    "email": {"type": "quickemail", "key": api_key, "enable": True}
-                }
-            },
+                Utility.environment,
+                {
+                    "verify": {
+                        "email": {"type": "quickemail", "key": api_key, "enable": True}
+                    }
+                },
         ):
             responses.add(
                 responses.GET,
@@ -752,8 +754,8 @@ def test_api_login():
     assert response["data"]["user"]["_id"]
     assert response["data"]["user"]["email"] == "integration@demo.ai"
     assert (
-        response["data"]["user"]["bots"]["account_owned"][0]["user"]
-        == "integration@demo.ai"
+            response["data"]["user"]["bots"]["account_owned"][0]["user"]
+            == "integration@demo.ai"
     )
     assert response["data"]["user"]["bots"]["account_owned"][0]["timestamp"]
     assert response["data"]["user"]["bots"]["account_owned"][0]["name"]
@@ -835,10 +837,10 @@ def test_api_login():
     assert actual["data"]["token_type"]
     assert actual["data"]["refresh_token"]
     assert (
-        actual["message"]
-        == "This token will be shown only once. Please copy this somewhere safe."
-        "It is your responsibility to keep the token secret. "
-        "If leaked, others may have access to your system."
+            actual["message"]
+            == "This token will be shown only once. Please copy this somewhere safe."
+               "It is your responsibility to keep the token secret. "
+               "If leaked, others may have access to your system."
     )
 
 
@@ -954,8 +956,8 @@ def test_add_trusted_device(monkeypatch):
             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         ).json()
     assert (
-        response["message"]
-        == "A confirmation link has been sent to your registered mail address"
+            response["message"]
+            == "A confirmation link has been sent to your registered mail address"
     )
     assert not response["data"]
     assert response["error_code"] == 0
@@ -1270,7 +1272,7 @@ def test_update_pyscript_action_does_not_exist():
     actual = response.json()
     assert actual["error_code"] == 422
     assert (
-        actual["message"] == 'Action with name "test_update_pyscript_action" not found'
+            actual["message"] == 'Action with name "test_update_pyscript_action" not found'
     )
     assert not actual["success"]
 
@@ -1340,8 +1342,8 @@ def test_delete_pyscript_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"]
-        == 'Action with name "test_delete_pyscript_action_not_exists" not found'
+            actual["message"]
+            == 'Action with name "test_delete_pyscript_action_not_exists" not found'
     )
 
 
@@ -1403,7 +1405,7 @@ def test_get_client_config_url_with_ip_info(monkeypatch):
         Utility.environment["model"]["agent"], "url", "http://localhost"
     )
     with patch(
-        "kairon.shared.plugins.ipinfo.IpInfoTracker.execute"
+            "kairon.shared.plugins.ipinfo.IpInfoTracker.execute"
     ) as mock_geo_location:
         mock_geo_location.return_value = {"City": "Mumbai", "Network": "CATO"}
         response = client.get(
@@ -1442,9 +1444,10 @@ def test_metadata_upload_api(monkeypatch):
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
-            "metadata": [{"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "metadata": [
+                {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "Details"
-    },
+        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1608,14 +1611,19 @@ def test_metadata_upload_invalid_data_type():
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [
-                {"column_name": "test_metadata_upload_invalid_data_type", "data_type": "bool", "enable_search": True, "create_embeddings": True}],
+                {"column_name": "test_metadata_upload_invalid_data_type", "data_type": "bool", "enable_search": True,
+                 "create_embeddings": True}],
             "collection_name": "test_metadata_upload_invalid_data_type"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
     print(actual)
-    assert actual["message"] == [{'loc': ['body', 'metadata', 0, 'data_type'], 'msg': "value is not a valid enumeration member; permitted: 'str', 'int'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['str', 'int']}}, {'loc': ['body', 'metadata', 0, '__root__'], 'msg': 'Only str and int data types are supported', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', 'metadata', 0, 'data_type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'str', 'int'",
+                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['str', 'int']}},
+                                 {'loc': ['body', 'metadata', 0, '__root__'],
+                                  'msg': 'Only str and int data types are supported', 'type': 'value_error'}]
     assert not actual["data"]
     assert actual["error_code"] == 422
 
@@ -1632,7 +1640,8 @@ def test_metadata_upload_column_name_empty():
     )
     actual = response.json()
     print(actual)
-    assert actual["message"] == [{'loc': ['body', 'metadata', 0, '__root__'], 'msg': 'Column name cannot be empty', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'metadata', 0, '__root__'], 'msg': 'Column name cannot be empty', 'type': 'value_error'}]
     assert not actual["data"]
     assert actual["error_code"] == 422
 
@@ -1646,7 +1655,8 @@ def test_get_payload_metadata():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual['data'][0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True, 'create_embeddings': True}
+    assert actual['data'][0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True,
+                                                'create_embeddings': True}
     assert actual['data'][0]['collection_name'] == 'details'
 
 
@@ -1675,9 +1685,10 @@ def test_metadata_upload_api_and_delete_with_no_cognition_data(monkeypatch):
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
-            "metadata": [{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "metadata": [
+                {"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "Details"
-    },
+        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1771,7 +1782,8 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
     actual_two = response_two.json()
     print(actual_two)
     assert not actual_two["success"]
-    assert actual_two["message"] == 'Cannot remove collection python linked to action "test_delete_schema_attached_to_prompt_action"!'
+    assert actual_two[
+               "message"] == 'Cannot remove collection python linked to action "test_delete_schema_attached_to_prompt_action"!'
     assert actual_two["data"] is None
     assert actual_two["error_code"] == 422
 
@@ -1793,8 +1805,8 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
 def test_content_upload_api_with_gpt_feature_disabled():
     payload = {
         "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
-                    "used to inform decision-making. Data can take many forms, including text, numbers, images, "
-                    "audio, and video.",
+                "used to inform decision-making. Data can take many forms, including text, numbers, images, "
+                "audio, and video.",
         "content_type": "text",
         "collection": "Data_details"}
     response = client.post(
@@ -1824,8 +1836,8 @@ def test_content_upload_api(monkeypatch):
     pytest.content_collection_id = actual_one["data"]["_id"]
     payload = {
         "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
-            "used to inform decision-making. Data can take many forms, including text, numbers, images, "
-            "audio, and video.",
+                "used to inform decision-making. Data can take many forms, including text, numbers, images, "
+                "audio, and video.",
         "content_type": "text",
         "collection": "Details"}
     response = client.post(
@@ -1907,9 +1919,9 @@ def test_content_upload_empty_data_text(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     payload = {
-            "data": "",
-            "content_type": "text",
-        }
+        "data": "",
+        "content_type": "text",
+    }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -1945,8 +1957,8 @@ def test_content_update_api():
         json={
             "row_id": pytest.content_id_text,
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
-                       "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
-                       "you can focus on developing and deploying your applications rather than managing the infrastructure.",
+                    "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
+                    "you can focus on developing and deploying your applications rather than managing the infrastructure.",
             "collection": "Details",
             "content_type": "text"
         },
@@ -2000,8 +2012,8 @@ def test_content_update_api_already_exist():
         json={
             "row_id": content_id,
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
-                       "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
-                       "you can focus on developing and deploying your applications rather than managing the infrastructure.",
+                    "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
+                    "you can focus on developing and deploying your applications rather than managing the infrastructure.",
             "collection": "Details",
             "content_type": "text"
         },
@@ -2039,17 +2051,20 @@ def test_content_update_api_id_not_found():
 @mock.patch('kairon.shared.cognition.processor.CognitionDataProcessor.get_cognition_data', autospec=True)
 def test_list_cognition_data(mock_get_cognition_data, mock_list_cognition_data):
     cognition_data = [{'vector_id': 1,
-                'row_id': '65266ff16f0190ca4fd09898',
-                 'data': 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.',
-                 'content_type': 'text',
-                 'collection': 'aws', 'user': '"integration@demo.ai"', 'bot': pytest.bot}]
+                       'row_id': '65266ff16f0190ca4fd09898',
+                       'data': 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.',
+                       'content_type': 'text',
+                       'collection': 'aws', 'user': '"integration@demo.ai"', 'bot': pytest.bot}]
     row_count = 1
+
     def _list_cognition_data(*args, **kwargs):
         return cognition_data
+
     mock_list_cognition_data.return_value = _list_cognition_data()
 
     def _get_cognition_data(*args, **kwargs):
         return cognition_data, row_count
+
     mock_get_cognition_data.return_value = _get_cognition_data()
 
     filter_query = 'without having to manage'
@@ -2075,7 +2090,8 @@ def test_get_content_without_data():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]['rows'][0]['collection'] == None
-    assert actual["data"]['rows'][0]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+    assert actual["data"]['rows'][0][
+               'data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
     assert actual["data"]['total'] == 1
 
 
@@ -2142,8 +2158,8 @@ def test_delete_payload_content_collection():
 
 def test_payload_upload_api_with_gpt_feature_disabled():
     payload = {
-            "data": {"name": "Nupur", "age": 25, "city": "Bengaluru"},
-            "content_type": "json"}
+        "data": {"name": "Nupur", "age": 25, "city": "Bengaluru"},
+        "content_type": "json"}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -2151,8 +2167,8 @@ def test_payload_upload_api_with_gpt_feature_disabled():
     )
     actual = response.json()
     assert (
-        actual["message"]
-        == "Faq feature is disabled for the bot! Please contact support."
+            actual["message"]
+            == "Faq feature is disabled for the bot! Please contact support."
     )
     assert not actual["data"]
     assert actual["error_code"] == 422
@@ -2177,9 +2193,9 @@ def test_payload_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     payload = {
-            "data": {"details": "AWS"},
-            "content_type": "json",
-            "collection": "Details"
+        "data": {"details": "AWS"},
+        "content_type": "json",
+        "collection": "Details"
     }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -2203,10 +2219,10 @@ def test_payload_upload_collection_does_not_exists(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     payload = {
-            "data": {"name": "Ram", "age": 23, "color": "red"},
-            "content_type": "json",
-            "collection": "test_payload_upload_collection_does_not_exists"
-        }
+        "data": {"name": "Ram", "age": 23, "color": "red"},
+        "content_type": "json",
+        "collection": "test_payload_upload_collection_does_not_exists"
+    }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -2223,10 +2239,10 @@ def test_payload_upload_metadata_missing(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     payload = {
-            "data": {"city": "Pune", "color": "red"},
-            "content_type": "json",
-            "collection": "Details"
-        }
+        "data": {"city": "Pune", "color": "red"},
+        "content_type": "json",
+        "collection": "Details"
+    }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -2252,10 +2268,10 @@ def test_payload_upload_metadata_invalid_data_type(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     payload = {
-            "data": {"age": "Twenty-Three"},
-            "content_type": "json",
-            "collection": "test_payload_upload_metadata_invalid_data_type"
-        }
+        "data": {"age": "Twenty-Three"},
+        "content_type": "json",
+        "collection": "test_payload_upload_metadata_invalid_data_type"
+    }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -2290,9 +2306,9 @@ def test_payload_upload_json_data_content_type_text(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     payload = {
-            "data": {"age": 23},
-            "content_type": "text",
-        }
+        "data": {"age": 23},
+        "content_type": "text",
+    }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -2300,7 +2316,8 @@ def test_payload_upload_json_data_content_type_text(monkeypatch):
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'content type and type of data do not match!', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', '__root__'], 'msg': 'content type and type of data do not match!', 'type': 'value_error'}]
 
 
 def test_payload_updated_api():
@@ -2356,7 +2373,7 @@ def test_payload_content_update_api_id_not_found():
             "row_id": payload_id,
             "data": {"details": "data"},
             "content_type": "json",
-            },
+        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
     )
@@ -3002,8 +3019,8 @@ def test_add_prompt_action_with_gpt_feature_disabled():
     )
     actual = response.json()
     assert (
-        actual["message"]
-        == "Faq feature is disabled for the bot! Please contact support."
+            actual["message"]
+            == "Faq feature is disabled for the bot! Please contact support."
     )
     assert not actual["data"]
     assert not actual["success"]
@@ -3021,7 +3038,7 @@ def test_add_prompt_action(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
-              "llm_prompts": [
+        "llm_prompts": [
             {
                 "name": "System Prompt",
                 "data": "You are a personal assistant.",
@@ -3439,7 +3456,7 @@ def test_update_prompt_action_with_query_prompt_with_false():
 def test_update_prompt_action():
     action = {
         "name": "test_update_prompt_action", 'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-              "llm_prompts": [
+        "llm_prompts": [
             {
                 "name": "System Prompt",
                 "data": "You are a personal assistant.",
@@ -3530,8 +3547,8 @@ def test_delete_prompt_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"]
-        == 'Action with name "non_existent_kairon_faq_action" not found'
+            actual["message"]
+            == 'Action with name "non_existent_kairon_faq_action" not found'
     )
 
 
@@ -3737,10 +3754,11 @@ def test_list_entities():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
-                                                   'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
-                                                   'audio', 'image', 'doc_url', 'document', 'video', 'order', 'latitude',
-                                                   'longitude', 'flow_reply', 'http_status_code'}
+    expected = {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
+                'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
+                'audio', 'image', 'doc_url', 'document', 'video', 'order', 'latitude',
+                'longitude', 'flow_reply', 'http_status_code', 'name'}
+    assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
 
@@ -3865,8 +3883,8 @@ def test_upload_using_event_failure(monkeypatch):
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert (
-        actual["message"]
-        == "Failed to trigger data_importer event: Failed to trigger url"
+            actual["message"]
+            == "Failed to trigger data_importer event: Failed to trigger url"
     )
 
 
@@ -4108,26 +4126,28 @@ def test_get_data_importer_logs():
     del actual['data']["logs"][1]['end_timestamp']
     del actual['data']["logs"][1]['files_received']
     assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
-                                 'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
-                                 'domain': {'intents_count': 19, 'actions_count': 23, 'slots_count': 10,
-                                            'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
-                                 'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
-                                 'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
-                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
-                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
-                                             {'type': 'email_actions', 'count': 0, 'data': []},
-                                             {'type': 'google_search_actions', 'count': 0, 'data': []},
-                                             {'type': 'jira_actions', 'count': 0, 'data': []},
-                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
-                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
-                                             {'type': 'prompt_actions', 'count': 0, 'data': []},
-                                             {'type': 'razorpay_actions', 'count': 0, 'data': []},
-                                             {'type': 'pyscript_actions', 'count': 0, 'data': []}],
+                                         'stories': {'count': 16, 'data': []},
+                                         'training_examples': {'count': 192, 'data': []},
+                                         'domain': {'intents_count': 19, 'actions_count': 23, 'slots_count': 10,
+                                                    'utterances_count': 14, 'forms_count': 2, 'entities_count': 8,
+                                                    'data': []},
+                                         'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
+                                         'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
+                                                     {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                                     {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                                     {'type': 'email_actions', 'count': 0, 'data': []},
+                                                     {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                                     {'type': 'jira_actions', 'count': 0, 'data': []},
+                                                     {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                                     {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
+                                                     {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                                     {'type': 'razorpay_actions', 'count': 0, 'data': []},
+                                                     {'type': 'pyscript_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'user_actions': {'count': 7, 'data': []},
-                                 'exception': '',
-                                 'is_data_uploaded': True,
-                                 'status': 'Success', 'event_status': 'Completed'}
+                                         'exception': '',
+                                         'is_data_uploaded': True,
+                                         'status': 'Success', 'event_status': 'Completed'}
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][2]['status'] == 'Failure'
     assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
@@ -4155,20 +4175,21 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][3]['training_examples']['count'] == 305
     assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
     assert actual['data']["logs"][3]['domain'] == {'intents_count': 32, 'actions_count': 41, 'slots_count': 11,
-                                           'utterances_count': 27, 'forms_count': 2, 'entities_count': 9, 'data': []}
+                                                   'utterances_count': 27, 'forms_count': 2, 'entities_count': 9,
+                                                   'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
     assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
-                                            {'type': 'slot_set_actions', 'count': 0, 'data': []},
-                                            {'type': 'form_validation_actions', 'count': 0, 'data': []},
-                                            {'type': 'email_actions', 'count': 0, 'data': []},
-                                            {'type': 'google_search_actions', 'count': 1, 'data': []},
-                                            {'type': 'jira_actions', 'count': 0, 'data': []},
-                                            {'type': 'zendesk_actions', 'count': 0, 'data': []},
-                                            {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
-                                            {'type': 'prompt_actions', 'count': 0, 'data': []},
-                                            {'type': 'razorpay_actions', 'count': 0, 'data': []},
-                                            {'type': 'pyscript_actions', 'count': 0, 'data': []}
-                                            ]
+                                                    {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                                    {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                                    {'type': 'email_actions', 'count': 0, 'data': []},
+                                                    {'type': 'google_search_actions', 'count': 1, 'data': []},
+                                                    {'type': 'jira_actions', 'count': 0, 'data': []},
+                                                    {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                                    {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
+                                                    {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                                    {'type': 'razorpay_actions', 'count': 0, 'data': []},
+                                                    {'type': 'pyscript_actions', 'count': 0, 'data': []}
+                                                    ]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config', 'multiflow_stories'}
@@ -4432,8 +4453,8 @@ def test_add_invalid_slots_type():
 
     actual = response.json()
     assert (
-        actual["message"][0]["msg"]
-        == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'list', 'text', 'bool', 'any'"
+            actual["message"][0]["msg"]
+            == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'list', 'text', 'bool', 'any'"
     )
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -4515,8 +4536,8 @@ def test_edit_invalid_slots_type():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"][0]["msg"]
-        == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'list', 'text', 'bool', 'any'"
+            actual["message"][0]["msg"]
+            == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'list', 'text', 'bool', 'any'"
     )
 
 
@@ -4596,7 +4617,6 @@ def test_get_training_examples():
 
 
 def test_training_example_exists():
-
     response = client.get(
         f"/api/bot/{pytest.bot}/training_examples/exists/hey",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -4679,7 +4699,7 @@ def test_add_training_examples_duplicate():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert (
-        actual["data"][0]["message"] == "Training Example exists in intent: ['greet']"
+            actual["data"][0]["message"] == "Training Example exists in intent: ['greet']"
     )
     assert actual["data"][0]["_id"] is None
 
@@ -4694,8 +4714,8 @@ def test_add_empty_training_examples():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert (
-        actual["data"][0]["message"]
-        == "Training Example cannot be empty or blank spaces"
+            actual["data"][0]["message"]
+            == "Training Example cannot be empty or blank spaces"
     )
     assert actual["data"][0]["_id"] is None
 
@@ -5005,8 +5025,8 @@ def test_remove_utterance_attached_to_story():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"]
-        == 'Cannot remove action "utter_greet" linked to flow "greet again"'
+            actual["message"]
+            == 'Cannot remove action "utter_greet" linked to flow "greet again"'
     )
 
 
@@ -6030,10 +6050,10 @@ def test_add_multiflow_story_invalid_event_type():
         {
             "loc": ["body", "steps", 0, "step", "type"],
             "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', "
-            "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
-            "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
-            "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
-            "'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
+                   "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
+                   "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
+                   "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
+                   "'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -6505,10 +6525,10 @@ def test_update_multiflow_story_invalid_event_type():
         {
             "loc": ["body", "steps", 0, "step", "type"],
             "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', "
-            "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
-            "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
-            "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
-            "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
+                   "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
+                   "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
+                   "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
+                   "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -7156,8 +7176,8 @@ def test_integration_token():
     assert token["data"]["access_token"]
     assert token["data"]["token_type"]
     assert (
-        token["message"]
-        == """This token will be shown only once. Please copy this somewhere safe. 
+            token["message"]
+            == """This token will be shown only once. Please copy this somewhere safe. 
             It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
     )
 
@@ -7165,8 +7185,8 @@ def test_integration_token():
         "/api/user/details",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
     ).json()
@@ -7177,8 +7197,8 @@ def test_integration_token():
         "/api/account/bot",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
     ).json()
@@ -7195,8 +7215,8 @@ def test_integration_token():
         f"/api/bot/{pytest.bot}/intents",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
     )
@@ -7210,8 +7230,8 @@ def test_integration_token():
         f"/api/bot/{pytest.bot}/intents",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
         json={"data": "integration"},
@@ -7236,16 +7256,16 @@ def test_integration_token_missing_x_user():
     assert actual["data"]["access_token"]
     assert actual["data"]["token_type"]
     assert (
-        actual["message"]
-        == """This token will be shown only once. Please copy this somewhere safe. 
+            actual["message"]
+            == """This token will be shown only once. Please copy this somewhere safe. 
             It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
     )
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
         headers={
             "Authorization": actual["data"]["token_type"]
-            + " "
-            + actual["data"]["access_token"]
+                             + " "
+                             + actual["data"]["access_token"]
         },
     )
     actual = response.json()
@@ -7561,7 +7581,6 @@ def test_save_history_endpoint():
 
 @responses.activate
 def test_save_endpoint(monkeypatch):
-
     monkeypatch.setitem(
         Utility.environment["model"]["agent"], "url", "http://localhost/"
     )
@@ -7735,7 +7754,10 @@ def test_reload_model(monkeypatch):
     logs = processor.get_logs(pytest.bot, "audit_logs", start_time, end_time)
     logs[0].pop('timestamp')
     logs[0].pop('_id')
-    assert logs[0] == {'attributes': [{'key': 'bot', 'value': pytest.bot}], 'user': 'integration@demo.ai', 'action': 'activity', 'entity': 'model_reload', 'data': {'message': None, 'username': 'integration@demo.ai', 'exception': None, 'status': 'Initiated'}}
+    assert logs[0] == {'attributes': [{'key': 'bot', 'value': pytest.bot}], 'user': 'integration@demo.ai',
+                       'action': 'activity', 'entity': 'model_reload',
+                       'data': {'message': None, 'username': 'integration@demo.ai', 'exception': None,
+                                'status': 'Initiated'}}
 
 
 @responses.activate
@@ -7940,7 +7962,8 @@ def test_api_login_with_account_not_verified():
     assert actual["data"] is None
     assert actual["message"] == "Please verify your mail"
     value = list(
-        AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login').order_by("-timestamp")
+        AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login').order_by(
+            "-timestamp")
     )[0]
     assert value["entity"] == "invalid_login"
     assert value["timestamp"]
@@ -7964,8 +7987,8 @@ def test_account_registration_with_confirmation(monkeypatch):
     )
     actual = response.json()
     assert (
-        actual["message"]
-        == "Account Registered! A confirmation link has been sent to your mail"
+            actual["message"]
+            == "Account Registered! A confirmation link has been sent to your mail"
     )
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -7996,8 +8019,8 @@ def test_account_registration_with_confirmation(monkeypatch):
         "/api/account/bot",
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     pytest.add_member_bot = response["data"]["account_owned"][0]["_id"]
@@ -8042,8 +8065,8 @@ def test_add_member(monkeypatch):
         json={"email": "integration@demo.ai", "role": "tester"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "An invitation has been sent to the user"
@@ -8055,8 +8078,8 @@ def test_add_member(monkeypatch):
         json={"email": "integration2@demo.ai", "role": "designer"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "An invitation has been sent to the user"
@@ -8068,8 +8091,8 @@ def test_add_member(monkeypatch):
         json={"email": "integrationtest@demo.ai", "role": "designer"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "An invitation has been sent to the user"
@@ -8082,8 +8105,8 @@ def test_add_member_invalid_email():
     api_key = "test"
     email = "integration@demo.ai"
     with patch.dict(
-        Utility.environment,
-        {"verify": {"email": {"type": "quickemail", "key": api_key, "enable": True}}},
+            Utility.environment,
+            {"verify": {"email": {"type": "quickemail", "key": api_key, "enable": True}}},
     ):
         responses.add(
             responses.GET,
@@ -8113,8 +8136,8 @@ def test_add_member_invalid_email():
             json={"email": email, "role": "tester"},
             headers={
                 "Authorization": pytest.add_member_token_type
-                + " "
-                + pytest.add_member_token
+                                 + " "
+                                 + pytest.add_member_token
             },
         ).json()
         assert response["message"] == [
@@ -8134,8 +8157,8 @@ def test_add_member_as_owner(monkeypatch):
         json={"email": "integration@demo.ai", "role": "owner"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == [
@@ -8159,12 +8182,12 @@ def test_list_bot_invites():
         "/api/user/invites/active",
         headers={
             "Authorization": response["data"]["token_type"]
-            + " "
-            + response["data"]["access_token"]
+                             + " "
+                             + response["data"]["access_token"]
         },
     ).json()
     assert (
-        response["data"]["active_invites"][0]["accessor_email"] == "integration@demo.ai"
+            response["data"]["active_invites"][0]["accessor_email"] == "integration@demo.ai"
     )
     assert response["data"]["active_invites"][0]["role"] == "tester"
     assert response["data"]["active_invites"][0]["bot_name"] == "Hi-Hello"
@@ -8208,8 +8231,8 @@ def test_search_users(monkeypatch):
         json={"data": "inte"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["data"]["matching_users"] == [
@@ -8227,8 +8250,8 @@ def test_transfer_ownership_to_user_not_a_member(monkeypatch):
         json={"data": "integration@demo.ai"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "User is yet to accept the invite"
@@ -8274,13 +8297,13 @@ def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
         "/api/user/invites/active",
         headers={
             "Authorization": actual["data"]["token_type"]
-            + " "
-            + actual["data"]["access_token"]
+                             + " "
+                             + actual["data"]["access_token"]
         },
     ).json()
     assert (
-        response["data"]["active_invites"][0]["accessor_email"]
-        == "integrationtest@demo.ai"
+            response["data"]["active_invites"][0]["accessor_email"]
+            == "integrationtest@demo.ai"
     )
     assert response["data"]["active_invites"][0]["role"] == "designer"
     assert response["data"]["active_invites"][0]["bot_name"] == "Hi-Hello"
@@ -8292,8 +8315,8 @@ def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
         f"/api/user/{pytest.add_member_bot}/member/invite/accept",
         headers={
             "Authorization": actual["data"]["token_type"]
-            + " "
-            + actual["data"]["access_token"]
+                             + " "
+                             + actual["data"]["access_token"]
         },
     ).json()
     Utility.email_conf["email"]["enable"] = False
@@ -8321,13 +8344,13 @@ def test_accept_bot_invite_logged_in_user():
         "/api/user/invites/active",
         headers={
             "Authorization": actual["data"]["token_type"]
-            + " "
-            + actual["data"]["access_token"]
+                             + " "
+                             + actual["data"]["access_token"]
         },
     ).json()
     assert (
-        response["data"]["active_invites"][0]["accessor_email"]
-        == "integration2@demo.ai"
+            response["data"]["active_invites"][0]["accessor_email"]
+            == "integration2@demo.ai"
     )
     assert response["data"]["active_invites"][0]["role"] == "designer"
     assert response["data"]["active_invites"][0]["bot_name"] == "Hi-Hello"
@@ -8336,8 +8359,8 @@ def test_accept_bot_invite_logged_in_user():
         f"/api/user/{pytest.add_member_bot}/member/invite/accept",
         headers={
             "Authorization": actual["data"]["token_type"]
-            + " "
-            + actual["data"]["access_token"]
+                             + " "
+                             + actual["data"]["access_token"]
         },
     ).json()
     assert response["message"] == "Invitation accepted"
@@ -8350,8 +8373,8 @@ def test_list_bot_invites_none():
         f"/api/user/invites/active",
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["data"]["active_invites"] == []
@@ -8365,8 +8388,8 @@ def test_add_member_email_disabled():
         json={"email": "integration_email_false@demo.ai", "role": "designer"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "User added"
@@ -8379,8 +8402,8 @@ def test_list_members():
         f"/api/user/{pytest.add_member_bot}/member",
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["error_code"] == 0
@@ -8410,8 +8433,8 @@ def test_transfer_ownership(monkeypatch):
         json={"data": "integration@demo.ai"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "Ownership transferred"
@@ -8422,8 +8445,8 @@ def test_transfer_ownership(monkeypatch):
         f"/api/user/{pytest.add_member_bot}/member",
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["error_code"] == 0
@@ -8455,8 +8478,8 @@ def test_list_members_2():
         f"/api/user/{bot}/member",
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["error_code"] == 422
@@ -8485,8 +8508,8 @@ def test_update_member_role_not_exists(monkeypatch):
         json={"email": "user@kairon.ai", "role": "admin", "status": "inactive"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "User not yet invited to collaborate"
@@ -8504,8 +8527,8 @@ def test_update_member_role(monkeypatch):
         },
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "User does not exist!"
@@ -8537,8 +8560,8 @@ def test_update_member_role(monkeypatch):
         },
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "User access updated"
@@ -8551,8 +8574,8 @@ def test_delete_member():
         f"/api/user/{pytest.add_member_bot}/member/integration_email_false@demo.ai",
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "User removed"
@@ -8566,8 +8589,8 @@ def test_add_deleted_member_and_updated_role():
         json={"email": "integration_email_false@demo.ai", "role": "designer"},
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "User added"
@@ -8583,8 +8606,8 @@ def test_add_deleted_member_and_updated_role():
         },
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "User access updated"
@@ -8597,8 +8620,8 @@ def test_remove_self():
         f"/api/user/{pytest.add_member_bot}/member/integ1@gmail.com",
         headers={
             "Authorization": pytest.add_member_token_type
-            + " "
-            + pytest.add_member_token
+                             + " "
+                             + pytest.add_member_token
         },
     ).json()
     assert response["message"] == "User cannot remove himself"
@@ -8847,8 +8870,8 @@ def test_train_insufficient_data(monkeypatch):
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert (
-        actual["message"]
-        == "Please add at least 2 flows and 2 intents before training the bot!"
+            actual["message"]
+            == "Please add at least 2 flows and 2 intents before training the bot!"
     )
 
 
@@ -8904,8 +8927,8 @@ def test_reset_password_for_valid_id(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert (
-        actual["message"]
-        == "Success! A password reset link has been sent to your mail id"
+            actual["message"]
+            == "Success! A password reset link has been sent to your mail id"
     )
     assert actual["data"] is None
 
@@ -9040,8 +9063,8 @@ def test_add_and_delete_intents_by_integration_user():
         f"/api/bot/{pytest.bot}/intents",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
         json={"data": "integration_intent"},
@@ -9056,8 +9079,8 @@ def test_add_and_delete_intents_by_integration_user():
         f"/api/bot/{pytest.bot}/intents/integration_intent",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration1",
         },
     )
@@ -9100,8 +9123,8 @@ def test_add_non_integration_intent_and_delete_intent_by_integration_user():
         f"/api/bot/{pytest.bot}/intents/non_integration_intent",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration1",
         },
     )
@@ -9376,7 +9399,8 @@ def test_add_vectordb_action_empty_collection_name():
     actual = response.json()
 
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', 'collection'], 'msg': 'collection is required', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'collection'], 'msg': 'collection is required', 'type': 'value_error'}]
     assert not actual["success"]
 
 
@@ -9399,7 +9423,8 @@ def test_add_vectordb_action_empty_operation_value():
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'query_type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search'",
-                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['payload_search', 'embedding_search']}}]
+                                  'type': 'type_error.enum',
+                                  'ctx': {'enum_values': ['payload_search', 'embedding_search']}}]
     assert not actual["success"]
 
 
@@ -9504,9 +9529,10 @@ def test_add_vectordb_action(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [{"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                         {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+                         {"column_name": "color", "data_type": "str", "enable_search": True,
+                          "create_embeddings": True}],
             "collection_name": "test_add_vectordb_action"
-    },
+        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -10095,8 +10121,8 @@ def test_add_http_action_with_valid_dispatch_type():
     assert actual["data"]["request_method"] == "GET"
     assert len(actual["data"]["params_list"]) == 0
     assert (
-        actual["data"]["dynamic_params"]
-        == '{"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}"}'
+            actual["data"]["dynamic_params"]
+            == '{"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}"}'
     )
 
 
@@ -10209,8 +10235,8 @@ def test_update_http_action_with_dynamic_params():
     assert actual["data"]["request_method"] == "POST"
     assert len(actual["data"]["params_list"]) == 0
     assert (
-        actual["data"]["dynamic_params"]
-        == '{"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}"}'
+            actual["data"]["dynamic_params"]
+            == '{"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}"}'
     )
     assert actual["data"]["headers"] == [
         {
@@ -10308,8 +10334,8 @@ def test_get_http_action():
     actual = response.json()
     assert actual["error_code"] == 0
     assert (
-        actual["data"]["action_name"]
-        == "test_add_http_action_with_sender_id_parameter_type"
+            actual["data"]["action_name"]
+            == "test_add_http_action_with_sender_id_parameter_type"
     )
     assert actual["data"]["response"] == {
         "value": "string",
@@ -10742,7 +10768,12 @@ def test_update_http_action_wrong_parameter():
     actual = response.json()
     assert actual["error_code"] == 422
     print(actual["message"])
-    assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'], 'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault']}}, {'loc': ['body', 'set_slots', 0, 'name'], 'msg': 'slot name is required', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'",
+                                  'type': 'type_error.enum', 'ctx': {
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log',
+                            'key_vault']}}, {'loc': ['body', 'set_slots', 0, 'name'], 'msg': 'slot name is required',
+                                             'type': 'value_error'}]
 
     assert not actual["success"]
 
@@ -10766,7 +10797,13 @@ def test_update_http_action_wrong_parameter():
     actual = response.json()
     assert actual["error_code"] == 422
     print(actual["message"])
-    assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'], 'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault']}}, {'loc': ['body', 'set_slots', 0, 'value'], 'msg': 'expression is required to evaluate value of slot', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'",
+                                  'type': 'type_error.enum', 'ctx': {
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log',
+                            'key_vault']}}, {'loc': ['body', 'set_slots', 0, 'value'],
+                                             'msg': 'expression is required to evaluate value of slot',
+                                             'type': 'value_error'}]
 
     assert not actual["success"]
 
@@ -10790,7 +10827,15 @@ def test_update_http_action_wrong_parameter():
     actual = response.json()
     assert actual["error_code"] == 422
     print(actual["message"])
-    assert actual["message"] == [{'loc': ['body', 'response', '__root__'], 'msg': 'response is required for dispatch', 'type': 'value_error'}, {'loc': ['body', 'params_list', 0, 'parameter_type'], 'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault']}}, {'loc': ['body', 'set_slots', 0, 'value'], 'msg': 'expression is required to evaluate value of slot', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'response', '__root__'], 'msg': 'response is required for dispatch', 'type': 'value_error'},
+        {'loc': ['body', 'params_list', 0, 'parameter_type'],
+         'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'",
+         'type': 'type_error.enum', 'ctx': {
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log',
+                            'key_vault']}},
+        {'loc': ['body', 'set_slots', 0, 'value'], 'msg': 'expression is required to evaluate value of slot',
+         'type': 'value_error'}]
 
     assert not actual["success"]
 
@@ -10915,20 +10960,31 @@ def test_list_actions():
     print(actual['data'])
     assert actual['data'] == {'actions': ['action_greet'],
                               'database_action': ['vectordb_action_test', 'vectordb_action_case_insensitive',
-                                                  'test_add_vectordb_action_existing', 'test_add_vectordb_action_with_slots',
-                                                  'test_update_vectordb_action', 'test_update_vectordb_action_non_existing',
-                                                  'test_update_vector_action_1', 'test_delete_vectordb_action_non_existing'],
-                              'http_action': ['test_add_http_action_no_token', 'test_add_http_action_with_valid_dispatch_type',
-                                              'test_add_http_action_with_dynamic_params', 'test_update_http_action_with_dynamic_params',
+                                                  'test_add_vectordb_action_existing',
+                                                  'test_add_vectordb_action_with_slots',
+                                                  'test_update_vectordb_action',
+                                                  'test_update_vectordb_action_non_existing',
+                                                  'test_update_vector_action_1',
+                                                  'test_delete_vectordb_action_non_existing'],
+                              'http_action': ['test_add_http_action_no_token',
+                                              'test_add_http_action_with_valid_dispatch_type',
+                                              'test_add_http_action_with_dynamic_params',
+                                              'test_update_http_action_with_dynamic_params',
                                               'test_add_http_action_with_sender_id_parameter_type',
-                                              'test_add_http_action_with_token_and_story', 'test_add_http_action_no_params',
+                                              'test_add_http_action_with_token_and_story',
+                                              'test_add_http_action_no_params',
                                               'test_add_http_action_existing', 'test_update_http_action',
-                                              'test_update_http_action_6', 'test_update_http_action_non_existing', 'new_http_action4'],
+                                              'test_update_http_action_6', 'test_update_http_action_non_existing',
+                                              'new_http_action4'],
                               'utterances': ['utter_greet', 'utter_cheer_up', 'utter_did_that_help', 'utter_happy',
-                                             'utter_goodbye', 'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
-                              'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [],
-                              'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],'hubspot_forms_action': [],
-                              'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [],
+                                             'utter_goodbye', 'utter_iamabot', 'utter_default',
+                                             'utter_please_rephrase'],
+                              'slot_set_action': [], 'form_validation_action': [], 'email_action': [],
+                              'google_search_action': [],
+                              'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+                              'hubspot_forms_action': [],
+                              'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
+                              'prompt_action': [],
                               'pyscript_action': [], 'web_search_action': []}
 
     assert actual["success"]
@@ -11206,7 +11262,7 @@ def test_fetch_latest(monkeypatch):
 
 async def mock_upload(doc):
     if not (
-        doc.filename.lower().endswith(".pdf") or doc.filename.lower().endswith(".docx")
+            doc.filename.lower().endswith(".pdf") or doc.filename.lower().endswith(".docx")
     ):
         raise AppException("Invalid File Format")
 
@@ -11253,8 +11309,8 @@ def test_file_upload_docx(mock_file_upload, monkeypatch):
 
     actual = response.json()
     assert (
-        actual["message"]
-        == "File uploaded successfully and training data generation has begun"
+            actual["message"]
+            == "File uploaded successfully and training data generation has begun"
     )
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -11277,8 +11333,8 @@ def test_file_upload_pdf(mock_file_upload, monkeypatch):
 
     actual = response.json()
     assert (
-        actual["message"]
-        == "File uploaded successfully and training data generation has begun"
+            actual["message"]
+            == "File uploaded successfully and training data generation has begun"
     )
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -12136,8 +12192,8 @@ def test_upload_with_http_error():
     assert actual["data"]["logs"][0]["start_timestamp"]
     print(actual["data"]["logs"][0]["actions"])
     assert (
-        "Required http action fields"
-        in actual["data"]["logs"][0]["actions"][0]["data"][0]
+            "Required http action fields"
+            in actual["data"]["logs"][0]["actions"][0]["data"][0]
     )
     assert actual["data"]["logs"][0]["config"]["data"] == ["Invalid component XYZ"]
 
@@ -12186,16 +12242,16 @@ def test_upload_actions_and_config():
     assert actual['data']["logs"][0]['start_timestamp']
     assert actual['data']["logs"][0]['end_timestamp']
     assert actual['data']["logs"][0]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
-                                            {'type': 'slot_set_actions', 'count': 0, 'data': []},
-                                            {'type': 'form_validation_actions', 'count': 0, 'data': []},
-                                            {'type': 'email_actions', 'count': 0, 'data': []},
-                                            {'type': 'google_search_actions', 'count': 1, 'data': []},
-                                            {'type': 'jira_actions', 'count': 0, 'data': []},
-                                            {'type': 'zendesk_actions', 'count': 0, 'data': []},
-                                            {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0},
-                                            {'type': 'prompt_actions', 'data': [], 'count': 0},
-                                            {'type': 'razorpay_actions', 'data': [], 'count': 0},
-                                            {'type': 'pyscript_actions', 'data': [], 'count': 0}]
+                                                    {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                                    {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                                    {'type': 'email_actions', 'count': 0, 'data': []},
+                                                    {'type': 'google_search_actions', 'count': 1, 'data': []},
+                                                    {'type': 'jira_actions', 'count': 0, 'data': []},
+                                                    {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                                    {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0},
+                                                    {'type': 'prompt_actions', 'data': [], 'count': 0},
+                                                    {'type': 'razorpay_actions', 'data': [], 'count': 0},
+                                                    {'type': 'pyscript_actions', 'data': [], 'count': 0}]
     assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
@@ -12466,7 +12522,6 @@ def test_set_epoch_and_fallback_negative_epochs():
 
 
 def test_set_epoch_and_fallback_max_epochs():
-
     epoch_max_limit = Utility.environment["model"]["config_properties"][
         "epoch_max_limit"
     ]
@@ -12906,18 +12961,18 @@ def test_refresh_token(monkeypatch):
     ate = actual["data"]["headers"]["authorization"]["access_token_expiry"]
     rte = actual["data"]["headers"]["authorization"]["refresh_token_expiry"]
     assert (
-        31
-        >= round(
-            (datetime.utcfromtimestamp(ate) - datetime.utcnow()).total_seconds() / 60
-        )
-        >= 29
+            31
+            >= round(
+        (datetime.utcfromtimestamp(ate) - datetime.utcnow()).total_seconds() / 60
+    )
+            >= 29
     )
     assert (
-        61
-        >= round(
-            (datetime.utcfromtimestamp(rte) - datetime.utcnow()).total_seconds() / 60
-        )
-        >= 59
+            61
+            >= round(
+        (datetime.utcfromtimestamp(rte) - datetime.utcnow()).total_seconds() / 60
+    )
+            >= 59
     )
     refresh_token = actual["data"]["headers"]["authorization"]["refresh_token"]
 
@@ -12933,10 +12988,10 @@ def test_refresh_token(monkeypatch):
     assert actual["data"]["token_type"]
     assert actual["data"]["refresh_token"]
     assert (
-        actual["message"]
-        == "This token will be shown only once. Please copy this somewhere safe."
-        "It is your responsibility to keep the token secret. "
-        "If leaked, others may have access to your system."
+            actual["message"]
+            == "This token will be shown only once. Please copy this somewhere safe."
+               "It is your responsibility to keep the token secret. "
+               "If leaked, others may have access to your system."
     )
     new_token = actual["data"]["access_token"]
     token_type = actual["data"]["token_type"]
@@ -13381,7 +13436,7 @@ def test_add_regex_empty_pattern():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"][0]["msg"] == "Regex pattern cannot be empty or a blank space"
+            actual["message"][0]["msg"] == "Regex pattern cannot be empty or a blank space"
     )
 
 
@@ -13736,7 +13791,7 @@ def test_add_lookup_empty_value_element():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"][0]["msg"] == "lookup value cannot be empty or a blank space"
+            actual["message"][0]["msg"] == "lookup value cannot be empty or a blank space"
     )
 
 
@@ -13913,7 +13968,8 @@ def test_add_empty_slot_mapping():
 
     response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
-        json={"slot": "num_people", "mapping": [{"type": "from_text", "conditions": [{"requested_slot": "num_people"}]}]},
+        json={"slot": "num_people",
+              "mapping": [{"type": "from_text", "conditions": [{"requested_slot": "num_people"}]}]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -14035,7 +14091,8 @@ def test_add_form():
         json={
             "slot": "preferences",
             "mapping": [
-                {"type": "from_text", "not_intent": ["affirm"], "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
+                {"type": "from_text", "not_intent": ["affirm"],
+                 "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
                 {
                     "type": "from_intent",
                     "intent": ["affirm"],
@@ -14310,23 +14367,23 @@ def test_get_form_with_no_validations():
     assert form["settings"][4]["ask_questions"][0]["_id"]
     assert form["settings"][5]["ask_questions"][0]["_id"]
     assert (
-        form["settings"][0]["ask_questions"][0]["value"]["text"]
-        == "please give us your name?"
+            form["settings"][0]["ask_questions"][0]["value"]["text"]
+            == "please give us your name?"
     )
     assert form["settings"][1]["ask_questions"][0]["value"]["text"] == "seats required?"
     assert (
-        form["settings"][2]["ask_questions"][0]["value"]["text"] == "type of cuisine?"
+            form["settings"][2]["ask_questions"][0]["value"]["text"] == "type of cuisine?"
     )
     assert (
-        form["settings"][3]["ask_questions"][0]["value"]["text"]
-        == "outdoor seating required?"
+            form["settings"][3]["ask_questions"][0]["value"]["text"]
+            == "outdoor seating required?"
     )
     assert (
-        form["settings"][4]["ask_questions"][0]["value"]["text"] == "any preferences?"
+            form["settings"][4]["ask_questions"][0]["value"]["text"] == "any preferences?"
     )
     assert (
-        form["settings"][5]["ask_questions"][0]["value"]["text"]
-        == "Please give your feedback on your experience so far"
+            form["settings"][5]["ask_questions"][0]["value"]["text"]
+            == "Please give your feedback on your experience so far"
     )
     assert form["settings"][0]["slot_set"] == {"type": "custom", "value": "Mahesh"}
     assert form["settings"][1]["slot_set"] == {"type": "current", "value": 10}
@@ -14345,17 +14402,17 @@ def test_get_form_with_no_validations():
     actual = response.json()
     saved_responses = {response["name"] for response in actual["data"]}
     assert (
-        len(
-            {
-                "utter_ask_restaurant_form_name",
-                "utter_ask_restaurant_form_num_people",
-                "utter_ask_restaurant_form_cuisine",
-                "utter_ask_restaurant_form_outdoor_seating",
-                "utter_ask_restaurant_form_preferences",
-                "utter_ask_restaurant_form_feedback",
-            }.difference(saved_responses)
-        )
-        == 0
+            len(
+                {
+                    "utter_ask_restaurant_form_name",
+                    "utter_ask_restaurant_form_num_people",
+                    "utter_ask_restaurant_form_cuisine",
+                    "utter_ask_restaurant_form_outdoor_seating",
+                    "utter_ask_restaurant_form_preferences",
+                    "utter_ask_restaurant_form_feedback",
+                }.difference(saved_responses)
+            )
+            == 0
     )
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -14609,16 +14666,16 @@ def test_get_form_with_validations():
     assert form["settings"][2]["ask_questions"][0]["value"]["text"]
     assert form["settings"][3]["ask_questions"][0]["value"]["text"]
     assert (
-        form["settings"][0]["validation_semantic"]
-        == "if (&& name.contains('i') && name.length() > 4 || "
-        "!name.contains("
-        ")) {return true;} else {return false;}"
+            form["settings"][0]["validation_semantic"]
+            == "if (&& name.contains('i') && name.length() > 4 || "
+               "!name.contains("
+               ")) {return true;} else {return false;}"
     )
     assert form["settings"][0]["is_required"]
     assert form["settings"][0]["slot_set"] == {"type": "custom", "value": "Mahesh"}
     assert (
-        form["settings"][1]["validation_semantic"]
-        == "if (age > 10 && age < 70) {return true;} else {return false;}"
+            form["settings"][1]["validation_semantic"]
+            == "if (age > 10 && age < 70) {return true;} else {return false;}"
     )
     assert form["settings"][1]["is_required"]
     assert form["settings"][1]["slot_set"] == {"type": "current", "value": 22}
@@ -14626,11 +14683,11 @@ def test_get_form_with_validations():
     assert form["settings"][2]["is_required"]
     assert form["settings"][2]["slot_set"] == {"type": "custom", "value": "Bangalore"}
     assert (
-        form["settings"][3]["validation_semantic"]
-        == "if (occupation in ['teacher', 'programmer', 'student', 'manager'] "
-        "&& !occupation.contains("
-        ") && occupation.length() > 20) "
-        "{return true;} else {return false;}"
+            form["settings"][3]["validation_semantic"]
+            == "if (occupation in ['teacher', 'programmer', 'student', 'manager'] "
+               "&& !occupation.contains("
+               ") && occupation.length() > 20) "
+               "{return true;} else {return false;}"
     )
     assert not form["settings"][3]["is_required"]
     assert form["settings"][3]["slot_set"] == {"type": "slot", "value": "occupation"}
@@ -14819,35 +14876,35 @@ def test_get_form_after_edit():
     assert form["settings"][4]["ask_questions"][0]["_id"]
     assert form["settings"][5]["ask_questions"][0]["_id"]
     assert (
-        form["settings"][0]["ask_questions"][0]["value"]["text"]
-        == "please give us your name?"
+            form["settings"][0]["ask_questions"][0]["value"]["text"]
+            == "please give us your name?"
     )
     assert form["settings"][1]["ask_questions"][0]["value"]["text"] == "seats required?"
     assert (
-        form["settings"][2]["ask_questions"][0]["value"]["text"] == "type of cuisine?"
+            form["settings"][2]["ask_questions"][0]["value"]["text"] == "type of cuisine?"
     )
     assert (
-        form["settings"][3]["ask_questions"][0]["value"]["text"]
-        == "outdoor seating required?"
+            form["settings"][3]["ask_questions"][0]["value"]["text"]
+            == "outdoor seating required?"
     )
     assert (
-        form["settings"][4]["ask_questions"][0]["value"]["text"] == "any preferences?"
+            form["settings"][4]["ask_questions"][0]["value"]["text"] == "any preferences?"
     )
     assert (
-        form["settings"][5]["ask_questions"][0]["value"]["text"]
-        == "Please give your feedback on your experience so far"
+            form["settings"][5]["ask_questions"][0]["value"]["text"]
+            == "Please give your feedback on your experience so far"
     )
     assert (
-        form["settings"][0]["validation_semantic"]
-        == "if (&& name.contains('i') && name.length() > 4 || "
-        "!name.contains("
-        ")) {return true;} else {return false;}"
+            form["settings"][0]["validation_semantic"]
+            == "if (&& name.contains('i') && name.length() > 4 || "
+               "!name.contains("
+               ")) {return true;} else {return false;}"
     )
     assert form["settings"][0]["is_required"]
     assert form["settings"][0]["slot_set"] == {"type": "custom", "value": "Mahesh"}
     assert (
-        form["settings"][1]["validation_semantic"]
-        == "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
+            form["settings"][1]["validation_semantic"]
+            == "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
     )
     assert not form["settings"][1]["is_required"]
     assert form["settings"][1]["slot_set"] == {"type": "current", "value": None}
@@ -14868,17 +14925,17 @@ def test_get_form_after_edit():
     actual = response.json()
     saved_responses = {response["name"] for response in actual["data"]}
     assert (
-        len(
-            {
-                "utter_ask_restaurant_form_name",
-                "utter_ask_restaurant_form_num_people",
-                "utter_ask_restaurant_form_cuisine",
-                "utter_ask_restaurant_form_outdoor_seating",
-                "utter_ask_restaurant_form_preferences",
-                "utter_ask_restaurant_form_feedback",
-            }.difference(saved_responses)
-        )
-        == 0
+            len(
+                {
+                    "utter_ask_restaurant_form_name",
+                    "utter_ask_restaurant_form_num_people",
+                    "utter_ask_restaurant_form_cuisine",
+                    "utter_ask_restaurant_form_outdoor_seating",
+                    "utter_ask_restaurant_form_preferences",
+                    "utter_ask_restaurant_form_feedback",
+                }.difference(saved_responses)
+            )
+            == 0
     )
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -15051,7 +15108,8 @@ def test_get_slot_mapping():
             {
                 "slot": "preferences",
                 "mapping": [
-                    {"type": "from_text", "not_intent": ["affirm"], "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
+                    {"type": "from_text", "not_intent": ["affirm"],
+                     "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
                     {
                         "type": "from_intent",
                         "value": "no additional preferences",
@@ -15115,7 +15173,8 @@ def test_get_slot_mapping():
         {
             "slot": "preferences",
             "mapping": [
-                {"type": "from_text", "not_intent": ["affirm"], "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
+                {"type": "from_text", "not_intent": ["affirm"],
+                 "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
                 {
                     "type": "from_intent",
                     "value": "no additional preferences",
@@ -16488,7 +16547,7 @@ def test_edit_google_search_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"] == 'Google search action with name "custom_search" not found'
+            actual["message"] == 'Google search action with name "custom_search" not found'
     )
 
 
@@ -16698,7 +16757,6 @@ def test_add_web_search_invalid_parameters_name():
 
 
 def test_edit_web_search_action_not_exists():
-
     action = {
         "name": "custom_search",
         "failure_response": "I have failed to process your request",
@@ -16712,7 +16770,7 @@ def test_edit_web_search_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"] == 'Public search action with name "custom_search" not found'
+            actual["message"] == 'Public search action with name "custom_search" not found'
     )
 
 
@@ -16830,7 +16888,11 @@ def test_add_hubspot_forms_action_invalid_param_type():
     assert not actual["success"]
     assert actual["error_code"] == 422
     print(actual["message"])
-    assert actual["message"] == [{'loc': ['body', 'fields', 0, 'parameter_type'], 'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'", 'type': 'type_error.enum', 'ctx': {'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault']}}]
+    assert actual["message"] == [{'loc': ['body', 'fields', 0, 'parameter_type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'",
+                                  'type': 'type_error.enum', 'ctx': {
+            'enum_values': ['value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log',
+                            'key_vault']}}]
 
 
 def test_add_hubspot_forms_exists():
@@ -17023,14 +17085,14 @@ def test_edit_kairon_two_stage_fallback_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"] == f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'
+            actual["message"] == f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'
     )
 
 
 def test_add_kairon_two_stage_fallback_action():
     action = {
         "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
-        " Or else please rephrase your question.",
+                            " Or else please rephrase your question.",
         "text_recommendations": {"count": 0, "use_intent_ranking": True},
         "trigger_rules": [{"text": "Hi", "payload": "greet"}],
     }
@@ -17062,7 +17124,7 @@ def test_add_kairon_two_stage_fallback_action_exists():
 def test_edit_kairon_two_stage_fallback_action_action():
     action = {
         "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
-        " Or else please rephrase your question.",
+                            " Or else please rephrase your question.",
         "text_recommendations": {"count": 4},
     }
     response = client.put(
@@ -17092,7 +17154,7 @@ def test_get_kairon_two_stage_fallback_action_1():
             "text_recommendations": {"count": 4, "use_intent_ranking": False},
             "trigger_rules": [],
             "fallback_message": "I could not understand you! Did you mean any of the suggestions"
-            " below? Or else please rephrase your question.",
+                                " below? Or else please rephrase your question.",
         }
     ]
 
@@ -17239,8 +17301,8 @@ def test_integration_token_from_one_bot_on_another_bot():
         f"/api/bot/{bot1}/intents",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
     )
@@ -17253,15 +17315,15 @@ def test_integration_token_from_one_bot_on_another_bot():
         f"/api/bot/{pytest.bot}/intents",
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
     )
     actual = response.json()
     assert (
-        actual["message"]
-        == "['owner', 'admin', 'designer', 'tester'] access is required to perform this operation on the bot"
+            actual["message"]
+            == "['owner', 'admin', 'designer', 'tester'] access is required to perform this operation on the bot"
     )
     assert not actual["success"]
     assert actual["error_code"] == 401
@@ -17271,8 +17333,8 @@ def test_integration_token_from_one_bot_on_another_bot():
         json={"data": "hi"},
         headers={
             "Authorization": token["data"]["token_type"]
-            + " "
-            + token["data"]["access_token"],
+                             + " "
+                             + token["data"]["access_token"],
             "X-USER": "integration",
         },
     )
@@ -17400,8 +17462,8 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"]
-        == "Cannot edit secondary slack app. Please delete and install the app again using oAuth."
+            actual["message"]
+            == "Cannot edit secondary slack app. Please delete and install the app again using oAuth."
     )
 
 
@@ -17734,8 +17796,8 @@ def test_initiate_bsp_onboarding_disabled(monkeypatch):
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"]
-        == "Feature disabled for this account. Please contact support!"
+            actual["message"]
+            == "Feature disabled for this account. Please contact support!"
     )
     assert actual["data"] is None
 
@@ -17753,11 +17815,11 @@ def test_initiate_bsp_onboarding(monkeypatch):
     )
 
     with patch(
-        "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account"
+            "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account"
     ) as mock_get_account:
         mock_get_account.return_value = "dfghj5678"
         with patch(
-            "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key"
+                "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key"
         ) as mock_generate_waba_key:
             mock_generate_waba_key.return_value = "dfghjk5678"
             response = client.post(
@@ -17788,16 +17850,16 @@ def test_post_process(monkeypatch):
     )
 
     with patch(
-        "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account"
+            "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account"
     ) as mock_get_account:
         mock_get_account.return_value = "dfghj5678"
         with patch(
-            "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key"
+                "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key"
         ) as mock_generate_waba_key:
             mock_generate_waba_key.return_value = "dfghjk5678"
             with patch(
-                "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.set_webhook_url",
-                autospec=True,
+                    "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.set_webhook_url",
+                    autospec=True,
             ):
                 response = client.post(
                     f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/post_process",
@@ -17817,34 +17879,34 @@ def test_post_process(monkeypatch):
 @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.add_template", autospec=True)
 def test_add_template(mock_add_template):
     data = {
-            "name": "Introduction template",
-            "category": "MARKETING",
-            "components": [
-                {
-                    "format": "TEXT",
-                    "text": "New request",
-                    "type": "HEADER"
-                },
-                {
-                    "type": "BODY",
-                    "text": "Hi {{1}}, thanks for getting in touch with {{2}}. We will process your request get back to you shortly",
-                    "example": {
-                        "body_text": [
-                            [
-                                "Nupur",
-                                "360dialog"
-                            ]
+        "name": "Introduction template",
+        "category": "MARKETING",
+        "components": [
+            {
+                "format": "TEXT",
+                "text": "New request",
+                "type": "HEADER"
+            },
+            {
+                "type": "BODY",
+                "text": "Hi {{1}}, thanks for getting in touch with {{2}}. We will process your request get back to you shortly",
+                "example": {
+                    "body_text": [
+                        [
+                            "Nupur",
+                            "360dialog"
                         ]
-                    }
-                },
-                {
-                    "text": "WhatsApp Business API provided by 360dialog",
-                    "type": "FOOTER"
+                    ]
                 }
-            ],
-            "language": "es_ES",
-            "allow_category_change": True
-        }
+            },
+            {
+                "text": "WhatsApp Business API provided by 360dialog",
+                "type": "FOOTER"
+            }
+        ],
+        "language": "es_ES",
+        "allow_category_change": True
+    }
     api_resp = {
         "id": "594425479261596",
         "status": "PENDING",
@@ -18610,8 +18672,8 @@ def test_add_jira_action_invalid_config(monkeypatch):
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"]
-        == "JiraError HTTP 404 url: https://test1-digite.atlassian.net\n\t"
+            actual["message"]
+            == "JiraError HTTP 404 url: https://test1-digite.atlassian.net\n\t"
     )
 
 
@@ -19090,8 +19152,8 @@ def test_edit_jira_action_invalid_config(monkeypatch):
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"]
-        == "JiraError HTTP 404 url: https://test1-digite.atlassian.net\n\t"
+            actual["message"]
+            == "JiraError HTTP 404 url: https://test1-digite.atlassian.net\n\t"
     )
 
 
@@ -19146,8 +19208,8 @@ def test_add_zendesk_action_invalid_config(monkeypatch):
         assert not actual["success"]
         assert actual["error_code"] == 422
         assert (
-            actual["message"]
-            == "{'error': {'title': 'No help desk at digite751.zendesk.com'}}"
+                actual["message"]
+                == "{'error': {'title': 'No help desk at digite751.zendesk.com'}}"
         )
 
 
@@ -19408,8 +19470,8 @@ def test_edit_zendesk_action_invalid_config(monkeypatch):
         assert not actual["success"]
         assert actual["error_code"] == 422
         assert (
-            actual["message"]
-            == "{'error': {'title': 'No help desk at digite751.zendesk.com'}}"
+                actual["message"]
+                == "{'error': {'title': 'No help desk at digite751.zendesk.com'}}"
         )
 
 
@@ -20114,11 +20176,11 @@ def test_channels_params():
     assert actual["error_code"] == 0
     assert "slack" in list(actual["data"].keys())
     assert [
-        "bot_user_oAuth_token",
-        "slack_signing_secret",
-        "client_id",
-        "client_secret",
-    ] == actual["data"]["slack"]["required_fields"]
+               "bot_user_oAuth_token",
+               "slack_signing_secret",
+               "client_id",
+               "client_secret",
+           ] == actual["data"]["slack"]["required_fields"]
     assert ["slack_channel", "team", "is_primary"] == actual["data"]["slack"][
         "optional_fields"
     ]
@@ -20156,8 +20218,8 @@ def test_add_asset(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert (
-        actual["data"]["url"]
-        == "https://kairon.s3.amazonaws.com/application/626a380d3060cf93782b52c3/actions_yml.yml"
+            actual["data"]["url"]
+            == "https://kairon.s3.amazonaws.com/application/626a380d3060cf93782b52c3/actions_yml.yml"
     )
     assert actual["message"] == "Asset added"
 
@@ -20829,9 +20891,9 @@ def test_generate_limited_access_temporary_token():
     assert actual["data"]["access_token"]
     assert actual["data"]["token_type"]
     assert (
-        actual["message"]
-        == "This token will be shown only once. Please copy this somewhere safe."
-        "It is your responsibility to keep the token secret. If leaked, others may have access to your system."
+            actual["message"]
+            == "This token will be shown only once. Please copy this somewhere safe."
+               "It is your responsibility to keep the token secret. If leaked, others may have access to your system."
     )
     token = actual["data"]["access_token"]
 
@@ -21047,7 +21109,7 @@ def test_multilingual_translate():
 
 def test_multilingual_translate_invalid_bot_id():
     response = client.post(
-        f"/api/bot/{pytest.bot+'0'}/multilingual/translate",
+        f"/api/bot/{pytest.bot + '0'}/multilingual/translate",
         json={
             "dest_lang": "es",
             "translate_responses": False,
@@ -21269,7 +21331,7 @@ def test_data_generation_from_website(monkeypatch):
 
 def test_data_generation_invalid_bot_id():
     response = client.post(
-        f"/api/bot/{pytest.bot+'0'}/data/generator/website?website_url=website.com",
+        f"/api/bot/{pytest.bot + '0'}/data/generator/website?website_url=website.com",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
 
@@ -21465,8 +21527,8 @@ def test_get_auditlog_for_user_1():
         f"/api/user/auditlog/data",
         headers={
             "Authorization": login["data"]["token_type"]
-            + " "
-            + login["data"]["access_token"]
+                             + " "
+                             + login["data"]["access_token"]
         },
     )
     actual = response.json()
@@ -21517,8 +21579,8 @@ def test_get_auditlog_for_user_2(mock_password_reset):
         f"/api/user/auditlog/data?start_idx=0&page_size=100",
         headers={
             "Authorization": login_2["data"]["token_type"]
-            + " "
-            + login_2["data"]["access_token"]
+                             + " "
+                             + login_2["data"]["access_token"]
         },
     )
     actual = response.json()
@@ -21826,7 +21888,7 @@ def test_get_custom_widget_post_update():
             "timeout": 5,
             "request_method": "GET",
             "request_parameters": [],
-            #"_id": pytest.bot,
+            # "_id": pytest.bot,
             "headers": [],
             "bot": pytest.bot,
             "_id": pytest.widget_id,
@@ -21921,7 +21983,7 @@ def test_upload_invalid_csv():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert (
-        actual["message"] == "Invalid file type! Only csv and xlsx files are supported."
+            actual["message"] == "Invalid file type! Only csv and xlsx files are supported."
     )
 
 
@@ -22086,8 +22148,8 @@ def test_add_organization():
         json={"data": {"name": "sample"}},
         headers={
             "Authorization": login["data"]["token_type"]
-            + " "
-            + login["data"]["access_token"]
+                             + " "
+                             + login["data"]["access_token"]
         },
     )
     result = response.json()
@@ -22107,8 +22169,8 @@ def test_get_organization():
         "/api/account/organization",
         headers={
             "Authorization": login["data"]["token_type"]
-            + " "
-            + login["data"]["access_token"]
+                             + " "
+                             + login["data"]["access_token"]
         },
     )
     result = response.json()
@@ -22130,8 +22192,8 @@ def test_update_organization():
         json={"data": {"name": "updated_sample"}},
         headers={
             "Authorization": login["data"]["token_type"]
-            + " "
-            + login["data"]["access_token"]
+                             + " "
+                             + login["data"]["access_token"]
         },
     )
     result = response.json()
@@ -22150,8 +22212,8 @@ def test_get_organization_after_update():
         "/api/account/organization",
         headers={
             "Authorization": login["data"]["token_type"]
-            + " "
-            + login["data"]["access_token"]
+                             + " "
+                             + login["data"]["access_token"]
         },
     )
     result = response.json()
@@ -22176,8 +22238,8 @@ def test_delete_organization(monkeypatch):
         f"/api/account/organization/updated_sample",
         headers={
             "Authorization": login["data"]["token_type"]
-            + " "
-            + login["data"]["access_token"]
+                             + " "
+                             + login["data"]["access_token"]
         },
     )
     result = response.json()
@@ -22291,7 +22353,6 @@ def test_get_responses_post_passwd_reset(monkeypatch):
 
 
 def test_create_access_token_with_iat():
-
     access_token = Authentication.create_access_token(
         data={"sub": "test@chat.com", "access-limit": ["/api/bot/.+/intent"]},
         token_type=TOKEN_TYPE.LOGIN.value,
@@ -22340,7 +22401,8 @@ def test_login_old_password():
     assert actual["error_code"] == 401
     assert actual["message"] == "Incorrect username or password"
     assert actual["data"] is None
-    value = list(AuditLogData.objects(user="integ1@gmail.com", action='activity', entity='invalid_login').order_by("-timestamp"))[
+    value = list(AuditLogData.objects(user="integ1@gmail.com", action='activity', entity='invalid_login').order_by(
+        "-timestamp"))[
         0
     ]
     print(value['data'])
@@ -22539,8 +22601,8 @@ def test_allow_only_sso_login(monkeypatch):
     )
     actual = response.json()
     assert (
-        actual["message"]
-        == "Login with your org SSO url, Login with username/password not allowed"
+            actual["message"]
+            == "Login with your org SSO url, Login with username/password not allowed"
     )
 
 
@@ -22584,8 +22646,8 @@ def test_api_login_with_SSO_only_flag():
     )
     actual = response.json()
     assert (
-        actual["message"]
-        == "Login with your org SSO url, Login with username/password not allowed"
+            actual["message"]
+            == "Login with your org SSO url, Login with username/password not allowed"
     )
     assert actual["error_code"] == 422
     assert actual["success"] == False

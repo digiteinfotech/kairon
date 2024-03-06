@@ -1850,10 +1850,11 @@ class TestActions:
     async def test_run_with_post_and_dynamic_params(self, monkeypatch, aioresponses):
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        http_url = 'http://localhost:8080/mock'
         action = HttpActionConfig(
             action_name="test_run_with_post_and_dynamic_params",
             response=HttpActionResponse(value="Data added successfully, id:${data}"),
-            http_url="http://localhost:8080/mock",
+            http_url=http_url,
             request_method="POST",
             dynamic_params=dynamic_params,
             bot="5f50fd0a56b698ca10d35d2e",
@@ -1868,11 +1869,11 @@ class TestActions:
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": resp_msg},
+            url=Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {"bot_response": resp_msg}, 'error_code': 0},
             status=200,
         )
-        http_url = 'http://localhost:8080/mock'
+
         resp_msg = "5000"
         aioresponses.add(
             method=responses.POST,
