@@ -14,6 +14,7 @@ from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAUL
 from rasa.shared.importers.importer import TrainingDataImporter
 from rasa.utils.common import TempDirectoryPath
 
+from kairon.chat.agent.agent import KaironAgent
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.constant import EVENT_STATUS
@@ -108,43 +109,54 @@ def train_model_for_bot(bot: str):
     nlu = processor.load_nlu(bot)
     if not nlu.training_examples:
         raise AppException("Training data does not exists!")
-    domain = processor.load_domain(bot)
-    stories = processor.load_stories(bot)
-    multiflow_stories = processor.load_linear_flows_from_multiflow_stories(bot)
-    stories = stories.merge(multiflow_stories[0])
-    config = processor.load_config(bot)
-    rules = processor.get_rules_for_training(bot)
-    rules = rules.merge(multiflow_stories[1])
+    try:
+        domain = processor.load_domain(bot)
+        stories = processor.load_stories(bot)
+        multiflow_stories = processor.load_linear_flows_from_multiflow_stories(bot)
+        stories = stories.merge(multiflow_stories[0])
+        config = processor.load_config(bot)
+        rules = processor.get_rules_for_training(bot)
+        rules = rules.merge(multiflow_stories[1])
 
-    directory = Utility.write_training_data(
-        nlu,
-        domain,
-        config,
-        stories,
-        rules
-    )
+        output = os.path.join(DEFAULT_MODELS_PATH, bot)
 
-    output = os.path.join(DEFAULT_MODELS_PATH, bot)
-    if not os.path.exists(output):
-        os.mkdir(output)
-    model = train(
-        domain=os.path.join(directory, DEFAULT_DOMAIN_PATH),
-        config=os.path.join(directory, DEFAULT_CONFIG_PATH),
-        training_files=os.path.join(directory, DEFAULT_DATA_PATH),
-        output=output,
-        core_additional_arguments={"augmentation_factor": 100},
-        force_training=True
-    ).model
-    Utility.delete_directory(directory)
-    del processor
-    del nlu
-    del domain
-    del stories
-    del rules
-    del multiflow_stories
-    del config
-    Utility.move_old_models(output, model)
-    Utility.delete_models(bot)
+        directory = Utility.write_training_data(
+            nlu,
+            domain,
+            config,
+            stories,
+            rules
+        )
+
+        if not os.path.exists(output):
+            os.mkdir(output)
+        model = train(
+            domain=os.path.join(directory, DEFAULT_DOMAIN_PATH),
+            config=os.path.join(directory, DEFAULT_CONFIG_PATH),
+            training_files=os.path.join(directory, DEFAULT_DATA_PATH),
+            output=directory,
+            core_additional_arguments={"augmentation_factor": 100},
+            force_training=True
+        ).model
+
+        KaironAgent.load(model_path=model)
+
+        model_file = Utility.copy_model_file_to_directory(model, output)
+        model = os.path.join(output, model_file)
+        Utility.move_old_models(output, model)
+        Utility.delete_directory(directory)
+        Utility.delete_models(bot)
+        del processor
+        del nlu
+        del domain
+        del stories
+        del rules
+        del multiflow_stories
+        del config
+    except Exception as e:
+        logging.exception(e)
+        raise AppException("Failed to load the model for the bot.")
+
     return model
 
 
@@ -177,9 +189,9 @@ def start_training(bot: str, user: str, token: str = None):
             faqs = asyncio.run(llm.train())
             account = AccountProcessor.get_bot(bot)['account']
             MeteringProcessor.add_metrics(bot=bot, metric_type=MetricType.faq_training.value, account=account, **faqs)
+        agent_url = Utility.environment['model']['agent'].get('url')
         model_file = train_model_for_bot(bot)
         training_status = EVENT_STATUS.DONE.value
-        agent_url = Utility.environment['model']['agent'].get('url')
         if agent_url:
             if token:
                 Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, user)
