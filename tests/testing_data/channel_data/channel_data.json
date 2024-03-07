@@ -151,22 +151,22 @@
       "type":"paragraph",
       "children":[{"text":""}]
     }],
-  "quick_reply_one": [{"type": "button", "content_type": "text", "value": "single button is clicked",
+  "quick_reply_one": [{"type": "quick_reply", "content_type": "text", "value": "single button is clicked",
         "image_url": "https://buffer.com/library/content/images/size/w1200/2023/10/free-images.jpg",
         "id": "3", "children": [{"text": "One"}]}],
   "quick_reply_two": [
-    {"type": "button", "content_type": "text", "value": "single button is clicked",
+    {"type": "quick_reply", "content_type": "text", "value": "single button is clicked",
       "image_url": "https://buffer.com/library/content/images/size/w1200/2023/10/free-images.jpg",
       "id": "3", "children": [{"text": "One"}]},
-    {"type": "button", "content_type": "phone_number", "value": "", "image_url": "", "id": "2",
+    {"type": "quick_reply", "content_type": "phone_number", "value": "", "image_url": "", "id": "2",
       "children": [{"text": "9876543210"}]}
   ],
   "quick_reply_three": [
-    {"type": "button", "content_type": "text", "value": "single button is clicked",
+    {"type": "quick_reply", "content_type": "text", "value": "single button is clicked",
       "image_url": "", "id": "3", "children": [{"text": "One"}]},
-    {"type": "button", "content_type": "phone_number", "value": "", "image_url": "", "id": "2",
+    {"type": "quick_reply", "content_type": "phone_number", "value": "", "image_url": "", "id": "2",
       "children": [{"text": "9876543210"}]},
-    {"type": "button", "content_type": "email", "value": "", "image_url": "", "id": "1",
+    {"type": "quick_reply", "content_type": "email", "value": "", "image_url": "", "id": "1",
       "children": [{"text": "mahesh.sattala@digite.com"}]}
   ],
   "messenger_quick_reply_op_one": {
