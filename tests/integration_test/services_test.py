@@ -2911,7 +2911,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 12
+    assert len(actual['data']) == 13
     assert actual["success"]
 
 
@@ -3037,7 +3037,7 @@ def test_list_entities():
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                                                    'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
                                                    'audio', 'image', 'doc_url', 'document', 'video', 'order', 'latitude',
-                                                   'longitude', 'flow_reply', 'http_status_code'}
+                                                   'longitude', 'flow_reply', 'quick_reply', 'http_status_code'}
     assert actual["success"]
 
 
@@ -3438,7 +3438,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 20
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])

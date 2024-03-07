@@ -1778,6 +1778,33 @@ class TestUtility:
         assert expected_output == response
 
     @pytest.mark.asyncio
+    async def test_messageConverter_messenger_quick_reply_one(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_one")
+        messenger = ConverterFactory.getConcreteInstance("quick_reply", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_quick_reply_op_one")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_quick_reply_two(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_two")
+        messenger = ConverterFactory.getConcreteInstance("quick_reply", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_quick_reply_op_two")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_quick_reply_three(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_three")
+        messenger = ConverterFactory.getConcreteInstance("quick_reply", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_quick_reply_op_three")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
     async def test_messageConverter_messenger_button_two(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("button_two")
