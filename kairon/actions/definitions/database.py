@@ -64,6 +64,7 @@ class ActionDatabase(ActionsBase):
         failure_response = 'I have failed to process your request.'
         filled_slots = {}
         msg_logger = []
+        content = []
         request_body = None
 
         try:
@@ -79,6 +80,13 @@ class ActionDatabase(ActionsBase):
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)
             response = vector_db.perform_operation(operation_type, request_body)
+            response = response['result'].get('points')
+            if response:
+                for payload in response:
+                    json_data = payload.get('payload', {})
+                    del json_data['collection_name']
+                    content.append(json_data)
+                response = content
             logger.info("response: " + str(response))
             response_context = self.__add_user_context_to_http_response(response, tracker_data)
             bot_response, bot_resp_log = ActionUtility.compose_response(vector_action_config['response'], response_context)
