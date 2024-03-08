@@ -6843,7 +6843,6 @@ class TestMongoProcessor:
         bot = 'test'
         processor = MongoProcessor()
         slots = list(processor.get_existing_slots(bot))
-        print(slots)
         assert len(slots) == 23
         assert slots == [
             {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'auto_fill': False, 'influence_conversation': False,
