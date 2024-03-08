@@ -93,6 +93,20 @@ class TestUtility:
         yield "resource_unzip_and_validate"
         os.remove(zip_file + ".zip")
 
+    def test_copy_model_file_to_directory(self):
+        input_file_path = "tests/testing_data/model/20210512-172208.tar.gz"
+        output_path = "tests/testing_data/test_dir"
+
+        if os.path.exists(output_path):
+            shutil.rmtree(output_path)
+
+        model_file = Utility.copy_model_file_to_directory(input_file_path, output_path)
+
+        copied_file_path = os.path.join(output_path, model_file)
+        assert os.path.exists(copied_file_path)
+        assert os.path.isfile(copied_file_path)
+        shutil.rmtree(output_path)
+
     @pytest.fixture()
     def resource_unzip_and_validate_exception(self):
         data_path = "tests/testing_data/yml_training_files/data"

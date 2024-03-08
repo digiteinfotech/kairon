@@ -281,3 +281,13 @@ class ChatUtils:
             metadata["tabname"] = "default"
         metadata.update(default_metadata)
         return metadata
+
+    @staticmethod
+    def add_telemetry_metadata(x_telemetry_uid: Text, x_telemetry_sid: Text, metadata: Dict = None):
+        if not metadata:
+            metadata = {}
+        if x_telemetry_uid and x_telemetry_sid:
+            #TODO: validate x_telemetry_uid and x_session_id for the botid
+            metadata["telemetry-uid"] = x_telemetry_uid
+            metadata["telemetry-sid"] = x_telemetry_sid
+        return metadata
