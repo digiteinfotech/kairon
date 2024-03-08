@@ -1804,6 +1804,23 @@ class TestUtility:
         expected_output = json_data.get("messenger_quick_reply_op_three")
         assert expected_output == response
 
+    def test_quick_reply_transformer_messenger_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_three")
+        from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+        messenger = MessengerResponseConverter("quick_reply", "messenger_fake")
+        with pytest.raises(Exception):
+            messenger.quick_reply_transformer(input_json)
+
+    @pytest.mark.asyncio
+    async def test_message_converter_quick_reply_messenger_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_three")
+        from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+        messenger = MessengerResponseConverter("quick_reply", "messenger_fail")
+        with pytest.raises(Exception):
+            await messenger.messageConverter(input_json)
+
     @pytest.mark.asyncio
     async def test_messageConverter_messenger_button_two(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
