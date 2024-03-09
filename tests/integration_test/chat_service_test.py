@@ -5,6 +5,11 @@ import time
 from datetime import datetime, timedelta
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
+from kairon.shared.utils import Utility
+
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
+Utility.load_environment()
 
 import pytest
 import responses
@@ -35,12 +40,9 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
-from kairon.shared.utils import Utility
 from kairon.train import start_training
 
-os.environ["system_file"] = "./tests/testing_data/system.yaml"
-os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
-Utility.load_environment()
+
 connect(**Utility.mongoengine_connection())
 
 loop = asyncio.new_event_loop()
@@ -606,6 +608,119 @@ def test_chat_with_user_with_metadata():
             metadata = mocked_handle_message.call_args
             assert metadata.args[0].metadata['name'] == 'test_chat'
             assert metadata.args[0].metadata['tabname'] == 'coaching'
+
+
+def test_chat_with_telemetry_headers():
+    with patch.object(Utility, "get_local_mongo_store") as mocked:
+        mocked.side_effect = empty_store
+        patch.dict(Utility.environment['action'], {"url": None})
+
+        with patch.object(KaironMessageProcessor, "handle_message") as mocked_handle_message:
+            mocked_handle_message.return_value = {
+                "nlu": "intent_prediction",
+                "action": "action_prediction",
+                "response": "response_data",
+                "slots": "slot_data",
+                "events": "event_data",
+            }
+
+            request_body = {
+                "data": "Hi",
+                "metadata": {
+                    "name": "test_chat",
+                        "tabname": "coaching"
+                    }
+                }
+
+            response = client.post(
+                f"/api/bot/{bot}/chat",
+                json=request_body,
+                headers={"Authorization": token_type + " " + token,
+                         "X-TELEMETRY-UID": "test_telemetry",
+                         "X-TELEMETRY-SID": "test_session"},
+            )
+            actual = response.json()
+            assert actual['success']
+            assert actual['error_code'] == 0
+            metadata = mocked_handle_message.call_args
+            assert metadata.args[0].metadata['name'] == 'test_chat'
+            assert metadata.args[0].metadata['telemetry-uid'] == 'test_telemetry'
+            assert metadata.args[0].metadata['telemetry-sid'] == 'test_session'
+
+
+def test_chat_with_telemetry_no_headers():
+    with patch.object(Utility, "get_local_mongo_store") as mocked:
+        mocked.side_effect = empty_store
+        patch.dict(Utility.environment['action'], {"url": None})
+
+        with patch.object(KaironMessageProcessor, "handle_message") as mocked_handle_message:
+            mocked_handle_message.return_value = {
+                "nlu": "intent_prediction",
+                "action": "action_prediction",
+                "response": "response_data",
+                "slots": "slot_data",
+                "events": "event_data",
+            }
+
+            request_body = {
+                "data": "Hi",
+                "metadata": {
+                    "name": "test_chat",
+                        "tabname": "coaching"
+                    }
+                }
+
+            response = client.post(
+                f"/api/bot/{bot}/chat",
+                json=request_body,
+                headers={"Authorization": token_type + " " + token,
+                         },
+            )
+            actual = response.json()
+            assert actual['success']
+            assert actual['error_code'] == 0
+            metadata = mocked_handle_message.call_args
+            assert metadata.args[0].metadata['name'] == 'test_chat'
+            assert metadata.args[0].metadata.get('telemetry-uid') == None
+            assert metadata.args[0].metadata.get('telemetry-sid') == None
+
+
+def test_chat_with_telemetry_partly_missing_headers():
+    with patch.object(Utility, "get_local_mongo_store") as mocked:
+        mocked.side_effect = empty_store
+        patch.dict(Utility.environment['action'], {"url": None})
+
+        with patch.object(KaironMessageProcessor, "handle_message") as mocked_handle_message:
+            mocked_handle_message.return_value = {
+                "nlu": "intent_prediction",
+                "action": "action_prediction",
+                "response": "response_data",
+                "slots": "slot_data",
+                "events": "event_data",
+            }
+
+            request_body = {
+                "data": "Hi",
+                "metadata": {
+                    "name": "test_chat",
+                        "tabname": "coaching"
+                    }
+                }
+
+            response = client.post(
+                f"/api/bot/{bot}/chat",
+                json=request_body,
+                headers={"Authorization": token_type + " " + token,
+                         "X-TELEMETRY-UID": "test_telemetry",
+                         },
+            )
+            actual = response.json()
+            assert actual['success']
+            assert actual['error_code'] == 0
+            metadata = mocked_handle_message.call_args
+            assert metadata.args[0].metadata['name'] == 'test_chat'
+            assert metadata.args[0].metadata.get('telemetry-uid') == None
+            assert metadata.args[0].metadata.get('telemetry-sid') == None
 
 
 def test_chat_with_user_with_invalid_metadata():
@@ -1456,7 +1571,6 @@ def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(mock
 def test_whatsapp_valid_button_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
-    responses.reset()
     responses.add(
         "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
     )
@@ -1519,7 +1633,6 @@ def test_whatsapp_valid_button_message_request():
 def test_whatsapp_valid_attachment_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
-    responses.reset()
     responses.add(
         "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
     )
@@ -1585,7 +1698,6 @@ def test_whatsapp_valid_attachment_message_request():
 
 @responses.activate
 def test_whatsapp_valid_order_message_request():
-    responses.reset()
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
@@ -1661,7 +1773,6 @@ def test_whatsapp_valid_order_message_request():
 
 @responses.activate
 def test_whatsapp_valid_flows_message_request():
-    responses.reset()
 
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -2078,7 +2189,6 @@ def test_whatsapp_bsp_valid_text_message_request():
         })
     actual = response.json()
     assert actual == 'success'
-    responses.reset()
 
 
 @responses.activate
@@ -2125,7 +2235,6 @@ def test_whatsapp_bsp_valid_button_message_request():
         })
     actual = response.json()
     assert actual == 'success'
-    responses.reset()
 
 
 @responses.activate
@@ -2171,7 +2280,6 @@ def test_whatsapp_bsp_valid_attachment_message_request():
         })
     actual = response.json()
     assert actual == 'success'
-    responses.reset()
 
 
 @responses.activate
@@ -2227,8 +2335,6 @@ def test_whatsapp_bsp_valid_order_message_request():
         })
     actual = response.json()
     assert actual == 'success'
-    responses.reset()
-
 
 def add_live_agent_config(bot_id, email):
     config = {
@@ -2236,8 +2342,7 @@ def add_live_agent_config(bot_id, email):
         "override_bot": False, "trigger_on_intents": ["nlu_fallback"],
         "trigger_on_actions": ["action_default_fallback"]
     }
-    responses.reset()
-    responses.start()
+
     responses.add(
         "GET",
         f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
@@ -2249,16 +2354,13 @@ def add_live_agent_config(bot_id, email):
         json={"inbox_identifier": "tSaxZWrxyFowmFHzWwhMwi5y"}
     )
     LiveAgentsProcessor.save_config(config, bot_id, email)
-    responses.stop()
 
-
+@responses.activate
 @patch("rasa.core.tracker_store.TrackerStore.serialise_tracker")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")
 def test_chat_with_chatwoot_agent_fallback(mock_validatebusinesshours, mock_getbusinesshrs, mock_tracker):
     add_live_agent_config(bot, user["email"])
-    responses.reset()
-    responses.start()
     responses.add(
         "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
         json={
@@ -2339,7 +2441,6 @@ def test_chat_with_chatwoot_agent_fallback(mock_validatebusinesshours, mock_getb
                 headers={"Authorization": token_type + " " + token},
                 timeout=0,
             )
-            responses.stop()
             actual = response.json()
             assert actual["success"]
             assert actual["error_code"] == 0
@@ -2367,6 +2468,7 @@ def test_chat_with_chatwoot_agent_fallback(mock_validatebusinesshours, mock_getb
             assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) > 0
 
 
+@responses.activate
 @patch("rasa.core.tracker_store.TrackerStore.serialise_tracker")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
 def test_chat_with_chatwoot_agent_fallback_existing_contact(mock_businesshours, mock_tracker):
@@ -2376,8 +2478,6 @@ def test_chat_with_chatwoot_agent_fallback_existing_contact(mock_businesshours, 
         with patch.object(KaironAgent, "handle_message") as mock_agent:
             mock_agent.side_effect = mock_agent_response
             mock_businesshours.side_effect = __mock_getbusinessdata_workingdisabled
-            responses.reset()
-            responses.start()
             responses.add(
                 "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
                 json={
@@ -2451,7 +2551,6 @@ def test_chat_with_chatwoot_agent_fallback_existing_contact(mock_businesshours, 
                 headers={"Authorization": token_type + " " + token},
                 timeout=0,
             )
-            responses.stop()
             actual = response.json()
             assert actual["success"]
             assert actual["error_code"] == 0
@@ -2477,10 +2576,8 @@ def test_chat_with_chatwoot_agent_fallback_existing_contact(mock_businesshours, 
             assert len(data["logs"]) == data["total"]
             assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) == 2
 
-
+@responses.activate
 def test_chat_with_live_agent():
-    responses.reset()
-    responses.start()
     responses.add(
         "POST",
         'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
@@ -2519,12 +2616,9 @@ def test_chat_with_live_agent():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
-    responses.stop()
 
-
+@responses.activate
 def test_chat_with_live_agent_failed_to_send_message():
-    responses.reset()
-    responses.start()
     responses.add(
         "POST",
         'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
@@ -2542,14 +2636,12 @@ def test_chat_with_live_agent_failed_to_send_message():
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert actual["message"] == "Failed to send message: Service Unavailable"
-    responses.stop()
 
 
+@responses.activate
 def test_chat_with_live_agent_with_integration_token():
     access_token = chat_client_config['config']['headers']['authorization']['access_token']
     token_type = chat_client_config['config']['headers']['authorization']['token_type']
-    responses.reset()
-    responses.start()
     responses.add(
         "POST",
         'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
@@ -2588,17 +2680,14 @@ def test_chat_with_live_agent_with_integration_token():
     assert actual["error_code"] == 0
     assert actual["data"]["response"]
     assert Utility.check_empty_string(actual["message"])
-    responses.stop()
 
-
+@responses.activate
 def test_chat_with_chatwoot_agent_fallback_failed_to_initiate():
     with patch.object(Utility, "get_local_mongo_store") as mocked:
         mocked.side_effect = empty_store
         patch.dict(Utility.environment['action'], {"url": None})
         with patch.object(KaironAgent, "handle_message") as mock_agent:
             mock_agent.side_effect = mock_agent_response
-            responses.reset()
-            responses.start()
             responses.add(
                 "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
                 json={
@@ -2637,8 +2726,6 @@ def test_chat_with_chatwoot_agent_fallback_failed_to_initiate():
             assert actual["data"]["response"]
             assert actual["data"]["agent_handoff"] == {'initiate': False, 'type': 'chatwoot',
                                                        'additional_properties': None}
-            responses.reset()
-            responses.stop()
             data = MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")
             assert len(data["logs"]) == 3
             assert len(data["logs"]) == data["total"]
@@ -2820,13 +2907,11 @@ def test_get_chat_history_http_error(monkeypatch):
     assert error_code == 401
     assert message == "Session expired. Please login again!"
 
-
+@responses.activate
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")
 def test_chat_with_chatwoot_agent_outof_workinghours(mock_validatebusiness, mock_getbusiness):
     add_live_agent_config(bot, user["email"])
-    responses.reset()
-    responses.start()
     responses.add(
         "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
         json={
@@ -2903,7 +2988,6 @@ def test_chat_with_chatwoot_agent_outof_workinghours(mock_validatebusiness, mock
                 headers={"Authorization": token_type + " " + token},
                 timeout=0,
             )
-            responses.stop()
             actual = response.json()
             assert actual["data"]["agent_handoff"][
                        "businessworking"] == "We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 ."
