@@ -115,6 +115,11 @@ class TestAccountProcessor:
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
         pytest.bot = bot_response['_id'].__str__()
 
+    def test_update_bot_with_character_limit_exceeded(self):
+        name = "supercalifragilisticexpialidociousalwaysworksmorethan60characters"
+        with pytest.raises(AppException, match='Bot Name cannot be more than 60 characters.'):
+            AccountProcessor.update_bot(name=name, bot=pytest.bot)
+
     def test_list_bots(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
         assert bot[0]['name'] == 'test'
