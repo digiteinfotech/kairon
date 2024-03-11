@@ -111,6 +111,7 @@ class ChannelTypes(str, Enum):
     TELEGRAM = "telegram"
     INSTAGRAM = "instagram"
     BUSINESS_MESSAGES = "business_messages"
+    LINE = "line"
 
 
 class ElementTypes(str, Enum):
