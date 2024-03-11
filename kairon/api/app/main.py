@@ -1,4 +1,3 @@
-from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +29,7 @@ from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
 from contextlib import asynccontextmanager
+from kairon.shared.otel import instrument_fastapi
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
@@ -85,9 +85,7 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-apm_client = Utility.initiate_fastapi_apm_client()
-if apm_client:
-    app.add_middleware(ElasticAPM, client=apm_client)
+instrument_fastapi(app)
 
 
 @app.middleware("http")

@@ -11,11 +11,5 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 @pytest.fixture(scope='session', autouse=True)
-def mock_apm():
-    with patch('elasticapm.base.Client', create=True) as mock_apm_fixture:
-        yield mock_apm_fixture
-
-
-@pytest.fixture(scope='session', autouse=True)
 def rasa_log():
     os.environ['LOG_LEVEL_LIBRARIES'] = 'INFO'

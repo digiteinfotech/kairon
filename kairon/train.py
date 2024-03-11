@@ -2,7 +2,6 @@ import asyncio
 import os
 from urllib.parse import urljoin
 
-import elasticapm
 from loguru import logger as logging
 from rasa.api import train
 from rasa.model import DEFAULT_MODELS_PATH
@@ -18,6 +17,8 @@ from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
+from kairon.shared.otel import instrument
+
 
 def train_model_for_bot(bot: str):
     """
@@ -81,7 +82,7 @@ def train_model_for_bot(bot: str):
         raise AppException("Failed to load the model for the bot.")
     return model
 
-
+@instrument
 def start_training(bot: str, user: str, token: str = None):
     """
     prevents training of the bot,
@@ -98,10 +99,6 @@ def start_training(bot: str, user: str, token: str = None):
     apm_client = None
     processor = MongoProcessor()
     try:
-        apm_client = Utility.initiate_fastapi_apm_client()
-        if apm_client:
-            elasticapm.instrument()
-            apm_client.begin_transaction(transaction_type="script")
         ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
         settings = processor.get_bot_settings(bot, user)
         settings = settings.to_mongo().to_dict()
@@ -121,8 +118,6 @@ def start_training(bot: str, user: str, token: str = None):
         training_status = EVENT_STATUS.FAIL.value
         exception = str(e)
     finally:
-        if apm_client:
-            apm_client.end_transaction(name=__name__, result="success")
         ModelProcessor.set_training_status(
             bot=bot,
             user=user,

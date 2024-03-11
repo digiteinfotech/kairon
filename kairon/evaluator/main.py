@@ -1,4 +1,3 @@
-from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -10,6 +9,9 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
 from kairon.api.models import Response
 from kairon.evaluator.router import pyscript
 from kairon.shared.utils import Utility
+from kairon.shared.otel import instrument_fastapi
+
+Utility.load_environment()
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
@@ -50,10 +52,7 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-Utility.load_environment()
-apm_client = Utility.initiate_fastapi_apm_client()
-if apm_client:
-    app.add_middleware(ElasticAPM, client=apm_client)
+instrument_fastapi(app)
 
 
 @app.middleware("http")

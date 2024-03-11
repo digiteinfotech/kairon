@@ -467,67 +467,6 @@ class TestUtility:
         )
         assert not requirements
 
-    def test_initiate_apm_client_disabled(self):
-        assert not Utility.initiate_apm_client_config()
-
-    def test_initiate_apm_client_enabled(self):
-        with patch.dict(
-            Utility.environment["apm"],
-            {"enable": False, "service_name": "kairon", "apm_server_url": None},
-            clear=True,
-        ):
-            assert not Utility.initiate_apm_client_config()
-
-    def test_initiate_apm_client_server_url_not_present(self):
-        with patch.dict(
-            Utility.environment["apm"],
-            {"enable": True, "service_name": "kairon", "apm_server_url": None},
-            clear=True,
-        ):
-            assert not Utility.initiate_apm_client_config()
-
-    def test_initiate_apm_client_service_url_not_present(self):
-        with patch.dict(
-            Utility.environment["apm"],
-            {"enable": True, "service_name": None, "apm_server_url": None},
-            clear=True,
-        ):
-            assert not Utility.initiate_apm_client_config()
-
-    def test_initiate_apm_client_env_not_present(self):
-        with patch.dict(
-            Utility.environment["apm"],
-            {
-                "enable": True,
-                "service_name": None,
-                "apm_server_url": None,
-                "env_type": None,
-            },
-            clear=True,
-        ):
-            assert Utility.initiate_apm_client_config() is None
-
-    def test_initiate_apm_client_with_url_present(self):
-        with patch.dict(
-            Utility.environment["apm"],
-            {
-                "enable": True,
-                "service_name": "kairon",
-                "apm_server_url": "http://localhost:8800",
-                "secret_token": "12345",
-                "env_type": "development",
-            },
-            clear=True,
-        ):
-            client = Utility.initiate_apm_client_config()
-
-            assert client == {
-                "SERVER_URL": "http://localhost:8800",
-                "SERVICE_NAME": "kairon",
-                "ENVIRONMENT": "development",
-                "SECRET_TOKEN": "12345",
-            }
-
     def test_validate_path_not_found(self):
         with pytest.raises(AppException):
             DataUtility.validate_and_get_requirements("/tests/path_not_found")

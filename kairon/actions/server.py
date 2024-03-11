@@ -1,7 +1,6 @@
 from loguru import logger as logging
 from time import time
 
-from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
@@ -44,6 +43,7 @@ from kairon.exceptions import AppException
 from ..shared.utils import Utility
 from ..shared.account.processor import AccountProcessor
 from contextlib import asynccontextmanager
+from kairon.shared.otel import instrument_fastapi
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
@@ -91,7 +91,6 @@ secure_headers = Secure(
     content=content,
 )
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """MongoDB is connected on the bot trainer startup"""
@@ -117,11 +116,7 @@ action.add_middleware(
     expose_headers=["content-disposition"],
 )
 action.add_middleware(GZipMiddleware)
-
-apm_client = Utility.initiate_fastapi_apm_client()
-
-if apm_client:
-    action.add_middleware(ElasticAPM, client=apm_client)
+instrument_fastapi(action)
 
 
 @action.middleware("http")

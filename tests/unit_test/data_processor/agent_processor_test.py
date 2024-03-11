@@ -6,15 +6,19 @@ import bson
 import pytest
 from rasa.core.lock_store import InMemoryLockStore
 from redis.client import Redis
+from kairon.shared.utils import Utility
+
+Utility.load_environment()
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
 from kairon.shared.chat.cache.least_priority import LeastPriorityCache
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.model_processor import ModelProcessor
-from kairon.shared.utils import Utility
+
 from mock import patch
 from mongoengine import connect
+
 
 class TestAgentProcessor:
 
@@ -138,10 +142,8 @@ class TestAgentProcessor:
         assert AgentProcessor.get_agent(pytest.bot)
         assert AgentProcessor.cache_provider.len() >= 1
 
-    @patch('elasticapm.base.Client', create=True)
-    def test_get_agent_custom_metric_apm_enabled(self, mock_apm_client):
-
-        with patch.dict(Utility.environment["apm"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8800'}, clear=True):
+    def test_get_agent_custom_metric_apm_enabled(self):
+        with patch.dict(Utility.environment["apm"], {"enable": True, 'service_name': 'kairon'}, clear=True):
             assert AgentProcessor.get_agent(pytest.bot)
             assert AgentProcessor.cache_provider.len() >= 1
 

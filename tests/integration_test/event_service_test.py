@@ -22,7 +22,6 @@ os_patch = patch.dict(
 )
 os_patch.start()
 with patch("pymongo.collection.Collection.create_index"):
-    with patch("elasticapm.base.Client", create=True) as mock_apm_client:
         from kairon.events.server import app
 
         Utility.load_environment()

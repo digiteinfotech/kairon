@@ -825,28 +825,6 @@ class Utility:
             tar.add(source_dir, arcname="")
 
     @staticmethod
-    def initiate_apm_client_config():
-        logger.debug(
-            f'apm_enable: {Utility.environment.get("apm", {}).get("enable")}'
-        )
-        if Utility.environment.get("apm", {}).get("enable"):
-            server_url = Utility.environment["apm"].get("apm_server_url")
-            service_name = Utility.environment["apm"].get("service_name")
-            env = Utility.environment["apm"].get("env_type")
-            config = {
-                "SERVER_URL": server_url,
-                "SERVICE_NAME": service_name,
-                "ENVIRONMENT": env,
-            }
-            if Utility.environment["apm"].get("secret_token"):
-                config["SECRET_TOKEN"] = Utility.environment["apm"].get(
-                    "secret_token"
-                )
-            logger.debug(f"apm: {config}")
-            if service_name and server_url:
-                return config
-
-    @staticmethod
     def read_yaml(path: Text, raise_exception: bool = False):
         content = None
         if os.path.exists(path):
@@ -1286,21 +1264,6 @@ class Utility:
             raise AppException(
                 'Only "components" and "allow_category_change" fields can be edited!'
             )
-
-    @staticmethod
-    def initiate_fastapi_apm_client():
-        from elasticapm.contrib.starlette import make_apm_client
-
-        config = Utility.initiate_apm_client_config()
-        if config:
-            return make_apm_client(config)
-
-    @staticmethod
-    def record_custom_metric_apm(**kwargs):
-        import elasticapm
-
-        if Utility.environment.get("apm", {}).get("enable"):
-            elasticapm.label(**kwargs)
 
     @staticmethod
     def trigger_history_server_request(

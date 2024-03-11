@@ -77,12 +77,6 @@ refresh_token = None
 token_type = None
 
 
-@pytest.fixture(scope='class', autouse=True)
-def mock_apm():
-    with patch('elasticapm.base.Client', create=True) as mock_apm_fixture:
-        yield mock_apm_fixture
-
-
 @pytest.fixture(autouse=True, scope="class")
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"

@@ -99,12 +99,9 @@ nudge:
   server_url: ${NUDGE_SERVER_URL}
 
 apm:
-  type: ${APM_TYPE}
   enable: ${ENABLE_APM:false}
-  apm_server_url: ${APM_SERVER_URL}
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
   env_type: ${KAIRON_ENV_TYPE:"development"}
-  secret_token: ${APM_SECRET_TOKEN}
 
 history_server:
   url: ${KAIRON_HISTORY_SERVER_URL:"http://localhost:8083/"}

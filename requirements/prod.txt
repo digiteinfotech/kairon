@@ -1,4 +1,4 @@
-rasa[full]==3.6.18
+rasa[full]==3.6.19
 mongoengine==0.27.0
 fastapi==0.105.0
 uvicorn==0.24.0.post1
@@ -10,7 +10,6 @@ zenpy==2.0.42
 validators==0.22.0
 secure==0.3.0
 password-strength==0.0.3.post2
-elastic-apm==6.19.0
 bs4==0.0.1
 uuid6==2023.5.2
 passlib[bcrypt]==1.7.4
@@ -40,13 +39,12 @@ RestrictedPython==7.0
 AccessControl==6.3
 timeout-decorator==0.5.0
 googlesearch-python==1.2.3
-elasticsearch==8.11.1
 aiohttp-retry==2.8.3
 pqdict==1.3.0
+google-businessmessages==1.0.5
+google-apitools==0.5.32
+orjson==3.9.6
 opentelemetry-distro[otlp]==0.43b0
 opentelemetry-sdk-extension-aws==2.0.1
 opentelemetry-propagator-aws-xray==1.0.1
 opentelemetry-instrumentation-fastapi==0.43b0
-google-businessmessages==1.0.5
-google-apitools==0.5.32
-orjson==3.9.6

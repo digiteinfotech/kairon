@@ -84,9 +84,11 @@ from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
 from kairon.train import train_model_for_bot, start_training
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
 from deepdiff import DeepDiff
+
 
 class TestMongoProcessor:
 
@@ -168,18 +170,19 @@ class TestMongoProcessor:
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-             'is_enabled': True},
-            {'name': 'Similarity Prompt',
-             "data": "Bot_collection",
-             'hyperparameters': {'top_results': 10,
-             'similarity_threshold': 1.70},
-             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-            {'name': 'Identification Prompt',
-             'data': 'info',
-             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
-             'is_enabled': True}]}
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 10,
+                                                        'similarity_threshold': 1.70},
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Identification Prompt',
+                                    'data': 'info',
+                                    'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+                                    'is_enabled': True}]}
         with pytest.raises(AppException, match="Slot with name info not found!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -195,18 +198,20 @@ class TestMongoProcessor:
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-             'is_enabled': True},
-            {'name': 'Similarity Prompt',
-             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-             "data": "Bot_collection",
-             'hyperparameters': {'top_results': 10,
-                                 'similarity_threshold': 1.70}},
-            {'name': 'Http action Prompt',
-             'data': 'test_http_action',
-             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
-             'is_enabled': True}]}
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+                                    "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 10,
+                                                        'similarity_threshold': 1.70}},
+                                   {'name': 'Http action Prompt',
+                                    'data': 'test_http_action',
+                                    'instructions': 'Answer according to the context', 'type': 'user',
+                                    'source': 'action',
+                                    'is_enabled': True}]}
         with pytest.raises(AppException, match="Action with name test_http_action not found!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -390,7 +395,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompt_name',
-                   'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',  'type': 'system',
+                   'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -436,7 +441,8 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history',
+                                    'is_enabled': True},
                                    {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -458,14 +464,14 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {'name': 'test_add_prompt_action_with_no_system_prompts',
                    'llm_prompts': [
-                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Another Similarity Prompt', "data": "Bot_collection_two",
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}
-                                   ],
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Similarity Prompt', "data": "Bot_collection",
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                       {'name': 'Another Similarity Prompt', "data": "Bot_collection_two",
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                   ],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="System prompt is required!"):
             processor.add_prompt_action(request, bot, user)
@@ -529,8 +535,8 @@ class TestMongoProcessor:
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Temperature must be between 0.0 and 2.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -543,12 +549,14 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"], 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"],
+                                       'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError,
+                           match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_presence_penalty_hyperparameter(self):
@@ -556,15 +564,16 @@ class TestMongoProcessor:
         bot = 'test_bot_three'
         user = 'test_user_three'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
-        request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter', 'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter',
+                   'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': -3.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Presence penalty must be between -2.0 and 2.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -573,15 +582,16 @@ class TestMongoProcessor:
         bot = 'test_bot_four'
         user = 'test_user_four'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
-        request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter', 'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter',
+                   'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 3.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Frequency penalty must be between -2.0 and 2.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -597,8 +607,8 @@ class TestMongoProcessor:
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -614,8 +624,8 @@ class TestMongoProcessor:
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -631,8 +641,8 @@ class TestMongoProcessor:
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="top_p must be between 0.0 and 1.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -648,8 +658,8 @@ class TestMongoProcessor:
                                        'n': 7, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -665,8 +675,8 @@ class TestMongoProcessor:
                                        'n': 0, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -682,8 +692,8 @@ class TestMongoProcessor:
                                        'n': 2, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': 'a'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="logit_bias must be a dictionary!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -704,7 +714,7 @@ class TestMongoProcessor:
         user = 'test_user'
         action_id = '646344d6f7fa1a62db69cceb'
         request = {'name': 'test_edit_prompt_action_does_not_exist',
-            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -778,7 +788,8 @@ class TestMongoProcessor:
         request = {'name': 'test_edit_prompt_action_faq_action_again',
                    'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static'}], 'instructions': ['Answer in a short manner.', 'Keep it simple.']}
+                                    'source': 'static'}],
+                   'instructions': ['Answer in a short manner.', 'Keep it simple.']}
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
@@ -895,7 +906,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        with pytest.raises(AppException, match=f'Action with name "test_add_prompt_action_faq_action_with_default_values" not found'):
+        with pytest.raises(AppException,
+                           match=f'Action with name "test_add_prompt_action_faq_action_with_default_values" not found'):
             processor.delete_action('test_add_prompt_action_faq_action_with_default_values', bot, user)
 
     def test_delete_prompt_action_not_present(self):
@@ -1441,11 +1453,14 @@ class TestMongoProcessor:
         domain = processor.load_domain("test_upload_case_insensitivity")
         assert all(slot.name in ['session_started_metadata', 'requested_slot', 'application_name', 'bot', 'email_id',
                                  'location', 'user', 'kairon_action_response', 'image', 'video', 'audio', 'doc_url',
-                                 'document', 'order', 'longitude', 'latitude', 'flow_reply', 'http_status_code'] for slot in domain.slots)
+                                 'document', 'order', 'longitude', 'latitude', 'flow_reply', 'http_status_code'] for
+                   slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
-                                                 'utter_default'], ignore_order=True)
-        assert not DeepDiff(domain.entities, ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
-                                   'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url', 'longitude', 'latitude', 'flow_reply'], ignore_order=True)
+                                                            'utter_default'], ignore_order=True)
+        assert not DeepDiff(domain.entities,
+                            ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
+                             'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url', 'longitude',
+                             'latitude', 'flow_reply'], ignore_order=True)
         assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
                                 'ask_location': {'required_slots': ['location', 'application_name']}}
         assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
@@ -2436,7 +2451,6 @@ class TestMongoProcessor:
         folder = os.path.join("models/tests", "old_model", "*.tar.gz")
         assert len(list(glob.glob(folder))) == 4
 
-
     def test_start_training_done(self, monkeypatch):
         model_path = start_training("tests", "testUser")
         assert model_path
@@ -2444,9 +2458,8 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().model_path == model_path
 
-    @patch('elasticapm.base.Client', create=True)
-    def test_start_training_done_with_intrumentation(self, mock_apm):
-        with patch.dict(Utility.environment["apm"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8800'}, clear=True):
+    def test_start_training_done_with_intrumentation(self):
+        with patch.dict(Utility.environment["apm"], {"enable": True, 'service_name': 'kairon'}, clear=True):
             processor = MongoProcessor()
             loop = asyncio.get_event_loop()
             loop.run_until_complete(processor.save_from_path(
@@ -2800,7 +2813,8 @@ class TestMongoProcessor:
             {"name": "deny", "type": "INTENT"},
             {"name": "utter_deny", "type": "BOT"}
         ]
-        story_dict_one = {'name': "story for download", 'steps': steps_story, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_dict_one = {'name': "story for download", 'steps': steps_story, 'type': 'STORY',
+                          'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict_one, "tests_download", "user@integration.com")
 
         steps_rule = [
@@ -2853,7 +2867,8 @@ class TestMongoProcessor:
 
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
-        BotSettings(bot="tests_download_prompt", user="user@integration.com", llm_settings=LLMSettings(enable_faq=True)).save()
+        BotSettings(bot="tests_download_prompt", user="user@integration.com",
+                    llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'prompt_action_with_default_values',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -3124,7 +3139,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_path_story"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'},
+                                                  {'node_id': '5', 'flow_type': 'STORY'}]
         assert multiflow_story[0]['name'] == 'get_multiflow_story_story'
 
     def test_get_multiflow_stories_with_RULE_metadata(self):
@@ -3169,7 +3185,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_path_rule"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'},
+                                                  {"node_id": "5", "flow_type": 'RULE'}]
         assert multiflow_story[0]['name'] == 'get_multiflow_story_rule'
 
     def test_get_multiflow_stories_with_empty_metadata(self):
@@ -3222,9 +3239,11 @@ class TestMongoProcessor:
         bot = "test_get_empty_path_type_metadata"
         user = "test_get_user_empty_path_type_metadata"
         steps = [
-            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1",
+                      "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
              "connections": [
-                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
+                  "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
             {"step": {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
@@ -3258,7 +3277,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_empty_path_type_metadata"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'},
+                                                  {'node_id': '5', 'flow_type': 'STORY'}]
         assert multiflow_story[0]['name'] == 'test_get_multiflow_stories_with_empty_path_type_metadata'
 
     def test_get_multiflow_stories_with_STORY_metadata(self):
@@ -3303,7 +3323,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_path_story"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'},
+                                                  {'node_id': '5', 'flow_type': 'STORY'}]
         assert multiflow_story[0]['name'] == 'get_multiflow_story_story'
 
     def test_get_multiflow_stories_with_RULE_metadata(self):
@@ -3348,7 +3369,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_path_rule"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'},
+                                                  {"node_id": "5", "flow_type": 'RULE'}]
         assert multiflow_story[0]['name'] == 'get_multiflow_story_rule'
 
     def test_get_multiflow_stories_with_empty_metadata(self):
@@ -3401,9 +3423,11 @@ class TestMongoProcessor:
         bot = "test_get_empty_path_type_metadata"
         user = "test_get_user_empty_path_type_metadata"
         steps = [
-            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1",
+                      "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
              "connections": [
-                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
+                  "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
             {"step": {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
@@ -3437,7 +3461,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_empty_path_type_metadata"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'},
+                                                  {'node_id': '5', 'flow_type': 'STORY'}]
         assert multiflow_story[0]['name'] == 'test_get_multiflow_stories_with_empty_path_type_metadata'
 
     def test_edit_training_example_duplicate(self):
@@ -4595,7 +4620,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
@@ -4661,7 +4687,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/all'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
@@ -4713,7 +4740,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
@@ -4776,7 +4804,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/validator/append'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
@@ -4882,7 +4911,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, nlu=nlu, overwrite=True, what={'nlu'})
@@ -4974,7 +5004,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, story_graph=story_graph, overwrite=True, what={'stories'})
@@ -5028,7 +5059,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
         config['language'] = 'fr'
 
         mongo_processor = MongoProcessor()
@@ -5075,7 +5107,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, story_graph=story_graph, domain=domain, overwrite=True,
@@ -5309,7 +5342,7 @@ class TestMongoProcessor:
                          pytest.chat_client_config]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
-        assert REQUIREMENTS - {'multiflow_stories'}== files_received
+        assert REQUIREMENTS - {'multiflow_stories'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
@@ -5649,18 +5682,19 @@ class TestMongoProcessor:
         assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'recipe': 'default.v1','language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
-                                                    'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 200, 'name': 'DIETClassifier'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.6},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'epochs': 300, 'name': 'ResponseSelector'}],
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                  'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 200, 'name': 'DIETClassifier'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.6},
+                                 {'name': 'EntitySynonymMapper'},
+                                 {'epochs': 300, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
@@ -5745,18 +5779,19 @@ class TestMongoProcessor:
         ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         assert ted['name'] == 'TEDPolicy'
         assert ted['epochs'] == 400
-        expected = {'recipe': 'default.v1', 'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
-                                                    'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 200, 'name': 'DIETClassifier'},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
-                                                   {'epochs': 300, 'name': 'ResponseSelector'}],
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                  'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 200, 'name': 'DIETClassifier'},
+                                 {'name': 'EntitySynonymMapper'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                 {'epochs': 300, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
@@ -5854,15 +5889,16 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_fallback_not_configured', 'test')
         config = processor.load_config('test_fallback_not_configured')
-        expected = {'recipe': 'default.v1','language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 5, 'name': 'DIETClassifier'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.8},
-                                                   {'epochs': 5, 'name': 'ResponseSelector'}],
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 5, 'name': 'DIETClassifier'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.8},
+                                 {'epochs': 5, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 5, 'name': 'TEDPolicy'},
                                  {'name': 'RulePolicy', 'max_history': 5, 'core_fallback_action_name': 'action_say_bye',
                                   'core_fallback_threshold': 0.3}]}
@@ -5878,18 +5914,19 @@ class TestMongoProcessor:
         assert nlu_fallback['threshold'] == 0.75
         rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
         assert len(rule_policy) == 5
-        expected = {'recipe': 'default.v1', 'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
-                                                    'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 5, 'name': 'DIETClassifier'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.75},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'epochs': 10, 'name': 'ResponseSelector'}],
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                  'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 5, 'name': 'DIETClassifier'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.75},
+                                 {'name': 'EntitySynonymMapper'},
+                                 {'epochs': 10, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
@@ -5919,21 +5956,22 @@ class TestMongoProcessor:
         assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'recipe': 'default.v1', 'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
-                                                    'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 5, 'name': 'DIETClassifier'},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
-                                                   {'epochs': 10, 'name': 'ResponseSelector'}],
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                  'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 5, 'name': 'DIETClassifier'},
+                                 {'name': 'EntitySynonymMapper'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                 {'epochs': 10, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_say_bye', 'core_fallback_threshold': 0.3,
-                                  'enable_fallback_prediction': True, 'max_history': 5,'name': 'RulePolicy'}]}
+                                  'enable_fallback_prediction': True, 'max_history': 5, 'name': 'RulePolicy'}]}
         assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_save_component_properties_all_action_fallback_update(self):
@@ -6024,7 +6062,6 @@ class TestMongoProcessor:
         with pytest.raises(TypeError):
             processor.add_synonym_value(
                 None, "bot", bot, user)
-
 
         with pytest.raises(ValidationError, match="Synonym name and value cannot be empty or blank spaces"):
             processor.add_synonym_value(
@@ -6539,14 +6576,11 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
             processor.add_lookup_value("number", "one", bot, user)
 
-
         with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
             processor.add_lookup_value(" ", "one", bot, user)
 
         with pytest.raises(TypeError):
             processor.add_lookup_value(None, "one", bot, user)
-
-
 
     def test_add_lookup(self):
         processor = MongoProcessor()
@@ -6563,7 +6597,6 @@ class TestMongoProcessor:
 
         with pytest.raises(AppException, match="Lookup already exists!"):
             processor.add_lookup("number", bot, user)
-
 
     def test_add__and_get_lookup_values(self):
         processor = MongoProcessor()
@@ -6747,7 +6780,8 @@ class TestMongoProcessor:
         processor.add_slot({"name": "occupation", "type": "text", "influence_conversation": True}, bot, user)
         expected_slot = {"slot": "occupation",
                          'mapping': [{'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
-                                     {'type': 'from_text', 'value': 'engineer', "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
+                                     {'type': 'from_text', 'value': 'engineer',
+                                      "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
                                      {'type': 'from_entity', 'entity': 'occupation'},
                                      {'type': 'from_trigger_intent', 'value': 'tester',
                                       'intent': ['get_business', 'is_engineer', 'is_tester'],
@@ -6763,7 +6797,8 @@ class TestMongoProcessor:
             SlotMapping.objects(slot='occupation', bot=bot, status=True).get()
         expected_slot = {"slot": "occupation", 'mapping': [
             {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
-            {'type': 'from_text', 'value': 'engineer', "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
+            {'type': 'from_text', 'value': 'engineer',
+             "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
             {'type': 'from_entity', 'entity': 'occupation'},
             {'type': 'from_trigger_intent', 'value': 'tester',
              'intent': ['get_business', 'is_engineer', 'is_tester'],
@@ -6777,28 +6812,33 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         slots = list(processor.get_existing_slots(bot))
         expected = [
-                {'name': 'kairon_action_response', 'type': 'any', 'influence_conversation': False, '_has_been_set': False}, 
-                {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'influence_conversation': False, '_has_been_set': False}, 
-                {'name': 'order', 'type': 'any', 'influence_conversation': False, '_has_been_set': False}, 
-                {'name': 'flow_reply', 'type': 'any', 'influence_conversation': False, '_has_been_set': False}, 
-                {'name': 'http_status_code', 'type': 'any', 'influence_conversation': False, '_has_been_set': False}, 
-                {'name': 'image', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'audio', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'video', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'document', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'doc_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'longitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'latitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'date_time', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'category', 'type': 'text', 'influence_conversation': False, '_has_been_set': False}, 
-                {'name': 'file', 'type': 'text', 'influence_conversation': False, '_has_been_set': False}, 
-                {'name': 'file_error', 'type': 'text', 'influence_conversation': False, '_has_been_set': False}, 
-                {'name': 'file_text', 'type': 'text', 'influence_conversation': False, '_has_been_set': False}, 
-                {'name': 'name', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'priority', 'type': 'categorical', 'values': ['low', 'medium', 'high', '__other__'], 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'ticketid', 'type': 'float', 'initial_value': 1.0, 'max_value': 1.0, 'min_value': 0.0, 'influence_conversation': True, '_has_been_set': False}, 
-                {'name': 'age', 'type': 'float', 'max_value': 1.0, 'min_value': 0.0, 'influence_conversation': True, '_has_been_set': False}, {'name': 'occupation', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}
-            ]
+            {'name': 'kairon_action_response', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'influence_conversation': False,
+             '_has_been_set': False},
+            {'name': 'order', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'flow_reply', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'http_status_code', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'image', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'audio', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'video', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'document', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'doc_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'longitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'latitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'date_time', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'category', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'file', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'file_error', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'file_text', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'name', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'priority', 'type': 'categorical', 'values': ['low', 'medium', 'high', '__other__'],
+             'influence_conversation': True, '_has_been_set': False},
+            {'name': 'ticketid', 'type': 'float', 'initial_value': 1.0, 'max_value': 1.0, 'min_value': 0.0,
+             'influence_conversation': True, '_has_been_set': False},
+            {'name': 'age', 'type': 'float', 'max_value': 1.0, 'min_value': 0.0, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'occupation', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}
+        ]
         assert len(slots) == 22
         assert not DeepDiff(slots, expected, ignore_order=True)
 
@@ -6860,7 +6900,8 @@ class TestMongoProcessor:
                                         "value": "business",
                                         "intent": ["get_occupation"],
                                     },
-                                    {"type": "from_text", "value": "engineer", "conditions":[{"active_loop":"booking", "requested_slot":"engineer"}]},
+                                    {"type": "from_text", "value": "engineer",
+                                     "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
                                     {"type": "from_entity", "entity": "occupation"},
                                     {
                                         "type": "from_trigger_intent",
@@ -6886,7 +6927,7 @@ class TestMongoProcessor:
                             },
                         ],
                         ignore_order=True,
-                    )
+                        )
         assert not diff
 
     def test_add_form(self):
@@ -7985,7 +8026,7 @@ class TestMongoProcessor:
         user = 'test'
         processor.delete_complex_story(pytest.form_story_id, 'STORY', bot, user)
         assert not Stories.objects(block_name="story with form", bot=bot,
-                               events__name='restaurant_form')
+                                   events__name='restaurant_form')
 
     def test_update_story_step_that_is_attached_to_form(self):
         processor = MongoProcessor()
@@ -8285,12 +8326,12 @@ class TestMongoProcessor:
         prompt_action_config = PromptActionConfigRequest(
             name='test_delete_action_with_attached_http_action',
             llm_prompts=[{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Action Prompt',
-                                    'data': 'tester_action',
-                                    'instructions': 'Answer according to the context', 'type': 'user',
-                                    'source': 'action',
-                                    'is_enabled': True}]
+                          'source': 'static', 'is_enabled': True},
+                         {'name': 'Action Prompt',
+                          'data': 'tester_action',
+                          'instructions': 'Answer according to the context', 'type': 'user',
+                          'source': 'action',
+                          'is_enabled': True}]
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         processor.add_prompt_action(prompt_action_config.dict(), bot, user)
@@ -8897,7 +8938,6 @@ class TestMongoProcessor:
             Actions.objects(name='jira_action', bot=bot).get()
         with pytest.raises(DoesNotExist):
             JiraAction.objects(name='jira_action', bot=bot).get()
-
 
     def test_list_zendesk_actions_empty(self):
         bot = 'test'
@@ -9555,7 +9595,8 @@ class TestMongoProcessor:
         }
         payload = {'type': 'from_value', 'value': payload_body}
         schema = {
-            "metadata": [{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "metadata": [
+                {"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "test_add_vector_embedding_action_config_op_embedding_search",
             "bot": bot,
             "user": user
@@ -9594,7 +9635,8 @@ class TestMongoProcessor:
             {"name": "helu", "type": "INTENT"},
             {"name": "test_vectordb_action_op_embedding_search", "type": "DATABASE_ACTION"},
         ]
-        story_dict = {'name': "story with vector embedding action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "story with vector embedding action", 'steps': steps, 'type': 'STORY',
+                      'template_type': 'CUSTOM'}
         story_id = processor.add_complex_story(story_dict, bot, user)
         story = Stories.objects(block_name="story with vector embedding action", bot=bot,
                                 events__name='test_vectordb_action_op_embedding_search', status=True).get()
@@ -9658,7 +9700,8 @@ class TestMongoProcessor:
         response = 'nupur.khare'
         query_type = 'embedding_search'
         payload = {'type': 'from_slot', 'value': 'email'}
-        processor.add_slot({"name": "email", "type": "text", "initial_value": "nupur.khare@digite.com", "influence_conversation": True}, bot, user,
+        processor.add_slot({"name": "email", "type": "text", "initial_value": "nupur.khare@digite.com",
+                            "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
@@ -9682,7 +9725,8 @@ class TestMongoProcessor:
         assert actual_vectordb_action is not None
         assert Actions.objects(name=action, status=True, bot=bot).get()
         assert actual_vectordb_action['name'] == action
-        assert actual_vectordb_action['collection'] == 'test_add_vector_embedding_action_config_op_embedding_search_from_slot'
+        assert actual_vectordb_action[
+                   'collection'] == 'test_add_vector_embedding_action_config_op_embedding_search_from_slot'
         assert actual_vectordb_action['payload']['type'] == 'from_slot'
         assert actual_vectordb_action['payload']['value'] == 'email'
         assert actual_vectordb_action['query_type'] == 'embedding_search'
@@ -9897,7 +9941,8 @@ class TestMongoProcessor:
         assert actual['query_type'] == 'embedding_search'
         assert actual['payload'] == {'type': 'from_slot', 'value': 'email'}
         assert actual['collection'] == 'test_get_vector_embedding_action'
-        assert actual['response'] == {'value': 'nupur.khare', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'}
+        assert actual['response'] == {'value': 'nupur.khare', 'dispatch': True, 'evaluation_type': 'expression',
+                                      'dispatch_type': 'text'}
         assert actual['db_type'] == 'qdrant'
         assert actual['set_slots'] == [{'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}]
 
@@ -9971,7 +10016,8 @@ class TestMongoProcessor:
         assert actual is not None
         assert actual['name'] == action
         assert actual['response']['value'] == '15'
-        assert actual['payload']['value'] == {'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+        assert actual['payload']['value'] == {'filter': {
+            'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
         response_two = 'nimble'
         processor.add_slot({"name": "name", "type": "text", "initial_value": "nupur",
                             "influence_conversation": True}, bot, user,
@@ -10014,7 +10060,8 @@ class TestMongoProcessor:
             payload=payload,
             response=ActionResponseEvaluation(value=response)
         )
-        with pytest.raises(AppException, match='Action with name "test_update_vectordb_action_does_not_exists" not found'):
+        with pytest.raises(AppException,
+                           match='Action with name "test_update_vectordb_action_does_not_exists" not found'):
             processor.update_db_action(vectordb_action_config.dict(), user, bot)
 
     def test_delete_vector_embedding_action_config(self):
@@ -10076,7 +10123,8 @@ class TestMongoProcessor:
         ).save().to_mongo()
 
         try:
-            processor.delete_action("test_delete_vector_embedding_action_config_non_existing_non_existing", user=user, bot=bot)
+            processor.delete_action("test_delete_vector_embedding_action_config_non_existing_non_existing", user=user,
+                                    bot=bot)
             assert False
         except AppException as e:
             assert str(e).__contains__(
@@ -10501,7 +10549,7 @@ class TestMongoProcessor:
         request_method = 'GET'
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
-        dispatch_type="json"
+        dispatch_type = "json"
         header: List[HttpActionParameters] = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
@@ -10769,23 +10817,25 @@ class TestMongoProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
         assert not DeepDiff(actions, {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
-                           'hubspot_forms_action': [],
-                           'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
-                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
-                           'kairon_bot_response': [],
-                           'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
-                           'database_action': [], 'pyscript_action': [], 'web_search_action': [],
-                           'utterances': ['utter_greet',
-                                          'utter_cheer_up',
-                                          'utter_did_that_help',
-                                          'utter_happy',
-                                          'utter_goodbye',
-                                          'utter_iamabot',
-                                          'utter_feedback',
-                                          'utter_good_feedback',
-                                          'utter_bad_feedback',
-                                          'utter_default',
-                                          'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']}, ignore_order=True)
+                                      'hubspot_forms_action': [],
+                                      'http_action': [], 'google_search_action': [], 'jira_action': [],
+                                      'two_stage_fallback': [],
+                                      'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
+                                      'kairon_bot_response': [],
+                                      'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
+                                      'database_action': [], 'pyscript_action': [], 'web_search_action': [],
+                                      'utterances': ['utter_greet',
+                                                     'utter_cheer_up',
+                                                     'utter_did_that_help',
+                                                     'utter_happy',
+                                                     'utter_goodbye',
+                                                     'utter_iamabot',
+                                                     'utter_feedback',
+                                                     'utter_good_feedback',
+                                                     'utter_bad_feedback',
+                                                     'utter_default',
+                                                     'utter_please_rephrase', 'utter_custom', 'utter_query',
+                                                     'utter_more_queries']}, ignore_order=True)
 
     def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()
@@ -10955,7 +11005,8 @@ class TestMongoProcessor:
              },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "food", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
             {"step": {"name": "food", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
@@ -10990,10 +11041,13 @@ class TestMongoProcessor:
              },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_food", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11011,7 +11065,8 @@ class TestMongoProcessor:
                               "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
              }
         ]
-        updated_story_dict = {'name': story_name, 'steps': updated_steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        updated_story_dict = {'name': story_name, 'steps': updated_steps, 'type': 'MULTIFLOW',
+                              'template_type': 'CUSTOM'}
         processor.update_multiflow_story(pytest.story_id, updated_story_dict, bot)
         updated_multiflow_story = MultiflowStories.objects(block_name=story_name, bot=bot).get()
         assert len(updated_multiflow_story.events) == 6
@@ -11034,9 +11089,11 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "age", "type": "SLOT", "value": 23, "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "age", "type": "SLOT", "value": 23, "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "foody", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
             {"step": {"name": "foody", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
@@ -11075,12 +11132,15 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
                  {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "foody", "type": "SLOT", "value": True, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "foody", "type": "SLOT", "value": True, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "foody", "type": "SLOT", "value": True, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "foody", "type": "SLOT", "value": True, "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11116,12 +11176,15 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
                  {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_hobbies", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11157,12 +11220,15 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
                  {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11181,7 +11247,8 @@ class TestMongoProcessor:
              }
         ]
         story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-        with pytest.raises(ValidationError, match="slot values in multiflow story must be either None or of type int, str or boolean"):
+        with pytest.raises(ValidationError,
+                           match="slot values in multiflow story must be either None or of type int, str or boolean"):
             processor.add_multiflow_story(story_dict, bot, user)
 
     def test_add_multiflow_story_with_slot_value_invalid_type(self):
@@ -11193,12 +11260,15 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
                  {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11233,7 +11303,8 @@ class TestMongoProcessor:
              },
             {"step": {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
             {"step": {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
@@ -11270,7 +11341,8 @@ class TestMongoProcessor:
              },
             {"step": {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
             {"step": {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
@@ -11294,7 +11366,8 @@ class TestMongoProcessor:
         story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         events = [MultiflowStoryEvents(**step) for step in steps]
         with pytest.raises(ValidationError, match="Value is allowed only for slot events"):
-            MultiflowStories(block_name="multiflow story with value for invalid events", bot=bot, user=user, events=events).save()
+            MultiflowStories(block_name="multiflow story with value for invalid events", bot=bot, user=user,
+                             events=events).save()
 
     def test_add_multiflow_story_with_path_type_as_STORY(self):
         processor = MongoProcessor()
@@ -11333,7 +11406,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'STORY'}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = MultiflowStories.objects(bot=bot).get()
         assert len(multiflow_story.events) == 6
@@ -11376,7 +11450,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = MultiflowStories.objects(bot=bot).get()
         assert len(multiflow_story.events) == 6
@@ -11419,7 +11494,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'STORY'}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="Path tagged as RULE can have only one intent!"):
             processor.add_multiflow_story(story_dict, bot, user)
 
@@ -11460,7 +11536,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6'}, {"node_id": "5"}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = MultiflowStories.objects(bot=bot).get()
         assert len(multiflow_story.events) == 6
@@ -11504,7 +11581,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="Slots cannot be leaf nodes!"):
             processor.add_multiflow_story(story_dict, bot, user)
 
@@ -11613,13 +11691,13 @@ class TestMongoProcessor:
         metadata_three = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
 
         story_dict_one = {'name': story_name_one, 'steps': steps_one, "metadata": metadata_one, 'type': 'MULTIFLOW',
-                      'template_type': 'CUSTOM'}
+                          'template_type': 'CUSTOM'}
         story_dict_two = {'name': story_name_two, 'steps': steps_two, "metadata": metadata_two,
                           'type': 'MULTIFLOW',
                           'template_type': 'CUSTOM'}
         story_dict_three = {'name': story_name_three, 'steps': steps_three, "metadata": metadata_three,
-                          'type': 'MULTIFLOW',
-                          'template_type': 'CUSTOM'}
+                            'type': 'MULTIFLOW',
+                            'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict_one, bot, user)
         processor.add_multiflow_story(story_dict_two, bot, user)
         processor.add_multiflow_story(story_dict_three, bot, user)
@@ -11671,7 +11749,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '2', "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Only leaf nodes can be tagged with a flow"):
             processor.add_multiflow_story(story_dict, bot, user)
 
@@ -12518,7 +12597,8 @@ class TestMongoProcessor:
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [],
-            'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default', 'utter_please_rephrase'], 'web_search_action': []}, ignore_order=True)
+            'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
+                           'utter_please_rephrase'], 'web_search_action': []}, ignore_order=True)
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -12620,7 +12700,7 @@ class TestMongoProcessor:
         assert story.events[0].name == "..."
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
-        assert not DeepDiff(actions,{
+        assert not DeepDiff(actions, {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
@@ -12636,7 +12716,8 @@ class TestMongoProcessor:
                            'utter_good_feedback',
                            'utter_bad_feedback',
                            'utter_default',
-                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']}, ignore_order=True)
+                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']},
+                            ignore_order=True)
 
     def test_add_duplicate_rule(self):
         processor = MongoProcessor()
@@ -13039,7 +13120,6 @@ class TestMongoProcessor:
             with pytest.raises(ValidationError, match="custom_text can only be of type value or slot!"):
                 processor.add_email_action(email_config, "TEST", "tests")
 
-
     def test_add_email_action_duplicate(self):
         processor = MongoProcessor()
         email_config = {"action_name": "email_config",
@@ -13398,7 +13478,6 @@ class TestMongoProcessor:
             processor.add_web_search_action(action, bot, user)
         assert Actions.objects(name='public_custom_search', status=True, bot=bot).get()
         assert WebSearchAction.objects(name='public_custom_search', status=True, bot=bot).get()
-
 
     def test_list_web_search_action_masked(self):
         processor = MongoProcessor()
@@ -14252,7 +14331,8 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
         AuditLogData(
-            attributes=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            attributes=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time,
+            action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
@@ -14469,7 +14549,8 @@ class TestMongoProcessor:
 
         schema_three = {
             "metadata": [
-                {"column_name": "metadata_three", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+                {"column_name": "metadata_three", "data_type": "str", "enable_search": True,
+                 "create_embeddings": True}],
             "collection_name": "metadata_three",
             "bot": bot,
             "user": user
@@ -14560,7 +14641,8 @@ class TestMongoProcessor:
         print(data)
         assert data[0]
         assert data[0]['_id']
-        assert data[0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True, 'create_embeddings': True}
+        assert data[0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True,
+                                          'create_embeddings': True}
         assert data[0]['collection_name'] == 'details_collection'
 
     def test_delete_payload_metadata(self):
@@ -14819,11 +14901,12 @@ class TestMongoProcessor:
     @patch("kairon.shared.cognition.processor.CognitionDataProcessor.get_cognition_data", autospec=True)
     def test_list_cognition_data(self, mock_get_cognition_data, mock_list_cognition_data):
         cognition_data = [{'vector_id': 1,
-                     'row_id': '65266ff16f0190ca4fd09898',
-                     'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
-                     'content_type': 'text',
-                     'collection': 'bot', 'user': 'testUser', 'bot': 'test'}]
+                           'row_id': '65266ff16f0190ca4fd09898',
+                           'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
+                           'content_type': 'text',
+                           'collection': 'bot', 'user': 'testUser', 'bot': 'test'}]
         row_count = 1
+
         def _list_cognition_data(*args, **kwargs):
             return cognition_data
 
@@ -14848,7 +14931,7 @@ class TestMongoProcessor:
         print(data)
         assert data[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
-                                 'software application are tested in isolation to ensure that each unit functions as expected. '
+                              'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['row_id']
         assert data[0]['collection'] == 'bot'
         kwargs = {'collection': 'Bot', 'data': 'Unit testing'}
@@ -15446,7 +15529,8 @@ class TestModelProcessor:
         assert result.get("method") == "GET"
 
     def test_auditlog_for_chat_client_config(self):
-        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "bot", "value": "test"}], user='testUser', entity='ChatClientConfig').order_by('-timestamp'))
+        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "bot", "value": "test"}], user='testUser',
+                                                  entity='ChatClientConfig').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data[0] is not None
         assert auditlog_data[0].attributes[0]["value"] == "test"
@@ -15454,7 +15538,9 @@ class TestModelProcessor:
         assert auditlog_data[0].entity == "ChatClientConfig"
 
     def test_auditlog_for_intent(self):
-        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='save', entity='Intents').order_by('-timestamp'))
+        auditlog_data = list(
+            AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='save',
+                                 entity='Intents').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
         assert auditlog_data[0].attributes[0]["value"] == "tests"
@@ -15462,7 +15548,8 @@ class TestModelProcessor:
         assert auditlog_data[0].entity == "Intents"
 
         auditlog_data = list(
-            AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='delete', entity='Intents').order_by('-timestamp'))
+            AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='delete',
+                                 entity='Intents').order_by('-timestamp'))
         # No hard delete supported for intents
         assert len(auditlog_data) == 8
 
@@ -15484,7 +15571,7 @@ class TestModelProcessor:
         to_date = datetime.utcnow().date()
         page_size = 100
         auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
-                                                            page_size=page_size)
+                                                                     page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_top_50(self):
@@ -15493,7 +15580,7 @@ class TestModelProcessor:
         to_date = datetime.utcnow().date()
         page_size = 50
         auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
-                                                            page_size=page_size)
+                                                                     page_size=page_size)
         assert len(auditlog_data) == 50
 
     def test_get_auditlog_from_date_to_date_none(self):
@@ -15502,7 +15589,7 @@ class TestModelProcessor:
         to_date = None
         page_size = 50
         auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
-                                                            page_size=page_size)
+                                                                     page_size=page_size)
         assert len(auditlog_data) == 50
 
     def test_edit_training_example_empty_or_blank(self):
