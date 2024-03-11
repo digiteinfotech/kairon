@@ -94,6 +94,12 @@ class TestAccountProcessor:
     def test_list_bots_none(self):
         assert not list(AccountProcessor.list_bots(1000))
 
+    def test_add_bot_with_character_limit_exceeded(self):
+        name = "supercalifragilisticexpialidociousalwaysworksmorethan60characters"
+        with pytest.raises(AppException, match='Bot Name cannot be more than 60 characters.'):
+            AccountProcessor.add_bot(name=name, account=pytest.account,
+                                     user="fshaikh@digite.com", is_new_account=True)
+
     def test_add_bot(self):
         bot_response = AccountProcessor.add_bot("test", pytest.account, "fshaikh@digite.com", True)
         bot = Bot.objects(name="test").get().to_mongo().to_dict()
