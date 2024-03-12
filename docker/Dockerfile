@@ -31,8 +31,8 @@ RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
     python -m nltk.downloader wordnet && \
     rm -rf requirements
 
-RUN python -m pip install --upgrade --force-reinstall packaging
 RUN opentelemetry-bootstrap -a install
+RUN python -m pip install packaging==20.9
 RUN python -m pip install pyston_lite_autoload
 COPY . .
 
