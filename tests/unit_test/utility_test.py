@@ -266,6 +266,16 @@ class TestUtility:
         token = AugmentationUtils.get_keywords(paragraph)
         assert Utility.check_empty_string(token[0][0]) == False
 
+    def test_check_character_limit_success(self):
+        name = "supercalifragilisticexpialidociousalwaysworks"
+        result = Utility.check_character_limit(value=name)
+        assert result is True
+
+    def test_check_character_limit_failure(self):
+        name = "supercalifragilisticexpialidociousalwaysworksmorethan60characters"
+        result = Utility.check_character_limit(value=name)
+        assert result is False
+
     @pytest.mark.asyncio
     async def test_upload_and_save(self):
         nlu_content = "## intent:greet\n- hey\n- hello".encode()

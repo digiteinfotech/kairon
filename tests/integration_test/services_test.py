@@ -939,6 +939,19 @@ def test_api_login_enabled_sso_only(monkeypatch):
     assert actual["error_code"] == 422
 
 
+def test_add_bot_with_character_limit_exceeded():
+    response = client.post(
+        "/api/account/bot",
+        json={"name": "supercalifragilisticexpialidociousalwaysworksmorethan60characters"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response['message'] == 'Bot Name cannot be more than 60 characters.'
+    assert response['error_code'] == 422
+    assert not response['success']
+    assert not response['data']
+
+
 def test_add_bot():
     response = client.post(
         "/api/account/bot",
@@ -962,6 +975,19 @@ def test_add_bot():
     assert response['error_code'] == 0
     assert response['success']
     assert response['data']['bot_id']
+    pytest.bot_id = response['data']['bot_id']
+
+
+def test_update_bot_name_with_character_limit_exceeded():
+    response = client.put(
+        f"/api/account/bot/{pytest.bot_id}",
+        json={"data": "supercalifragilisticexpialidociousalwaysworksmorethan60characters"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['message'] == 'Bot Name cannot be more than 60 characters.'
+    assert response['error_code'] == 422
+    assert not response['success']
+    assert not response['data']
 
 
 def test_list_bots():
