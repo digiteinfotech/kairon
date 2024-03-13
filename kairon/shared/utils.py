@@ -425,6 +425,14 @@ class Utility:
         shutil.rmtree(path, ignore_errors)
 
     @staticmethod
+    def copy_model_file_to_directory(input_file_path: Text, output_path: Text):
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        model_file = os.path.basename(input_file_path)
+        shutil.copy(input_file_path, output_path)
+        return model_file
+
+    @staticmethod
     def load_file_in_memory(file: Text):
         """
         load file in memory
