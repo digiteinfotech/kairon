@@ -17,7 +17,6 @@ from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
-from kairon.shared.otel import instrument
 
 
 def train_model_for_bot(bot: str):
@@ -82,7 +81,6 @@ def train_model_for_bot(bot: str):
         raise AppException("Failed to load the model for the bot.")
     return model
 
-@instrument
 def start_training(bot: str, user: str, token: str = None):
     """
     prevents training of the bot,
@@ -96,7 +94,6 @@ def start_training(bot: str, user: str, token: str = None):
     exception = None
     model_file = None
     training_status = None
-    apm_client = None
     processor = MongoProcessor()
     try:
         ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
