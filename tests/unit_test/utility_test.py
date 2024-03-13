@@ -1560,7 +1560,7 @@ class TestUtility:
     def test_message_extractor_hangout_image(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("image")
-        element_resolver = ElementTransformerOps("image", "hangout")
+        element_resolver = ElementTransformerOps("image", "hangouts")
         response = element_resolver.message_extractor(input_json, "image")
         expected_output = {
             "type": "image",
@@ -1572,7 +1572,7 @@ class TestUtility:
     def test_message_extractor_hangout_link(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("link")
-        element_resolver = ElementTransformerOps("link", "hangout")
+        element_resolver = ElementTransformerOps("link", "hangouts")
         response = element_resolver.message_extractor(input_json, "link")
         output = response.get("data")
         expected_output = "This is <http://www.google.com|GoogleLink> use for search"
@@ -1623,7 +1623,7 @@ class TestUtility:
     def test_message_extractor_hangout_multi_link(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("multi_link")
-        element_resolver = ElementTransformerOps("link", "hangout")
+        element_resolver = ElementTransformerOps("link", "hangouts")
         response = element_resolver.message_extractor(input_json, "link")
         output = response.get("data")
         expected_output = "This is <http://www.google.com|GoogleLink> use for search and you can also see news on <https://www.indiatoday.in/|Indiatoday> and slatejs details on <https://www.slatejs.org/examples/richtext|SlateJS>"
@@ -1661,13 +1661,13 @@ class TestUtility:
         assert expected_output.strip() == output
 
     def test_hangout_replace_strategy_image(self):
-        message_tmp = ElementTransformerOps.getChannelConfig("hangout", "image")
+        message_tmp = ElementTransformerOps.getChannelConfig("hangouts", "image")
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("image")
-        element_resolver = ElementTransformerOps("image", "hangout")
+        element_resolver = ElementTransformerOps("image", "hangouts")
         extract_response = element_resolver.message_extractor(input_json, "image")
         response = ElementTransformerOps.replace_strategy(
-            message_tmp, extract_response, "hangout", "image"
+            message_tmp, extract_response, "hangouts", "image"
         )
         expected_output = "{'cards': [{'sections': [{'widgets': [{'textParagraph': {'text': 'Dog Image'}}, {'image': {'imageUrl': 'https://i.imgur.com/nFL91Pc.jpeg', 'onClick': {'openLink': {'url': 'https://i.imgur.com/nFL91Pc.jpeg'}}}}]}]}]}"
         assert expected_output == str(response).strip()
@@ -1695,7 +1695,7 @@ class TestUtility:
     def test_image_transformer_hangout_image(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("image")
-        elementops = ElementTransformerOps("image", "hangout")
+        elementops = ElementTransformerOps("image", "hangouts")
         response = elementops.image_transformer(input_json)
         expected_output = "{'cards': [{'sections': [{'widgets': [{'textParagraph': {'text': 'Dog Image'}}, {'image': {'imageUrl': 'https://i.imgur.com/nFL91Pc.jpeg', 'onClick': {'openLink': {'url': 'https://i.imgur.com/nFL91Pc.jpeg'}}}}]}]}]}"
         assert expected_output == str(response).strip()
@@ -1703,7 +1703,7 @@ class TestUtility:
     def test_link_transformer_hangout_link(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("link")
-        element_resolver = ElementTransformerOps("link", "hangout")
+        element_resolver = ElementTransformerOps("link", "hangouts")
         response = element_resolver.link_transformer(input_json)
         output = str(response)
         expected_output = (
@@ -1758,7 +1758,7 @@ class TestUtility:
     async def test_messageConverter_hangout_link(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("link")
-        hangout = ConverterFactory.getConcreteInstance("link", "hangout")
+        hangout = ConverterFactory.getConcreteInstance("link", "hangouts")
         response = await hangout.messageConverter(input_json)
         expected_output = json_data.get("hangout_link_op")
         assert expected_output == response
@@ -1767,7 +1767,7 @@ class TestUtility:
     async def test_messageConverter_hangout_image(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("image")
-        hangout = ConverterFactory.getConcreteInstance("image", "hangout")
+        hangout = ConverterFactory.getConcreteInstance("image", "hangouts")
         response = await hangout.messageConverter(input_json)
         expected_output = json_data.get("hangout_image_op")
         assert expected_output == response
@@ -2007,7 +2007,7 @@ class TestUtility:
     async def test_messageConverter_hangout_video(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("video")
-        hangout = ConverterFactory.getConcreteInstance("video", "hangout")
+        hangout = ConverterFactory.getConcreteInstance("video", "hangouts")
         response = await hangout.messageConverter(input_json)
         expected_output = json_data.get("hangout_video_op")
         assert expected_output == response
@@ -2060,7 +2060,7 @@ class TestUtility:
     def test_message_extractor_hangout_video(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("video")
-        element_resolver = ElementTransformerOps("video", "hangout")
+        element_resolver = ElementTransformerOps("video", "hangouts")
         response = element_resolver.message_extractor(input_json, "video")
         output = response.get("data")
         expected_output = "https://www.youtube.com/watch?v=YFbCaahCWQ0"
@@ -2102,7 +2102,7 @@ class TestUtility:
     def test_video_transformer_hangout_video(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("video")
-        elementops = ElementTransformerOps("video", "hangout")
+        elementops = ElementTransformerOps("video", "hangouts")
         response = elementops.video_transformer(input_json)
         expected_output = {"text": "https://www.youtube.com/watch?v=YFbCaahCWQ0"}
         assert expected_output == response
@@ -2760,6 +2760,7 @@ class TestUtility:
             "messenger",
             "instagram",
             "whatsapp",
+            "line"
         ]
         channels = Utility.get_channels()
         assert channels == expected_channels
@@ -3750,3 +3751,40 @@ data: [DONE]\n\n"""
 
             assert domain["slots"]["bot"]["initial_value"] == bot
             assert metadata["domain"]["slots"]["bot"]["initial_value"] == bot
+
+    def test_link_transformer_line(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("link")
+        from kairon.chat.converters.channels.line import LineResponseConverter
+
+        line = LineResponseConverter("link", "line")
+        response = line.link_transformer(input_json)
+        output = str(response)
+        expected_output = """{'type': 'text', 'text': 'This is http://www.google.com use for search'}"""
+        assert expected_output == output
+
+    def test_video_transformer_line(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        from kairon.chat.converters.channels.line import LineResponseConverter
+
+        line = LineResponseConverter("video", "line")
+        response = line.video_transformer(input_json)
+        expected_output = {'type': 'video', 'originalContentUrl': 'https://www.youtube.com/watch?v=YFbCaahCWQ0', 'previewImageUrl': 'https://www.learntotrade.com.ph/assets-lttph/uploads/2016/04/video-preview-pic.jpg'}
+        assert expected_output == response
+
+    def test_image_transformer_line(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("image")
+        from kairon.chat.converters.channels.line import LineResponseConverter
+
+        line = LineResponseConverter("image", "line")
+        response = line.image_transformer(input_json)
+        expected_output = {'type': 'image', 'originalContentUrl': 'https://i.imgur.com/nFL91Pc.jpeg', 'previewImageUrl': 'https://i.imgur.com/nFL91Pc.jpeg'}
+        assert expected_output == response
+
+    def test_getConcreteInstance_line(self):
+        from kairon.chat.converters.channels.line import LineResponseConverter
+
+        line = ConverterFactory.getConcreteInstance("link", "line")
+        assert isinstance(line, LineResponseConverter)

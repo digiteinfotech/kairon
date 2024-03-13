@@ -659,3 +659,40 @@ class TestChat:
 
         static_comment_reply_actual = insta.get("config", {}).get("static_comment_reply")
         assert "Dhanyawad" == static_comment_reply_actual
+
+    def test_save_channel_config_line(self, monkeypatch):
+        bot = '5e564fbcdcf0d5fad89e3acd'
+
+        def _get_integration_token(*args, **kwargs):
+            return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
+
+        monkeypatch.setattr(Authentication, "generate_integration_token", _get_integration_token)
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "line", "config": {
+            "channel_secret": "gAAAAABl8EZIcRrJMpxsgEiYK-M3sw2-k8deqiGPkuM1at4Y4hXN6wwD8SlxLaH1YGazfANEwZ9jd4nuILZQPIFIjOHDU6wCOpcOo4HxDpWWS5DJALXOl92Ez2DBIn8GTslg32PIDUv5",
+            "channel_access_token": "gAAAAABl8EZISp9iqFhvOMgrfj1DZzDPPwLOD4_jJtgKDyTPKtEmNz1gYAIPVWU9Q_KjakEC81PdOuvOWju3gZm67jU-rvBxgMacW6kM7qgvFClZThlZEXl9Z01fxo-1BPnvAkCdDmbPUgaM1tvT77QlobDN_IDEXNlc3q-bo3PsvO0mYe29lwqvCkyFUnpdZRCqnHWtyL2qhARX18xS0SBr_c8jlQ8sUs_IcVozBlva4nUmZLWIo496jKtXObHRpVcrMJCqlu9oJ2tAtaT84KVO_q9VK_xHduU9Gu95EStehvamLMyC78k="
+        }}, bot, "test@chat.com")
+        line = ChatDataProcessor.get_channel_endpoint("line", bot)
+        hashcode = channel_url.split("/", -1)[-1]
+        dbhashcode = line.split("/", -1)[-1]
+        assert hashcode == dbhashcode
+
+    def test_get_channel_end_point_line(self, monkeypatch):
+        bot = '5e564fbcdcf0d5fad89e3acd'
+
+        def _get_integration_token(*args, **kwargs):
+            return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
+
+        monkeypatch.setattr(Authentication, "generate_integration_token", _get_integration_token)
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "line", "config": {
+                "channel_secret": "gAAAAABl8EZIcRrJMpxsgEiYK-M3sw2-k8deqiGPkuM1at4Y4hXN6wwD8SlxLaH1YGazfANEwZ9jd4nuILZQPIFIjOHDU6wCOpcOo4HxDpWWS5DJALXOl92Ez2DBIn8GTslg32PIDUv5",
+                "channel_access_token": "gAAAAABl8EZISp9iqFhvOMgrfj1DZzDPPwLOD4_jJtgKDyTPKtEmNz1gYAIPVWU9Q_KjakEC81PdOuvOWju3gZm67jU-rvBxgMacW6kM7qgvFClZThlZEXl9Z01fxo-1BPnvAkCdDmbPUgaM1tvT77QlobDN_IDEXNlc3q-bo3PsvO0mYe29lwqvCkyFUnpdZRCqnHWtyL2qhARX18xS0SBr_c8jlQ8sUs_IcVozBlva4nUmZLWIo496jKtXObHRpVcrMJCqlu9oJ2tAtaT84KVO_q9VK_xHduU9Gu95EStehvamLMyC78k="
+            }}, bot, "test@chat.com")
+        channel = Channels.objects(bot=bot, connector_type="line").get()
+        response = DataUtility.get_channel_endpoint(channel)
+        second_hashcode = response.split("/", -1)[-1]
+        line_2 = ChatDataProcessor.get_channel_config("line", bot, mask_characters=False)
+        dbcode = line_2["meta_config"]["secrethash"]
+        assert second_hashcode == dbcode
+

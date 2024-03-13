@@ -391,7 +391,7 @@ class DataUtility:
             access_limit=[f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/.+"],
             token_type=TOKEN_TYPE.CHANNEL.value
         )
-        if channel_config['connector_type'] == ChannelTypes.MSTEAMS.value:
+        if channel_config['connector_type'] in [ChannelTypes.MSTEAMS.value, ChannelTypes.LINE.value]:
             token = DataUtility.save_channel_metadata(config=channel_config, token=token)
 
         channel_endpoint = urljoin(
