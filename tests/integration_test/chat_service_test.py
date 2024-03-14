@@ -233,6 +233,19 @@ ChatDataProcessor.save_channel_config({"connector_type": "instagram",
                                        }
                                        },
                                       bot, user="test@chat.com")
+
+
+ChatDataProcessor.save_channel_config(
+    {
+        "connector_type": "line",
+        "config": {
+            "channel_secret": "gAAAAABl8EZIcRrJMpxsgEiYK-M3sw2-k8deqiGPkuM1at4Y4hXN6wwD8SlxLaH1YGazfANEwZ9jd4nuILZQPIFIjOHDU6wCOpcOo4HxDpWWS5DJALXOl92Ez2DBIn8GTslg32PIDUv5",
+            "channel_access_token": "gAAAAABl8EZISp9iqFhvOMgrfj1DZzDPPwLOD4_jJtgKDyTPKtEmNz1gYAIPVWU9Q_KjakEC81PdOuvOWju3gZm67jU-rvBxgMacW6kM7qgvFClZThlZEXl9Z01fxo-1BPnvAkCdDmbPUgaM1tvT77QlobDN_IDEXNlc3q-bo3PsvO0mYe29lwqvCkyFUnpdZRCqnHWtyL2qhARX18xS0SBr_c8jlQ8sUs_IcVozBlva4nUmZLWIo496jKtXObHRpVcrMJCqlu9oJ2tAtaT84KVO_q9VK_xHduU9Gu95EStehvamLMyC78k="
+        }
+    },
+    bot,
+    user="test@chat.com",
+)
 responses.stop()
 
 
@@ -397,6 +410,78 @@ def test_get_chat_client_config_with_invalid_domain():
         assert not Utility.check_empty_string(actual["message"])
         assert actual["message"] == "Domain not registered for kAIron client"
 
+
+def test_line_invalid_auth():
+    response = client.post(
+        f"/api/bot/line/{bot}/123",
+        json={
+            'destination': 'U9585aa48237a7eac0eec0d9fd1e44048',
+                'events': [{'type': 'message', 'message': {
+                        'type': 'text',
+                        'id': '497795501991919946',
+                        'quoteToken': '7J9IwpN5coZ5HB0dVeUwR-lBU38c9ZPrvwzEfuXAGw6xkaJa2bZQji910C8QsdbNt9_w0Zw_24k2UVntqqBWy15U4-ofAMQFRqyKFnYqupwSqdm25gavGt0NcyqG8VJZ5E_ukYZqjidnE7h63FIj0g',
+                        'text': 'Hi'},
+                    'webhookEventId': '01HR48X46ZZ3JD7FXNF79042NB',
+                    'deliveryContext': {'isRedelivery': False}, 'timestamp': 1709540544694, 'source': {'type': 'user', 'userId': 'Uff93a1d599dc8355a7460f5b12b42791'}, 'replyToken': '4b8a93c704fe42a792ff69058ecf3ec5', 'mode': 'active'}]
+            }
+        )
+    actual = response.json()
+    assert actual == {
+        "data": None,
+        "success": False,
+        "error_code": 401,
+        "message": 'Webhook url is not updated, please check. Url on line still refer old hashtoken',
+    }
+
+token_hash = '-9172378783378268257'
+@patch("kairon.chat.handlers.channels.line.LineHandler.is_validate_hash")
+@patch("kairon.chat.handlers.channels.line.LineHandler.validate_message_authenticity")
+def test_line_no_header(
+        validate_message_authenticity, is_validate_hash
+):
+    validate_message_authenticity.return_value = False
+    is_validate_hash.return_value = True, token
+    response = client.post(
+        f"/api/bot/line/{bot}/{token_hash}",
+        json={
+            'destination': 'U9585aa48237a7eac0eec0d9fd1e44048',
+                'events': [{'type': 'message', 'message': {
+                        'type': 'text',
+                        'id': '497795501991919946',
+                        'quoteToken': '7J9IwpN5coZ5HB0dVeUwR-lBU38c9ZPrvwzEfuXAGw6xkaJa2bZQji910C8QsdbNt9_w0Zw_24k2UVntqqBWy15U4-ofAMQFRqyKFnYqupwSqdm25gavGt0NcyqG8VJZ5E_ukYZqjidnE7h63FIj0g',
+                        'text': 'Hi'},
+                    'webhookEventId': '01HR48X46ZZ3JD7FXNF79042NB',
+                    'deliveryContext': {'isRedelivery': False}, 'timestamp': 1709540544694, 'source': {'type': 'user', 'userId': 'Uff93a1d599dc8355a7460f5b12b42791'}, 'replyToken': '4b8a93c704fe42a792ff69058ecf3ec5', 'mode': 'active'}]
+            }
+        )
+    actual = response.json()
+    assert actual == 'success'
+    validate_message_authenticity.assert_not_called()
+
+
+@patch("kairon.chat.handlers.channels.line.LineHandler.is_validate_hash")
+@patch("kairon.chat.handlers.channels.line.LineHandler.process_message")
+def test_line_wrong_signature(
+        process_message, is_validate_hash
+):
+    is_validate_hash.return_value = True, token
+    response = client.post(
+        f"/api/bot/line/{bot}/{token_hash}",
+        json={
+            'destination': 'U9585aa48237a7eac0eec0d9fd1e44048',
+                'events': [{'type': 'message', 'message': {
+                        'type': 'text',
+                        'id': '497795501991919946',
+                        'quoteToken': '7J9IwpN5coZ5HB0dVeUwR-lBU38c9ZPrvwzEfuXAGw6xkaJa2bZQji910C8QsdbNt9_w0Zw_24k2UVntqqBWy15U4-ofAMQFRqyKFnYqupwSqdm25gavGt0NcyqG8VJZ5E_ukYZqjidnE7h63FIj0g',
+                        'text': 'Hi'},
+                    'webhookEventId': '01HR48X46ZZ3JD7FXNF79042NB',
+                    'deliveryContext': {'isRedelivery': False}, 'timestamp': 1709540544694, 'source': {'type': 'user', 'userId': 'Uff93a1d599dc8355a7460f5b12b42791'}, 'replyToken': '4b8a93c704fe42a792ff69058ecf3ec5', 'mode': 'active'}]
+            },
+        headers={"X-Line-Signature": "wrong_signature"}
+        )
+    actual = response.json()
+    assert actual == 'success'
+    process_message.assert_not_called()
 
 def test_business_messages_invalid_auth():
     response = client.post(

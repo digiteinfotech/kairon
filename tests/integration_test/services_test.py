@@ -22652,4 +22652,4 @@ def test_list_system_metadata():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual["data"]) == 16
+    assert len(actual["data"]) == 17

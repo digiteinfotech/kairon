@@ -69,6 +69,10 @@ channels:
         waba_base_url: "https://waba-v2.360dialog.io"
         api_version: "v1"
         auth_header: "D360-API-KEY"
+  line:
+    required_fields:
+      - channel_secret
+      - channel_access_token
 
 actions:
   pipedrive:
