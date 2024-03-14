@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 import logging
 from typing import Text, List, Dict, Any, Iterable, Optional, Union
 import rasa.shared.utils.io
@@ -123,7 +124,9 @@ class Messenger:
         # quick reply and user message both share 'text' attribute
         # so quick reply should be checked first
         if self._is_quick_reply_message(message):
-            text = message["message"]["quick_reply"]["payload"]
+            payload = message["message"]["quick_reply"]["payload"]
+            entity = json.dumps({"quick_reply": payload})
+            text = f"/k_quick_reply{entity}"
         elif self._is_user_message(message):
             text = message["message"]["text"]
         elif self._is_audio_message(message):

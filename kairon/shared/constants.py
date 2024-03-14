@@ -121,6 +121,7 @@ class ElementTypes(str, Enum):
     AUDIO = "audio"
     BUTTON = "button"
     DROPDOWN = "dropdown"
+    QUICK_REPLY = "quick_reply"
 
 
 class WhatsappBSPTypes(str, Enum):
@@ -149,6 +150,7 @@ class KaironSystemSlots(str, Enum):
     longitude = "longitude"
     latitude = "latitude"
     flow_reply = "flow_reply"
+    quick_reply = "quick_reply"
     http_status_code = "http_status_code"
 
 

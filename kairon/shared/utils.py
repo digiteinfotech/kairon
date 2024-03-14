@@ -152,6 +152,16 @@ class Utility:
             return False
 
     @staticmethod
+    def check_character_limit(value: str):
+        """
+        checks for character limit
+
+        :param value: string value
+        :return: boolean
+        """
+        return len(value) <= 60
+
+    @staticmethod
     def retrieve_search_payload_and_embedding_payload(data: Any, metadata: Dict):
         from .cognition.processor import CognitionDataProcessor
 
