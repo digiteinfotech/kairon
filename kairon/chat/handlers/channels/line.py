@@ -1,5 +1,4 @@
 import logging
-from copy import deepcopy
 from typing import Dict, Text, Any, List, Optional
 
 from rasa.core.channels.channel import InputChannel, UserMessage, OutputChannel
