@@ -738,6 +738,32 @@ class EndPointBot(EmbeddedDocument):
 
 @auditlogger.log
 @push_notification.apply
+class DemoRequestLogs(Document):
+    first_name = StringField(required=True)
+    last_name = StringField(required=True)
+    email = StringField(required=True)
+    phone = StringField(default=None)
+    message = StringField(default=None)
+    recaptcha_response = StringField(default=None)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    def validate(self, clean=True):
+        from validators import email
+
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.first_name):
+            raise ValidationError("first_name cannot be empty")
+        if Utility.check_empty_string(self.last_name):
+            raise ValidationError("last_name cannot be empty")
+        if isinstance(email(self.email), ValidationFailure):
+            raise ValidationError("Invalid email address")
+
+
+
+@auditlogger.log
+@push_notification.apply
 class Endpoints(Auditlog):
     bot_endpoint = EmbeddedDocumentField(EndPointBot)
     action_endpoint = EmbeddedDocumentField(EndPointAction)
