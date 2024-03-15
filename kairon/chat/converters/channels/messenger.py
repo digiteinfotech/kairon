@@ -54,6 +54,29 @@ class MessengerResponseConverter(ElementTransformerOps):
         except Exception as ex:
             raise Exception(f"Exception in MessengerResponseConverter::button_transformer: {str(ex)}")
 
+    def quick_reply_transformer(self, message):
+        try:
+            quick_replies_json_temp = {}
+            jsoniterator = ElementTransformerOps.json_generator(message)
+            quick_replies = []
+            body_default = ElementTransformerOps.getChannelConfig(self.channel, "body_message")
+            for item in jsoniterator:
+                if item.get("type") == ElementTypes.QUICK_REPLY.value:
+                    title = ElementTransformerOps.json_generator(item.get("children"))
+                    for titletext in title:
+                        text = titletext.get("text")
+                    quick_reply_body = {}
+                    if item.get('content_type') == "text":
+                        quick_reply_body.update({"content_type": "text", "title": text,
+                                                 "payload": item.get("value"), "image_url": item.get("image_url")})
+                    else:
+                        quick_reply_body.update({"content_type": text})
+                    quick_replies.append(quick_reply_body)
+            quick_replies_json_temp.update({"text": body_default, "quick_replies": quick_replies})
+            return quick_replies_json_temp
+        except Exception as ex:
+            raise Exception(f"Exception in MessengerResponseConverter::quick_reply_transformer: {str(ex)}")
+
     async def messageConverter(self, message):
         try:
             if self.message_type == ElementTypes.IMAGE.value:
@@ -64,5 +87,7 @@ class MessengerResponseConverter(ElementTransformerOps):
                 return super().video_transformer(message)
             elif self.message_type == ElementTypes.BUTTON.value:
                 return self.button_transformer(message)
+            elif self.message_type == ElementTypes.QUICK_REPLY.value:
+                return self.quick_reply_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in MessengerResponseConverter::messageConverter {str(ex)}")

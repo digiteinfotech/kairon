@@ -151,10 +151,49 @@
       "type":"paragraph",
       "children":[{"text":""}]
     }],
-  "button_one": [{"type":"button","value":"single button is clicked","id":"5","children":[{"text":"One"}]},{"type":"paragraph","children":[{"text":""}]}],
-  "button_two": [{"type":"button","value":"seeds are treated with Bavistin","id":"1","children":[{"text":"Yes"}]},
+  "quick_reply_one": [{"type": "quick_reply", "content_type": "text", "value": "single button is clicked",
+        "image_url": "https://buffer.com/library/content/images/size/w1200/2023/10/free-images.jpg",
+        "id": "3", "children": [{"text": "One"}]}],
+  "quick_reply_two": [
+    {"type": "quick_reply", "content_type": "text", "value": "single button is clicked",
+      "image_url": "https://buffer.com/library/content/images/size/w1200/2023/10/free-images.jpg",
+      "id": "3", "children": [{"text": "One"}]},
+    {"type": "quick_reply", "content_type": "phone_number", "value": "", "image_url": "", "id": "2",
+      "children": [{"text": "9876543210"}]}
+  ],
+  "quick_reply_three": [
+    {"type": "quick_reply", "content_type": "text", "value": "single button is clicked",
+      "image_url": "", "id": "3", "children": [{"text": "One"}]},
+    {"type": "quick_reply", "content_type": "phone_number", "value": "", "image_url": "", "id": "2",
+      "children": [{"text": "9876543210"}]},
+    {"type": "quick_reply", "content_type": "email", "value": "", "image_url": "", "id": "1",
+      "children": [{"text": "mahesh.sattala@digite.com"}]}
+  ],
+  "messenger_quick_reply_op_one": {
+    "text": "Please select from quick buttons:",
+    "quick_replies": [{"content_type": "text", "title": "One", "payload": "single button is clicked",
+      "image_url": "https://buffer.com/library/content/images/size/w1200/2023/10/free-images.jpg"}]
+  },
+  "messenger_quick_reply_op_two": {
+    "text": "Please select from quick buttons:",
+    "quick_replies": [{"content_type": "text", "title": "One", "payload": "single button is clicked",
+      "image_url": "https://buffer.com/library/content/images/size/w1200/2023/10/free-images.jpg"},
+      {"content_type": "9876543210"}]
+  },
+  "messenger_quick_reply_op_three": {
+    "text": "Please select from quick buttons:",
+    "quick_replies": [{"content_type": "text", "title": "One", "payload": "single button is clicked", "image_url": ""},
+      {"content_type": "9876543210"},
+      {"content_type": "mahesh.sattala@digite.com"}]},
+  "button_one": [
+    {"type":"button","value":"single button is clicked","id":"5","children":[{"text":"One"}]},
+    {"type":"paragraph","children":[{"text":""}]}
+  ],
+  "button_two": [
+    {"type":"button","value":"seeds are treated with Bavistin","id":"1","children":[{"text":"Yes"}]},
     {"type":"button","value":"Bavistin is not sprayed on seeds","id":"2","children":[{"text":"No"}]},
-    {"type":"paragraph","children":[{"text":""}]}],
+    {"type":"paragraph","children":[{"text":""}]}
+  ],
   "button_three": [{"type":"button","value":"Vegetables only","id":"2","children":[{"text":"Veg"}]},
                   {"type":"button","value":"fish food served","id":"3","children":[{"text":"Non-veg"}]},
                   {"type":"button","value":"Only Desert food","id":"4","children":[{"text":"Desert"}]},

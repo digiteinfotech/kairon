@@ -939,6 +939,19 @@ def test_api_login_enabled_sso_only(monkeypatch):
     assert actual["error_code"] == 422
 
 
+def test_add_bot_with_character_limit_exceeded():
+    response = client.post(
+        "/api/account/bot",
+        json={"name": "supercalifragilisticexpialidociousalwaysworksmorethan60characters"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response['message'] == 'Bot Name cannot be more than 60 characters.'
+    assert response['error_code'] == 422
+    assert not response['success']
+    assert not response['data']
+
+
 def test_add_bot():
     response = client.post(
         "/api/account/bot",
@@ -962,6 +975,19 @@ def test_add_bot():
     assert response['error_code'] == 0
     assert response['success']
     assert response['data']['bot_id']
+    pytest.bot_id = response['data']['bot_id']
+
+
+def test_update_bot_name_with_character_limit_exceeded():
+    response = client.put(
+        f"/api/account/bot/{pytest.bot_id}",
+        json={"data": "supercalifragilisticexpialidociousalwaysworksmorethan60characters"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['message'] == 'Bot Name cannot be more than 60 characters.'
+    assert response['error_code'] == 422
+    assert not response['success']
+    assert not response['data']
 
 
 def test_list_bots():
@@ -2911,7 +2937,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 12
+    assert len(actual['data']) == 13
     assert actual["success"]
 
 
@@ -3037,7 +3063,7 @@ def test_list_entities():
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                                                    'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
                                                    'audio', 'image', 'doc_url', 'document', 'video', 'order', 'latitude',
-                                                   'longitude', 'flow_reply', 'http_status_code'}
+                                                   'longitude', 'flow_reply', 'quick_reply', 'http_status_code'}
     assert actual["success"]
 
 
@@ -3438,7 +3464,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 20
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])

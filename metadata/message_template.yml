@@ -1,4 +1,4 @@
-type_list: ["image","link","video","button","dropdown","audio"]
+type_list: ["image","link","video","button","quick_reply","dropdown","audio"]
 slack:
   image: '{
 	"blocks": [
