@@ -152,8 +152,6 @@ class TestMongoProcessor:
 
     def test_add_demo_request_with_empty_first_name(self):
         processor = MongoProcessor()
-        bot = 'test'
-        user = 'test_user'
         with pytest.raises(AppException, match="first_name cannot be empty"):
             processor.add_demo_request(
                 first_name="", last_name="Sattala", email="mahesh.sattala@digite.com", phone="+919876543210",
@@ -162,8 +160,6 @@ class TestMongoProcessor:
 
     def test_add_demo_request_with_empty_last_name(self):
         processor = MongoProcessor()
-        bot = 'test'
-        user = 'test_user'
         with pytest.raises(AppException, match="last_name cannot be empty"):
             processor.add_demo_request(
                 first_name="Mahesh", last_name="", email="mahesh.sattala@digite.com", phone="+919876543210",
@@ -172,8 +168,6 @@ class TestMongoProcessor:
 
     def test_add_demo_request_with_invalid_email(self):
         processor = MongoProcessor()
-        bot = 'test'
-        user = 'test_user'
         with pytest.raises(AppException, match="Invalid email address"):
             processor.add_demo_request(
                 first_name="Mahesh", last_name="Sattala", email="mahesh.sattala", phone="+919876543210",
@@ -182,12 +176,9 @@ class TestMongoProcessor:
 
     def test_add_demo_request(self):
         processor = MongoProcessor()
-        bot = 'test'
-        user = 'test_user'
-        demo_request_logs = processor.add_demo_request(first_name="Mahesh", last_name="Sattala",
-                                                       email="mahesh.sattala@nimblework.com", phone="+919876543210",
-                                                       message="This is test message",
-                                                       recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i")
+        processor.add_demo_request(first_name="Mahesh", last_name="Sattala", email="mahesh.sattala@nimblework.com",
+                                   phone="+919876543210", message="This is test message",
+                                   recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i")
         demo_request_logs = DemoRequestLogs.objects(first_name="Mahesh", last_name="Sattala",
                                                     email="mahesh.sattala@nimblework.com").get().to_mongo().to_dict()
         assert demo_request_logs['first_name'] == "Mahesh"
