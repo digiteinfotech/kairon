@@ -12730,8 +12730,8 @@ def test_add_email_action(mock_smtp):
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "test"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com","test1@test.com"],
+               "from_email": {"value": "from_email", "parameter_type": "slot"},
+               "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12754,8 +12754,8 @@ def test_add_email_action_from_different_parameter_type(mock_smtp):
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "test", "parameter_type": "slot"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com", "test1@test.com"],
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12775,8 +12775,8 @@ def test_add_email_action_from_different_parameter_type(mock_smtp):
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "test", "parameter_type": "key_vault"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com","test1@test.com"],
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12799,8 +12799,8 @@ def test_add_email_action_from_invalid_parameter_type(mock_smtp):
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "test", "parameter_type": "intent"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com","test1@test.com"],
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12819,8 +12819,8 @@ def test_add_email_action_from_invalid_parameter_type(mock_smtp):
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "", "parameter_type": "slot"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com", "test1@test.com"],
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12839,8 +12839,8 @@ def test_add_email_action_from_invalid_parameter_type(mock_smtp):
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "", "parameter_type": "key_vault"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com", "test1@test.com"],
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12853,6 +12853,139 @@ def test_add_email_action_from_invalid_parameter_type(mock_smtp):
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_add_email_action_from_invalid_parameter_type_1(mock_smtp):
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "intent"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "", "parameter_type": "slot"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'to_email', '__root__'],
+                                  'msg': 'Provide name of the slot as value', 'type': 'value_error'}]
+    assert str(actual['message']).__contains__("Provide name of the slot as value")
+
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "key_vault"},
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "", "parameter_type": "value"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'to_email', '__root__'],
+                                  'msg': 'Provide list of emails as value', 'type': 'value_error'}]
+    assert str(actual['message']).__contains__("Provide list of emails as value")
+
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": {"value": "test@demo.com", "parameter_type": "intent"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": {"value": "", "parameter_type": "slot"},
+               "to_email": {"value": ["test@demo.com"], "parameter_type": "value"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'from_email', '__root__'],
+                                  'msg': 'Provide name of the slot as value', 'type': 'value_error'}]
+    assert str(actual['message']).__contains__("Provide name of the slot as value")
+
+    request = {"action_name": "email_config_invalid_parameter_type",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "key_vault"},
+               "from_email": {"value": "", "parameter_type": "value"},
+               "to_email": {"value": ["test@demo.com"], "parameter_type": "value"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Invalid From or To email address'
 
 
 def test_list_email_actions():
@@ -12868,21 +13001,30 @@ def test_list_email_actions():
     assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25,
                                'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
                                                  'encrypt': False, 'value': 'test', 'parameter_type': 'value'},
-                               'from_email': 'test@demo.com', 'subject': 'Test Subject',
-                               'to_email': ['test@test.com', 'test1@test.com'], 'response': 'Test Response',
-                               'tls': False},
+                               'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                                              'value': 'from_email', 'parameter_type': 'slot'},
+                               'subject': 'Test Subject',
+                               'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False,
+                                            'value': ['test@test.com', 'test1@test.com'], 'parameter_type': 'value'},
+                               'response': 'Test Response', 'tls': False},
                               {'action_name': 'email_config_with_slot', 'smtp_url': 'test.test.com', 'smtp_port': 25,
                                'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
                                                  'encrypt': False, 'value': 'test', 'parameter_type': 'slot'},
-                               'from_email': 'test@demo.com', 'subject': 'Test Subject',
-                               'to_email': ['test@test.com', 'test1@test.com'], 'response': 'Test Response',
+                               'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                                              'value': 'test@demo.com', 'parameter_type': 'value'},
+                               'subject': 'Test Subject',
+                               'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
+                                            'parameter_type': 'slot'}, 'response': 'Test Response',
                                'tls': False},
                               {'action_name': 'email_config_with_key_vault', 'smtp_url': 'test.test.com',
                                'smtp_port': 25,
                                'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
                                                  'encrypt': False, 'value': 'test', 'parameter_type': 'key_vault'},
-                               'from_email': 'test@demo.com', 'subject': 'Test Subject',
-                               'to_email': ['test@test.com', 'test1@test.com'], 'response': 'Test Response',
+                               'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                                              'value': 'test@demo.com', 'parameter_type': 'value'},
+                               'subject': 'Test Subject',
+                               'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
+                                            'parameter_type': 'slot'}, 'response': 'Test Response',
                                'tls': False}]
 
 
@@ -12893,8 +13035,8 @@ def test_edit_email_action(mock_smtp):
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "test"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com","test1@test.com"],
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12917,8 +13059,8 @@ def test_edit_email_action_different_parameter_type(mock_smtp):
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "test", "parameter_type": "slot"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com", "test1@test.com"],
+               "from_email": {"value": "from_email", "parameter_type": "slot"},
+               "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12938,8 +13080,8 @@ def test_edit_email_action_different_parameter_type(mock_smtp):
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "test", "parameter_type": "key_vault"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com", "test1@test.com"],
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12961,9 +13103,9 @@ def test_edit_email_action_invalid_parameter_type(mock_smtp):
                "smtp_url": "test.test.com",
                "smtp_port": 25,
                "smtp_userid": None,
-               "smtp_password": {'value': "test", "parameter_type": "intent"},
-               "from_email": "test@demo.com",
-               "to_email": ["test@test.com", "test1@test.com"],
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": {"value": "test@demo.com", "parameter_type": "intent"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -12979,14 +13121,147 @@ def test_edit_email_action_invalid_parameter_type(mock_smtp):
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
+def test_edit_email_action_invalid_parameter_type_1(mock_smtp):
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "intent"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "", "parameter_type": "slot"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'to_email', '__root__'],
+                                  'msg': 'Provide name of the slot as value', 'type': 'value_error'}]
+    assert str(actual['message']).__contains__("Provide name of the slot as value")
+
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "key_vault"},
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'to_email', '__root__'],
+                                  'msg': 'Provide list of emails as value', 'type': 'value_error'}]
+    assert str(actual['message']).__contains__("Provide list of emails as value")
+
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": {"value": "test@demo.com", "parameter_type": "intent"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "slot"},
+               "from_email": {"value": "", "parameter_type": "slot"},
+               "to_email": {"value": ["test@demo.com"], "parameter_type": "value"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'from_email', '__root__'],
+                                  'msg': 'Provide name of the slot as value', 'type': 'value_error'}]
+    assert str(actual['message']).__contains__("Provide name of the slot as value")
+
+    request = {"action_name": "email_config_with_slot",
+               "smtp_url": "test.test.com",
+               "smtp_port": 25,
+               "smtp_userid": None,
+               "smtp_password": {'value': "test", "parameter_type": "key_vault"},
+               "from_email": {"value": "", "parameter_type": "value"},
+               "to_email": {"value": ["test@demo.com"], "parameter_type": "value"},
+               "subject": "Test Subject",
+               "response": "Test Response",
+               "tls": False
+               }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Invalid From or To email address'
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
 def test_edit_email_action_does_not_exists(mock_smtp):
     request = {"action_name": "email_config1",
                "smtp_url": "test.test.com",
                "smtp_port": 25,
                "smtp_userid": None,
                "smtp_password": {'value': "test"},
-               "from_email": "test@demo.com",
-               "to_email":["test@test.com","test1@test.com"],
+               "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+               "to_email": {"value": "to_email", "parameter_type": "slot"},
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
