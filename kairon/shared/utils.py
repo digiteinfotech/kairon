@@ -2243,7 +2243,7 @@ class MailUtility:
 
         request = kwargs.get('request')
         data = kwargs.get('data')
-        logs = MongoProcessor.add_demo_request(**data)
+        MongoProcessor.add_demo_request(**data)
         ip = Utility.get_client_ip(request)
         geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
         data.update(geo_location)
