@@ -1029,8 +1029,9 @@ class MongoProcessor:
                                                                  KaironSystemSlots.order.value,
                                                                  KaironSystemSlots.http_status_code.value}]:
             slot_type = "float" if slot == KaironSystemSlots.http_status_code.value else "any"
+            auto_fill = True if slot == KaironSystemSlots.order.value else False
             self.add_slot({
-                "name": slot, "type": slot_type, "initial_value": None, "auto_fill": False,
+                "name": slot, "type": slot_type, "initial_value": None, "auto_fill": auto_fill,
                 "influence_conversation": False, "max_value": 550, "min_value": 100}, bot, user,
                 raise_exception_if_exists=False
             )
