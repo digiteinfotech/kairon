@@ -178,8 +178,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         with pytest.raises(AppException, match="Invalid demo request status"):
             processor.add_demo_request(
-                first_name="Mahesh", last_name="Sattala", email="mahesh.sattala@digite.com", phone="+919876543210",
-                message="This is test message", status="Invalid_status",
+                first_name="Mahesh", last_name="Sattala", email="mahesh.sattala@digite.com",
+                phone="+919876543210", message="This is test message", status="Invalid_status",
                 recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
             )
 
