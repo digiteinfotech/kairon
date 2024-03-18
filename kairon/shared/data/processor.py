@@ -65,7 +65,8 @@ from .constant import (
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
-    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType
+    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType,
+    DEMO_REQUEST_STATUS
 )
 from .data_objects import (
     Responses,
@@ -4333,6 +4334,7 @@ class MongoProcessor:
                 email=kwargs.get("email"),
                 phone=kwargs.get("phone", None),
                 message=kwargs.get("message", None),
+                status=kwargs.get("status", DEMO_REQUEST_STATUS.REQUEST_RECEIVED.value),
                 recaptcha_response=kwargs.get("recaptcha_response", None),
             ).save()
         except Exception as e:

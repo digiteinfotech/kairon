@@ -174,10 +174,19 @@ class TestMongoProcessor:
                 message="This is test message", recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
             )
 
+    def test_add_demo_request_with_invalid_status(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="Invalid demo request status"):
+            processor.add_demo_request(
+                first_name="Mahesh", last_name="Sattala", email="mahesh.sattala@digite.com", phone="+919876543210",
+                message="This is test message", status="Invalid_status",
+                recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
+            )
+
     def test_add_demo_request(self):
         processor = MongoProcessor()
         processor.add_demo_request(first_name="Mahesh", last_name="Sattala", email="mahesh.sattala@nimblework.com",
-                                   phone="+919876543210", message="This is test message",
+                                   phone="+919876543210", message="This is test message", status="demo_given",
                                    recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i")
         demo_request_logs = DemoRequestLogs.objects(first_name="Mahesh", last_name="Sattala",
                                                     email="mahesh.sattala@nimblework.com").get().to_mongo().to_dict()
@@ -185,6 +194,7 @@ class TestMongoProcessor:
         assert demo_request_logs['last_name'] == "Sattala"
         assert demo_request_logs['email'] == "mahesh.sattala@nimblework.com"
         assert demo_request_logs['phone'] == "+919876543210"
+        assert demo_request_logs['status'] == "demo_given"
         assert demo_request_logs['message'] == "This is test message"
         assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
 

@@ -34,7 +34,7 @@ from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import TemplateType, StoryStepType, StoryType
 from kairon.shared.utils import Utility
-from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
+from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType, DEMO_REQUEST_STATUS
 from ..constants import WhatsappBSPTypes, LLMResourceProvider
 
 
@@ -745,6 +745,8 @@ class DemoRequestLogs(Document):
     phone = StringField(default=None)
     message = StringField(default=None)
     recaptcha_response = StringField(default=None)
+    status = StringField(default=DEMO_REQUEST_STATUS.REQUEST_RECEIVED.value,
+                         choices=[type.value for type in DEMO_REQUEST_STATUS])
     timestamp = DateTimeField(default=datetime.utcnow)
 
     def validate(self, clean=True):
@@ -759,6 +761,8 @@ class DemoRequestLogs(Document):
             raise ValidationError("last_name cannot be empty")
         if isinstance(email(self.email), ValidationFailure):
             raise ValidationError("Invalid email address")
+        if self.status not in [type.value for type in DEMO_REQUEST_STATUS]:
+            raise ValidationError("Invalid demo request status")
 
 
 

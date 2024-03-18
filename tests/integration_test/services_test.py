@@ -240,6 +240,7 @@ def test_book_a_demo_with_valid_data(trigger_smtp_mock, validate_recaptcha_mock,
     assert demo_request_logs['last_name'] == "Sattala"
     assert demo_request_logs['email'] == "mahesh.sattala@digite.com"
     assert demo_request_logs['phone'] == "+919876543210"
+    assert demo_request_logs['status'] == "request_received"
     assert demo_request_logs['message'] == "Thank You"
     assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
 
