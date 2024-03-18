@@ -16,7 +16,7 @@ mongoengine==0.23.1
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.5
 py3dns==3.2.1
-black==21.12b0
+black==24.3.0
 uvicorn>=0.18.2
 validators==0.20.0
 secure
