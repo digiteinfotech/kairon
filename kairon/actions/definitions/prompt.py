@@ -70,7 +70,7 @@ class ActionPrompt(ActionsBase):
             bot_response = llm_response['content']
             tracker_data = ActionUtility.build_context(tracker, True)
             response_context = self.__add_user_context_to_http_response(bot_response, tracker_data)
-            slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(k_faq_action_config.get('set_slots', []),
+            slot_values, slot_eval_log, _ = ActionUtility.fill_slots_from_response(k_faq_action_config.get('set_slots', []),
                                                                                 response_context)
             if slot_values:
                 slots_to_fill.update(slot_values)

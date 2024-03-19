@@ -81,9 +81,9 @@ class ActionDatabase(ActionsBase):
             response = vector_db.perform_operation(operation_type, request_body)
             logger.info("response: " + str(response))
             response_context = self.__add_user_context_to_http_response(response, tracker_data)
-            bot_response, bot_resp_log = ActionUtility.compose_response(vector_action_config['response'], response_context)
+            bot_response, bot_resp_log, _ = ActionUtility.compose_response(vector_action_config['response'], response_context)
             msg_logger.append(bot_resp_log)
-            slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(vector_action_config.get('set_slots', []),
+            slot_values, slot_eval_log, _ = ActionUtility.fill_slots_from_response(vector_action_config.get('set_slots', []),
                                                                                 response_context)
             msg_logger.extend(slot_eval_log)
             filled_slots.update(slot_values)
