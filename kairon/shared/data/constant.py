@@ -232,6 +232,11 @@ class FeatureMappings(str, Enum):
     CREATE_USER = "create_user"
 
 
+class TagType(str, Enum):
+    ADMIN = "admin"
+    USER = "user"
+
+
 ORG_SETTINGS_MESSAGES = {
     "create_user": "User creation is blocked by your OrgAdmin from SSO",
     "only_sso_login": "Login with your org SSO url, Login with username/password not allowed"
