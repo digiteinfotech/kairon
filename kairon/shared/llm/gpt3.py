@@ -1,4 +1,3 @@
-import ujson as json
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 
@@ -210,8 +209,10 @@ class GPT3FAQEmbedding(LLMBase):
             score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
             extracted_values = []
             if use_similarity_prompt:
-                collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}" if similarity_context_prompt.get(
-                    'collection') else f"{self.bot}{self.suffix}"
+                if similarity_context_prompt.get('collection') == 'default':
+                    collection_name = f"{self.bot}{self.suffix}"
+                else:
+                    collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}"
                 search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
                                                                  score_threshold=score_threshold)
 
