@@ -122,8 +122,6 @@ class ActionPrompt(ActionsBase):
         query_prompt = ''
         query_prompt_dict = {}
         history_prompt = None
-        is_query_prompt_enabled = False
-        use_similarity_prompt = False
         similarity_prompt = []
         params = {}
         num_bot_responses = k_faq_action_config['num_bot_responses']
@@ -168,7 +166,6 @@ class ActionPrompt(ActionsBase):
                 query_prompt_dict.update({'query_prompt': query_prompt, 'use_query_prompt': is_query_prompt_enabled})
 
         params["hyperparameters"] = k_faq_action_config.get('hyperparameters', Utility.get_llm_hyperparameters())
-        params['enable_response_cache'] = k_faq_action_config.get('enable_response_cache', False)
         params["system_prompt"] = system_prompt
         params["context_prompt"] = context_prompt
         params["query_prompt"] = query_prompt_dict

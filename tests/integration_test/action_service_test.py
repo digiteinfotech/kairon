@@ -1,10 +1,13 @@
-import ujson as json
-import os
 import asyncio
+import os
+from urllib.parse import urlencode, urljoin
+
 import mock
 import numpy as np
 import pytest
 import responses
+import ujson as json
+from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mock import patch
@@ -29,8 +32,6 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.utils import Utility
-from deepdiff import DeepDiff
-from urllib.parse import urlencode, urljoin
 
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -9639,7 +9640,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     assert mock_completion.call_args.kwargs == {
         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                             'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                            'logit_bias': {}}, 'enable_response_cache': False, 'query_prompt': {},
+                            'logit_bias': {}}, 'query_prompt': {},
         'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
                                    {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [
             {'similarity_prompt_name': 'Similarity Prompt',
@@ -9717,7 +9718,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
     assert mock_completion.call_args.kwargs == {
         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                             'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                            'logit_bias': {}}, 'enable_response_cache': False, 'query_prompt': {},
+                            'logit_bias': {}}, 'query_prompt': {},
         'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
                                    {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [
             {'similarity_prompt_name': 'Similarity Prompt',
@@ -9798,7 +9799,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     assert mock_completion.call_args.kwargs == {
         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                             'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                            'logit_bias': {}}, 'enable_response_cache': False, 'query_prompt': {},
+                            'logit_bias': {}}, 'query_prompt': {},
         'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
                                    {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [
             {'similarity_prompt_name': 'Similarity Prompt',
