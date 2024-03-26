@@ -178,6 +178,8 @@ class TestHistory:
         assert history[1]["data"]["action"]
         assert history[1]["data"]['bot_response_text']
         assert history[1]["data"]['bot_response_data']
+        assert history[1]["data"]['user_metadata']["telemetry-uid"]
+        assert history[1]["data"]['user_metadata']["telemetry-sid"]
         assert message is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)

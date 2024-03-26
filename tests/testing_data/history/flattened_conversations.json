@@ -53,6 +53,10 @@
         "attachment": null,
         "image": null,
         "custom": null
+      },
+      "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
       }
     }
   },
@@ -75,6 +79,10 @@
         "attachment": null,
         "image": null,
         "custom": null
+      },
+      "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
       }
     }
   },
@@ -98,6 +106,10 @@
         "attachment": null,
         "image": null,
         "custom": null
+      },
+      "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
       }
     }
   },
@@ -122,7 +134,12 @@
         "attachment": null,
         "image": null,
         "custom": null
+      },
+      "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
       }
+
     }
   },
   {
@@ -144,6 +161,10 @@
         "attachment": null,
         "image": null,
         "custom": null
+      },
+      "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
       }
     }
   },
@@ -167,7 +188,11 @@
       "attachment": null,
       "image": null,
       "custom": null
-    }
+    },
+    "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
+      }
   },
   {
     "type": "flattened",
@@ -189,6 +214,10 @@
         "attachment": null,
         "image": null,
         "custom": null
+      },
+      "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
       }
     }
   },
@@ -211,6 +240,10 @@
         "attachment": null,
         "image": null,
         "custom": null
+      },
+      "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
       }
     }
   },
@@ -233,6 +266,10 @@
         "attachment": null,
         "image": null,
         "custom": null
+      },
+      "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
       }
     }
   },
@@ -255,6 +292,10 @@
         "attachment": null,
         "image": null,
         "custom": null
+      },
+      "user_metadata": {
+        "telemetry-uid": "c02e3a3c-a3c4-4eae-b81e-ec09caa24f0a",
+        "telemetry-sid": "30c5c574-9eab-405e-81aa-b2fd925e7645"
       }
     }
   },

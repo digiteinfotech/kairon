@@ -95,6 +95,8 @@ class KMongoTrackerStore(TrackerStore):
                 flattened_conversation["data"]['intent'] = event['parse_data']['intent']['name']
                 flattened_conversation["data"]['confidence'] = event['parse_data']['intent']['confidence']
                 metadata = event.get("metadata")
+                if metadata:
+                    flattened_conversation["data"]["user_metadata"] = metadata
             elif event['event'] == 'action':
                 actions_predicted.append(event.get('name'))
             elif event['event'] == 'bot':
