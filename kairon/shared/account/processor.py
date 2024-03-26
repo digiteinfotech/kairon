@@ -126,6 +126,9 @@ class AccountProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Bot Name cannot be empty or blank spaces")
 
+        if not Utility.check_character_limit(name):
+            raise AppException("Bot Name cannot be more than 60 characters.")
+
         if Utility.check_empty_string(user):
             raise AppException("user cannot be empty or blank spaces")
 
@@ -163,6 +166,8 @@ class AccountProcessor:
     def update_bot(name: Text, bot: Text):
         if Utility.check_empty_string(name):
             raise AppException('Name cannot be empty')
+        if not Utility.check_character_limit(name):
+            raise AppException("Bot Name cannot be more than 60 characters.")
         try:
             bot_info = Bot.objects(id=bot, status=True).get()
             bot_info.name = name

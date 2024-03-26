@@ -137,6 +137,16 @@ class Utility:
             return False
 
     @staticmethod
+    def check_character_limit(value: str):
+        """
+        checks for character limit
+
+        :param value: string value
+        :return: boolean
+        """
+        return len(value) <= 60
+
+    @staticmethod
     def retrieve_search_payload_and_embedding_payload(data: Any, metadata: Dict):
         from .cognition.processor import CognitionDataProcessor
 
@@ -423,6 +433,14 @@ class Utility:
         """
         logger.info(f"deleting data from path: {path}")
         shutil.rmtree(path, ignore_errors)
+
+    @staticmethod
+    def copy_model_file_to_directory(input_file_path: Text, output_path: Text):
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        model_file = os.path.basename(input_file_path)
+        shutil.copy(input_file_path, output_path)
+        return model_file
 
     @staticmethod
     def load_file_in_memory(file: Text):

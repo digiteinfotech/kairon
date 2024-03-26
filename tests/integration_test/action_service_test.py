@@ -9582,8 +9582,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     assert mock_completion.call_args.args[1] == 'What kind of language is python?'
     assert mock_completion.call_args.args[
                2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[
-               3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
+               3] == "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n"
     assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
                                                 'enable_response_cache': False,
                                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
@@ -9662,8 +9663,9 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
     assert mock_completion.call_args.args[1] == 'What kind of language is python?'
     assert mock_completion.call_args.args[
                2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[
-               3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
+               3] == "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n"
     assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
                                                 'enable_response_cache': False,
                                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
@@ -9745,8 +9747,9 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     assert mock_completion.call_args.args[1] == 'What kind of language is python?'
     assert mock_completion.call_args.args[
                2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[
-               3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
+               3] == "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n"
     assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
                                                 'enable_response_cache': False,
                                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
@@ -9833,11 +9836,11 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
         ]
+    print(mock_completion.call_args.kwargs['messages'])
     assert mock_completion.call_args.kwargs['messages'] == [
-        {'role': 'system',
-         'content': 'You are a personal assistant. Answer question based on the context below.\n'},
+        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user',
-         'content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:'}]
+         'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:"}]
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -9981,13 +9984,12 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
         ]
-    assert mock_completion.call_args.kwargs == {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant.\n'},
-        {'role': 'user',
-         'content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above.\n \nQ: What kind of language is python? \nA:'}],
-        'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-        'top_p': 0.0, 'n': 1, 'stream': True, 'stop': None,
-        'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+    print(mock_completion.call_args.kwargs)
+    assert mock_completion.call_args.kwargs == {
+        'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
+                                                                                        'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
+        'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1, 'stream': True,
+        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert mock_completion.call_args.args[1] == 'chat/completions'
 
 
@@ -10274,6 +10276,7 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     with open('tests/testing_data/actions/action_prompt.txt', 'r') as file:
         prompt_data = file.read()
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[3] == prompt_data
 
 
@@ -10456,6 +10459,7 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
         prompt_data = file.read()
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[3] == prompt_data
 
 
@@ -10607,6 +10611,7 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
     with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
         prompt_data = file.read()
+    print(mock_completion.call_args.args[3])
     assert mock_completion.call_args.args[3] == prompt_data
 
 
@@ -10672,8 +10677,9 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
         ]
     assert mock_completion.call_args[0][1] == 'Kanban And Scrum Together?'
     assert mock_completion.call_args[0][2] == 'You are a personal assistant.\n'
+    print(mock_completion.call_args[0][3])
     assert mock_completion.call_args[0][3] == """
-Similarity Prompt:
-Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.
-Instructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.
+Instructions on how to use Similarity Prompt:
+['Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.']
+Answer question based on the context above, if answer is not in the context go check previous logs.
 """

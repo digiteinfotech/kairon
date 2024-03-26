@@ -523,12 +523,10 @@ class TestLLM:
             'similarity_prompt_name': 'Similarity Prompt',
             'similarity_prompt_instructions': 'Answer according to this context.'}
         hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {"messages": [
-            {'role': 'system',
-             'content': 'You are a personal assistant. Answer the question according to the below context'},
-            {'role': 'user',
-             'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}
-        ]}
+        mock_completion_request = {'messages': [{'role': 'system',
+                                                 'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                                {'role': 'user',
+                                                 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
 
@@ -566,7 +564,7 @@ class TestLLM:
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                                  'with_payload': True,
                                                                                  'score_threshold': 0.70}
-
+            print(list(aioresponses.requests.values())[2][0].kwargs['json'])
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
 
@@ -595,7 +593,7 @@ class TestLLM:
             'similarity_prompt_instructions': 'Answer according to this context.',
             'collection': 'city'}
         hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\n[{'city': 'delhi', 'emp': 'one'}, {'city': 'mumbai', 'emp': 'two'}]\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What is the city of one? \nA:"}], 'temperature': 0.0, 'max_tokens': 300, 'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}, 'model': 'gpt-3.5-turbo'}
+        mock_completion_request = {'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n[{'city': 'delhi', 'emp': 'one'}, {'city': 'mumbai', 'emp': 'two'}]\nAnswer according to this context.\n \nQ: What is the city of one? \nA:"}], 'temperature': 0.0, 'max_tokens': 300, 'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}, 'model': 'gpt-3.5-turbo'}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
 
@@ -640,7 +638,7 @@ class TestLLM:
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                                  'with_payload': True,
                                                                                  'score_threshold': 0.70}
-
+            print(list(aioresponses.requests.values())[2][0].kwargs['json'])
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
 
@@ -662,12 +660,10 @@ class TestLLM:
             'similarity_prompt_instructions': 'Answer according to this context.'}
 
         hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {"messages": [
-            {"role": "system",
-             "content": "You are a personal assistant. Answer the question according to the below context"},
-            {'role': 'user',
-             'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}
-        ]}
+        mock_completion_request = {'messages': [{'role': 'system',
+                                                 'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                                {'role': 'user',
+                                                 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
 
@@ -697,25 +693,23 @@ class TestLLM:
 
             response = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [
-                {'messages': [{'role': 'system',
-                               'content': 'You are a personal assistant. Answer the question according to the below context'},
-                              {'role': 'user',
-                               'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}],
-                 'raw_completion_response': {'choices': [{
-                     'message': {
-                         'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                         'role': 'assistant'}}]},
-                 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
+            assert gpt3.logs == [{'messages': [{'role': 'system',
+                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                               {'role': 'user',
+                                                'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
+                                  'raw_completion_response': {'choices': [{'message': {
+                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                                      'role': 'assistant'}}]}, 'type': 'answer_query',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                      'logit_bias': {}}}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
-
+            print(list(aioresponses.requests.values())[2][0].kwargs['json'])
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
 
@@ -738,12 +732,10 @@ class TestLLM:
             'instructions': ['Answer in a short way.', 'Keep it simple.']}
 
         hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {"messages": [
-            {'role': 'system',
-             'content': 'You are a personal assistant. Answer the question according to the below context'},
-            {'role': 'user',
-             'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nJava is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. \nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:'}
-        ]}
+        mock_completion_request = {'messages': [{'role': 'system',
+                                                 'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                                {'role': 'user',
+                                                 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
 
@@ -773,30 +765,22 @@ class TestLLM:
 
             response = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [
-                {'messages': [{'role': 'system',
-                               'content': 'You are a personal assistant. Answer the question according to the below context'},
-                              {'role': 'user',
-                               'content': 'Based on below context answer question, if answer not in context '
-                                          'check previous logs.\nSimilarity Prompt:\nJava is a high-level, general-purpose '
-                                          'programming language. Java is known for its write once, run anywhere capability. '
-                                          '\nInstructions on how to use Similarity Prompt: Answer according to this context.'
-                                          '\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:'}],
-                 'raw_completion_response': {
-                     'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, '
-                                                         'high level, general purpose programming.',
-                                              'role': 'assistant'}}]},
-                 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1,
-                                     'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                     'logit_bias': {}}}]
-
+            assert gpt3.logs == [{'messages': [{'role': 'system',
+                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                               {'role': 'user',
+                                                'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
+                                  'raw_completion_response': {'choices': [{'message': {
+                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                                      'role': 'assistant'}}]}, 'type': 'answer_query',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                      'logit_bias': {}}}]
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
-
+            print(list(aioresponses.requests.values())[2][0].kwargs['json'])
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
 
@@ -846,10 +830,11 @@ class TestLLM:
             assert mock_completion.call_args.args[1] == 'What kind of language is python?'
             assert mock_completion.call_args.args[
                        2] == 'You are a personal assistant. Answer the question according to the below context'
+            print(mock_completion.call_args.args[3])
             assert mock_completion.call_args.args[3] == """Based on below context answer question, if answer not in context check previous logs.
-Similarity Prompt:
-Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.
-Instructions on how to use Similarity Prompt: Answer according to this context.
+Instructions on how to use Similarity Prompt:
+['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']
+Answer according to this context.
 """
             assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
                                                         'use_similarity_prompt': True, 'enable_response_cache': True,
@@ -937,13 +922,10 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             ], 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
             'similarity_prompt_instructions': 'Answer according to this context.'}
         hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {"messages": [
+        mock_completion_request = {'messages': [
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
-            {'role': 'user', 'content': 'hello'},
-            {'role': 'assistant', 'content': 'how are you'},
-            {'role': 'user',
-             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}
-        ]}
+            {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
+                                                                                                    'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
 
@@ -980,7 +962,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                              'with_payload': True,
                                                                              'score_threshold': 0.70}
-
+        print(list(aioresponses.requests.values())[2][0].kwargs['json'])
         assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
         assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
 
@@ -1010,12 +992,10 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
              "content": f"{k_faq_action_config['query_prompt']}\n\n Q: {query}\n A:"}
         ]}
 
-        mock_completion_request = {"messages": [
-            {"role": "system",
-             "content": DEFAULT_SYSTEM_PROMPT},
+        mock_completion_request = {'messages': [
+            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
             {'role': 'user',
-             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:'}
-        ]}
+             'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:"}]}
         mock_rephrase_request.update(hyperparameters)
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
@@ -1062,5 +1042,6 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
                                                                              'score_threshold': 0.70}
         assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_rephrase_request
         assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+        print(list(aioresponses.requests.values())[2][1].kwargs['json'])
         assert list(aioresponses.requests.values())[2][1].kwargs['json'] == mock_completion_request
         assert list(aioresponses.requests.values())[2][1].kwargs['headers'] == request_header

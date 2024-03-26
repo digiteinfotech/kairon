@@ -446,6 +446,29 @@ def test_business_messages_with_valid_data(mock_business_messages, mock_credenti
         assert actual == {"status": "OK"}
 
 
+def test_messenger_with_quick_reply():
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+        with patch.object(KaironAgent, "handle_message") as mock_agent:
+            mock_agent.side_effect = mock_agent_response
+            response = client.post(
+                f"/api/bot/messenger/{bot}/{token}",
+                headers={"Authorization": "Bearer Test"},
+                json={'object': 'page', 'entry': [{'id': '193566777888505', 'time': 1709550920950, 'messaging': [
+                    {'sender': {'id': '715782344534303980'},
+                     'recipient': {'id': '19357777855505'},
+                     'timestamp': 174739433964,
+                     'message': {
+                        'mid': 'm_l5_0QHbTfskfIL-rZjh_PJsdksjdlkj6VRBodfud98dXFD3-XljmN-sRqfXnAGA99uu42alStBFiOjujUog',
+                        'text': '+919876543210',
+                        'quick_reply': {'payload': '+919876543210'}}}]}]}
+            )
+            actual = response.json()
+            assert actual == "success"
+
+
 def test_chat():
     with patch.object(Utility, "get_local_mongo_store") as mocked:
         mocked.side_effect = empty_store

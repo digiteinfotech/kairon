@@ -90,6 +90,20 @@ class TestUtility:
         yield "resource_unzip_and_validate"
         os.remove(zip_file + '.zip')
 
+    def test_copy_model_file_to_directory(self):
+        input_file_path = "tests/testing_data/model/20210512-172208.tar.gz"
+        output_path = "tests/testing_data/test_dir"
+
+        if os.path.exists(output_path):
+            shutil.rmtree(output_path)
+
+        model_file = Utility.copy_model_file_to_directory(input_file_path, output_path)
+
+        copied_file_path = os.path.join(output_path, model_file)
+        assert os.path.exists(copied_file_path)
+        assert os.path.isfile(copied_file_path)
+        shutil.rmtree(output_path)
+
     @pytest.fixture()
     def resource_unzip_and_validate_exception(self):
         data_path = 'tests/testing_data/yml_training_files/data'
@@ -251,6 +265,16 @@ class TestUtility:
         raise_err = False
         token = AugmentationUtils.get_keywords(paragraph)
         assert Utility.check_empty_string(token[0][0]) == False
+
+    def test_check_character_limit_success(self):
+        name = "supercalifragilisticexpialidociousalwaysworks"
+        result = Utility.check_character_limit(value=name)
+        assert result is True
+
+    def test_check_character_limit_failure(self):
+        name = "supercalifragilisticexpialidociousalwaysworksmorethan60characters"
+        result = Utility.check_character_limit(value=name)
+        assert result is False
 
     @pytest.mark.asyncio
     async def test_upload_and_save(self):
@@ -1767,6 +1791,94 @@ class TestUtility:
         AuditDataProcessor.publish_auditlog(AuditLogData(**auditlog_data))
         count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count == 1
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_button_one(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_one")
+        messenger = ConverterFactory.getConcreteInstance("button", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_button_op_one")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_quick_reply_one(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_one")
+        messenger = ConverterFactory.getConcreteInstance("quick_reply", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_quick_reply_op_one")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_quick_reply_two(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_two")
+        messenger = ConverterFactory.getConcreteInstance("quick_reply", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_quick_reply_op_two")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_quick_reply_three(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_three")
+        messenger = ConverterFactory.getConcreteInstance("quick_reply", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_quick_reply_op_three")
+        assert expected_output == response
+
+    def test_quick_reply_transformer_messenger_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_three")
+        from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+        messenger = MessengerResponseConverter("quick_reply", "messenger_fake")
+        with pytest.raises(Exception):
+            messenger.quick_reply_transformer(input_json)
+
+    @pytest.mark.asyncio
+    async def test_message_converter_quick_reply_messenger_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_three")
+        from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+        messenger = MessengerResponseConverter("quick_reply", "messenger_fail")
+        with pytest.raises(Exception):
+            await messenger.messageConverter(input_json)
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_button_two(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_two")
+        messenger = ConverterFactory.getConcreteInstance("button", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_button_op_two")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_button_three(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_three")
+        messenger = ConverterFactory.getConcreteInstance("button", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_button_op_three")
+        assert expected_output == response
+
+    def test_button_transformer_messenger_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_one")
+        from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+        messenger = MessengerResponseConverter("button", "messenger_fake")
+        with pytest.raises(Exception):
+            messenger.link_transformer(input_json)
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_button_messenger_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_two")
+        from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+        messenger = MessengerResponseConverter("button", "messenger_fail")
+        with pytest.raises(Exception):
+            await messenger.messageConverter(input_json)
 
     @pytest.mark.asyncio
     async def test_messageConverter_whatsapp_button_two(self):
