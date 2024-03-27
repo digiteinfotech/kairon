@@ -85,11 +85,11 @@ class LinkedinSSO(KaironSSO):
         auth = httpx.BasicAuth(self.client_id, self.client_secret)
         async with httpx.AsyncClient() as session:
             body = body + f"&client_secret={self.client_secret}"
-            logging.debug(f'redirect_uri: {current_path}')
-            logging.debug(f'request_body: {body}')
+            logging.info(f'redirect_uri: {current_path}')
+            logging.info(f'request_body: {body}')
             response = await session.post(token_url, headers=headers, content=body, auth=auth)
             content = response.json()
-            logging.debug(f'response: {content}')
+            logging.info(f'response: {content}')
             self.oauth_client.parse_request_body_response(json.dumps(content))
 
             uri, headers, _ = self.oauth_client.add_token(await self.userinfo_endpoint)
