@@ -100,5 +100,5 @@ class LinkedinSSO(KaironSSO):
             response = await session.get(uri, headers=headers)
             content = response.json()
             profile_details['emailAddress'] = content.get('elements', [{}])[0].get('handle~', {}).get('emailAddress')
-
+            logging.info(f"profile: {profile_details}")
         return await self.openid_from_response(profile_details)
