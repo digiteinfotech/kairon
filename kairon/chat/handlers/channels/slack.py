@@ -45,7 +45,7 @@ class SlackBot(OutputChannel):
         self.slack_channel = slack_channel
         self.thread_id = thread_id
         self.proxy = proxy
-        self.client = WebClient(token, run_async=True, proxy=proxy)
+        self.client = WebClient(token, proxy=proxy)
         super().__init__()
 
     async def _post_message(self, channel: Text, **kwargs: Any) -> None:
