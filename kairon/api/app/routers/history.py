@@ -190,7 +190,7 @@ async def calculate_retention(
 
 @router.get("/metrics/trend/user/engaged", response_model=Response)
 async def engaged_users_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
+        from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
         conversation_step_threshold: int = Query(default=10, ge=2),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
@@ -209,7 +209,7 @@ async def engaged_users_trend(
 
 @router.get("/metrics/trend/user/new", response_model=Response)
 async def new_users_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
+        from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -225,7 +225,7 @@ async def new_users_trend(
 
 @router.get("/metrics/trend/conversation/success", response_model=Response)
 async def complete_conversation_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
+        from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -243,7 +243,7 @@ async def complete_conversation_trend(
 
 @router.get("/metrics/trend/user/retention", response_model=Response)
 async def retention_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
+        from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -259,7 +259,7 @@ async def retention_trend(
 
 @router.get("/metrics/trend/user/fallback", response_model=Response)
 async def fallback_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
+        from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -345,7 +345,7 @@ async def top_n_actions(
 
 @router.get("/metrics/trend/conversations/total", response_model=Response)
 async def total_conversation_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
+        from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
@@ -360,7 +360,7 @@ async def total_conversation_trend(
 
 @router.get("/metrics/trend/conversations/steps", response_model=Response)
 async def conversation_step_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
+        from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):

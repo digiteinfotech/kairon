@@ -41,7 +41,7 @@ async def new_users(
 async def complete_conversation(
         from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        fallback_intent: str = Query(default=None),
+        fallback_intent: str = Query(default="nlu_fallback"),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the counts of successful conversations of the bot for previous months."""
@@ -68,7 +68,7 @@ async def user_retention(
 async def fallback(
         from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        fallback_intent: str = Query(default=None),
+        fallback_intent: str = Query(default="nlu_fallback"),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the fallback count of the bot for previous months."""
