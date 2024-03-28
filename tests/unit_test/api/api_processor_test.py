@@ -2085,12 +2085,7 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.GET,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
-            json={'first_name': 'udit', 'last_name': 'pandey', 'profile_url': '1234::mkfnwuefhbwi'},
-        )
-        httpx_mock.add_response(
-            method=responses.GET,
-            url=await LoginSSOFactory.get_client('linkedin').sso_client.useremail_endpoint,
-            json={'emailAddress': '1234567890'},
+            json={'given_name': 'udit', 'family_name': 'pandey', 'name': 'udit pandey'},
         )
         scope = {
             "type": "http",
@@ -2125,12 +2120,7 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.GET,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
-            json={'localizedFirstName': 'monisha', 'localizedLastName': 'reddy'},
-        )
-        httpx_mock.add_response(
-            method=responses.GET,
-            url=await LoginSSOFactory.get_client('linkedin').sso_client.useremail_endpoint,
-            json={'elements': [{'handle~': {'emailAddress': 'monisha.ks@digite.com'}}]}
+            json={'given_name': 'monisha', 'family_name': 'reddy', 'name': 'monisha reddy', 'email': 'monisha.ks@digite.com'},
         )
         scope = {
             "type": "http",
@@ -2175,13 +2165,9 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.GET,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
-            json={'localizedFirstName': 'monisha', 'localizedLastName': 'reddy'},
+            json={'given_name': 'monisha', 'family_name': 'reddy', 'name': 'monisha reddy', 'email': 'monisha.ks.ks@digite.com'},
         )
-        httpx_mock.add_response(
-            method=responses.GET,
-            url=await LoginSSOFactory.get_client('linkedin').sso_client.useremail_endpoint,
-            json={'elements': [{'handle~': {'emailAddress': 'monisha.ks.ks@digite.com'}}]}
-        )
+
         scope = {
             "type": "http",
             "http_version": "1.1",
