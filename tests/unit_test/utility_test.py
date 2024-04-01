@@ -734,10 +734,12 @@ class TestUtility:
             open("template/emails/passwordReset.html", "rb").read().decode()
         )
         expected_body = Utility.email_conf["email"]["templates"]["password_reset"]
+        base_url = Utility.environment["database"]["url"]
         expected_body = (
             expected_body.replace("FIRST_NAME", first_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "password_reset_subject"
@@ -758,6 +760,7 @@ class TestUtility:
         mail_type = "password_reset_confirmation"
         email = "sampletest@gmail.com"
         first_name = "sample"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["password_reset_confirmation"] = (
             open("template/emails/passwordResetConfirmation.html", "rb").read().decode()
         )
@@ -766,7 +769,7 @@ class TestUtility:
         ]
         expected_body = expected_body.replace("FIRST_NAME", first_name).replace(
             "USER_EMAIL", email
-        )
+        ).replace("BASE_URL", base_url)
         expected_subject = Utility.email_conf["email"]["templates"][
             "password_changed_subject"
         ]
@@ -784,6 +787,7 @@ class TestUtility:
         mail_type = "verification"
         email = "sampletest@gmail.com"
         first_name = "sample"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["verification"] = (
             open("template/emails/verification.html", "rb").read().decode()
         )
@@ -792,6 +796,7 @@ class TestUtility:
             expected_body.replace("FIRST_NAME", first_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "confirmation_subject"
@@ -809,6 +814,7 @@ class TestUtility:
         mail_type = "verification_confirmation"
         email = "sampletest@gmail.com"
         first_name = "sample"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["verification_confirmation"] = (
             open("template/emails/verificationConfirmation.html", "rb").read().decode()
         )
@@ -819,6 +825,7 @@ class TestUtility:
             expected_body.replace("FIRST_NAME", first_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"]["confirmed_subject"]
 
@@ -838,6 +845,7 @@ class TestUtility:
         url = "https://www.testurl.com"
         bot_name = "test_bot"
         role = "test_role"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["add_member_invitation"] = (
             open("template/emails/memberAddAccept.html", "rb").read().decode()
         )
@@ -852,6 +860,7 @@ class TestUtility:
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
             .replace("VERIFICATION_LINK", url)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "add_member_subject"
@@ -880,6 +889,7 @@ class TestUtility:
         role = "test_role"
         accessor_email = "test@gmail.com"
         member_confirm = "test_name"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["add_member_confirmation"] = (
             open("template/emails/memberAddConfirmation.html", "rb").read().decode()
         )
@@ -893,6 +903,7 @@ class TestUtility:
             .replace("NAME", member_confirm.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "add_member_confirmation_subject"
@@ -924,6 +935,7 @@ class TestUtility:
         new_role = "test_role"
         status = "test_status"
         member_name = "test_name"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["update_role"] = (
             open("template/emails/memberUpdateRole.html", "rb").read().decode()
         )
@@ -942,6 +954,7 @@ class TestUtility:
             .replace("NAME", member_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "update_role_subject"
@@ -972,6 +985,7 @@ class TestUtility:
         status = "test_status"
         owner_name = "test_name"
         member_email = "test@gmail.com"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["update_role"] = (
             open("template/emails/memberUpdateRole.html", "rb").read().decode()
         )
@@ -989,6 +1003,7 @@ class TestUtility:
             .replace("NAME", owner_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "update_role_subject"
@@ -1018,6 +1033,7 @@ class TestUtility:
         bot_name = "test_bot"
         new_role = "test_role"
         member_email = "test@gmail.com"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["update_role"] = (
             open("template/emails/memberUpdateRole.html", "rb").read().decode()
         )
@@ -1035,6 +1051,7 @@ class TestUtility:
             .replace("MODIFIER_NAME", first_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "update_role_subject"
@@ -1060,6 +1077,7 @@ class TestUtility:
         email = "sampletest@gmail.com"
         first_name = "sample"
         password = "test@123"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["password_generated"] = (
             open("template/emails/passwordGenerated.html", "rb").read().decode()
         )
@@ -1068,6 +1086,7 @@ class TestUtility:
             expected_body.replace("PASSWORD", password)
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "password_generated_subject"
@@ -1089,6 +1108,7 @@ class TestUtility:
         url = "https://www.testurl.com"
         geo_location = {"City": "Mumbai", "Network": "CATO"}
         reset_password_url = Utility.email_conf["app"]["url"] + "/reset_password"
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["untrusted_login"] = (
             open("template/emails/untrustedLogin.html", "rb").read().decode()
         )
@@ -1104,6 +1124,7 @@ class TestUtility:
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
             .replace("VERIFICATION_LINK", url)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "untrusted_login_subject"
@@ -1127,6 +1148,7 @@ class TestUtility:
         email = "sampletest@gmail.com"
         first_name = "sample"
         geo_location = {"City": "Mumbai", "Network": "CATO"}
+        base_url = Utility.environment["database"]["url"]
         Utility.email_conf["email"]["templates"]["add_trusted_device"] = (
             open("template/emails/untrustedLogin.html", "rb").read().decode()
         )
@@ -1139,6 +1161,7 @@ class TestUtility:
             expected_body.replace("GEO_LOCATION", expected_geo_location)
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "add_trusted_device"
@@ -1159,6 +1182,7 @@ class TestUtility:
         first_name = "sample"
         request = MagicMock()
         request.headers = {"X-Forwarded-For": "58.0.127.89"}
+        base_url = Utility.environment["database"]["url"]
         data = {
             "first_name": "sample",
             "last_name": "test",
@@ -1183,6 +1207,7 @@ class TestUtility:
             .replace("SUBJECT", expected_subject)
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
 
         await MailUtility.format_and_send_mail(
