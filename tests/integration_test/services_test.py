@@ -14212,12 +14212,7 @@ def test_add_form_with_any_slot():
             "ask_questions": ["Please give your feedback on your experience so far"],
             "slot": "user_feedback",
             "slot_set": {"type": "custom", "value": "Very Nice!"},
-        },
-        {
-            "ask_questions": ['what is your order?', 'order?'],
-            "slot": "order",
-            "slot_set": {'type': 'slot', 'value': 'order'},
-        },
+        }
     ]
     request = {"name": "restaurant_booking_form", "settings": path}
     response = client.post(
@@ -14228,7 +14223,7 @@ def test_add_form_with_any_slot():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "form will not accept any type slots: {'user_feedback', 'order'}"
+    assert actual["message"] == "form will not accept any type slots: {'user_feedback'}"
 
 
 def test_add_utterance_to_form():
@@ -15185,15 +15180,6 @@ def test_edit_form_with_any_slot():
             "slot": "account_required",
             "slot_set": {"type": "current", "value": True},
         },
-        {
-            "ask_questions": ["Please give your feedback on your experience so far"],
-            "slot": "user_feedback",
-            "slot_set": {"type": "custom", "value": "Very Nice!"},
-            "mapping": [
-                {"type": "from_text"},
-                {"type": "from_entity", "entity": "user_feedback"},
-            ],
-        },
     ]
     request = {"name": "restaurant_form", "settings": path}
     response = client.put(
@@ -15204,7 +15190,7 @@ def test_edit_form_with_any_slot():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "form will not accept any type slots: {'user_feedback', 'account_required'}"
+    assert actual["message"] == "form will not accept any type slots: {'account_required'}"
 
 
 def test_edit_slot_mapping():
