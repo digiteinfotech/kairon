@@ -48,20 +48,20 @@ class SlackBot(OutputChannel):
         self.client = WebClient(token, proxy=proxy)
         super().__init__()
 
-    async def _post_message(self, channel: Text, **kwargs: Any) -> None:
+    def _post_message(self, channel: Text, **kwargs: Any) -> None:
         if self.thread_id:
-            await self.client.chat_postMessage(
+            self.client.chat_postMessage(
                 channel=channel, **kwargs, thread_ts=self.thread_id
             )
         else:
-            await self.client.chat_postMessage(channel=channel, **kwargs)
+            self.client.chat_postMessage(channel=channel, **kwargs)
 
     async def send_text_message(
             self, recipient_id: Text, text: Text, **kwargs: Any
     ) -> None:
         recipient = self.slack_channel or recipient_id
         for message_part in text.strip().split("\n\n"):
-            await self._post_message(
+            self._post_message(
                 channel=recipient, as_user=True, text=message_part, type="mrkdwn"
             )
 
@@ -71,7 +71,7 @@ class SlackBot(OutputChannel):
         recipient = self.slack_channel or recipient_id
         image_block = {"type": "image", "image_url": image, "alt_text": image}
 
-        await self._post_message(
+        self._post_message(
             channel=recipient, as_user=True, text=image, blocks=[image_block]
         )
 
@@ -79,7 +79,7 @@ class SlackBot(OutputChannel):
             self, recipient_id: Text, attachment: Dict[Text, Any], **kwargs: Any
     ) -> None:
         recipient = self.slack_channel or recipient_id
-        await self._post_message(
+        self._post_message(
             channel=recipient, as_user=True, attachments=[attachment], **kwargs
         )
 
@@ -111,7 +111,7 @@ class SlackBot(OutputChannel):
                 }
             )
 
-        await self._post_message(
+        self._post_message(
             channel=recipient,
             as_user=True,
             text=text,
@@ -131,10 +131,10 @@ class SlackBot(OutputChannel):
                 response = await converter_instance.messageConverter(message)
                 channel = json_message.get("channel", self.slack_channel or recipient_id)
                 json_message.setdefault("as_user", True)
-                await self._post_message(channel=channel, **response)
+                self._post_message(channel=channel, **response)
             else:
                 channel = json_message.get("channel", self.slack_channel or recipient_id)
-                await self._post_message(channel=channel, as_user=True, text=json_message, type="mrkdwn")
+                self._post_message(channel=channel, as_user=True, text=json_message, type="mrkdwn")
         except Exception as ap:
             raise Exception(f"Error in slack send_custom_json {str(ap)}")
 
