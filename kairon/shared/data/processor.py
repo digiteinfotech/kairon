@@ -5808,6 +5808,16 @@ class MongoProcessor:
             )
 
     def __validate_slots_attached_to_form(self, required_slots: set, bot: Text):
+        any_slots = set(
+            Slots.objects(bot=bot, type="any", status=True, name__in=required_slots).values_list(
+                "name"
+            )
+        )
+        if any_slots:
+            raise AppException(
+                f"form will not accept any type slots: {any_slots}"
+            )
+
         existing_slots = set(
             Slots.objects(bot=bot, status=True, name__in=required_slots).values_list(
                 "name"

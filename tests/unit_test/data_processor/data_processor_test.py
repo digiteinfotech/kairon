@@ -6932,6 +6932,22 @@ class TestMongoProcessor:
                         )
         assert not diff
 
+    def test_add_form_with_any_slot(self):
+        processor = MongoProcessor()
+        path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+                {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
+                 'slot_set': {'type': 'current', 'value': 22}},
+                {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'slot_set': {'type': 'slot', 'value': 'occupation'}},
+                {'ask_questions': ['what is your order?', 'order?'], 'slot': 'order',
+                 'slot_set': {'type': 'slot', 'value': 'order'}}
+                ]
+        bot = 'test'
+        user = 'user'
+        with pytest.raises(AppException, match="form will not accept any type slots: {'order'}"):
+            processor.add_form('know_user', path, bot, user)
+
     def test_add_form(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
@@ -7737,6 +7753,36 @@ class TestMongoProcessor:
         assert not validations_added[2].is_required
         assert validations_added[2].slot_set.type == 'slot'
         assert validations_added[2].slot_set.value == 'occupation'
+
+    def test_edit_form_with_any_slot(self):
+        processor = MongoProcessor()
+        path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
+                 'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
+                {'ask_questions': ['seats required?'], 'slot': 'num_people',
+                 'slot_set': {'type': 'current', 'value': 10}},
+                {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+                 'validation_semantic': "if (&& cuisine.contains('i') && cuisine.length() > 4 || "
+                                        "!cuisine.contains(" ")) {return true;} else {return false;}",
+                 'slot_set': {'type': 'current', 'value': 'Indian Cuisine'}},
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'slot_set': {'type': 'custom', 'value': True}},
+                {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+                 'slot_set': {'type': 'current'}},
+                {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',
+                 'slot_set': {'type': 'slot', 'value': 'ac_required'}},
+                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
+        bot = 'test'
+        user = 'user'
+        slot = {"slot": "ac_required",
+                'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
+                            {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
+        processor.add_slot({"name": "ac_required", "type": "any", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+        processor.add_or_update_slot_mapping(slot, bot, user)
+
+        with pytest.raises(AppException, match="form will not accept any type slots: {'ac_required'}"):
+            processor.edit_form('restaurant_form', path, bot, user)
 
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()
