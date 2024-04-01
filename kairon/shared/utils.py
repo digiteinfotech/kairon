@@ -2407,7 +2407,7 @@ class MailUtility:
         }
         base_url = kwargs.get("base_url")
         if not base_url:
-            base_url = Utility.environment["database"]["url"]
+            base_url = Utility.environment["app"]["frontend_url"]
 
         if not mail_actions_dict.get(mail_type):
             logger.debug("Skipping sending mail as no template found for the mail type")
