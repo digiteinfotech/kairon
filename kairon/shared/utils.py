@@ -2405,6 +2405,10 @@ class MailUtility:
             "add_trusted_device": MailUtility.__handle_add_trusted_device,
             "book_a_demo": MailUtility.__handle_book_a_demo,
         }
+        base_url = kwargs.get("base_url")
+        if not base_url:
+            base_url = Utility.environment["app"]["frontend_url"]
+
         if not mail_actions_dict.get(mail_type):
             logger.debug("Skipping sending mail as no template found for the mail type")
             return
@@ -2415,6 +2419,9 @@ class MailUtility:
         body = body.replace("USER_EMAIL", email)
         if url:
             body = body.replace("VERIFICATION_LINK", url)
+
+        if base_url:
+            body = body.replace("BASE_URL", base_url)
         await MailUtility.validate_and_send_mail(email, subject, body)
 
     @staticmethod

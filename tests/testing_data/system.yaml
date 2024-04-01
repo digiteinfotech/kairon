@@ -6,6 +6,7 @@ database:
 
 app:
   server_url: ${APP_SERVER_URL:"http://testserver"}
+  frontend_url: ${FRONTEND_URL:"http://localhost:3000"}
   enable_sso_only: ${ENABLE_SSO_ONLY:false}
 
 user:
