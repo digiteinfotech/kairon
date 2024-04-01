@@ -86,3 +86,4 @@ pydantic==1.10.13
 google-businessmessages==1.0.5
 google-apitools==0.5.32
 orjson==3.9.12
+pillow>=10.3.0 # not directly required, pinned by Snyk to avoid a vulnerability
