@@ -14163,6 +14163,69 @@ def test_add_form():
     assert actual["message"] == "Form added"
 
 
+def test_add_form_with_any_slot():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "user_feedback", "type": "any"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["success"]
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "user_feedback",
+            "mapping": [
+                {"type": "from_text"},
+                {"type": "from_entity", "entity": "user_feedback"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+    path = [
+        {
+            "ask_questions": ["please give us your name?"],
+            "slot": "name",
+            "slot_set": {"type": "custom", "value": "Mahesh"},
+        },
+        {
+            "ask_questions": ["seats required?"],
+            "slot": "num_people",
+            "slot_set": {"type": "current", "value": 10},
+        },
+        {
+            "ask_questions": ["type of cuisine?"],
+            "slot": "cuisine",
+            "slot_set": {"type": "current", "value": "Indian Cuisine"},
+        },
+        {"ask_questions": ["outdoor seating required?"], "slot": "outdoor_seating"},
+        {
+            "ask_questions": ["any preferences?"],
+            "slot": "preferences",
+            "slot_set": {"type": "slot", "value": "preferences"},
+        },
+        {
+            "ask_questions": ["Please give your feedback on your experience so far"],
+            "slot": "user_feedback",
+            "slot_set": {"type": "custom", "value": "Very Nice!"},
+        }
+    ]
+    request = {"name": "restaurant_booking_form", "settings": path}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/forms",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "form will not accept any type slots: {'user_feedback'}"
+
+
 def test_add_utterance_to_form():
     response = client.post(
         f"/api/bot/{pytest.bot}/response/utter_ask_restaurant_form_num_people?form_attached=restaurant_form",
@@ -15037,6 +15100,99 @@ def test_edit_form():
     assert actual["message"] == "Form updated"
 
 
+def test_edit_form_with_any_slot():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "account_required", "type": "any"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["success"]
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "account_required",
+            "mapping": [
+                {"type": "from_intent", "intent": ["affirm"], "value": True},
+                {"type": "from_intent", "intent": ["deny"], "value": False},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+
+    path = [
+        {
+            "ask_questions": ["which location would you prefer?"],
+            "slot": "location",
+            "slot_set": {"type": "custom", "value": "Bangalore"},
+            "mapping": [
+                {"type": "from_text", "value": "user", "entity": "location"},
+                {"type": "from_entity", "entity": "location"},
+            ],
+        },
+        {
+            "ask_questions": ["seats required?"],
+            "slot": "num_people",
+            "slot_set": {"type": "current", "value": 10},
+            "mapping": [
+                {
+                    "type": "from_entity",
+                    "intent": ["inform", "request_restaurant"],
+                    "entity": "number",
+                }
+            ],
+        },
+        {
+            "ask_questions": ["type of cuisine?"],
+            "slot": "cuisine",
+            "slot_set": {"type": "custom", "value": "Indian Cuisine"},
+            "mapping": [{"type": "from_entity", "entity": "cuisine"}],
+        },
+        {
+            "ask_questions": ["outdoor seating required?"],
+            "slot": "outdoor_seating",
+            "slot_set": {"type": "custom", "value": True},
+            "mapping": [
+                {"type": "from_entity", "entity": "seating"},
+                {"type": "from_intent", "intent": ["affirm"], "value": True},
+                {"type": "from_intent", "intent": ["deny"], "value": False},
+            ],
+        },
+        {
+            "ask_questions": ["any preferences?"],
+            "slot": "preferences",
+            "slot_set": {"type": "slot", "value": "preferences"},
+            "mapping": [
+                {"type": "from_text", "not_intent": ["affirm"]},
+                {
+                    "type": "from_intent",
+                    "intent": ["affirm"],
+                    "value": "no additional preferences",
+                },
+            ],
+        },
+        {
+            "ask_questions": ["do you want to go with an AC room?"],
+            "slot": "account_required",
+            "slot_set": {"type": "current", "value": True},
+        },
+    ]
+    request = {"name": "restaurant_form", "settings": path}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/forms",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "form will not accept any type slots: {'account_required'}"
+
+
 def test_edit_slot_mapping():
     response = client.put(
         f"/api/bot/{pytest.bot}/slots/mapping",
@@ -15119,6 +15275,13 @@ def test_get_slot_mapping():
                 ],
             },
             {
+                "slot": "user_feedback",
+                "mapping": [
+                    {"type": "from_text"},
+                    {"type": "from_entity", "entity": "user_feedback"},
+                ],
+            },
+            {
                 "slot": "age",
                 "mapping": [
                     {"type": "from_intent", "value": "18", "intent": ["get_age"]}
@@ -15148,6 +15311,13 @@ def test_get_slot_mapping():
             },
             {
                 "slot": "ac_required",
+                "mapping": [
+                    {"type": "from_intent", "value": True, "intent": ["affirm"]},
+                    {"type": "from_intent", "value": False, "intent": ["deny"]},
+                ],
+            },
+            {
+                "slot": "account_required",
                 "mapping": [
                     {"type": "from_intent", "value": True, "intent": ["affirm"]},
                     {"type": "from_intent", "value": False, "intent": ["deny"]},
