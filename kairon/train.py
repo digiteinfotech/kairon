@@ -78,7 +78,7 @@ def train_model_for_bot(bot: str):
         del config
     except Exception as e:
         logging.exception(e)
-        raise AppException("Failed to load the model for the bot.")
+        raise AppException(e)
     return model
 
 def start_training(bot: str, user: str, token: str = None):
