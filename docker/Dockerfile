@@ -5,6 +5,8 @@ ENV KAIRON_HOME=/app PYTHON_VERSION=3.10.13
 WORKDIR ${KAIRON_HOME}
 
 RUN yum update -y
+RUN dnf update -y rpm --releasever 2023.4.20240319
+RUN dnf update -y curl expat --releasever 2023.4.20240401
 
 RUN yum update -y && yum -y install wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel sqlite-devel libffi-devel openblas-devel ca-certificates
 RUN wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz && \
