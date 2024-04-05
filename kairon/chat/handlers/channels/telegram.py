@@ -26,6 +26,7 @@ from kairon.chat.agent_processor import AgentProcessor
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
+from kairon.shared.live_agent.live_agent import LiveAgentHandler
 import json
 
 logger = logging.getLogger(__name__)
@@ -260,7 +261,7 @@ class TelegramHandler(InputChannel, ChannelHandlerBase):
 
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):
-        await AgentProcessor.get_agent(bot).handle_message(user_message)
+        await AgentProcessor.handle_channel_message(bot, user_message)
 
     @staticmethod
     def get_output_channel(access_token, webhook_url) -> TelegramOutput:

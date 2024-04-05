@@ -7,6 +7,7 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
+from kairon.actions.definitions.live_agent import ActionLiveAgent
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.prompt import ActionPrompt
 from kairon.actions.definitions.pyscript import ActionPyscript
@@ -39,7 +40,8 @@ class ActionFactory:
         ActionType.prompt_action.value: ActionPrompt,
         ActionType.pyscript_action.value: ActionPyscript,
         ActionType.database_action.value: ActionDatabase,
-        ActionType.web_search_action.value: ActionWebSearch
+        ActionType.web_search_action.value: ActionWebSearch,
+        ActionType.live_agent_action.value: ActionLiveAgent
     }
 
     @staticmethod

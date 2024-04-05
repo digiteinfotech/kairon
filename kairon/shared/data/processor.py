@@ -79,7 +79,7 @@ from kairon.shared.actions.data_objects import (
     DbQuery,
     PyscriptActionConfig,
     WebSearchAction,
-    UserQuestion,
+    UserQuestion, LiveAgentActionConfig,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -158,6 +158,7 @@ from ..cognition.data_objects import CognitionSchema
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
+from ..live_agent.live_agent import LiveAgentHandler
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 
@@ -5808,16 +5809,6 @@ class MongoProcessor:
             )
 
     def __validate_slots_attached_to_form(self, required_slots: set, bot: Text):
-        any_slots = set(
-            Slots.objects(bot=bot, type="any", status=True, name__in=required_slots).values_list(
-                "name"
-            )
-        )
-        if any_slots:
-            raise AppException(
-                f"form will not accept any type slots: {any_slots}"
-            )
-
         existing_slots = set(
             Slots.objects(bot=bot, status=True, name__in=required_slots).values_list(
                 "name"
@@ -6009,6 +6000,7 @@ class MongoProcessor:
         except DoesNotExist:
             slot_mapping = SlotMapping(slot=mapping["slot"], bot=bot)
         slot_mapping.mapping = mapping["mapping"]
+
         slot_mapping.user = user
         slot_mapping.timestamp = datetime.utcnow()
         return slot_mapping.save().id.__str__()
@@ -6070,7 +6062,7 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException(f"No slot mapping exists for slot: {name}")
 
-    def add_slot_set_action(self, action: dict, bot: Text, user: Text):
+    def add_slot_set_action(self, action: dict, bot: Text, user: Text, form_name):
         set_slots = []
         if Utility.check_empty_string(action.get("name")):
             raise AppException("name cannot be empty or spaces")
@@ -7489,3 +7481,21 @@ class MongoProcessor:
             action.pop("user")
 
             yield action
+
+    async def enable_live_agent(self, request_data: dict, bot: Text, user: Text):
+        channels = request_data.get("channels")
+        if not channels or not isinstance(channels, list):
+            raise AppException("No channels provided for live agent")
+
+
+        if not Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, user=user):
+            live_agent = LiveAgentActionConfig(**request_data, bot=bot, user=user, status=True)
+            live_agent.save()
+        await LiveAgentHandler.register_live_agent(bot, channels)
+        return True
+
+    async def is_live_agent_enabled(self, bot: Text):
+        return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)
+
+
+

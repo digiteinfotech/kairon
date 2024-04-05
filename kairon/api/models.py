@@ -24,7 +24,7 @@ from ..shared.actions.models import (
     DbQueryValueType,
     DbActionOperationType, UserMessageType
 )
-from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
+from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE, ChannelTypes
 
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
 from ..shared.models import (
@@ -472,6 +472,21 @@ class DatabaseActionRequest(BaseModel):
 
         if Utility.check_empty_string(v):
             raise ValueError("collection is required")
+        return v
+
+class LiveAgentActionRequest(BaseModel):
+    channels: List[str] = []
+    bot_response: str = "connecting to live agent"
+    dispatch_bot_response: bool = True
+
+    @validator("channels")
+    def validate_channels(cls, v, values, **kwargs):
+
+        if len(v) <= 0:
+            raise ValueError("At least one channel is required")
+        for channel in v:
+            if channel not in ChannelTypes.__members__.values():
+                raise ValueError(f"Invalid channel: {channel}")
         return v
 
 

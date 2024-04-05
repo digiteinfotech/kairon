@@ -7,7 +7,7 @@ from kairon.api.models import (
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
-    WebSearchActionRequest
+    WebSearchActionRequest, LiveAgentActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -559,3 +559,12 @@ async def update_razorpay_action(
     """
     mongo_processor.edit_razorpay_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message="Action updated!")
+
+
+@router.post("/live_agent")
+async def enable_live_agent(
+        request_data: LiveAgentActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    await mongo_processor.enable_live_agent(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message="Live Action updated!")
