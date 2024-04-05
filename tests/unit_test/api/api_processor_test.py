@@ -493,7 +493,7 @@ class TestAccountProcessor:
         AccountProcessor.add_bot("delete_account_bot_2", pytest.deleted_account, "ritika@digite.com", False)
         account_bots_before_delete = list(AccountProcessor.list_bots(pytest.deleted_account))
 
-        assert len(account_bots_before_delete) == 3
+        assert len(account_bots_before_delete) == 2
         AccountProcessor.delete_account(pytest.deleted_account)
 
         for bot in account_bots_before_delete:
@@ -608,7 +608,6 @@ class TestAccountProcessor:
 
         assert new_account_id
         assert AccountProcessor.get_account(new_account_id).get('status')
-        assert len(list(AccountProcessor.list_bots(new_account_id))) == 1
 
     def test_add_user_duplicate(self):
         with pytest.raises(Exception):
@@ -982,6 +981,7 @@ class TestAccountProcessor:
         }
         loop = asyncio.new_event_loop()
         actual, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
+        AccountProcessor.add_bot("Hi-Hello", actual['account'], "demo@ac.in", False)
         assert actual["_id"]
         assert actual["account"]
         assert actual["first_name"]
@@ -1968,7 +1968,6 @@ class TestAccountProcessor:
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     @pytest.mark.asyncio
@@ -2051,7 +2050,6 @@ class TestAccountProcessor:
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     @pytest.mark.asyncio
@@ -2205,7 +2203,6 @@ class TestAccountProcessor:
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     def test_sso_login_client_linkedin(self):

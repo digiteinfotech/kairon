@@ -741,6 +741,30 @@ def test_api_login():
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
     pytest.username = email
+
+    response = client.post(
+        "/api/account/bot",
+        json={"name": "Hi-Hello", "from_template": "Hi-Hello"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response["message"] == "Bot created"
+    assert response["error_code"] == 0
+    assert response["success"]
+    assert response["data"]["bot_id"]
+    bot_id = response["data"]["bot_id"]
+
+    response = client.post(
+        f"/api/bot/{bot_id}/templates/use-case",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "Hi-Hello"},
+    )
+
+    actual = response.json()
+    assert actual["data"] is None
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Data applied!"
+    assert actual["success"]
     response = client.get(
         "/api/user/details",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -8009,6 +8033,31 @@ def test_account_registration_with_confirmation(monkeypatch):
     actual = response.json()
     pytest.add_member_token = actual["data"]["access_token"]
     pytest.add_member_token_type = actual["data"]["token_type"]
+
+    resp = client.post(
+        "/api/account/bot",
+        json={"name": "Hi-Hello"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    )
+    actual = resp.json()
+    assert actual["message"] == "Bot created"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual["data"]["bot_id"]
+    bot_id = actual["data"]["bot_id"]
+
+    resp = client.post(
+        f"/api/bot/{bot_id}/templates/use-case",
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+        json={"data": "Hi-Hello"},
+    )
+
+    actual = resp.json()
+    assert actual["data"] is None
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Data applied!"
+    assert actual["success"]
+
     response = client.get(
         "/api/account/bot",
         headers={
@@ -22483,6 +22532,31 @@ def test_get_responses_post_passwd_reset(monkeypatch):
     login_actual = login_response.json()
     pytest.access_token = login_actual["data"]["access_token"]
     pytest.token_type = login_actual["data"]["token_type"]
+
+    resp = client.post(
+        "/api/account/bot",
+        json={"name": "Hi-Hello"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = resp.json()
+    assert actual["message"] == "Bot created"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual["data"]["bot_id"]
+    bot_id = actual["data"]["bot_id"]
+
+    resp = client.post(
+        f"/api/bot/{bot_id}/templates/use-case",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "Hi-Hello"},
+    )
+
+    actual = resp.json()
+    assert actual["data"] is None
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Data applied!"
+    assert actual["success"]
+
     bot_response = client.get(
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
