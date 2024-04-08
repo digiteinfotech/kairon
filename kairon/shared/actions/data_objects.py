@@ -219,8 +219,6 @@ class DbQuery(EmbeddedDocument):
     def validate(self, clean=True):
         if Utility.check_empty_string(self.type):
             raise ValidationError("payload type is required")
-        # if not self.value or self.value is None:
-        #     raise ValidationError("payload value is required")
 
 
 @auditlogger.log
