@@ -9445,9 +9445,9 @@ def test_add_vectordb_action_empty_payload_type():
     assert actual["message"] == [
         {
             "loc": ["body", "payload", "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
+            "msg": "value is not a valid enumeration member; permitted: 'from_value', 'from_slot', 'from_user_message'",
             "type": "type_error.enum",
-            "ctx": {"enum_values": ["from_value", "from_slot"]},
+            "ctx": {"enum_values": ["from_value", "from_slot", "from_user_message"]},
         },
         {
             "loc": ["body", "payload", "__root__"],

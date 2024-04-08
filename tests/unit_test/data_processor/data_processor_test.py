@@ -9893,20 +9893,9 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response)
         )
         vectordb_action_two = vectordb_action_config_two.dict()
-        vectordb_action_two['payload']['value'] = ''
-        with pytest.raises(ValidationError, match="payload value is required"):
-            processor.add_db_action(vectordb_action_two, user, bot)
-        vectordb_action_config_three = DatabaseActionRequest(
-            name=action,
-            collection='test_add_vector_embedding_action_config_empty_payload_values',
-            query_type=query_type,
-            payload=payload,
-            response=ActionResponseEvaluation(value=response)
-        )
-        vectordb_action_three = vectordb_action_config_three.dict()
-        vectordb_action_three['payload']['type'] = ''
+        vectordb_action_two['payload']['type'] = ''
         with pytest.raises(ValidationError, match="payload type is required"):
-            processor.add_db_action(vectordb_action_three, user, bot)
+            processor.add_db_action(vectordb_action_two, user, bot)
 
     def test_add_vector_embedding_action_config_empty_operation_values(self):
         processor = MongoProcessor()

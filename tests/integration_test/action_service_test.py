@@ -20,7 +20,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
     DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
-from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType
+from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
+    DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -2921,6 +2922,159 @@ def test_http_action_doesnotexist():
     response_json = response.json()
     assert response.status_code == 200
     assert response_json == {'events': [], 'responses': []}
+
+
+@responses.activate
+def test_vectordb_action_execution_payload_search_from_user_message():
+    action_name = "test_vectordb_action_execution_payload_search_from_user_message"
+    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
+            user="user").save()
+    payload_body = json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})
+    DatabaseAction(
+        name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_user_message',
+        query_type=DbActionOperationType.payload_search.value,
+        payload=DbQuery(type=DbQueryValueType.from_user_message.value),
+        response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+        set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+        bot="5f50md0a56b698ca10d35d2e",
+        user="user"
+    ).save()
+
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_user_message_faq_embd/points/scroll'
+    resp_msg = json.dumps(
+        [{"id": 2, "city": "London", "color": "red"}]
+    )
+    json_params_matcher = {'filter': {
+        'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        body=resp_msg,
+        status=200,
+        match=[responses.matchers.json_params_matcher(json_params_matcher)],
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "latest_message": {'text': payload_body, 'intent_ranking': [{'name': 'user_story'}],
+                               "entities": [{"value": payload_body, "entity": KAIRON_USER_MSG_ENTITY}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'The value of London with color red is 2'}]
+    assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
+    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+
+
+@responses.activate
+def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
+    action_name = "test_vectordb_action_execution_payload_search_from_user_message_in_slot"
+    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
+            user="user").save()
+    payload_body = json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})
+    user_msg = '/user_story{"kairon_user_msg": {"filter": {"should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}}'
+    DatabaseAction(
+        name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_user_message_in_slot',
+        query_type=DbActionOperationType.payload_search.value,
+        payload=DbQuery(type=DbQueryValueType.from_user_message.value),
+        response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+        set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+        bot="5f50md0a56b698ca10d35d2e",
+        user="user"
+    ).save()
+
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_user_message_in_slot_faq_embd/points/scroll'
+    resp_msg = json.dumps(
+        [{"id": 2, "city": "London", "color": "red"}]
+    )
+    json_params_matcher = {'filter': {
+        'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        body=resp_msg,
+        status=200,
+        match=[responses.matchers.json_params_matcher(json_params_matcher)],
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "latest_message": {'text': user_msg, 'intent_ranking': [{'name': 'user_story'}],
+                               "entities": [{"value": payload_body, "entity": KAIRON_USER_MSG_ENTITY}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'The value of London with color red is 2'}]
+    assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
+    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
 
 
 @responses.activate
