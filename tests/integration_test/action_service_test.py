@@ -9904,7 +9904,9 @@ def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
          'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': True
+         },
         {'name': 'Data science prompt',
          'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
          'data': 'data_science'}
@@ -9968,7 +9970,9 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
          'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}}
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': True
+         }
     ]
     embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
     mock_embedding.return_value = embedding
@@ -10016,7 +10020,9 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
          'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}}
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': True
+         }
     ]
     hyperparameters = {'temperature': 0.0, 'max_tokens': 300,
                        'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
@@ -10748,3 +10754,151 @@ Instructions on how to use Similarity Prompt:
 ['Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.']
 Answer question based on the context above, if answer is not in the context go check previous logs.
 """
+
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
+def test_prompt_action_response_action_when_similarity_is_empty(mock_search, mock_embedding, mock_completion):
+    from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+    from uuid6 import uuid7
+
+    action_name = "test_prompt_action_response_action_when_similarity_is_empty"
+    bot = "5f50fd0a56b698ca10d35d2C"
+    user = "udit.pandey"
+    value = "keyvalue"
+    user_msg = "What kind of language is python?"
+    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+    generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    llm_prompts = [
+        {'name': 'System Prompt',
+         'data': 'You are a personal assistant. Answer question based on the context below.',
+         'type': 'system', 'source': 'static', 'is_enabled': True},
+        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+         'type': 'query', 'source': 'static', 'is_enabled': False},
+        {'name': 'Similarity Prompt',
+         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+         'type': 'user', 'source': 'bot_content', 'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': True}
+    ]
+
+    embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+    mock_embedding.return_value = embedding
+    mock_completion.return_value = generated_text
+    mock_search.return_value = {'result': []}
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+    request_object["tracker"]["slots"]["bot"] = bot
+    request_object["next_action"] = action_name
+    request_object["tracker"]["sender_id"] = user
+    request_object["tracker"]["latest_message"]['text'] = user_msg
+    request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}},
+                                           {'event': 'bot', "text": "how are you",
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}}]
+
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [
+        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+         'response': None, 'image': None, 'attachment': None}
+    ]
+
+    assert mock_completion.call_args.args[1] == 'What kind of language is python?'
+    assert mock_completion.call_args.args[
+               2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
+    assert not mock_completion.call_args.args[3]
+    print(mock_completion.call_args.kwargs)
+    assert mock_completion.call_args.kwargs == {
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}}, 'query_prompt': {},
+        'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
+                                   {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [
+            {'similarity_prompt_name': 'Similarity Prompt',
+             'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'collection': 'python', 'use_similarity_prompt': True, 'top_results': 10, 'similarity_threshold': 0.7}],
+        'instructions': []}
+
+
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
+def test_prompt_action_response_action_when_similarity_disabled(mock_search, mock_embedding, mock_completion):
+    from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+    from uuid6 import uuid7
+
+    action_name = "test_prompt_action_response_action_when_similarity_disabled"
+    bot = "5f50fd0a56b698ca10d35d2Z"
+    user = "udit.pandey"
+    value = "keyvalue"
+    user_msg = "What kind of language is python?"
+    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+    generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    llm_prompts = [
+        {'name': 'System Prompt',
+         'data': 'You are a personal assistant. Answer question based on the context below.',
+         'type': 'system', 'source': 'static', 'is_enabled': True},
+        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+         'type': 'query', 'source': 'static', 'is_enabled': False},
+        {'name': 'Similarity Prompt',
+         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+         'type': 'user', 'source': 'bot_content', 'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': False}
+    ]
+
+    embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+    mock_embedding.return_value = embedding
+    mock_completion.return_value = generated_text
+    mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+    request_object["tracker"]["slots"]["bot"] = bot
+    request_object["next_action"] = action_name
+    request_object["tracker"]["sender_id"] = user
+    request_object["tracker"]["latest_message"]['text'] = user_msg
+    request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}},
+                                           {'event': 'bot', "text": "how are you",
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}}]
+
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [
+        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+         'response': None, 'image': None, 'attachment': None}
+    ]
+
+    assert mock_completion.call_args.args[1] == 'What kind of language is python?'
+    assert mock_completion.call_args.args[
+               2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
+    assert not mock_completion.call_args.args[3]
+    print(mock_completion.call_args.kwargs)
+    assert mock_completion.call_args.kwargs == {
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}}, 'query_prompt': {},
+        'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
+                                   {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [],
+        'instructions': []}

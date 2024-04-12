@@ -1,6 +1,6 @@
 FROM amazonlinux:latest
 
-ENV KAIRON_HOME=/app PYTHON_VERSION=3.10.13
+ENV KAIRON_HOME=/app PYTHON_VERSION=3.10.13 TEMPLATE_DIR_DEFAULT=./template/use-cases/Hi-Hello-GPT RASA_TELEMETRY_ENABLED=false
 
 WORKDIR ${KAIRON_HOME}
 
@@ -34,6 +34,10 @@ RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
 
 RUN python -m pip install pyston_lite_autoload
 COPY . .
+
+RUN rm -rf ${TEMPLATE_DIR_DEFAULT}/models/* && \
+    rasa train --data ${TEMPLATE_DIR_DEFAULT}/data --config ${TEMPLATE_DIR_DEFAULT}/config.yml --domain ${TEMPLATE_DIR_DEFAULT}/domain.yml --out ${TEMPLATE_DIR_DEFAULT}/models
+
 
 ENV HF_HOME="/home/cache" SENTENCE_TRANSFORMERS_HOME="/home/cache"
 
