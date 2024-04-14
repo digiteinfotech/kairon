@@ -619,7 +619,9 @@ class ActionUtility:
             if not ActionUtility.is_empty(rqst_payload) and rqst_payload.startswith("/"):
                 msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
                 if not ActionUtility.is_empty(msg):
-                    rqst_payload = msg
+                    rqst_payload = {"text": msg}
+            else:
+                rqst_payload = {"text": rqst_payload}
         else:
             rqst_payload = payload.get('value')
 

@@ -1,4 +1,7 @@
+import os
+
 from unittest import mock
+from mongoengine import connect
 
 import pytest
 
@@ -6,77 +9,102 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.data.data_objects import LLMSettings
 from kairon.shared.vector_embeddings.db.factory import VectorEmbeddingsDbFactory
 from kairon.shared.vector_embeddings.db.qdrant import Qdrant
 
 
 class TestQdrant:
 
-    @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
-    def test_embedding_search_valid_request_body(self, mock_http_request):
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
-        qdrant = Qdrant('5f50fd0a56v098ca10d75d2e')
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @pytest.mark.asyncio
+    @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
+    async def test_embedding_search_valid_request_body(self, mock_http_request):
+        Utility.load_environment()
+        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value", bot="5f50fd0a56v098ca10d75d2g",
+                            user="user").save()
+        qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
+                        LLMSettings(provider="openai").to_mongo().to_dict())
         request_body = {"ids": [0], "with_payload": True, "with_vector": True}
         mock_http_request.return_value = 'expected_result'
-        result = qdrant.embedding_search(request_body)
+        result = await qdrant.embedding_search(request_body)
         assert result == 'expected_result'
 
+    @pytest.mark.asyncio
     @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
-    def test_payload_search_valid_request_body(self, mock_http_request):
+    async def test_payload_search_valid_request_body(self, mock_http_request):
         Utility.load_environment()
-        qdrant = Qdrant('5f50fd0a56v098ca10d75d2e')
+        qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
+                        LLMSettings(provider="openai").to_mongo().to_dict())
         request_body = {"filter": {"should": [{"key": "city", "match": {"value": "London"}},
                                               {"key": "color", "match": {"value": "red"}}]}}
         mock_http_request.return_value = 'expected_result'
-        result = qdrant.payload_search(request_body)
+        result = await qdrant.payload_search(request_body)
         assert result == 'expected_result'
 
+    @pytest.mark.asyncio
     @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
-    def test_perform_operation_valid_op_type_and_request_body(self, mock_http_request):
+    async def test_perform_operation_valid_op_type_and_request_body(self, mock_http_request):
         Utility.load_environment()
-        qdrant = Qdrant('5f50fd0a56v098ca10d75d2e')
+        qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
+                        LLMSettings(provider="openai").to_mongo().to_dict())
         request_body = {}
         mock_http_request.return_value = 'expected_result'
-        result_embedding = qdrant.perform_operation('embedding_search', request_body)
+        result_embedding = await qdrant.perform_operation('embedding_search', request_body)
         assert result_embedding == 'expected_result'
-        result_payload = qdrant.perform_operation('payload_search', request_body)
+        result_payload = await qdrant.perform_operation('payload_search', request_body)
         assert result_payload == 'expected_result'
 
-    def test_embedding_search_empty_request_body(self):
+    @pytest.mark.asyncio
+    async def test_embedding_search_empty_request_body(self):
         Utility.load_environment()
-        qdrant = Qdrant('5f50fd0a56v098ca10d75d2e')
+        qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
+                        LLMSettings(provider="openai").to_mongo().to_dict())
         with pytest.raises(ActionFailure):
-            qdrant.embedding_search({})
+            await qdrant.embedding_search({})
 
-    def test_payload_search_empty_request_body(self):
+    @pytest.mark.asyncio
+    async def test_payload_search_empty_request_body(self):
         Utility.load_environment()
-        qdrant = Qdrant('5f50fd0a56v098ca10d75d2e')
+        qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
+                        LLMSettings(provider="openai").to_mongo().to_dict())
         with pytest.raises(ActionFailure):
-            qdrant.payload_search({})
+            await qdrant.payload_search({})
 
-    def test_perform_operation_invalid_op_type(self):
+    @pytest.mark.asyncio
+    async def test_perform_operation_invalid_op_type(self):
         Utility.load_environment()
-        qdrant = Qdrant('5f50fd0a56v098ca10d75d2e')
+        qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
+                        LLMSettings(provider="openai").to_mongo().to_dict())
         request_body = {}
         with pytest.raises(AppException, match="Operation type not supported"):
-            qdrant.perform_operation("vector_search", request_body)
+            await qdrant.perform_operation("vector_search", request_body)
 
     def test_get_instance_raises_exception_when_db_not_implemented(self):
         with pytest.raises(AppException, match="Database not yet implemented!"):
             VectorEmbeddingsDbFactory.get_instance("mongo")
 
+    @pytest.mark.asyncio
     @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
-    def test_embedding_search_valid_request_body_payload(self, mock_http_request):
+    async def test_embedding_search_valid_request_body_payload(self, mock_http_request):
         Utility.load_environment()
-        qdrant = Qdrant('5f50fd0a56v098ca10d75d2e')
+        qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
+                        LLMSettings(provider="openai").to_mongo().to_dict())
         request_body = {'ids': [0], 'with_payload': True, 'with_vector': True}
         mock_http_request.return_value = 'expected_result'
-        result = qdrant.embedding_search(request_body)
+        result = await qdrant.embedding_search(request_body)
         assert result == 'expected_result'
 
         mock_http_request.assert_called_once()
         called_args = mock_http_request.call_args
         called_payload = called_args.kwargs['request_body']
         assert called_payload == request_body
-        assert called_args.kwargs['http_url'] == 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e/points'
+        assert called_args.kwargs['http_url'] == 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2g/points'
         assert called_args.kwargs['request_method'] == 'POST'

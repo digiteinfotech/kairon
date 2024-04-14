@@ -33,6 +33,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.utils import Utility
+from kairon.shared.vector_embeddings.db.qdrant import Qdrant
 
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -2941,13 +2942,16 @@ def test_vectordb_action_execution_payload_search_from_user_message():
         bot="5f50md0a56b698ca10d35d2e",
         user="user"
     ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2e", user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50md0a56b698ca10d35d2e", user="user").save()
 
     http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_user_message_faq_embd/points/scroll'
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
-    json_params_matcher = {'filter': {
-        'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+    json_params_matcher = {'text': json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})}
     responses.add(
         method=responses.POST,
         url=http_url,
@@ -3003,7 +3007,7 @@ def test_vectordb_action_execution_payload_search_from_user_message():
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
     action_name = "test_vectordb_action_execution_payload_search_from_user_message_in_slot"
-    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
+    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2f",
             user="user").save()
     payload_body = json.dumps({"filter": {
         "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})
@@ -3015,16 +3019,19 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
         payload=DbQuery(type=DbQueryValueType.from_user_message.value),
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
-        bot="5f50md0a56b698ca10d35d2e",
+        bot="5f50md0a56b698ca10d35d2f",
         user="user"
     ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2f", user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50md0a56b698ca10d35d2f", user="user").save()
 
-    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_user_message_in_slot_faq_embd/points/scroll'
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2f_test_vectordb_action_execution_payload_search_from_user_message_in_slot_faq_embd/points/scroll'
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
-    json_params_matcher = {'filter': {
-        'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+    json_params_matcher = {"text": json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})}
     responses.add(
         method=responses.POST,
         url=http_url,
@@ -3038,7 +3045,7 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "slots": {"bot": "5f50md0a56b698ca10d35d2f"},
             "latest_message": {'text': user_msg, 'intent_ranking': [{'name': 'user_story'}],
                                "entities": [{"value": payload_body, "entity": KAIRON_USER_MSG_ENTITY}]},
             "latest_event_time": 1537645578.314389,
@@ -3054,7 +3061,7 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
             "session_config": {},
             "intents": [],
             "entities": [],
-            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "slots": {"bot": "5f50md0a56b698ca10d35d2f"},
             "responses": {},
             "actions": [],
             "forms": {},
@@ -3072,13 +3079,14 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': 'The value of London with color red is 2'}]
     assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
-    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
+    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2f').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
 
 
 @responses.activate
-def test_vectordb_action_execution_embedding_search_from_value():
+@mock.patch.object(Qdrant, "_Qdrant__get_embedding", autospec=True)
+def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56b698ca10d75d2e",
             user="user").save()
@@ -3093,6 +3101,11 @@ def test_vectordb_action_execution_embedding_search_from_value():
         bot="5f50fd0a56b698ca10d75d2e",
         user="user"
     ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56b698ca10d75d2e", user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50fd0a56b698ca10d75d2e", user="user").save()
+    embedding = list(np.random.random(Qdrant.__embedding__))
+    mock_embedding.return_value = embedding
 
     http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_test_vectordb_action_execution_faq_embd/points'
     resp_msg = json.dumps(
@@ -3163,7 +3176,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_value():
     action_name = "test_vectordb_action_execution"
-    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
+    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2z",
             user="user").save()
     payload_body = json.dumps({'filter': {
         'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}})
@@ -3174,11 +3187,14 @@ def test_vectordb_action_execution_payload_search_from_value():
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
-        bot="5f50md0a56b698ca10d35d2e",
+        bot="5f50md0a56b698ca10d35d2z",
         user="user"
     ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2z", user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50md0a56b698ca10d35d2z", user="user").save()
 
-    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_value_faq_embd/points/scroll'
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2z_test_vectordb_action_execution_payload_search_from_value_faq_embd/points/scroll'
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
@@ -3197,7 +3213,7 @@ def test_vectordb_action_execution_payload_search_from_value():
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "slots": {"bot": "5f50md0a56b698ca10d35d2z"},
             "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
@@ -3212,7 +3228,7 @@ def test_vectordb_action_execution_payload_search_from_value():
             "session_config": {},
             "intents": [],
             "entities": [],
-            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "slots": {"bot": "5f50md0a56b698ca10d35d2z"},
             "responses": {},
             "actions": [],
             "forms": {},
@@ -3230,7 +3246,7 @@ def test_vectordb_action_execution_payload_search_from_value():
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': 'The value of London with color red is 2'}]
     assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
-    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
+    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2z').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
 
@@ -3313,6 +3329,9 @@ def test_vectordb_action_execution_payload_search_from_slot():
         bot="5f50fx0a56b698ca10d35d2e",
         user="user"
     ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fx0a56b698ca10d35d2e", user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50fx0a56b698ca10d35d2e", user="user").save()
 
     http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_test_vectordb_action_execution_embedding_search_from_slot_faq_embd/points'
     resp_msg = json.dumps(
@@ -3396,6 +3415,9 @@ def test_vectordb_action_execution_no_response_dispatch():
         bot="5f50fd0a56v098ca10d75d2e",
         user="user"
     ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56v098ca10d75d2e", user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50fd0a56v098ca10d75d2e", user="user").save()
 
     http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_test_vectordb_action_execution_no_response_dispatch_faq_embd/points'
     resp_msg = json.dumps(
@@ -3538,9 +3560,14 @@ def test_vectordb_action_failed_execution(mock_action_config, mock_action):
         bot="5f50fd0a56b697ca10d35d2e",
         user="user"
     )
+    bot_settings = BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56b697ca10d35d2e",
+                               user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50fd0a56b697ca10d35d2e", user="user").save()
+
 
     def _get_action_config(*arge, **kwargs):
-        return action_config.to_mongo().to_dict()
+        return action_config.to_mongo().to_dict(), bot_settings.to_mongo().to_dict()
 
     def _get_action(*arge, **kwargs):
         return action.to_mongo().to_dict()
