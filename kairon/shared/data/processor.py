@@ -3841,6 +3841,9 @@ class MongoProcessor:
         :param bot: bot id
         :return: VectorDb configuration id for updated VectorDb action config
         """
+        bot_settings = MongoProcessor.get_bot_settings(bot=bot, user=user)
+        if not bot_settings['llm_settings']["enable_faq"]:
+            raise AppException("Faq feature is disabled for the bot! Please contact support.")
 
         if not Utility.is_exist(
             DatabaseAction,
@@ -3880,6 +3883,9 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
+        bot_settings = MongoProcessor.get_bot_settings(bot=bot, user=user)
+        if not bot_settings['llm_settings']["enable_faq"]:
+            raise AppException("Faq feature is disabled for the bot! Please contact support.")
         self.__validate_payload(vector_db_action_config.get("payload"), bot)
         Utility.is_valid_action_name(
             vector_db_action_config.get("name"), bot, DatabaseAction
@@ -3894,7 +3900,7 @@ class MongoProcessor:
         action_id = (
             DatabaseAction(
                 name=vector_db_action_config["name"],
-            collection=vector_db_action_config['collection'],
+                collection=vector_db_action_config['collection'],
                 query_type=vector_db_action_config.get("query_type"),
                 payload=DbQuery(**vector_db_action_config.get("payload")),
                 response=HttpActionResponse(

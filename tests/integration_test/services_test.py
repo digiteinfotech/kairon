@@ -9485,7 +9485,38 @@ def test_add_vectordb_action_empty_payload_value():
     assert not actual["success"]
 
 
-def test_add_vectordb_action_collection_does_not_exists():
+def test_add_vectordb_action_without_enable_faq():
+    request_body = {
+        "name": "vectordb_action_test",
+        "collection": 'test_add_vectordb_action_collection_does_not_exists',
+        "query_type": "payload_search",
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Faq feature is disabled for the bot! Please contact support.'
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_collection_does_not_exists(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "vectordb_action_test",
         "collection": 'test_add_vectordb_action_collection_does_not_exists',
@@ -9582,7 +9613,11 @@ def test_add_vectordb_action(monkeypatch):
     assert actual_two["error_code"] == 422
 
 
-def test_add_vectordb_action_case_insensitivity():
+def test_add_vectordb_action_case_insensitivity(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "VECTORDB_ACTION_CASE_INSENSITIVE",
         "collection": 'test_add_vectordb_action',
@@ -9631,7 +9666,11 @@ def test_add_vectordb_action_case_insensitivity():
     assert actual["success"]
 
 
-def test_add_vectordb_action_existing():
+def test_add_vectordb_action_existing(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": 'test_add_vectordb_action_existing',
         "collection": 'test_add_vectordb_action',
@@ -9667,7 +9706,11 @@ def test_add_vectordb_action_existing():
     assert not actual["success"]
 
 
-def test_add_vectordb_action_with_slots():
+def test_add_vectordb_action_with_slots(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
         f"/api/bot/{pytest.bot}/slots",
         json={
@@ -9706,7 +9749,11 @@ def test_add_vectordb_action_with_slots():
     assert actual["success"]
 
 
-def test_update_vectordb_action():
+def test_update_vectordb_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_update_vectordb_action",
         "collection": 'test_add_vectordb_action',
@@ -9765,7 +9812,11 @@ def test_update_vectordb_action():
     assert actual["success"]
 
 
-def test_update_vectordb_action_non_existing():
+def test_update_vectordb_action_non_existing(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_update_vectordb_action_non_existing",
         "collection": 'test_add_vectordb_action',
@@ -9811,7 +9862,11 @@ def test_update_vectordb_action_non_existing():
     assert not actual["success"]
 
 
-def test_update_vector_action_wrong_parameter():
+def test_update_vector_action_wrong_parameter(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_update_vector_action_1",
         "collection": 'test_add_vectordb_action',
@@ -9892,7 +9947,11 @@ def test_list_vector_db_action():
     assert actual['data'][0]['name'] == 'vectordb_action_test'
 
 
-def test_delete_vectordb_action():
+def test_delete_vectordb_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_delete_vectordb_action",
         "collection": 'test_add_vectordb_action',
@@ -9928,7 +9987,11 @@ def test_delete_vectordb_action():
     assert actual["success"]
 
 
-def test_delete_vectordb_action_non_existing():
+def test_delete_vectordb_action_non_existing(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_delete_vectordb_action_non_existing",
         "collection": 'test_add_vectordb_action',
