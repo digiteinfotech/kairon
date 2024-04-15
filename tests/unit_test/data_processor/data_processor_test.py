@@ -4113,9 +4113,9 @@ class TestMongoProcessor:
         user = 'test_user'
         slot_name = 'is_new_user'
         slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": False}
-        mapping = {"slot": slot_name, 'mapping': [{'type': 'from_entity', 'entity': 'name'}]}
+        mapping = {"slot": slot_name, 'mapping': {'type': 'from_entity', 'entity': 'name'}}
         processor.add_slot(slot_value=slot, bot=bot, user=user)
-        processor.add_or_update_slot_mapping(mapping, bot, user)
+        processor.add_slot_mapping(mapping, bot, user)
 
         with pytest.raises(AppException, match="Cannot delete slot without removing its mappings!"):
             processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
@@ -6723,31 +6723,27 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        expected_slot = {"slot": "cuisine", 'mapping': [{'type': 'from_entity', 'entity': 'name'}]}
-        with pytest.raises(AppException, match='Slot with name \'cuisine\' not found'):
-            processor.add_or_update_slot_mapping(expected_slot, bot, user)
+        expected_slot = {"slot": "cuisine", 'mapping': {'type': 'from_entity', 'entity': 'name'}}
+        with pytest.raises(AppException, match='Slot with name \"cuisine\" not found'):
+            processor.add_slot_mapping(expected_slot, bot, user)
 
     def test_add_slot_with_mapping(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        expected_slot = {"slot": "name", 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
-                                                     {'type': 'from_entity', 'entity': 'name'}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
+        expected_slot = {"slot": "name", 'mapping': {'type': 'from_intent', 'value': 'user'}}
+        processor.add_slot_mapping(expected_slot, bot, user)
         slot = SlotMapping.objects(slot='name', bot=bot, user=user).get()
-        assert slot.mapping == [{'type': 'from_text', 'value': 'user'}, {'type': 'from_entity', 'entity': 'name'}]
+        assert slot.mapping == {'type': 'from_intent', 'value': 'user'}
 
     def test_add_slot_with_empty_mapping(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        expected_slot = {"slot": "name", 'mapping': []}
+        expected_slot = {"slot": "name", 'mapping': {}}
         with pytest.raises(ValueError, match='At least one mapping is required'):
-            processor.add_or_update_slot_mapping(expected_slot, bot, user)
+            processor.add_slot_mapping(expected_slot, bot, user)
 
-        expected_slot = {"slot": "name", 'mapping': [{}]}
-        with pytest.raises(ValueError, match='At least one mapping is required'):
-            processor.add_or_update_slot_mapping(expected_slot, bot, user)
 
     def test_update_slot_with_mapping(self):
         expected_slot = {"name": "age", "type": "float", "influence_conversation": True}
@@ -6762,17 +6758,17 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
 
         expected_slot = {"slot": "age",
-                         'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18',
-                                      "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
+                         'mapping': {'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18',
+                                      "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}}
+        processor.add_slot_mapping(expected_slot, bot, user)
         slot = Slots.objects(name__iexact='age', bot=bot, user=user).get()
         assert slot['name'] == 'age'
         assert slot['type'] == 'float'
         assert slot['initial_value'] is None
         assert slot['influence_conversation']
         slot = SlotMapping.objects(slot='age', bot=bot, user=user).get()
-        assert slot.mapping == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18',
-                                 "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}]
+        assert slot.mapping == {'type': 'from_intent', 'intent': ['get_age'], 'value': '18',
+                                 "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}
 
     def test_remove_slot_mapping(self):
         processor = MongoProcessor()
@@ -6787,7 +6783,11 @@ class TestMongoProcessor:
                                      {'type': 'from_trigger_intent', 'value': 'tester',
                                       'intent': ['get_business', 'is_engineer', 'is_tester'],
                                       'not_intent': ['get_age', 'get_name']}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
+        expected_slots = []
+        for m in expected_slot['mapping']:
+            expected_slots.append({"slot": "occupation", "mapping": m})
+        for slot in expected_slots:
+            processor.add_slot_mapping(slot, bot, user)
         processor.delete_slot_mapping("occupation", bot, user)
         slot = Slots.objects(name__iexact='occupation', bot=bot, user=user).get()
         assert slot['name'] == 'occupation'
@@ -6796,6 +6796,7 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
         with pytest.raises(DoesNotExist):
             SlotMapping.objects(slot='occupation', bot=bot, status=True).get()
+        expected_slots=[]
         expected_slot = {"slot": "occupation", 'mapping': [
             {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
             {'type': 'from_text', 'value': 'engineer',
@@ -6804,9 +6805,13 @@ class TestMongoProcessor:
             {'type': 'from_trigger_intent', 'value': 'tester',
              'intent': ['get_business', 'is_engineer', 'is_tester'],
              'not_intent': ['get_age', 'get_name']}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
-        slot = SlotMapping.objects(slot='occupation', bot=bot, status=True).get()
-        assert slot.mapping == expected_slot['mapping']
+        for m in expected_slot['mapping']:
+            expected_slots.append({"slot": "occupation", "mapping": m})
+        for slot in expected_slots:
+            processor.add_slot_mapping(slot, bot, user)
+        slots = SlotMapping.objects(slot='occupation', bot=bot, status=True)
+        assert len(list(slots)) == 4
+
 
     def test_get_slot(self):
         bot = 'test'
@@ -6849,85 +6854,26 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         processor.add_slot({"name": "location", "type": "text", "influence_conversation": True}, bot, user)
-        slot = {"slot": "location", 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
-                                                {'type': 'from_entity', 'entity': 'location'}]}
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        slot = {"slot": "location", 'mapping': {'type': 'from_text', 'value': 'user', 'entity': 'location'}}
 
-        slots = [{"slot": "age", 'mapping': [{'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
-                                              'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}]},
+        slot2 = {"slot": "location", 'mapping': {'type': 'from_entity', 'entity': 'location'}}
+        id1 = processor.add_slot_mapping(slot, bot, user)
+        id2 = processor.add_slot_mapping(slot2, bot, user)
+
+        slots = [{"slot": "age", 'mapping': {'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
+                                              'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}},
                  {"slot": "location",
-                  'mapping': [{'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'},
-                              {'type': 'from_text', 'value': 'Bengaluru'},
-                              {'type': 'from_entity', 'entity': 'location'},
-                              {'type': 'from_trigger_intent', 'value': 'Kolkata',
-                               'intent': ['get_location', 'is_location', 'current_location'],
-                               'not_intent': ['get_age', 'get_name']}]}]
-        processor.add_or_update_slot_mapping(slots[0], bot, user)
-        processor.add_or_update_slot_mapping(slots[1], bot, user)
+                  'mapping': {'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'}},
+                 {"slot": "location",
+                  'mapping': {'type': 'from_text', 'value': 'Bengaluru'}}]
+
+        processor.add_slot_mapping(slots[0], bot, user)
+        processor.update_slot_mapping(slots[1], id1)
+        processor.update_slot_mapping(slots[2], id2)
+
         slots = list(processor.get_slot_mappings(bot))
         diff = DeepDiff(slots,
-                        [
-                            {
-                                "slot": "date_time",
-                                "mapping": [{"type": "from_entity", "entity": "date_time"}],
-                            },
-                            {
-                                "slot": "priority",
-                                "mapping": [{"type": "from_entity", "entity": "priority"}],
-                            },
-                            {"slot": "file", "mapping": [{"type": "from_entity", "entity": "file"}]},
-                            {
-                                "slot": "name",
-                                "mapping": [
-                                    {"type": "from_text", "value": "user"},
-                                    {"type": "from_entity", "entity": "name"},
-                                ],
-                            },
-                            {
-                                "slot": "age",
-                                "mapping": [
-                                    {
-                                        "type": "from_intent",
-                                        "value": 20,
-                                        "intent": ["retrieve_age", "ask_age"],
-                                        "not_intent": ["get_age", "affirm", "deny"],
-                                    }
-                                ],
-                            },
-                            {
-                                "slot": "occupation",
-                                "mapping": [
-                                    {
-                                        "type": "from_intent",
-                                        "value": "business",
-                                        "intent": ["get_occupation"],
-                                    },
-                                    {"type": "from_text", "value": "engineer",
-                                     "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
-                                    {"type": "from_entity", "entity": "occupation"},
-                                    {
-                                        "type": "from_trigger_intent",
-                                        "value": "tester",
-                                        "intent": ["get_business", "is_engineer", "is_tester"],
-                                        "not_intent": ["get_age", "get_name"],
-                                    },
-                                ],
-                            },
-                            {
-                                "slot": "location",
-                                "mapping": [
-                                    {"type": "from_intent", "value": "Mumbai", "intent": ["get_location"]},
-                                    {"type": "from_text", "value": "Bengaluru"},
-                                    {"type": "from_entity", "entity": "location"},
-                                    {
-                                        "type": "from_trigger_intent",
-                                        "value": "Kolkata",
-                                        "intent": ["get_location", "is_location", "current_location"],
-                                        "not_intent": ["get_age", "get_name"],
-                                    },
-                                ],
-                            },
-                        ],
+                        [{'slot': 'age', 'mapping': [{'type': 'from_intent', 'value': '18', 'intent': ['get_age'], 'conditions': [{'active_loop': 'booking', 'requested_slot': 'age'}]}, {'type': 'from_intent', 'value': 20, 'intent': ['retrieve_age', 'ask_age'], 'not_intent': ['get_age', 'affirm', 'deny']}]}, {'slot': 'date_time', 'mapping': [{'type': 'from_entity', 'entity': 'date_time'}]}, {'slot': 'file', 'mapping': [{'type': 'from_entity', 'entity': 'file'}]}, {'slot': 'location', 'mapping': [{'type': 'from_intent', 'value': 'Mumbai', 'intent': ['get_location']}, {'type': 'from_text', 'value': 'Bengaluru'}]}, {'slot': 'name', 'mapping': [{'type': 'from_intent', 'value': 'user'}]}, {'slot': 'occupation', 'mapping': [{'type': 'from_intent', 'value': 'business', 'intent': ['get_occupation']}, {'type': 'from_text', 'value': 'engineer', 'conditions': [{'active_loop': 'booking', 'requested_slot': 'engineer'}]}, {'type': 'from_entity', 'entity': 'occupation'}, {'type': 'from_trigger_intent', 'value': 'tester', 'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]}, {'slot': 'priority', 'mapping': [{'type': 'from_entity', 'entity': 'priority'}]}],
                         ignore_order=True,
                         )
         assert not diff
@@ -7261,28 +7207,31 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         slot = {"slot": "num_people",
-                'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]}
-        processor.add_or_update_slot_mapping(slot, bot, user)
-        slot = {"slot": "cuisine", 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]}
-        processor.add_or_update_slot_mapping(slot, bot, user)
+                'mapping': {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}}
+        processor.add_slot_mapping(slot, bot, user)
+        slot = {"slot": "cuisine", 'mapping': {'type': 'from_entity', 'entity': 'cuisine'}}
+        processor.add_slot_mapping(slot, bot, user)
         slot = {"slot": "outdoor_seating",
                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
         processor.add_slot({"name": "outdoor_seating", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        for s in slot['mapping']:
+            processor.add_slot_mapping({"slot": slot["slot"], "mapping": s}, bot, user)
         slot = {"slot": "preferences",
                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]}
         processor.add_slot({"name": "preferences", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        for s in slot['mapping']:
+            processor.add_slot_mapping({"slot": slot["slot"], "mapping": s}, bot, user)
         slot = {"slot": "feedback", 'mapping': [{'type': 'from_text'},
                                                 {'type': 'from_entity', 'entity': 'feedback'}]}
         processor.add_slot({"name": "feedback", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        for s in slot['mapping']:
+            processor.add_slot_mapping({"slot": slot["slot"], "mapping": s}, bot, user)
 
         assert processor.add_form('restaurant_form', path, bot, user)
         form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
@@ -7775,11 +7724,13 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         slot = {"slot": "ac_required",
-                'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
-                            {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
+                'mapping': {'type': 'from_intent', 'intent': ['affirm'], 'value': True}}
+        slot2 = {"slot": "ac_required",
+                  'mapping': {'type': 'from_intent', 'intent': ['deny'], 'value': False}}
         processor.add_slot({"name": "ac_required", "type": "any", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        processor.add_slot_mapping(slot, bot, user)
+        processor.add_slot_mapping(slot2, bot, user)
 
         with pytest.raises(AppException, match="form will not accept any type slots: {'ac_required'}"):
             processor.edit_form('restaurant_form', path, bot, user)
@@ -7805,11 +7756,14 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         slot = {"slot": "ac_required",
-                'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
-                            {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
+                'mapping': {'type': 'from_intent', 'intent': ['affirm'], 'value': True}}
+        slot2 = {"slot": "ac_required",
+                'mapping':{'type': 'from_intent', 'intent': ['deny'], 'value': False}}
         processor.add_slot({"name": "ac_required", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        processor.delete_slot_mapping('ac_required', bot, user)
+        processor.add_slot_mapping(slot, bot, user)
+        processor.add_slot_mapping(slot2, bot, user)
 
         processor.edit_form('restaurant_form', path, bot, user)
         form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()

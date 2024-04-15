@@ -737,7 +737,7 @@ class SlotMapping(BaseModel):
 
 class SlotMappingRequest(BaseModel):
     slot: constr(to_lower=True, strip_whitespace=True)
-    mapping: List[SlotMapping]
+    mapping: SlotMapping
 
     class Config:
         use_enum_values = True
