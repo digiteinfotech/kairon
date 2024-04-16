@@ -722,7 +722,7 @@ class PromptHyperparameter(EmbeddedDocument):
 class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
     hyperparameters = EmbeddedDocumentField(PromptHyperparameter)
-    data = StringField()
+    data = StringField(default="default")
     instructions = StringField()
     type = StringField(
         required=True,
