@@ -9649,6 +9649,7 @@ class TestMongoProcessor:
             "bot": bot,
             "user": user
         }
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         pytest.delete_schema_id_db_action = processor.save_cognition_schema(schema, user, bot)
         CognitionData(
             data={"country": "India"},
@@ -9788,6 +9789,7 @@ class TestMongoProcessor:
         response = 'nupur.khare'
         query_type = 'embedding_search'
         payload = {'type': 'from_slot', 'value': 'cuisine'}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_op_embedding_search_from_slot_does_not_exists',
@@ -9865,6 +9867,7 @@ class TestMongoProcessor:
             "with_vector": True
         }
         payload = {'type': 'from_value', 'value': payload_body}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
             collection_name="test_add_vector_embedding_action_config_empty_payload_values",
@@ -9893,20 +9896,9 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response)
         )
         vectordb_action_two = vectordb_action_config_two.dict()
-        vectordb_action_two['payload']['value'] = ''
-        with pytest.raises(ValidationError, match="payload value is required"):
-            processor.add_db_action(vectordb_action_two, user, bot)
-        vectordb_action_config_three = DatabaseActionRequest(
-            name=action,
-            collection='test_add_vector_embedding_action_config_empty_payload_values',
-            query_type=query_type,
-            payload=payload,
-            response=ActionResponseEvaluation(value=response)
-        )
-        vectordb_action_three = vectordb_action_config_three.dict()
-        vectordb_action_three['payload']['type'] = ''
+        vectordb_action_two['payload']['type'] = ''
         with pytest.raises(ValidationError, match="payload type is required"):
-            processor.add_db_action(vectordb_action_three, user, bot)
+            processor.add_db_action(vectordb_action_two, user, bot)
 
     def test_add_vector_embedding_action_config_empty_operation_values(self):
         processor = MongoProcessor()
@@ -9923,6 +9915,7 @@ class TestMongoProcessor:
             "with_vector": True
         }
         payload = {'type': 'from_value', 'value': payload_body}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
             collection_name="test_add_vector_embedding_action_config_empty_operation_values",
@@ -10042,6 +10035,7 @@ class TestMongoProcessor:
             }
         }
         payload = {'type': 'from_value', 'value': payload_body}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],

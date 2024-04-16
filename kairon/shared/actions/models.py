@@ -96,3 +96,4 @@ class DbActionOperationType(str, Enum):
 class DbQueryValueType(str, Enum):
     from_value = "from_value"
     from_slot = "from_slot"
+    from_user_message = "from_user_message"

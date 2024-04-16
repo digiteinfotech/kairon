@@ -614,6 +614,14 @@ class ActionUtility:
     def get_payload(payload: Dict, tracker: Tracker):
         if payload.get('type') == DbQueryValueType.from_slot.value:
             rqst_payload = tracker.get_slot(payload.get('value'))
+        elif payload.get('type') == DbQueryValueType.from_user_message.value:
+            rqst_payload = tracker.latest_message.get('text')
+            if not ActionUtility.is_empty(rqst_payload) and rqst_payload.startswith("/"):
+                msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
+                if not ActionUtility.is_empty(msg):
+                    rqst_payload = {"text": msg}
+            else:
+                rqst_payload = {"text": rqst_payload}
         else:
             rqst_payload = payload.get('value')
 
