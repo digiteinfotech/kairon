@@ -1,4 +1,4 @@
-rasa==3.6.19
+rasa[full]==3.6.19
 mongoengine==0.28.2
 fastapi==0.110.1
 uvicorn==0.29.0
