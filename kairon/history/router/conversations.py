@@ -16,8 +16,8 @@ router = APIRouter()
 
 @router.get("/", response_model=Response)
 async def flat_conversations(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the flattened conversation data of the bot for previous months."""
@@ -30,8 +30,8 @@ async def flat_conversations(
 @router.get("/download")
 async def download_conversations(
         background_tasks: BackgroundTasks,
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection),
 ):
     """Downloads conversation history of the bot, for the specified months."""
@@ -49,8 +49,8 @@ async def download_conversations(
 
 @router.get("/users", response_model=Response)
 async def chat_history_users(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the list of user who has conversation with the agent."""
@@ -61,8 +61,8 @@ async def chat_history_users(
 @router.get("/users/{sender:path}", response_model=Response)
 async def chat_history(
         sender: Text,
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the list of conversation with the agent by particular user."""
@@ -72,8 +72,8 @@ async def chat_history(
 
 @router.get("/wordcloud", response_model=Response)
 async def word_cloud(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         l_bound: float = Query(default=0, ge=0, lt=1),
         u_bound: float = Query(default=1, gt=0, le=1),
         stopword_list: list = Query(default=None),
