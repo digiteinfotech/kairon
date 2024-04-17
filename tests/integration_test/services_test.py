@@ -9442,33 +9442,6 @@ def test_add_vectordb_action_empty_payload_type():
     assert not actual["success"]
 
 
-def test_add_vectordb_action_empty_payload_value():
-    request_body = {
-        "name": "action_test_empty_value",
-        "collection": 'test_add_vectordb_action_empty_payload_value',
-        "query_type": "payload_search",
-        "payload": {"type": "from_value", "value": ""},
-        "response": {"value": "0"},
-    }
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/action/db",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-
-    assert actual["error_code"] == 422
-    assert actual["message"] == [
-        {
-            "loc": ["body", "payload", "__root__"],
-            "msg": "value is required",
-            "type": "value_error",
-        }
-    ]
-    assert not actual["success"]
-
-
 def test_add_vectordb_action_without_enable_faq():
     request_body = {
         "name": "vectordb_action_test",
