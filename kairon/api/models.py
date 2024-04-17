@@ -422,9 +422,6 @@ class PayloadConfig(BaseModel):
         if Utility.check_empty_string(values.get("type")):
             raise ValueError("type is required")
 
-        if not values.get("value") or values.get("value") is None:
-            raise ValueError("value is required")
-
         return values
 
 
