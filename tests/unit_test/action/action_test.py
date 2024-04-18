@@ -2636,7 +2636,14 @@ class TestActions:
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                         'source': 'static', 'is_enabled': True},
-                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Similarity Prompt',
+                        "data": "default",
+                        'hyperparameters': {'top_results': 30,
+                                            'similarity_threshold': 0.3},
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                       ]
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
 
         assert actual['type'] == ActionType.prompt_action.value
@@ -2653,8 +2660,12 @@ class TestActions:
                                                      'logit_bias': {}},
                                  'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                                   'type': 'system', 'source': 'static', 'is_enabled': True},
-                                                 {'name': 'History Prompt', 'type': 'user', 'data': 'default',
-                                                  'source': 'history', 'is_enabled': True}],
+                                                 {'name': 'History Prompt', 'type': 'user',
+                                                  'source': 'history', 'is_enabled': True},
+                                                 {'name': 'Similarity Prompt',
+                                                  'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
+                                                  'data': 'default', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                                  'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
                                  'instructions': [], 'set_slots': [], 'dispatch_response': True}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
@@ -3914,8 +3925,15 @@ class TestActions:
         bot = "test_bot_action_test"
         user = "test_user_action_test"
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
+                        'source': 'static', 'is_enabled': True},
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Similarity Prompt',
+                        "data": "default",
+                        'hyperparameters': {'top_results': 30,
+                                            'similarity_threshold': 0.3},
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                       ]
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
         k_faq_action_config = ActionUtility.get_faq_action_config(bot, "kairon_faq_action")
         k_faq_action_config.pop('timestamp')
@@ -3929,8 +3947,15 @@ class TestActions:
                                                            'logit_bias': {}}, 'dispatch_response': True, 'set_slots': [],
                                        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                                         'type': 'system', 'source': 'static', 'is_enabled': True},
-                                                       {'name': 'History Prompt', 'data': 'default','type': 'user',
-                                                        'source': 'history', 'is_enabled': True}], 'instructions': [],
+                                                       {'name': 'History Prompt', 'type': 'user',
+                                                        'source': 'history', 'is_enabled': True},
+                                                       {'name': 'Similarity Prompt',
+                                                        'hyperparameters': {'top_results': 30,
+                                                                            'similarity_threshold': 0.3},
+                                                        'data': 'default',
+                                                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
+                                       'instructions': [],
                                        'status': True}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):

@@ -3519,6 +3519,277 @@ def test_get_prompt_action():
          'status': True}]
 
 
+def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    action = {
+        "name": "test_add_prompt_action_with_empty_collection_for_bot_content_prompt",
+        'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Similarity Prompt",
+                "data": "",
+                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                "type": "user",
+                "source": "bot_content",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "If there is no specific query, assume that user is aking about java programming.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    actual["data"][1].pop("_id")
+    assert actual["data"][1] == {
+        'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt', 'num_bot_responses': 5,
+        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+        'user_question': {'type': 'from_user_message'},
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}},
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                         'source': 'static', 'is_enabled': True},
+                        {'name': 'Similarity Prompt', 'data': 'default',
+                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True}],
+        'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
+        'dispatch_response': True, 'status': True}
+
+
+def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True),
+                           cognition_collections_limit=5)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+
+    response_one = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "States"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response_one.json()
+    pytest.delete_schema_id = actual["data"]["_id"]
+
+    payload = {
+        "data": {"name": "Karnataka"},
+        "content_type": "json",
+        "collection": "States"}
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    pytest.content_id_text = actual["data"]["_id"]
+    assert actual["message"] == "Record saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    action = {'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload',
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'data': 'states', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'If there is no specific query, assume that user is aking about java programming.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}],
+              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    actual["data"][2].pop("_id")
+    assert actual["data"][2] == {
+        'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload', 'num_bot_responses': 5,
+        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+        'user_question': {'type': 'from_user_message'},
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                            'frequency_penalty': 0.0, 'logit_bias': {}},
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                         'source': 'static', 'is_enabled': True},
+                        {'name': 'Similarity Prompt', 'data': 'states',
+                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+        'set_slots': [], 'dispatch_response': True, 'status': True}
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True),
+                           cognition_collections_limit=5)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+
+    response_one = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": None,
+            "collection_name": "Python"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response_one.json()
+    pytest.delete_schema_id = actual["data"]["_id"]
+
+    payload = {
+        "data": "Python is a high-level, general-purpose programming language. "
+                "Its design philosophy emphasizes code readability with the use of significant indentation. "
+                "Python is dynamically typed and garbage-collected.",
+        "content_type": "text",
+        "collection": "Python"}
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    pytest.content_id_text = actual["data"]["_id"]
+    assert actual["message"] == "Record saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    action = {'name': 'test_add_prompt_action_with_bot_content_prompt_with_content',
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'If there is no specific query, assume that user is aking about java programming.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}],
+              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    actual["data"][3].pop("_id")
+    assert actual["data"][3] == {
+        'name': 'test_add_prompt_action_with_bot_content_prompt_with_content', 'num_bot_responses': 5,
+        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+        'user_question': {'type': 'from_user_message'},
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}},
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                         'source': 'static', 'is_enabled': True},
+                        {'name': 'Similarity Prompt', 'data': 'python',
+                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True}],
+        'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
+        'dispatch_response': True, 'status': True}
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
 def test_delete_prompt_action_not_exists():
     response = client.delete(
         f"/api/bot/{pytest.bot}/action/non_existent_kairon_faq_action",

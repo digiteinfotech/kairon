@@ -998,6 +998,15 @@ class LlmPromptRequest(BaseModel):
     source: LlmPromptSource
     is_enabled: bool = True
 
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        if (values.get('source') == LlmPromptSource.bot_content.value and
+                Utility.check_empty_string(values.get('data'))):
+            values['data'] = "default"
+        return values
+
 
 class UserQuestionModel(BaseModel):
     type: UserMessageType = UserMessageType.from_user_message.value

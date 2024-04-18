@@ -722,7 +722,7 @@ class PromptHyperparameter(EmbeddedDocument):
 class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
     hyperparameters = EmbeddedDocumentField(PromptHyperparameter)
-    data = StringField(default="default")
+    data = StringField()
     instructions = StringField()
     type = StringField(
         required=True,
@@ -752,6 +752,8 @@ class LlmPrompt(EmbeddedDocument):
             raise ValidationError("System prompt must have static source!")
         if self.hyperparameters:
             self.hyperparameters.validate()
+        if self.source == LlmPromptSource.bot_content.value and Utility.check_empty_string(self.data):
+            self.data = "default"
 
 
 class UserQuestion(EmbeddedDocument):
