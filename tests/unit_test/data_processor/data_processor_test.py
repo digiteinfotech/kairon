@@ -285,6 +285,7 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
+                                    'data': '',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -517,7 +518,8 @@ class TestMongoProcessor:
                            'llm_prompts': [
                                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                 'source': 'static', 'is_enabled': True},
-                               {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                               {'name': 'History Prompt', 'data': 'default',
+                                'type': 'user', 'source': 'history', 'is_enabled': True}],
                            'instructions': ['Answer in a short manner.', 'Keep it simple.'],
                            'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
                                          {'name': 'gpt_result_type', 'value': '${data.type}',
@@ -2890,7 +2892,7 @@ class TestMongoProcessor:
         assert zip_file.getinfo('actions.yml')
         file_info_actions = zip_file.getinfo('actions.yml')
         file_content_actions = zip_file.read(file_info_actions)
-        expected_content = b"name: System Prompt\n    source: static\n    type: system\n  - is_enabled: true"
+        expected_content = b"name: System Prompt\n    source: static\n    type: system\n  - data: default\n    is_enabled: true"
         assert file_content_actions.__contains__(expected_content)
         zip_file.close()
 
