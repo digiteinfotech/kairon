@@ -277,14 +277,16 @@ class TestMongoProcessor:
 
     def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(self):
         processor = MongoProcessor()
-        bot = 'test_bot'
-        user = 'test_user'
+        bot = 'bot'
+        user = 'user'
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
+                                    'data': '',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -295,9 +297,73 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}]}
-        with pytest.raises(ValidationError,
-                           match="Data must contain collection name is required for bot content prompts!"):
-            processor.add_prompt_action(request, bot, user)
+        processor.add_prompt_action(request, bot, user)
+        prompt_action = processor.get_prompt_action(bot)
+        prompt_action[0].pop("_id")
+        assert prompt_action == [
+            {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
+             'num_bot_responses': 5,
+             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+             'user_question': {'type': 'from_user_message'},
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                 'frequency_penalty': 0.0, 'logit_bias': {}},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                              'type': 'system', 'source': 'static', 'is_enabled': True},
+                             {'name': 'Similarity Prompt', 'data': 'default',
+                              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                              'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}]
+
+    def test_add_prompt_action_with_bot_content_prompt(self):
+        processor = MongoProcessor()
+        bot = 'bot'
+        user = 'user'
+        request = {'name': 'test_add_prompt_action_with_bot_content_prompt',
+                   'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'data': 'Bot_collection',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}]}
+        processor.add_prompt_action(request, bot, user)
+        prompt_action = processor.get_prompt_action(bot)
+        prompt_action[1].pop("_id")
+        print(prompt_action)
+        assert prompt_action[1] == {
+            'name': 'test_add_prompt_action_with_bot_content_prompt',
+            'num_bot_responses': 5,
+            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            'user_question': {'type': 'from_user_message'},
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                             'type': 'system', 'source': 'static', 'is_enabled': True},
+                            {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                            {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                             'is_enabled': True},
+                            {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}
 
     def test_add_prompt_action_with_invalid_query_prompt(self):
         processor = MongoProcessor()

@@ -752,6 +752,8 @@ class LlmPrompt(EmbeddedDocument):
             raise ValidationError("System prompt must have static source!")
         if self.hyperparameters:
             self.hyperparameters.validate()
+        if self.source == LlmPromptSource.bot_content.value and Utility.check_empty_string(self.data):
+            self.data = "default"
 
 
 class UserQuestion(EmbeddedDocument):
