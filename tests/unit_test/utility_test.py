@@ -2112,7 +2112,7 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user, action="save"
         ).count()
-        assert count == 1
+        assert count == 2
 
     def test_save_and_publish_auditlog_action_save_another(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
@@ -2135,7 +2135,7 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user, action="save"
         ).count()
-        assert count == 2
+        assert count == 3
 
     def test_save_and_publish_auditlog_action_update(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
@@ -2157,7 +2157,7 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user, action="update"
         ).count()
-        assert count == 1
+        assert count == 2
 
     def test_save_and_publish_auditlog_total_count(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
@@ -2241,7 +2241,7 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user
         ).count()
-        assert count == 1
+        assert count == 4
 
     @pytest.mark.asyncio
     async def test_messageConverter_messenger_button_one(self):

@@ -2,7 +2,6 @@ import ast
 import asyncio
 import hashlib
 import html
-import ujson as json
 import os
 import re
 import shutil
@@ -27,11 +26,12 @@ import bson
 import pandas as pd
 import pytz
 import requests
+import ujson as json
 import yaml
 from botocore.exceptions import ClientError
 from bson import InvalidDocument
 from dateutil import tz
-from fastapi import File, UploadFile
+from fastapi import File, UploadFile, Request
 from jwt import encode, decode, PyJWTError
 from loguru import logger
 from mongoengine.document import BaseDocument, Document
@@ -62,8 +62,8 @@ from smart_config import ConfigLoader
 from starlette import status
 from starlette.exceptions import HTTPException
 from urllib3.util import parse_url
-from validators.utils import ValidationError as ValidationFailure
 from validators import email as mail_check
+from validators.utils import ValidationError as ValidationFailure
 from websockets import connect
 
 from .actions.models import ActionParameterType
@@ -708,12 +708,39 @@ class Utility:
         return date_time.timestamp()
 
     @staticmethod
+    def get_back_date_1month(request: Request):
+        key = "from_date"
+        if not request.query_params.get(key):
+            return date.today() - timedelta(30)
+        else:
+            return date.fromisoformat(request.query_params.get(key))
+
+    @staticmethod
+    def get_back_date_6month(request: Request) -> date:
+        key = "from_date"
+        if not request.query_params.get(key):
+            return date.today() - timedelta(180)
+        else:
+            return date.fromisoformat(request.query_params.get(key))
+
+    @staticmethod
+    def get_to_date(request: Request):
+        key = "to_date"
+        if not request.query_params.get(key):
+            return date.today()
+        else:
+            return date.fromisoformat(request.query_params.get(key))
+
+    @staticmethod
     def validate_from_date_and_to_date(from_date: date, to_date: date):
         six_months_back_date = (datetime.utcnow() - timedelta(6 * 30)).date()
         today_date = datetime.utcnow().date()
         if six_months_back_date > from_date or from_date > today_date:
+            logger.info(f"from_date: {from_date}, to_date: {to_date}, six_month_back_date: {six_months_back_date}, today_date: {today_date}")
             raise AppException("from_date should be within six months and today date")
         elif six_months_back_date > to_date or to_date > today_date:
+            logger.info(
+                f"from_date: {from_date}, to_date: {to_date}, six_month_back_date: {six_months_back_date}, today_date: {today_date}")
             raise AppException("to_date should be within six months and today date")
         elif from_date >= to_date:
             raise AppException("from_date must be less than to_date")

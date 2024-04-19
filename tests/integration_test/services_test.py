@@ -645,7 +645,7 @@ def test_api_wrong_password():
     assert not actual["success"]
     assert actual["message"] == "Incorrect username or password"
     value = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login'))
-    print(value)
+    
     assert value[0]["entity"] == "invalid_login"
     assert value[0]["timestamp"]
     assert len(value) == 1
@@ -1384,7 +1384,6 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-    print(actual["data"])
     assert actual["data"]["welcomeMessage"] == 'Hello! How are you?'
     assert actual["data"]["name"] == 'kairon'
     assert actual["data"]["buttonType"] == 'button'
@@ -1445,7 +1444,6 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     pytest.schema_id = actual["data"]["_id"]
     assert actual["message"] == "Schema saved!"
     assert actual["data"]["_id"]
@@ -1497,7 +1495,6 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_one = response_one.json()
-    print(actual_one)
     pytest.schema_id_one = actual_one["data"]["_id"]
     assert actual_one["message"] == "Schema saved!"
     assert actual_one["data"]["_id"]
@@ -1513,7 +1510,7 @@ def test_metadata_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_two = response_two.json()
-    print(actual_two)
+
     pytest.schema_id_two = actual_two["data"]["_id"]
     assert actual_two["message"] == "Schema saved!"
     assert actual_two["data"]["_id"]
@@ -1612,7 +1609,6 @@ def test_metadata_upload_invalid_data_type():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == [{'loc': ['body', 'metadata', 0, 'data_type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'str', 'int'",
                                   'type': 'type_error.enum', 'ctx': {'enum_values': ['str', 'int']}},
@@ -1633,7 +1629,7 @@ def test_metadata_upload_column_name_empty():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
+
     assert actual["message"] == [
         {'loc': ['body', 'metadata', 0, '__root__'], 'msg': 'Column name cannot be empty', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1646,7 +1642,7 @@ def test_get_payload_metadata():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual['data'][0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True,
@@ -1660,7 +1656,7 @@ def test_delete_payload_content_metadata():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["message"] == "Schema deleted!"
     assert actual["data"] is None
@@ -1686,7 +1682,7 @@ def test_metadata_upload_api_and_delete_with_no_cognition_data(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
+
     pytest.schema_id = actual["data"]["_id"]
     assert actual["message"] == "Schema saved!"
     assert actual["data"]["_id"]
@@ -1766,7 +1762,7 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response_one.json()
-    print(actual)
+
     pytest.delete_schema_id = actual["data"]["_id"]
 
     response_two = client.delete(
@@ -1774,7 +1770,7 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_two = response_two.json()
-    print(actual_two)
+
     assert not actual_two["success"]
     assert actual_two[
                "message"] == 'Cannot remove collection python linked to action "test_delete_schema_attached_to_prompt_action"!'
@@ -1900,7 +1896,7 @@ def test_content_upload_api_invalid_atleast_ten_words(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["message"] == "Content should contain atleast 10 words."
     assert not actual["success"]
     assert actual["data"] is None
@@ -2067,7 +2063,7 @@ def test_list_cognition_data(mock_get_cognition_data, mock_list_cognition_data):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]['rows'][0]['collection'] == 'aws'
@@ -2080,7 +2076,7 @@ def test_get_content_without_data():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]['rows'][0]['collection'] == None
@@ -2130,7 +2126,7 @@ def test_get_content_not_exists():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["message"] is None
     assert actual["error_code"] == 0
@@ -2143,7 +2139,7 @@ def test_delete_payload_content_collection():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["message"] == "Schema deleted!"
     assert actual["data"] is None
@@ -2352,7 +2348,7 @@ def test_payload_content_update_api_already_exists(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert not actual["success"]
     assert actual["message"] == "Payload data already exists!"
     assert actual["data"] is None
@@ -2372,7 +2368,7 @@ def test_payload_content_update_api_id_not_found():
 
     )
     actual = response.json()
-    print(actual)
+
     assert not actual["success"]
     assert actual["message"] == "Payload with given id not found!"
     assert actual["data"] is None
@@ -2385,7 +2381,7 @@ def test_get_payload_content():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]['rows'][0]['data'] == {'details': 'data science'}
@@ -2399,7 +2395,7 @@ def test_delete_payload_content():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["message"] == "Record deleted!"
     assert actual["data"] is None
@@ -2493,7 +2489,6 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
                                   'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
@@ -2551,7 +2546,6 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
                                   'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
@@ -2596,7 +2590,6 @@ def test_add_prompt_action_with_invalid_query_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [
         {
             "loc": ["body", "llm_prompts"],
@@ -2654,7 +2647,6 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [
         {
             "loc": ["body", "num_bot_responses"],
@@ -2712,7 +2704,6 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [
         {
             "loc": ["body", "llm_prompts"],
@@ -3239,7 +3230,6 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
                                   'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
@@ -3285,7 +3275,6 @@ def test_update_prompt_action_with_invalid_top_results():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
                                   'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
@@ -3330,7 +3319,6 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
 
     assert actual["message"] == [
         {'loc': ['body', 'num_bot_responses'], 'msg': 'num_bot_responses should not be greater than 5',
@@ -3510,7 +3498,6 @@ def test_get_prompt_action():
     assert actual["error_code"] == 0
     assert not actual["message"]
     actual["data"][0].pop("_id")
-    print(actual["data"])
     assert actual["data"] == [
         {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'failure_message': 'updated_failure_message',
          'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
@@ -3530,6 +3517,277 @@ def test_get_prompt_action():
                                    'source': 'static', 'is_enabled': True}],
          'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [], 'dispatch_response': True,
          'status': True}]
+
+
+def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    action = {
+        "name": "test_add_prompt_action_with_empty_collection_for_bot_content_prompt",
+        'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Similarity Prompt",
+                "data": "",
+                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                "type": "user",
+                "source": "bot_content",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "If there is no specific query, assume that user is aking about java programming.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    actual["data"][1].pop("_id")
+    assert actual["data"][1] == {
+        'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt', 'num_bot_responses': 5,
+        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+        'user_question': {'type': 'from_user_message'},
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}},
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                         'source': 'static', 'is_enabled': True},
+                        {'name': 'Similarity Prompt', 'data': 'default',
+                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True}],
+        'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
+        'dispatch_response': True, 'status': True}
+
+
+def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True),
+                           cognition_collections_limit=5)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+
+    response_one = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "States"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response_one.json()
+    pytest.delete_schema_id = actual["data"]["_id"]
+
+    payload = {
+        "data": {"name": "Karnataka"},
+        "content_type": "json",
+        "collection": "States"}
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    pytest.content_id_text = actual["data"]["_id"]
+    assert actual["message"] == "Record saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    action = {'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload',
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'data': 'states', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'If there is no specific query, assume that user is aking about java programming.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}],
+              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    actual["data"][2].pop("_id")
+    assert actual["data"][2] == {
+        'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload', 'num_bot_responses': 5,
+        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+        'user_question': {'type': 'from_user_message'},
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                            'frequency_penalty': 0.0, 'logit_bias': {}},
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                         'source': 'static', 'is_enabled': True},
+                        {'name': 'Similarity Prompt', 'data': 'states',
+                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+        'set_slots': [], 'dispatch_response': True, 'status': True}
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True),
+                           cognition_collections_limit=5)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+
+    response_one = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": None,
+            "collection_name": "Python"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response_one.json()
+    pytest.delete_schema_id = actual["data"]["_id"]
+
+    payload = {
+        "data": "Python is a high-level, general-purpose programming language. "
+                "Its design philosophy emphasizes code readability with the use of significant indentation. "
+                "Python is dynamically typed and garbage-collected.",
+        "content_type": "text",
+        "collection": "Python"}
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    pytest.content_id_text = actual["data"]["_id"]
+    assert actual["message"] == "Record saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    action = {'name': 'test_add_prompt_action_with_bot_content_prompt_with_content',
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'If there is no specific query, assume that user is aking about java programming.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}],
+              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    actual["data"][3].pop("_id")
+    assert actual["data"][3] == {
+        'name': 'test_add_prompt_action_with_bot_content_prompt_with_content', 'num_bot_responses': 5,
+        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+        'user_question': {'type': 'from_user_message'},
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}},
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                         'source': 'static', 'is_enabled': True},
+                        {'name': 'Similarity Prompt', 'data': 'python',
+                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True},
+                        {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                         'is_enabled': True}],
+        'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
+        'dispatch_response': True, 'status': True}
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
 
 
 def test_delete_prompt_action_not_exists():
@@ -4150,7 +4408,6 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][2]['start_timestamp']
     assert actual['data']["logs"][2]['end_timestamp']
 
-    print(actual['data']["logs"][3])
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
@@ -6573,7 +6830,6 @@ def test_get_multiflow_stories():
     get_story = get_story[0]
     assert get_story["type"] == "MULTIFLOW"
     assert get_story["name"] == "test_path"
-    print(get_story["steps"])
     assert get_story["steps"] == [
         {
             "step": {
@@ -8206,7 +8462,7 @@ def test_login_limit_exceeded():
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@3010"},
     ).json()
-    print(response)
+
     assert not response['success']
     assert response['message'].__contains__("Account frozen due to too many unsuccessful login attempts.")
     assert response['data'] is None
@@ -8841,7 +9097,6 @@ def test_train_insufficient_data(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response_story.json()
-    print(actual["data"])
     rule_one = actual["data"][1]["_id"]
     rule_two = actual["data"][2]["_id"]
 
@@ -9413,7 +9668,7 @@ def test_add_vectordb_action_empty_operation_value():
     )
 
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'query_type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search'",
@@ -9445,9 +9700,9 @@ def test_add_vectordb_action_empty_payload_type():
     assert actual["message"] == [
         {
             "loc": ["body", "payload", "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
+            "msg": "value is not a valid enumeration member; permitted: 'from_value', 'from_slot', 'from_user_message'",
             "type": "type_error.enum",
-            "ctx": {"enum_values": ["from_value", "from_slot"]},
+            "ctx": {"enum_values": ["from_value", "from_slot", "from_user_message"]},
         },
         {
             "loc": ["body", "payload", "__root__"],
@@ -9458,34 +9713,7 @@ def test_add_vectordb_action_empty_payload_type():
     assert not actual["success"]
 
 
-def test_add_vectordb_action_empty_payload_value():
-    request_body = {
-        "name": "action_test_empty_value",
-        "collection": 'test_add_vectordb_action_empty_payload_value',
-        "query_type": "payload_search",
-        "payload": {"type": "from_value", "value": ""},
-        "response": {"value": "0"},
-    }
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/action/db",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-
-    assert actual["error_code"] == 422
-    assert actual["message"] == [
-        {
-            "loc": ["body", "payload", "__root__"],
-            "msg": "value is required",
-            "type": "value_error",
-        }
-    ]
-    assert not actual["success"]
-
-
-def test_add_vectordb_action_collection_does_not_exists():
+def test_add_vectordb_action_without_enable_faq():
     request_body = {
         "name": "vectordb_action_test",
         "collection": 'test_add_vectordb_action_collection_does_not_exists',
@@ -9507,7 +9735,38 @@ def test_add_vectordb_action_collection_does_not_exists():
     )
 
     actual = response.json()
-    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Faq feature is disabled for the bot! Please contact support.'
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_collection_does_not_exists(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    request_body = {
+        "name": "vectordb_action_test",
+        "collection": 'test_add_vectordb_action_collection_does_not_exists',
+        "query_type": "payload_search",
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
     assert actual["error_code"] == 422
     assert actual["message"] == 'Collection does not exist!'
     assert not actual["success"]
@@ -9574,7 +9833,7 @@ def test_add_vectordb_action(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_two = response_two.json()
-    print(actual_two)
+
     assert not actual_two["success"]
     assert actual_two[
                "message"] == 'Cannot remove collection test_add_vectordb_action linked to action "vectordb_action_test"!'
@@ -9582,7 +9841,11 @@ def test_add_vectordb_action(monkeypatch):
     assert actual_two["error_code"] == 422
 
 
-def test_add_vectordb_action_case_insensitivity():
+def test_add_vectordb_action_case_insensitivity(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "VECTORDB_ACTION_CASE_INSENSITIVE",
         "collection": 'test_add_vectordb_action',
@@ -9631,7 +9894,11 @@ def test_add_vectordb_action_case_insensitivity():
     assert actual["success"]
 
 
-def test_add_vectordb_action_existing():
+def test_add_vectordb_action_existing(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": 'test_add_vectordb_action_existing',
         "collection": 'test_add_vectordb_action',
@@ -9667,7 +9934,11 @@ def test_add_vectordb_action_existing():
     assert not actual["success"]
 
 
-def test_add_vectordb_action_with_slots():
+def test_add_vectordb_action_with_slots(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
         f"/api/bot/{pytest.bot}/slots",
         json={
@@ -9706,7 +9977,11 @@ def test_add_vectordb_action_with_slots():
     assert actual["success"]
 
 
-def test_update_vectordb_action():
+def test_update_vectordb_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_update_vectordb_action",
         "collection": 'test_add_vectordb_action',
@@ -9752,7 +10027,7 @@ def test_update_vectordb_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 0
     assert actual["message"] == "Action updated!"
 
@@ -9761,11 +10036,15 @@ def test_update_vectordb_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
 
 
-def test_update_vectordb_action_non_existing():
+def test_update_vectordb_action_non_existing(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_update_vectordb_action_non_existing",
         "collection": 'test_add_vectordb_action',
@@ -9805,13 +10084,17 @@ def test_update_vectordb_action_non_existing():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"]
     assert not actual["success"]
 
 
-def test_update_vector_action_wrong_parameter():
+def test_update_vector_action_wrong_parameter(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_update_vector_action_1",
         "collection": 'test_add_vectordb_action',
@@ -9853,7 +10136,7 @@ def test_update_vector_action_wrong_parameter():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"]
     assert not actual["success"]
@@ -9865,7 +10148,7 @@ def test_get_vectordb_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
 
 
@@ -9886,13 +10169,17 @@ def test_list_vector_db_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual['data'][0]['name'] == 'vectordb_action_test'
 
 
-def test_delete_vectordb_action():
+def test_delete_vectordb_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_delete_vectordb_action",
         "collection": 'test_add_vectordb_action',
@@ -9928,7 +10215,11 @@ def test_delete_vectordb_action():
     assert actual["success"]
 
 
-def test_delete_vectordb_action_non_existing():
+def test_delete_vectordb_action_non_existing(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     request_body = {
         "name": "test_delete_vectordb_action_non_existing",
         "collection": 'test_add_vectordb_action',
@@ -9958,7 +10249,7 @@ def test_delete_vectordb_action_non_existing():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"]
     assert not actual["success"]
@@ -10761,7 +11052,6 @@ def test_update_http_action_wrong_parameter():
     )
     actual = response.json()
     assert actual["error_code"] == 422
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'",
                                   'type': 'type_error.enum', 'ctx': {
@@ -10790,7 +11080,6 @@ def test_update_http_action_wrong_parameter():
     )
     actual = response.json()
     assert actual["error_code"] == 422
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'params_list', 0, 'parameter_type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'",
                                   'type': 'type_error.enum', 'ctx': {
@@ -10820,7 +11109,6 @@ def test_update_http_action_wrong_parameter():
     )
     actual = response.json()
     assert actual["error_code"] == 422
-    print(actual["message"])
     assert actual["message"] == [
         {'loc': ['body', 'response', '__root__'], 'msg': 'response is required for dispatch', 'type': 'value_error'},
         {'loc': ['body', 'params_list', 0, 'parameter_type'],
@@ -10951,7 +11239,6 @@ def test_list_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
-    print(actual['data'])
     assert actual['data'] == {'actions': ['action_greet'],
                               'database_action': ['vectordb_action_test', 'vectordb_action_case_insensitive',
                                                   'test_add_vectordb_action_existing',
@@ -11674,7 +11961,6 @@ def test_add_rule_invalid_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    print(actual["message"])
     assert actual["message"] == [
         {
             "loc": ["body", "type"],
@@ -12184,7 +12470,6 @@ def test_upload_with_http_error():
     assert actual["data"]["logs"][0]["start_timestamp"]
     assert actual["data"]["logs"][0]["start_timestamp"]
     assert actual["data"]["logs"][0]["start_timestamp"]
-    print(actual["data"]["logs"][0]["actions"])
     assert (
             "Required http action fields"
             in actual["data"]["logs"][0]["actions"][0]["data"][0]
@@ -12355,7 +12640,7 @@ def test_upload_multiflow_stories(mock_is_limit_exceeded, mock_event_server):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["error_code"] == 0
     assert set(actual["data"]["logs"][0]["files_received"]) == {
@@ -13384,7 +13669,7 @@ def test_get_stories_another_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
@@ -13914,10 +14199,7 @@ def test_add_slot_mapping():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "name",
-            "mapping": [
-                {"type": "from_text", "value": "user", "entity": "name"},
-                {"type": "from_entity", "entity": "name"},
-            ],
+            "mapping": {"type": "from_text", "value": "user", "entity": "name"},
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -13930,7 +14212,7 @@ def test_add_slot_mapping():
 def test_add_empty_slot_mapping():
     response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
-        json={"slot": "num_people", "mapping": []},
+        json={"slot": "num_people", "mapping": {}},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -13938,23 +14220,7 @@ def test_add_empty_slot_mapping():
     assert not actual["success"]
     assert actual["message"] == [
         {
-            "loc": ["body", "mapping"],
-            "msg": "At least one mapping is required",
-            "type": "value_error",
-        }
-    ]
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/slots/mapping",
-        json={"slot": "num_people", "mapping": [{}]},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert not actual["success"]
-    assert actual["message"] == [
-        {
-            "loc": ["body", "mapping", 0, "type"],
+            "loc": ["body", "mapping", 'type'],
             "msg": "field required",
             "type": "value_error.missing",
         }
@@ -13963,13 +14229,13 @@ def test_add_empty_slot_mapping():
     response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={"slot": "num_people",
-              "mapping": [{"type": "from_text", "conditions": [{"requested_slot": "num_people"}]}]},
+              "mapping": {"type": "from_text", "conditions": [{"requested_slot": "num_people"}]}},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["error_code"] == 422
     assert not actual["success"]
-    assert actual["message"] == [{'loc': ['body', 'mapping', 0, 'conditions', 0],
+    assert actual["message"] == [{'loc': ['body', 'mapping', 'conditions', 0],
                                   'msg': 'active_loop is required to add requested_slot as condition!',
                                   'type': 'value_error'}]
 
@@ -14014,13 +14280,12 @@ def test_add_form():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "num_people",
-            "mapping": [
+            "mapping":
                 {
                     "type": "from_entity",
                     "intent": ["inform", "request_restaurant"],
                     "entity": "number",
                 }
-            ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -14040,7 +14305,7 @@ def test_add_form():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "cuisine",
-            "mapping": [{"type": "from_entity", "entity": "cuisine"}],
+            "mapping": {"type": "from_entity", "entity": "cuisine"},
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -14056,21 +14321,21 @@ def test_add_form():
     actual = response.json()
     assert actual["message"] == "Slot added successfully!"
     assert actual["success"]
+
     response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "outdoor_seating",
-            "mapping": [
-                {"type": "from_entity", "entity": "seating"},
-                {"type": "from_intent", "intent": ["affirm"], "value": True},
-                {"type": "from_intent", "intent": ["deny"], "value": False},
-            ],
+            "mapping":
+                {"type": "from_text", "not_intent": ["affirm"],
+                 "conditions": [{"active_loop": "booking", "requested_slot": "outdoor_seating"}]}
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["message"] == "Slot mapping added"
     assert actual["success"]
+
 
     response = client.post(
         f"/api/bot/{pytest.bot}/slots",
@@ -14084,15 +14349,9 @@ def test_add_form():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "preferences",
-            "mapping": [
+            "mapping":
                 {"type": "from_text", "not_intent": ["affirm"],
-                 "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
-                {
-                    "type": "from_intent",
-                    "intent": ["affirm"],
-                    "value": "no additional preferences",
-                },
-            ],
+                 "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]}
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -14112,10 +14371,8 @@ def test_add_form():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "feedback",
-            "mapping": [
-                {"type": "from_text"},
-                {"type": "from_entity", "entity": "feedback"},
-            ],
+            "mapping":
+                {"type": "from_entity", "entity": "feedback"}
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -14176,12 +14433,22 @@ def test_add_form_with_any_slot():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "user_feedback",
-            "mapping": [
+            "mapping":
                 {"type": "from_text"},
-                {"type": "from_entity", "entity": "user_feedback"},
-            ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "user_feedback",
+            "mapping":
+            {"type": "from_entity", "entity": "user_feedback"},
+    },
+    headers = {"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["message"] == "Slot mapping added"
@@ -14562,14 +14829,13 @@ def test_add_form_with_validations():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "age",
-            "mapping": [
+            "mapping":
                 {
                     "type": "from_intent",
                     "intent": ["get_age"],
                     "entity": "age",
                     "value": "18",
                 }
-            ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -14589,7 +14855,7 @@ def test_add_form_with_validations():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "location",
-            "mapping": [{"type": "from_entity", "entity": "location"}],
+            "mapping": {"type": "from_entity", "entity": "location"},
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -14609,23 +14875,57 @@ def test_add_form_with_validations():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "occupation",
-            "mapping": [
+            "mapping":
                 {
                     "type": "from_intent",
                     "intent": ["get_occupation"],
                     "entity": "occupation",
                     "value": "business",
-                },
+                }
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "occupation",
+            "mapping":
                 {"type": "from_text", "entity": "occupation", "value": "engineer"},
-                {"type": "from_entity", "entity": "occupation"},
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "occupation",
+            "mapping": {"type": "from_entity", "entity": "occupation"},
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "occupation",
+            "mapping":
                 {
                     "type": "from_trigger_intent",
                     "entity": "occupation",
                     "value": "tester",
                     "intent": ["get_business", "is_engineer", "is_tester"],
                     "not_intent": ["get_age", "get_name"],
-                },
-            ],
+                }
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -15011,10 +15311,20 @@ def test_edit_form():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "ac_required",
-            "mapping": [
-                {"type": "from_intent", "intent": ["affirm"], "value": True},
-                {"type": "from_intent", "intent": ["deny"], "value": False},
-            ],
+            "mapping": {"type": "from_intent", "intent": ["affirm"], "value": True}
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "ac_required",
+            "mapping":
+                {"type": "from_intent", "intent": ["deny"], "value": False}
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -15113,12 +15423,23 @@ def test_edit_form_with_any_slot():
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "account_required",
-            "mapping": [
+            "mapping":
                 {"type": "from_intent", "intent": ["affirm"], "value": True},
-                {"type": "from_intent", "intent": ["deny"], "value": False},
-            ],
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "account_required",
+            "mapping":
+            {"type": "from_intent", "intent": ["deny"], "value": False},
+    },
+    headers = {"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["message"] == "Slot mapping added"
@@ -15194,13 +15515,30 @@ def test_edit_form_with_any_slot():
 
 
 def test_edit_slot_mapping():
-    response = client.put(
+
+
+    response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
             "slot": "cuisine",
-            "mapping": [
+            "mapping":
                 {"type": "from_intent", "intent": ["order", "menu"], "value": "cuisine"}
-            ],
+            ,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    mapping_id = actual["data"]["id"]
+    response = client.put(
+        f"/api/bot/{pytest.bot}/slots/mapping/{mapping_id}",
+        json={
+            "slot": "cuisine",
+            "mapping":
+                {"type": "from_intent", "intent": ["order", "menu"], "value": "cuisine"}
+            ,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -15210,6 +15548,7 @@ def test_edit_slot_mapping():
     assert actual["error_code"] == 0
 
 
+
 def test_get_slot_mapping():
     response = client.get(
         f"/api/bot/{pytest.bot}/slots/mapping",
@@ -15217,113 +15556,56 @@ def test_get_slot_mapping():
     )
     actual = response.json()
     assert actual["success"]
+    for obj in actual['data']:
+        for m in obj['mapping']:
+            m.pop('_id')
+
+
     assert not DeepDiff(
         actual["data"],
-        [
-            {
-                "slot": "name",
-                "mapping": [
-                    {"type": "from_text", "value": "user"},
-                    {"type": "from_entity", "entity": "name"},
-                ],
-            },
-            {
-                "slot": "num_people",
-                "mapping": [
-                    {
-                        "type": "from_entity",
-                        "entity": "number",
-                        "intent": ["inform", "request_restaurant"],
-                    }
-                ],
-            },
-            {
-                "slot": "cuisine",
-                "mapping": [
-                    {
-                        "type": "from_intent",
-                        "intent": ["order", "menu"],
-                        "value": "cuisine",
-                    }
-                ],
-            },
-            {
-                "slot": "outdoor_seating",
-                "mapping": [
-                    {"type": "from_entity", "entity": "seating"},
-                    {"type": "from_intent", "value": True, "intent": ["affirm"]},
-                    {"type": "from_intent", "value": False, "intent": ["deny"]},
-                ],
-            },
-            {
-                "slot": "preferences",
-                "mapping": [
-                    {"type": "from_text", "not_intent": ["affirm"],
-                     "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
-                    {
-                        "type": "from_intent",
-                        "value": "no additional preferences",
-                        "intent": ["affirm"],
-                    },
-                ],
-            },
-            {
-                "slot": "feedback",
-                "mapping": [
-                    {"type": "from_text"},
-                    {"type": "from_entity", "entity": "feedback"},
-                ],
-            },
-            {
-                "slot": "user_feedback",
-                "mapping": [
-                    {"type": "from_text"},
-                    {"type": "from_entity", "entity": "user_feedback"},
-                ],
-            },
-            {
-                "slot": "age",
-                "mapping": [
-                    {"type": "from_intent", "value": "18", "intent": ["get_age"]}
-                ],
-            },
-            {
-                "slot": "location",
-                "mapping": [{"type": "from_entity", "entity": "location"}],
-            },
-            {
-                "slot": "occupation",
-                "mapping": [
-                    {
-                        "type": "from_intent",
-                        "value": "business",
-                        "intent": ["get_occupation"],
-                    },
-                    {"type": "from_text", "value": "engineer"},
-                    {"type": "from_entity", "entity": "occupation"},
-                    {
-                        "type": "from_trigger_intent",
-                        "value": "tester",
-                        "intent": ["get_business", "is_engineer", "is_tester"],
-                        "not_intent": ["get_age", "get_name"],
-                    },
-                ],
-            },
-            {
-                "slot": "ac_required",
-                "mapping": [
-                    {"type": "from_intent", "value": True, "intent": ["affirm"]},
-                    {"type": "from_intent", "value": False, "intent": ["deny"]},
-                ],
-            },
-            {
-                "slot": "account_required",
-                "mapping": [
-                    {"type": "from_intent", "value": True, "intent": ["affirm"]},
-                    {"type": "from_intent", "value": False, "intent": ["deny"]},
-                ],
-            },
-        ],
+        [{'slot': 'ac_required',
+          'mapping': [{'type': 'from_intent', 'value': True, 'intent': ['affirm']},
+                      {'type': 'from_intent', 'value': False, 'intent': ['deny']}]},
+         {'slot': 'account_required',
+          'mapping': [{'type': 'from_intent', 'value': True, 'intent': ['affirm']},
+                      {'type': 'from_intent', 'value': False, 'intent': ['deny'] }]},
+         {'slot': 'age', 'mapping': [
+             {'type': 'from_intent', 'value': '18', 'intent': ['get_age'], }]},
+         {'slot': 'cuisine',
+          'mapping': [{'type': 'from_entity', 'entity': 'cuisine'},
+                      {'type': 'from_intent', 'value': 'cuisine', 'intent': ['order', 'menu'],
+                       }]},
+         {'slot': 'feedback', 'mapping': [
+            {'type': 'from_entity', 'entity': 'feedback'}]}, {'slot': 'location',
+                                             'mapping': [{
+                                                             'type': 'from_entity',
+                                                             'entity': 'location',
+                                                        }]},
+         {'slot': 'name', 'mapping': [{'type': 'from_text', 'value': 'user'}]},
+         {'slot': 'num_people', 'mapping': [
+             {'type': 'from_entity', 'entity': 'number', 'intent': ['inform', 'request_restaurant'],
+              }]}, {'slot': 'occupation', 'mapping': [
+            {'type': 'from_intent', 'value': 'business', 'intent': ['get_occupation'],
+             },
+            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_entity', 'entity': 'occupation'},
+            {'type': 'from_trigger_intent', 'value': 'tester', 'intent': ['get_business', 'is_engineer', 'is_tester'],
+             'not_intent': ['get_age', 'get_name']}]},
+         {'slot': 'outdoor_seating',
+               'mapping': [
+                       {'type': 'from_text',
+                        'not_intent': [
+                            'affirm'],
+                        'conditions': [{
+                                           'active_loop': 'booking',
+                                           'requested_slot': 'outdoor_seating'}],
+          }]},
+         {'slot': 'preferences', 'mapping': [{'type': 'from_text', 'not_intent': ['affirm'], 'conditions': [
+             {'active_loop': 'booking', 'requested_slot': 'preferences'}]}]},
+         {'slot': 'user_feedback', 'mapping': [{'type': 'from_text'},
+                                               {'type': 'from_entity', 'entity': 'user_feedback',
+                                                }]}]
+        ,
         ignore_order=True,
     )
 
@@ -15332,21 +15614,12 @@ def test_get_slot_mapping():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    for obj in actual['data']:
+        for m in obj['mapping']:
+            m.pop('_id')
     assert actual["success"]
-    assert actual["data"] == [
-        {
-            "slot": "preferences",
-            "mapping": [
-                {"type": "from_text", "not_intent": ["affirm"],
-                 "conditions": [{"active_loop": "booking", "requested_slot": "preferences"}]},
-                {
-                    "type": "from_intent",
-                    "value": "no additional preferences",
-                    "intent": ["affirm"]
-                },
-            ],
-        }
-    ]
+    assert actual["data"] ==[{'slot': 'outdoor_seating', 'mapping': [{'type': 'from_text', 'not_intent': ['affirm'], 'conditions': [{'active_loop': 'booking', 'requested_slot': 'outdoor_seating'}]}]}, {'slot': 'preferences', 'mapping': [{'type': 'from_text', 'not_intent': ['affirm'], 'conditions': [{'active_loop': 'booking', 'requested_slot': 'preferences'}]}]}]
+
     assert actual["error_code"] == 0
 
 
@@ -16794,7 +17067,6 @@ def test_list_google_search_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 4
-    print(actual["data"])
     actual["data"][0].pop("_id")
     assert actual["data"][1]["name"] == "google_custom_search"
     assert actual["data"][1]["api_key"] == {
@@ -16963,11 +17235,9 @@ def test_list_web_search_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
-    print(actual["data"])
     actual["data"][0].pop("_id")
     assert actual["data"][0]["name"] == "public_custom_search"
     assert actual["data"][0]["failure_response"] == "Failed to perform public search"
@@ -17051,7 +17321,6 @@ def test_add_hubspot_forms_action_invalid_param_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'fields', 0, 'parameter_type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log', 'key_vault'",
                                   'type': 'type_error.enum', 'ctx': {
@@ -17268,7 +17537,6 @@ def test_add_kairon_two_stage_fallback_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    print(actual["message"])
     assert actual["message"] == "Action added!"
 
 
@@ -17773,7 +18041,6 @@ def test_add_template_error(mock_get_partner_auth_token):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Channel not found!"
@@ -17815,7 +18082,6 @@ def test_edit_template_error(mock_get_partner_auth_token):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Channel not found!"
@@ -17830,7 +18096,6 @@ def test_delete_template_error(mock_get_partner_auth_token):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "Channel not found!"
@@ -17888,7 +18153,6 @@ def test_get_channel_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == [{'campaign_id': '6779002886649302', 'status': {'delivered': 1, 'read': 1, 'sent': 1}}]
@@ -18084,7 +18348,6 @@ def test_add_template(mock_add_template):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == {'id': '594425479261596', 'status': 'PENDING', 'category': 'MARKETING'}
@@ -18129,7 +18392,6 @@ def test_edit_template(mock_edit_template):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == [{'success': True}]
@@ -18151,7 +18413,6 @@ def test_delete_template(mock_delete_template):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == api_resp
@@ -18480,7 +18741,6 @@ def test_list_broadcast_config():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    print(actual["data"])
     actual["data"]["schedules"][0].pop("_id")
     actual["data"]["schedules"][0].pop("timestamp")
     actual["data"]["schedules"][0].pop("bot")
@@ -18547,7 +18807,6 @@ def test_list_broadcast_():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    print(actual["data"])
     actual["data"]["schedules"][0].pop("timestamp")
     actual["data"]["schedules"][0].pop("user")
     assert actual["data"] == {
@@ -18642,7 +18901,6 @@ def test_list_broadcast_logs():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    print(actual["data"])
     actual["data"]["logs"][0].pop("timestamp")
     actual["data"]["logs"][1].pop("timestamp")
     assert actual["data"] == {
@@ -19049,7 +19307,6 @@ def test_list_jira_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    print(actual["data"])
     [action.pop("_id") for action in actual["data"]]
     assert actual["data"] == [
         {
@@ -19478,7 +19735,6 @@ def test_list_zendesk_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    print(actual["data"])
     [action.pop("_id") for action in actual["data"]]
     assert actual["data"] == [
         {
@@ -20965,7 +21221,6 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    print(actual["data"])
     assert len(actual["data"]["logs"]) == 5
     assert actual["data"]["total"] == 5
     response = client.get(
@@ -21696,7 +21951,7 @@ def test_get_auditlog_for_user_1():
         },
     )
     actual = response.json()
-    print(actual)
+
     assert actual["data"] is not None
     assert actual["data"][0]["action"] == AuditlogActions.ACTIVITY.value
     assert actual["data"][0]["entity"] == "login"
@@ -21714,9 +21969,9 @@ def test_get_auditlog_for_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+    
     audit_log_data = actual["data"]["logs"]
-    print(audit_log_data)
+    
     assert audit_log_data is not None
     actions = [d["action"] for d in audit_log_data]
     from collections import Counter
@@ -21758,7 +22013,7 @@ def test_get_auditlog_for_user_2(mock_password_reset):
     assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 1
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
-    print(audit_log_data)
+    
     assert audit_log_data[0]["action"] == AuditlogActions.ACTIVITY.value
     assert audit_log_data[0]["entity"] == "login"
     assert audit_log_data[0]["user"] == email
@@ -22569,7 +22824,6 @@ def test_login_old_password():
         "-timestamp"))[
         0
     ]
-    print(value['data'])
     assert value["entity"] == "invalid_login"
     assert value["timestamp"]
     assert value["data"] == {'message': ['Incorrect username or password'], 'username': 'integ1@gmail.com'}

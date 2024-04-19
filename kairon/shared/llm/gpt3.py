@@ -225,7 +225,7 @@ class GPT3FAQEmbedding(LLMBase):
                         extracted_values.append(extracted_payload)
                     else:
                         extracted_values.append(entry['payload']['content'])
-            if similarity_prompt_instructions:
-                similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
-                context_prompt = f"{context_prompt}\n{similarity_context}"
+                if extracted_values:
+                    similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
+                    context_prompt = f"{context_prompt}\n{similarity_context}"
         return context_prompt

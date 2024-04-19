@@ -1,11 +1,12 @@
 FROM amazonlinux:latest
 
-ENV KAIRON_HOME=/app PYTHON_VERSION=3.10.13
+ENV KAIRON_HOME=/app PYTHON_VERSION=3.10.13 TEMPLATE_DIR_DEFAULT=./template/use-cases/Hi-Hello-GPT RASA_TELEMETRY_ENABLED=false
 
 WORKDIR ${KAIRON_HOME}
 
 RUN yum update -y
-RUN dnf -y update kernel expat gnutls openssl --releasever 2023.3.20240219
+RUN dnf update -y rpm --releasever 2023.4.20240319
+RUN dnf update -y curl expat --releasever 2023.4.20240401
 
 RUN yum update -y && yum -y install wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel sqlite-devel libffi-devel openblas-devel ca-certificates
 RUN wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz && \
@@ -33,6 +34,10 @@ RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
 
 RUN python -m pip install pyston_lite_autoload
 COPY . .
+
+RUN rm -rf ${TEMPLATE_DIR_DEFAULT}/models/* && \
+    rasa train --data ${TEMPLATE_DIR_DEFAULT}/data --config ${TEMPLATE_DIR_DEFAULT}/config.yml --domain ${TEMPLATE_DIR_DEFAULT}/domain.yml --out ${TEMPLATE_DIR_DEFAULT}/models
+
 
 ENV HF_HOME="/home/cache" SENTENCE_TRANSFORMERS_HOME="/home/cache"
 

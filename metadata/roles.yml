@@ -339,8 +339,8 @@ roles:
       trainingHistory: true
       modelConfiguration: true
       configureClient: true
-      configureTelemetry: true
-      configureNudge: true
+      configureTelemetry: false
+      configureNudge: false
       integrations: false
       administration: false
       chatHistory: true

@@ -131,7 +131,7 @@ class ActionPrompt(ActionsBase):
             elif prompt['type'] == LlmPromptType.user.value and prompt['is_enabled']:
                 if prompt['source'] == LlmPromptSource.history.value:
                     history_prompt = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
-                elif prompt['source'] == LlmPromptSource.bot_content.value:
+                elif prompt['source'] == LlmPromptSource.bot_content.value and prompt['is_enabled']:
                     use_similarity_prompt = True
                     hyperparameters = prompt.get('hyperparameters', {})
                     similarity_prompt.append({'similarity_prompt_name': prompt['name'],

@@ -214,13 +214,11 @@ class DbQuery(EmbeddedDocument):
     type = StringField(
         required=True, choices=[op_type.value for op_type in DbQueryValueType]
     )
-    value = DynamicField(required=True)
+    value = DynamicField(default=None)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.type):
             raise ValidationError("payload type is required")
-        if not self.value or self.value is None:
-            raise ValidationError("payload value is required")
 
 
 @auditlogger.log
@@ -754,6 +752,8 @@ class LlmPrompt(EmbeddedDocument):
             raise ValidationError("System prompt must have static source!")
         if self.hyperparameters:
             self.hyperparameters.validate()
+        if self.source == LlmPromptSource.bot_content.value and Utility.check_empty_string(self.data):
+            self.data = "default"
 
 
 class UserQuestion(EmbeddedDocument):
