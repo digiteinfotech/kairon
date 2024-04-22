@@ -558,7 +558,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, _ = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
@@ -571,6 +571,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_default_collection(self, aioresponses):
@@ -630,7 +631,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, _ = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
@@ -643,6 +644,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_values(self, aioresponses):
@@ -696,7 +698,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, _ = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
             assert gpt3.logs == [
                 {'messages': [{'role': 'system',
@@ -719,6 +721,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_values_with_instructions(self, aioresponses):
@@ -773,7 +776,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, _ = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
             assert gpt3.logs == [
                 {'messages': [{'role': 'system',
@@ -797,6 +800,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -836,7 +840,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, _ = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             print(mock_completion.call_args.args[3])
 
             assert response == {'exception': "Connection reset by peer!", 'is_failure': True, "content": None}
@@ -854,6 +858,7 @@ class TestLLM:
             assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger", autospec=True)
@@ -880,11 +885,12 @@ class TestLLM:
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
-            response, _ = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response == {'exception': 'Failed to connect to service: localhost', 'is_failure': True, "content": None}
 
             assert mock_embedding.call_args.args[1] == query
             assert gpt3.logs == []
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
@@ -908,11 +914,12 @@ class TestLLM:
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
-            response, _ = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
 
             assert mock_embedding.call_args.args[1] == query
             assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_previous_bot_responses(self, aioresponses):
@@ -969,7 +976,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, _ = await gpt3.predict(query, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
         print(list(aioresponses.requests.values())[2][0].kwargs['json'])
         assert response['content'] == generated_text
 
@@ -983,6 +990,7 @@ class TestLLM:
 
         assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
         assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+        assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_query_prompt(self, aioresponses):
@@ -1054,7 +1062,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, _ = await gpt3.predict(query, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
         print(list(aioresponses.requests.values())[2][1].kwargs['json'])
         assert response['content'] == generated_text
 
@@ -1068,3 +1076,4 @@ class TestLLM:
         assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
         assert list(aioresponses.requests.values())[2][1].kwargs['json'] == mock_completion_request
         assert list(aioresponses.requests.values())[2][1].kwargs['headers'] == request_header
+        assert isinstance(time_elapsed, float) and time_elapsed > 0.0
