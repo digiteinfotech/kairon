@@ -82,6 +82,13 @@ class CUSTOM_ACTIONS(str, Enum):
     HTTP_ACTION_CONFIG = "http_action_config"
 
 
+class DEMO_REQUEST_STATUS(str, Enum):
+    REQUEST_RECEIVED = "request_received"
+    MAIL_SENT = "mail_sent"
+    DEMO_PLANNED = "demo_planned"
+    DEMO_GIVEN = "demo_given"
+
+
 class EVENT_STATUS(str, Enum):
     ENQUEUED = "Enqueued"
     INITIATED = "Initiated"
