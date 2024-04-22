@@ -558,7 +558,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, _ = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
@@ -630,7 +630,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, _ = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
@@ -696,7 +696,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, _ = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
             assert gpt3.logs == [
                 {'messages': [{'role': 'system',
@@ -773,7 +773,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, _ = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
             assert gpt3.logs == [
                 {'messages': [{'role': 'system',
@@ -836,7 +836,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, _ = await gpt3.predict(query, **k_faq_action_config)
             print(mock_completion.call_args.args[3])
 
             assert response == {'exception': "Connection reset by peer!", 'is_failure': True, "content": None}
@@ -880,7 +880,7 @@ class TestLLM:
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, _ = await gpt3.predict(query, **k_faq_action_config)
             assert response == {'exception': 'Failed to connect to service: localhost', 'is_failure': True, "content": None}
 
             assert mock_embedding.call_args.args[1] == query
@@ -908,7 +908,7 @@ class TestLLM:
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, _ = await gpt3.predict(query, **k_faq_action_config)
             assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
 
             assert mock_embedding.call_args.args[1] == query
@@ -969,7 +969,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response = await gpt3.predict(query, **k_faq_action_config)
+        response, _ = await gpt3.predict(query, **k_faq_action_config)
         print(list(aioresponses.requests.values())[2][0].kwargs['json'])
         assert response['content'] == generated_text
 
@@ -1054,7 +1054,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response = await gpt3.predict(query, **k_faq_action_config)
+        response, _ = await gpt3.predict(query, **k_faq_action_config)
         print(list(aioresponses.requests.values())[2][1].kwargs['json'])
         assert response['content'] == generated_text
 
