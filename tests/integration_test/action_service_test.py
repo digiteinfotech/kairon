@@ -10705,7 +10705,24 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
     assert response_json['responses'] == []
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
+                                   status="SUCCESS").get().to_mongo().to_dict()
+    assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log["time_elapsed"]
+    log.pop('time_elapsed')
+    events = log.pop('events')
+    for event in events:
+        if event.get('time_elapsed') is not None:
+            del event['time_elapsed']
+    assert events == [
+        {'type': 'llm_response',
+         'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+         'llm_response_log':
+             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}
+         }, {'type': 'slots_to_fill', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}
+    ]
     assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
@@ -10784,7 +10801,28 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
                                        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                                         'value': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'}]
     assert response_json['responses'] == []
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
+                                   status="SUCCESS").get().to_mongo().to_dict()
+    assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log["time_elapsed"]
+    log.pop('time_elapsed')
+    events = log.pop('events')
+    for event in events:
+        if event.get('time_elapsed') is not None:
+            del event['time_elapsed']
+    assert events == [
+        {'type': 'llm_response',
+         'response': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
+         'llm_response_log': {'content': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'}},
+        {'type': 'slots_to_fill', 'data': {'api_type': 'filter', 'query': '{"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}'},
+         'slot_eval_log': ['initiating slot evaluation', 'Slot: api_type', 'Slot: api_type', 'evaluation_type: expression',
+                           'data: {"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
+                           'response: filter', 'Slot: query', 'Slot: query', 'evaluation_type: expression',
+                           'data: {"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
+                           'response: {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}']}
+    ]
     assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == user_msg
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
@@ -10857,7 +10895,24 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
+                                   status="SUCCESS").get().to_mongo().to_dict()
+    assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log["time_elapsed"]
+    log.pop('time_elapsed')
+    events = log.pop('events')
+    for event in events:
+        if event.get('time_elapsed') is not None:
+            del event['time_elapsed']
+    assert events == [
+        {'type': 'llm_response',
+         'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+         'llm_response_log':
+             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}
+         }, {'type': 'slots_to_fill', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}
+    ]
     assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
