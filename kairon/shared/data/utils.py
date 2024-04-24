@@ -16,7 +16,8 @@ from rasa.shared.core.training_data.structures import RuleStep
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
-    REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS
+    REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS, \
+    ALLOWED_BOT_CONTENT_FORMATS
 from .constant import RESPONSE
 from .data_objects import MultiflowStories
 from .training_data_generation_processor import TrainingDataGenerationProcessor
@@ -123,6 +124,8 @@ class DataUtility:
             requirements.add('chat_client_config')
         if ALLOWED_MULTIFLOW_STORIES_FORMATS.intersection(files_received).__len__() < 1:
             requirements.add('multiflow_stories')
+        if ALLOWED_BOT_CONTENT_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('bot_content')
 
         if requirements == REQUIREMENTS:
             if delete_dir_on_exception:
@@ -132,7 +135,7 @@ class DataUtility:
 
     @staticmethod
     async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None,
-                                  http_action: File = None, multiflow_stories: File = None):
+                                  http_action: File = None, multiflow_stories: File = None, bot_content: File = None):
         """
         convert mongo data  to individual files
 
@@ -142,7 +145,8 @@ class DataUtility:
         :param config: config data
         :param rules: rules data
         :param http_action: http actions data
-        param multiflow_stories: multiflow_stories data
+        :param multiflow_stories: multiflow_stories data
+        :param bot_content: bot_content data
         :return: files path
         """
         from rasa.shared.constants import DEFAULT_DATA_PATH
@@ -155,6 +159,7 @@ class DataUtility:
         domain_path = os.path.join(tmp_dir, domain.filename)
         stories_path = os.path.join(data_path, stories.filename)
         config_path = os.path.join(tmp_dir, config.filename)
+        bot_content_path = os.path.join(tmp_dir, bot_content.filename)
 
         Utility.write_to_file(nlu_path, await nlu.read())
         Utility.write_to_file(domain_path, await domain.read())
@@ -165,6 +170,8 @@ class DataUtility:
         training_file_loc['http_action'] = await DataUtility.write_http_data(tmp_dir, http_action)
         training_file_loc['multiflow_stories'] = await DataUtility.write_multiflow_stories_data(tmp_dir,
                                                                                                 multiflow_stories)
+        training_file_loc['bot_content'] = await DataUtility.write_bot_content_data(tmp_dir,
+                                                                                    bot_content)
         training_file_loc['nlu'] = nlu_path
         training_file_loc['config'] = config_path
         training_file_loc['stories'] = stories_path
@@ -212,6 +219,19 @@ class DataUtility:
             multiflow_stories_path = os.path.join(data_path, multiflow_stories.filename)
             Utility.write_to_file(multiflow_stories_path, await multiflow_stories.read())
             return multiflow_stories_path
+
+    @staticmethod
+    async def write_bot_content_data(temp_path: str, bot_content: File = None):
+        """
+        writes the bot content data to file and returns the file path
+        :param temp_path: path of the data files
+        :param bot_content: bot_content data
+        :return: bot_content file path
+        """
+        if bot_content and bot_content.filename:
+            bot_content_path = os.path.join(temp_path, bot_content.filename)
+            Utility.write_to_file(bot_content_path, await bot_content.read())
+            return bot_content_path
 
     @staticmethod
     def extract_text_and_entities(text: Text):

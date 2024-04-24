@@ -1,7 +1,7 @@
 import os
 from typing import Text
 
-from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH
+from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_BOT_CONTENT_PATH
 
 from kairon.shared.data.constant import REQUIREMENTS
 from kairon.shared.data.processor import MongoProcessor
@@ -35,10 +35,12 @@ class DataImporter:
         data_path = os.path.join(self.path, DEFAULT_DATA_PATH)
         config_path = os.path.join(self.path, DEFAULT_CONFIG_PATH)
         domain_path = os.path.join(self.path, DEFAULT_DOMAIN_PATH)
+
         TrainingDataValidator.validate_domain(domain_path)
         self.validator = await TrainingDataValidator.from_training_files(data_path, domain_path,
                                                                          config_path, self.path)
-        self.validator.validate_training_data(False)
+
+        self.validator.validate_training_data(self.bot, False)
         return self.validator.summary, self.validator.component_count
 
     def import_data(self):
@@ -54,5 +56,6 @@ class DataImporter:
                                                           self.validator.intents,
                                                           self.validator.actions,
                                                           self.validator.multiflow_stories,
+                                                          self.validator.bot_content,
                                                           self.validator.chat_client_config.get('config'),
                                                           self.overwrite, self.files_to_save)

@@ -179,7 +179,9 @@ ALLOWED_RULES_FORMATS = {'rules.yaml', 'rules.yml'}
 ALLOWED_ACTIONS_FORMATS = {'actions.yaml', 'actions.yml'}
 ALLOWED_CHAT_CLIENT_CONFIG_FORMATS = {'chat_client_config.yml', 'chat_client_config.yaml'}
 ALLOWED_MULTIFLOW_STORIES_FORMATS = {'multiflow_stories.yaml', 'multiflow_stories.yml'}
-REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions', 'chat_client_config', 'multiflow_stories'}
+ALLOWED_BOT_CONTENT_FORMATS = {'bot_content.yaml', 'bot_content.yml'}
+REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions', 'chat_client_config', 'multiflow_stories',
+                'bot_content'}
 COMPONENT_COUNT = {'intents': 0, 'utterances': 0, 'stories': 0, 'training_examples': 0,
                    'http_actions': 0, 'jira_actions': 0, 'google_search_actions': 0, 'zendesk_actions': 0,
                    'email_actions': 0, 'slot_set_actions': 0, 'form_validation_actions': 0, 'rules': 0,
@@ -244,3 +246,4 @@ ORG_SETTINGS_MESSAGES = {
     "create_user": "User creation is blocked by your OrgAdmin from SSO",
     "only_sso_login": "Login with your org SSO url, Login with username/password not allowed",
 }
+

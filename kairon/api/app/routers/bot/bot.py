@@ -595,6 +595,7 @@ def upload_files(
     Uploads training data nlu.yml, domain.yml, stories.yml, config.yml, rules.yml and actions.yml files.
     """
     print(training_files)
+
     event = TrainingDataImporterEvent(
         current_user.get_bot(), current_user.get_user(), import_data=import_data, overwrite=overwrite
     )
@@ -698,7 +699,8 @@ async def model_testing_logs(
     """
     List model testing logs.
     """
-    logs, row_cnt = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
+    logs, row_cnt = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx,
+                                                      page_size)
     data = {
         "logs": logs,
         "total": row_cnt
@@ -738,7 +740,7 @@ async def set_endpoint(
 @router.delete("/endpoint/{endpoint_type}", response_model=Response)
 async def delete_endpoint(
         endpoint_type: ENDPOINT_TYPE = Path(description="One of bot_endpoint, action_endpoint, "
-                                                                      "history_endpoint", examples=["bot_endpoint"]),
+                                                        "history_endpoint", examples=["bot_endpoint"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
@@ -1306,7 +1308,7 @@ async def add_lookup(
     :return: Success message
     """
     id = mongo_processor.add_lookup(lookup_name=request_data.data, bot=current_user.get_bot(),
-                               user=current_user.get_user())
+                                    user=current_user.get_user())
 
     return {"message": "Lookup added!", "data": {"_id": id}}
 
@@ -1327,7 +1329,7 @@ async def add_lookup_values(
     data = request_data.dict()
     data['name'] = name
     values = mongo_processor.add_lookup_values(lookup_dict=data, bot=current_user.get_bot(),
-                                      user=current_user.get_user())
+                                               user=current_user.get_user())
 
     return {"message": "Lookup values added!", "data": values}
 
@@ -1346,9 +1348,9 @@ async def add_lookup_value(
     :return: Success message
     """
     id = mongo_processor.add_lookup_value(lookup_name=name,
-                                     lookup_value=request_data.data,
-                                     bot=current_user.get_bot(),
-                                     user=current_user.get_user())
+                                          lookup_value=request_data.data,
+                                          bot=current_user.get_bot(),
+                                          user=current_user.get_user())
 
     return {"message": "Lookup value added!", "data": {"_id": id}}
 
@@ -1580,7 +1582,8 @@ async def get_auditlog_for_bot(
         to_date: date = Path(description="to date in yyyy-mm-dd format", examples=["1999-01-01"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
-    logs, row_cnt = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date, start_idx, page_size)
+    logs, row_cnt = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date, start_idx,
+                                                         page_size)
     data = {
         "logs": logs,
         "total": row_cnt

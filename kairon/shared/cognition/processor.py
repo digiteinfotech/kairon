@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Text, Dict, Any
+from typing import Text, Dict, Any, List
 
 from loguru import logger
 from mongoengine import DoesNotExist, Q
@@ -252,3 +252,36 @@ class CognitionDataProcessor:
             raise AppException(f'Cannot remove collection {collection} linked to action "{prompt_action[0].name}"!')
         if database_action:
             raise AppException(f'Cannot remove collection {collection} linked to action "{database_action[0].name}"!')
+
+
+    # @staticmethod
+    # def aggregate_cognition_data_for_bot(self, bot: Text) -> List[Dict[str, Any]]:
+    #     """
+    #     Aggregate cognition data for a specific bot.
+    #
+    #     This function queries the cognition schema database to get collections and metadata
+    #     for a particular bot, and then queries the cognition data database to fetch content_type
+    #     and data field values for each collection. It returns the aggregated data in the form
+    #     of a list of dictionaries, where each dictionary contains collection, type, metadata,
+    #     and data fields.
+    #
+    #     :param bot: The ID of the bot for which to aggregate data.
+    #     :return: A list of dictionaries containing aggregated data for the bot.
+    #     """
+    #     schema_results = CognitionSchema.objects(bot=bot).only("collection_name", "metadata")
+    #
+    #     formatted_result = []
+    #     for schema_result in schema_results:
+    #         collection_name = schema_result.collection_name
+    #         metadata = schema_result.metadata
+    #
+    #         data_results = CognitionData.objects(bot=bot, collection=collection_name).only("content_type", "data")
+    #         for data_result in data_results:
+    #             formatted_result.append({
+    #                 "collection": collection_name,
+    #                 "type": data_result.content_type,
+    #                 "metadata": metadata,
+    #                 "data": data_result.data
+    #             })
+    #
+    #     return formatted_result

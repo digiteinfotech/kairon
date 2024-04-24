@@ -1,12 +1,17 @@
+from unittest.mock import patch
+
 import ujson as json
 import re
 import pytest
+import yaml
+from mongoengine import connect
 
 from kairon.exceptions import AppException
 from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.utils import Utility
 import os
 from deepdiff import DeepDiff
+from kairon.shared.data.data_objects import BotSettings
 
 
 class TestTrainingDataValidator:
@@ -14,6 +19,7 @@ class TestTrainingDataValidator:
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     def test_config_validation(self):
         config = Utility.load_yaml("./tests/testing_data/yml_training_files/config.yml")
@@ -147,8 +153,8 @@ class TestTrainingDataValidator:
         assert not validator.summary.get("intents")
         assert not validator.summary.get("utterances")
         assert (
-            validator.summary["stories"][0]
-            == "Story structure conflict after intent 'deny':\n  utter_goodbye predicted in 'deny'\n  utter_thanks predicted in 'refute'\n"
+                validator.summary["stories"][0]
+                == "Story structure conflict after intent 'deny':\n  utter_goodbye predicted in 'deny'\n  utter_thanks predicted in 'refute'\n"
         )
         assert not validator.summary.get("training_examples")
         assert not validator.summary.get("domain")
@@ -171,12 +177,12 @@ class TestTrainingDataValidator:
         )
         validator.validate_training_data(False)
         assert (
-            "The intent 'deny' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"
-            in validator.summary["intents"]
+                "The intent 'deny' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"
+                in validator.summary["intents"]
         )
         assert (
-            "The intent 'more_info' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"
-            in validator.summary["intents"]
+                "The intent 'more_info' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"
+                in validator.summary["intents"]
         )
         assert not DeepDiff(
             validator.summary["intents"],
@@ -241,12 +247,12 @@ class TestTrainingDataValidator:
         assert not validator.summary.get("utterances")
         assert not validator.summary.get("stories")
         assert (
-            validator.summary["training_examples"][0]
-            == "The example 'no' was found labeled with multiple different intents in the training data. Each annotated message should only appear with one intent. You should fix that conflict The example is labeled with: deny, refute."
+                validator.summary["training_examples"][0]
+                == "The example 'no' was found labeled with multiple different intents in the training data. Each annotated message should only appear with one intent. You should fix that conflict The example is labeled with: deny, refute."
         )
         assert (
-            validator.summary["training_examples"][1]
-            == "The example 'never' was found labeled with multiple different intents in the training data. Each annotated message should only appear with one intent. You should fix that conflict The example is labeled with: deny, refute."
+                validator.summary["training_examples"][1]
+                == "The example 'never' was found labeled with multiple different intents in the training data. Each annotated message should only appear with one intent. You should fix that conflict The example is labeled with: deny, refute."
         )
         assert not validator.summary.get("domain")
         assert not validator.summary.get("config")
@@ -273,8 +279,8 @@ class TestTrainingDataValidator:
         validator.validate_training_data(False)
         assert not validator.summary.get("intents")
         assert (
-            validator.summary["stories"][0]
-            == "The action 'utter_goodbye' is used in the stories, but is not a valid utterance action. Please make sure the action is listed in your domain and there is a template defined with its name."
+                validator.summary["stories"][0]
+                == "The action 'utter_goodbye' is used in the stories, but is not a valid utterance action. Please make sure the action is listed in your domain and there is a template defined with its name."
         )
         assert not validator.summary.get("utterances")
         assert not validator.summary.get("training_examples")
@@ -299,12 +305,12 @@ class TestTrainingDataValidator:
         validator.validate_training_data(False)
         assert not validator.summary.get("intents")
         assert (
-            "The utterance 'utter_good_feedback' is not used in any story."
-            in validator.summary["utterances"]
+                "The utterance 'utter_good_feedback' is not used in any story."
+                in validator.summary["utterances"]
         )
         assert (
-            "The utterance 'utter_bad_feedback' is not used in any story."
-            in validator.summary["utterances"]
+                "The utterance 'utter_bad_feedback' is not used in any story."
+                in validator.summary["utterances"]
         )
         print(set(validator.summary["utterances"]))
         assert set(validator.summary["utterances"]) == {
@@ -397,7 +403,7 @@ class TestTrainingDataValidator:
         assert not validator.summary.get("domain")
         assert (
             not validator.summary["config"]
-            == "Failed to load the component 'CountTokenizer'"
+                == "Failed to load the component 'CountTokenizer'"
         )
 
     @pytest.mark.asyncio
@@ -414,7 +420,7 @@ class TestTrainingDataValidator:
             nlu_path, domain_path, config_path, root
         )
         with pytest.raises(
-            AppException, match="Invalid multiflow_stories.yml. Check logs!"
+                AppException, match="Invalid multiflow_stories.yml. Check logs!"
         ):
             validator.validate_training_data()
 
@@ -499,7 +505,7 @@ class TestTrainingDataValidator:
             component_count,
         ) = TrainingDataValidator.validate_custom_actions(test_dict)
         assert (
-            "Invalid params_list for http action: rain_today" in errors["http_actions"]
+                "Invalid params_list for http action: rain_today" in errors["http_actions"]
         )
 
     def test_validate_http_action_empty_headers(self):
@@ -641,7 +647,7 @@ class TestTrainingDataValidator:
             component_count,
         ) = TrainingDataValidator.validate_custom_actions(test_dict)
         assert (
-            "Invalid params_list for http action: rain_today" in errors["http_actions"]
+                "Invalid params_list for http action: rain_today" in errors["http_actions"]
         )
 
     def test_validate_http_action_empty_slot_type(self):
@@ -774,7 +780,7 @@ class TestTrainingDataValidator:
 
     def test_validate_custom_actions_with_errors(self):
         with open(
-            "tests/testing_data/actions/validation_action_data.json", "r"
+                "tests/testing_data/actions/validation_action_data.json", "r"
         ) as file:
             data = file.read()
         test_dict = json.loads(data)
@@ -797,7 +803,8 @@ class TestTrainingDataValidator:
         assert len(error_summary['pyscript_actions']) == 3
         assert len(error_summary['database_actions']) == 6
         required_fields_error = error_summary["prompt_actions"][21]
-        assert re.match(r"Required fields .* not found in action: prompt_action_with_no_llm_prompts", required_fields_error)
+        assert re.match(r"Required fields .* not found in action: prompt_action_with_no_llm_prompts",
+                        required_fields_error)
         del error_summary["prompt_actions"][21]
         print(error_summary['prompt_actions'])
         assert error_summary['prompt_actions'] == ['top_results should not be greater than 30 and of type int!',
@@ -848,7 +855,7 @@ class TestTrainingDataValidator:
 
     def test_validate_multiflow_stories(self):
         with open(
-            "tests/testing_data/multiflow_stories/multiflow_test_data.json", "r"
+                "tests/testing_data/multiflow_stories/multiflow_test_data.json", "r"
         ) as file:
             data = file.read()
         test_dict = json.loads(data)
@@ -862,3 +869,38 @@ class TestTrainingDataValidator:
         assert TrainingDataValidator.validate_multiflow_stories([{}])
         test = {None}
         assert TrainingDataValidator.validate_multiflow_stories(test)
+
+    # def test_valid_content(self):
+    #     yaml_file_path = "tests/testing_data/bot_content/bot_content.yml"
+    #     #
+    #     with open(yaml_file_path, "r") as file:
+    #         bot_content = yaml.safe_load(file)
+    #
+    #     print(bot_content)
+    #
+    #     with patch('kairon.shared.data.data_objects.BotSettings.objects.get') as mock_get:
+    #         # Set the return value of to_mongo().to_dict() to a dictionary of your choice
+    #         mock_get.return_value.to_mongo.return_value.to_dict.return_value = {'llm_settings': {'enable_faq': True}}
+    #
+    #     errors = TrainingDataValidator.validate_content("your_bot_name", bot_content)
+    #     # assert not errors
+
+    # def test_disabled_gpt(self):
+    #     with open("tests/testing_data/bot_content.yml", "r") as file:
+    #         yaml_data = file.read()
+    #
+    #     bot_content = yaml.safe_load(yaml_data)
+    #
+    #     errors = TrainingDataValidator.validate_content("your_bot_name", bot_content)
+    #     assert errors == ["Please enable GPT on bot before uploading"]
+    #
+    # def test_invalid_content(self):
+    #     with open("tests/testing_data/bot_content.yml", "r") as file:
+    #         yaml_data = file.read()
+    #
+    #     bot_content = yaml.safe_load(yaml_data)
+    #
+    #     bot_content[0]["data"].append(123)
+    #
+    #     errors = TrainingDataValidator.validate_content("your_bot_name", bot_content)
+    #     assert errors

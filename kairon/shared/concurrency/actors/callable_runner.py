@@ -11,6 +11,7 @@ global_safe = _safe_globals
 global_safe['_getattr_'] = safer_getattr
 
 
+
 class CallableRunner(BaseActor):
 
     def execute(self, callable: Callable, *args, **kwargs):

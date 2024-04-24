@@ -6,7 +6,7 @@ from collections import ChainMap
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Text, Dict, List
+from typing import Text, Dict, List, Any
 from urllib.parse import urljoin
 
 import networkx as nx
@@ -154,7 +154,7 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
-from ..cognition.data_objects import CognitionSchema
+from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
@@ -168,17 +168,18 @@ class MongoProcessor:
     """
 
     async def upload_and_save(
-        self,
-        nlu: File,
-        domain: File,
-        stories: File,
-        config: File,
-        rules: File,
-        http_action: File,
-        multiflow_stories: File,
-        bot: Text,
-        user: Text,
-        overwrite: bool = True,
+            self,
+            nlu: File,
+            domain: File,
+            stories: File,
+            config: File,
+            rules: File,
+            http_action: File,
+            multiflow_stories: File,
+            bot_content: File,
+            bot: Text,
+            user: Text,
+            overwrite: bool = True,
     ):
         """
         loads the training data into database
@@ -190,13 +191,14 @@ class MongoProcessor:
         :param http_action: http_actions data
         :param config: config data
         :param multiflow_stories: multiflow_stories data
+        :param bot_content: bot_content data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
         training_file_loc = await DataUtility.save_training_files(
-            nlu, domain, config, stories, rules, http_action, multiflow_stories
+            nlu, domain, config, stories, rules, http_action, multiflow_stories, bot_content
         )
         await self.save_from_path(training_file_loc["root"], bot, overwrite, user)
         Utility.delete_directory(training_file_loc["root"])
@@ -222,6 +224,8 @@ class MongoProcessor:
             rules = rules.merge(multiflow_stories[1])
         multiflow_stories = self.load_multiflow_stories_yaml(bot)
         actions = self.load_action_configurations(bot)
+        bot_content = self.load_bot_content(bot)
+
         return Utility.create_zip_file(
             nlu,
             domain,
@@ -232,6 +236,7 @@ class MongoProcessor:
             actions,
             multiflow_stories,
             chat_client_config,
+            bot_content
         )
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
@@ -252,7 +257,7 @@ class MongoProcessor:
             raise AppException("Invalid template!")
 
     async def save_from_path(
-        self, path: Text, bot: Text, overwrite: bool = True, user="default"
+            self, path: Text, bot: Text, overwrite: bool = True, user="default"
     ):
         """
         saves training data file
@@ -271,6 +276,7 @@ class MongoProcessor:
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             actions_yml = os.path.join(path, "actions.yml")
             multiflow_stories_yml = os.path.join(path, "multiflow_stories.yml")
+            bot_content_yml = os.path.join(path,"bot_content.yml")
             importer = RasaFileImporter.load_from_config(
                 config_path=config_path,
                 domain_path=domain_path,
@@ -286,6 +292,11 @@ class MongoProcessor:
                 if multiflow_stories_yml
                 else None
             )
+            bot_content = (
+                Utility.read_yaml(bot_content_yml)
+                if bot_content_yml
+                else None
+            )
             TrainingDataValidator.validate_custom_actions(actions)
 
             self.save_training_data(
@@ -297,6 +308,7 @@ class MongoProcessor:
                 nlu,
                 actions,
                 multiflow_stories,
+                bot_content,
                 overwrite=overwrite,
                 what=REQUIREMENTS.copy() - {"chat_client_config"},
             )
@@ -305,18 +317,19 @@ class MongoProcessor:
             raise AppException(e)
 
     def save_training_data(
-        self,
-        bot: Text,
-        user: Text,
-        config: dict = None,
-        domain: Domain = None,
-        story_graph: StoryGraph = None,
-        nlu: TrainingData = None,
-        actions: dict = None,
-        multiflow_stories: dict = None,
-        chat_client_config: dict = None,
-        overwrite: bool = False,
-        what: set = REQUIREMENTS.copy(),
+            self,
+            bot: Text,
+            user: Text,
+            config: dict = None,
+            domain: Domain = None,
+            story_graph: StoryGraph = None,
+            nlu: TrainingData = None,
+            actions: dict = None,
+            multiflow_stories: dict = None,
+            bot_content: list = None,
+            chat_client_config: dict = None,
+            overwrite: bool = False,
+            what: set = REQUIREMENTS.copy(),
     ):
         if overwrite:
             self.delete_bot_data(bot, user, what)
@@ -337,6 +350,8 @@ class MongoProcessor:
             self.save_chat_client_config(chat_client_config, bot, user)
         if "multiflow_stories" in what:
             self.save_multiflow_stories(multiflow_stories, bot, user)
+        if "bot_content" in what:
+            self.save_bot_content(bot_content, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -364,6 +379,72 @@ class MongoProcessor:
         )
         multiflow = json.loads(multiflow)
         return {"multiflow_story": multiflow}
+
+    def load_bot_content(self, bot: Text):
+        doc = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
+        bot_content = []
+        if doc['llm_settings'].get('enable_faq'):
+            bot_content = self.__prepare_cognition_data_for_bot(bot)
+        return bot_content
+
+    def __prepare_cognition_data_for_bot(self, bot: Text) -> List[Dict[str, Any]]:
+        """
+        Aggregate cognition data for a specific bot.
+
+        This function queries the cognition schema database to get collections and metadata
+        for a particular bot, and then queries the cognition data database to fetch content_type
+        and data field values for each collection. It returns the aggregated data in the form
+        of a list of dictionaries, where each dictionary contains collection, type, metadata,
+        and data fields.
+
+        :param bot: The ID of the bot for which to aggregate data.
+        :return: A list of dictionaries containing aggregated data for the bot.
+        """
+        schema_results = CognitionSchema.objects(bot=bot).only("collection_name", "metadata")
+
+        formatted_result = []
+        for schema_result in schema_results:
+            collection_name = schema_result.collection_name
+            metadata = [{"column_name": meta.column_name,
+                         "data_type": meta.data_type,
+                         "enable_search": meta.enable_search,
+                         "create_embeddings": meta.create_embeddings}
+                        for meta in schema_result.metadata]
+
+            if not metadata:
+                type_value = "text"
+            else:
+                type_value = "json"
+
+            # Initialize the dictionary for the collection
+            collection_data = {
+                "collection": collection_name,
+                "type": type_value,
+                "metadata": metadata,
+                "data": []
+            }
+
+            # Query CognitionData for the collection
+            data_results = CognitionData.objects(bot=bot, collection=collection_name).only("content_type", "data")
+            for data_result in data_results:
+                collection_data["data"].append(data_result.data)
+
+            formatted_result.append(collection_data)
+
+        # Handle documents in CognitionData without a collection field
+        data_results_no_collection = CognitionData.objects(bot=bot, collection=None).only("content_type", "data")
+        default_collection_data = {
+            "collection": "Default",
+            "type": "text",
+            "metadata": [],
+            "data": []
+        }
+        for data_result in data_results_no_collection:
+            default_collection_data["data"].append(data_result.data)
+
+        formatted_result.append(default_collection_data)
+
+        return formatted_result
 
     def get_config_templates(self):
         """
@@ -400,6 +481,9 @@ class MongoProcessor:
             self.delete_bot_actions(bot, user)
         if "multiflow_stories" in what:
             self.delete_multiflow_stories(bot, user)
+        if "bot_content" in what:
+            self.delete_bot_content(bot,user)
+
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -552,6 +636,16 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([MultiflowStories], bot=bot)
 
+    def delete_bot_content(self, bot: Text, user: Text):
+        """
+        soft deletes stories
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.hard_delete_document([CognitionSchema], bot=bot)
+        Utility.hard_delete_document([CognitionData],bot=bot)
+
     def save_multiflow_stories(self, multiflow_stories: dict, bot: Text, user: Text):
         """
         saves multiflow stories data
@@ -565,8 +659,61 @@ class MongoProcessor:
                 multiflow_stories["multiflow_story"], bot, user
             )
 
+    def __save_cognition_schema(self, bot_content: list, bot: Text, user: Text):
+        for data_item in bot_content:
+            if data_item['collection'] != 'Default':
+                cognition_schema = CognitionSchema(
+                    metadata=[ColumnMetadata(**md) for md in data_item['metadata']],
+                    collection_name=data_item['collection'],
+                    user=user,
+                    bot=bot,
+                    timestamp=datetime.utcnow()
+                )
+                cognition_schema.save()
+
+    def __save_cognition_data(self, bot_content: list, bot: Text, user: Text):
+        for data_item in bot_content:
+
+            collection_name = data_item['collection']
+            if collection_name == 'Default':
+                # Remove the 'collection' field for the 'Default' collection
+                collection_name = None
+
+            if data_item['type'] == 'text':
+                for text_data in data_item['data']:
+                    cognition_data = CognitionData(
+                        data=text_data,
+                        content_type='text',
+                        collection=collection_name,
+                        user=user,
+                        bot=bot
+                    )
+                    cognition_data.save()
+            elif data_item['type'] == 'json':
+                for json_data in data_item['data']:
+                    cognition_data = CognitionData(
+                        data=json_data,
+                        content_type='json',
+                        collection=collection_name,
+                        user=user,
+                        bot=bot
+                    )
+                    cognition_data.save()
+
+    def save_bot_content(self, bot_content: list, bot: Text, user: Text):
+        """
+        saves bot content data
+        :param bot_content: bot content data
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if bot_content:
+            self.__save_cognition_schema(bot_content, bot, user)
+            self.__save_cognition_data(bot_content, bot, user)
+
     def load_linear_flows_from_multiflow_stories(
-        self, bot: Text
+            self, bot: Text
     ) -> (StoryGraph, StoryGraph):
         """
         loads multiflow stories for training.
@@ -614,9 +761,9 @@ class MongoProcessor:
         saved_training_examples, _ = self.get_all_training_examples(bot)
         for training_example in training_examples:
             if (
-                "text" in training_example.data
-                and str(training_example.data["text"]).lower()
-                not in saved_training_examples
+                    "text" in training_example.data
+                    and str(training_example.data["text"]).lower()
+                    not in saved_training_examples
             ):
                 training_data = TrainingExamples()
                 training_data.intent = str(
@@ -913,7 +1060,7 @@ class MongoProcessor:
 
     def __save_form_logic(self, name, slots, bot, user):
         if Utility.is_exist(
-            Actions, raise_error=False, name=f"validate_{name}", bot=bot, status=True
+                Actions, raise_error=False, name=f"validate_{name}", bot=bot, status=True
         ):
             form_validation_action = Actions.objects(
                 name=f"validate_{name}", bot=bot, status=True
@@ -996,7 +1143,7 @@ class MongoProcessor:
         return actions
 
     def __extract_session_config(
-        self, session_config: SessionConfig, bot: Text, user: Text
+            self, session_config: SessionConfig, bot: Text, user: Text
     ):
         return SessionConfigs(
             sesssionExpirationTime=session_config.session_expiration_time,
@@ -1006,7 +1153,7 @@ class MongoProcessor:
         )
 
     def __save_session_config(
-        self, session_config: SessionConfig, bot: Text, user: Text
+            self, session_config: SessionConfig, bot: Text, user: Text
     ):
         try:
             if session_config:
@@ -1172,10 +1319,10 @@ class MongoProcessor:
 
     def add_system_required_slots(self, bot: Text, user: Text):
         non_conversational_slots = {
-                KaironSystemSlots.kairon_action_response.value, KaironSystemSlots.bot.value,
-                KaironSystemSlots.order.value, KaironSystemSlots.flow_reply.value,
+            KaironSystemSlots.kairon_action_response.value, KaironSystemSlots.bot.value,
+            KaironSystemSlots.order.value, KaironSystemSlots.flow_reply.value,
             KaironSystemSlots.http_status_code.value
-            }
+        }
         for slot in [s for s in KaironSystemSlots if s.value in non_conversational_slots]:
             initial_value = None
             if slot.value == KaironSystemSlots.bot.value:
@@ -1252,8 +1399,8 @@ class MongoProcessor:
         new_mappings = mappings.copy()
         for mapping in new_mappings:
             if (
-                mapping.get(MAPPING_TYPE) == SlotMappingType.FROM_ENTITY.value
-                and mapping.get("entity") == slot_name
+                    mapping.get(MAPPING_TYPE) == SlotMappingType.FROM_ENTITY.value
+                    and mapping.get("entity") == slot_name
             ):
                 auto_fill = True
                 break
@@ -1307,8 +1454,8 @@ class MongoProcessor:
         saved_stories = self.__fetch_story_block_names(bot)
         for story_step in story_steps:
             if (
-                not isinstance(story_step, RuleStep)
-                and story_step.block_name.strip().lower() not in saved_stories
+                    not isinstance(story_step, RuleStep)
+                    and story_step.block_name.strip().lower() not in saved_stories
             ):
                 story_events = list(self.__extract_story_events(story_step.events))
                 template_type = DataUtility.get_template_type(story_step)
@@ -1713,11 +1860,11 @@ class MongoProcessor:
         max_history = configs.get("ted_epochs") if "max_history" in configs else 5
 
         if (
-            not nlu_epochs
-            and not response_epochs
-            and not ted_epochs
-            and not nlu_confidence_threshold
-            and not action_fallback
+                not nlu_epochs
+                and not response_epochs
+                and not ted_epochs
+                and not nlu_confidence_threshold
+                and not action_fallback
         ):
             raise AppException("At least one field is required")
 
@@ -1782,14 +1929,14 @@ class MongoProcessor:
                     name__iexact=action_fallback,
                 )
                 if not (
-                    utterance_exists
-                    or Utility.is_exist(
-                        Actions,
-                        raise_error=False,
-                        bot=bot,
-                        status=True,
-                        name__iexact=action_fallback,
-                    )
+                        utterance_exists
+                        or Utility.is_exist(
+                    Actions,
+                    raise_error=False,
+                    bot=bot,
+                    status=True,
+                    name__iexact=action_fallback,
+                )
                 ):
                     raise AppException(
                         f"Action fallback {action_fallback} does not exists"
@@ -1827,7 +1974,7 @@ class MongoProcessor:
             {},
         )
         if nlu_fallback.get("threshold") and action_fallback.get(
-            "core_fallback_threshold"
+                "core_fallback_threshold"
         ):
             if nlu_fallback["threshold"] < action_fallback["core_fallback_threshold"]:
                 raise AppException(
@@ -1943,11 +2090,11 @@ class MongoProcessor:
         return config_dict
 
     def add_training_data(
-        self,
-        training_data: List[models.TrainingData],
-        bot: Text,
-        user: Text,
-        is_integration: bool,
+            self,
+            training_data: List[models.TrainingData],
+            bot: Text,
+            user: Text,
+            is_integration: bool,
     ):
         """
         adds a list of intents
@@ -2054,12 +2201,12 @@ class MongoProcessor:
         return list(self.__prepare_document_list(intents, "name"))
 
     def add_training_example(
-        self,
-        examples: List[Text],
-        intent: Text,
-        bot: Text,
-        user: Text,
-        is_integration: bool,
+            self,
+            examples: List[Text],
+            intent: Text,
+            bot: Text,
+            user: Text,
+            is_integration: bool,
     ):
         """
         adds training examples for bot
@@ -2074,7 +2221,7 @@ class MongoProcessor:
         if Utility.check_empty_string(intent):
             raise AppException("Intent cannot be empty or blank spaces")
         if not Utility.is_exist(
-            Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
+                Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
         ):
             self.add_intent(intent, bot, user, is_integration)
 
@@ -2131,7 +2278,7 @@ class MongoProcessor:
                 yield {"text": example, "_id": None, "message": str(e)}
 
     def add_or_move_training_example(
-        self, examples: List[Text], intent: Text, bot: Text, user: Text
+            self, examples: List[Text], intent: Text, bot: Text, user: Text
     ):
         """
         Moves list of training examples to existing intent.
@@ -2144,7 +2291,7 @@ class MongoProcessor:
         :return: list training examples id
         """
         if not Utility.is_exist(
-            Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
+                Intents, raise_error=False, name__iexact=intent, bot=bot, status=True
         ):
             raise AppException("Intent does not exists")
 
@@ -2197,7 +2344,7 @@ class MongoProcessor:
         return new_entities
 
     def edit_training_example(
-        self, id: Text, example: Text, intent: Text, bot: Text, user: Text
+            self, id: Text, example: Text, intent: Text, bot: Text, user: Text
     ):
         """
         update training example
@@ -2377,7 +2524,7 @@ class MongoProcessor:
         return training_examples
 
     def remove_document(
-        self, document: Document, id: Text, bot: Text, user: Text, **kwargs
+            self, document: Document, id: Text, bot: Text, user: Text, **kwargs
     ):
         """
         soft delete the document
@@ -2407,7 +2554,7 @@ class MongoProcessor:
             yield {"_id": doc_dict["_id"].__str__(), field: doc_dict[field]}
 
     def add_entity(
-        self, name: Text, bot: Text, user: Text, raise_exc_if_exists: bool = True
+            self, name: Text, bot: Text, user: Text, raise_exc_if_exists: bool = True
     ):
         """
         adds an entity
@@ -2421,18 +2568,18 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Entity Name cannot be empty or blank spaces")
         if not Utility.is_exist(
-            Entities,
-            raise_error=raise_exc_if_exists,
-            exp_message="Entity already exists!",
-            name__iexact=name.strip(),
-            bot=bot,
-            status=True,
+                Entities,
+                raise_error=raise_exc_if_exists,
+                exp_message="Entity already exists!",
+                name__iexact=name.strip(),
+                bot=bot,
+                status=True,
         ):
             entity = Entities(name=name, bot=bot, user=user).save().to_mongo().to_dict()
             return entity["_id"].__str__()
 
     def delete_entity(
-        self, name: Text, bot: Text, user: Text, raise_exc_if_not_exists: bool = True
+            self, name: Text, bot: Text, user: Text, raise_exc_if_not_exists: bool = True
     ):
         """
         Deletes an entity.
@@ -2460,12 +2607,12 @@ class MongoProcessor:
         return list(self.__prepare_document_list(entities, "name"))
 
     def add_action(
-        self,
-        name: Text,
-        bot: Text,
-        user: Text,
-        raise_exception=True,
-        action_type: ActionType = None,
+            self,
+            name: Text,
+            bot: Text,
+            user: Text,
+            raise_exception=True,
+            action_type: ActionType = None,
     ):
         """
         adds action
@@ -2480,12 +2627,12 @@ class MongoProcessor:
             raise AppException("Action name cannot be empty or blank spaces")
 
         if not name.startswith("utter_") and not Utility.is_exist(
-            Actions,
-            raise_error=raise_exception,
-            exp_message="Action exists!",
-            name__iexact=name,
-            bot=bot,
-            status=True,
+                Actions,
+                raise_error=raise_exception,
+                exp_message="Action exists!",
+                name__iexact=name,
+                bot=bot,
+                status=True,
         ):
             action = (
                 Actions(name=name, type=action_type, bot=bot, user=user)
@@ -2520,12 +2667,12 @@ class MongoProcessor:
             Slots.objects.insert(slots)
 
     def add_text_response(
-        self,
-        utterance: Text,
-        name: Text,
-        bot: Text,
-        user: Text,
-        form_attached: str = None,
+            self,
+            utterance: Text,
+            name: Text,
+            bot: Text,
+            user: Text,
+            form_attached: str = None,
     ):
         """
         saves bot text utterance
@@ -2541,7 +2688,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Utterance name cannot be empty or blank spaces")
         if form_attached and not Utility.is_exist(
-            Forms, raise_error=False, name=form_attached, bot=bot, status=True
+                Forms, raise_error=False, name=form_attached, bot=bot, status=True
         ):
             raise AppException(f"Form '{form_attached}' does not exists")
         return self.add_response(
@@ -2553,12 +2700,12 @@ class MongoProcessor:
         )
 
     def add_custom_response(
-        self,
-        utterance: Dict,
-        name: Text,
-        bot: Text,
-        user: Text,
-        form_attached: str = None,
+            self,
+            utterance: Dict,
+            name: Text,
+            bot: Text,
+            user: Text,
+            form_attached: str = None,
     ):
         """
         saves bot json utterance
@@ -2574,7 +2721,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Utterance name cannot be empty or blank spaces")
         if form_attached and not Utility.is_exist(
-            Forms, raise_error=False, name=form_attached, bot=bot, status=True
+                Forms, raise_error=False, name=form_attached, bot=bot, status=True
         ):
             raise AppException(f"Form '{form_attached}' does not exists")
         return self.add_response(
@@ -2586,12 +2733,12 @@ class MongoProcessor:
         )
 
     def add_response(
-        self,
-        utterances: Dict,
-        name: Text,
-        bot: Text,
-        user: Text,
-        form_attached: str = None,
+            self,
+            utterances: Dict,
+            name: Text,
+            bot: Text,
+            user: Text,
+            form_attached: str = None,
     ):
         """
         save bot utterance
@@ -2618,7 +2765,7 @@ class MongoProcessor:
         return value["_id"].__str__()
 
     def edit_text_response(
-        self, id: Text, utterance: Text, name: Text, bot: Text, user: Text
+            self, id: Text, utterance: Text, name: Text, bot: Text, user: Text
     ):
         """
         update the text bot utterance
@@ -2634,7 +2781,7 @@ class MongoProcessor:
         self.edit_response(id, {"text": utterance}, name, bot, user)
 
     def edit_custom_response(
-        self, id: Text, utterance: Dict, name: Text, bot: Text, user: Text
+            self, id: Text, utterance: Dict, name: Text, bot: Text, user: Text
     ):
         """
         update the json bot utterance
@@ -2650,7 +2797,7 @@ class MongoProcessor:
         self.edit_response(id, {"custom": utterance}, name, bot, user)
 
     def edit_response(
-        self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text
+            self, id: Text, utterances: Dict, name: Text, bot: Text, user: Text
     ):
         """
         update the bot utterance
@@ -2748,7 +2895,7 @@ class MongoProcessor:
         return responses
 
     def __check_response_existence(
-        self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
+            self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
     ):
         saved_items = self.fetch_list_of_response(bot)
 
@@ -2773,8 +2920,8 @@ class MongoProcessor:
         events = []
         if steps and flowtype == "RULE":
             if (
-                steps[0]["name"] != RULE_SNIPPET_ACTION_NAME
-                and steps[0]["type"] != ActionExecuted.type_name
+                    steps[0]["name"] != RULE_SNIPPET_ACTION_NAME
+                    and steps[0]["type"] != ActionExecuted.type_name
             ):
                 events.append(
                     StoryEvents(
@@ -2876,7 +3023,7 @@ class MongoProcessor:
         Utility.is_exist_query(
             data_class,
             query=(Q(bot=bot) & Q(status=True))
-            & (Q(block_name__iexact=name) | Q(events=events)),
+                  & (Q(block_name__iexact=name) | Q(events=events)),
             exp_message="Flow already exists!",
         )
 
@@ -2937,7 +3084,7 @@ class MongoProcessor:
         Utility.is_exist_query(
             MultiflowStories,
             query=(Q(bot=bot) & Q(status=True))
-            & (Q(block_name__iexact=name) | Q(events=events)),
+                  & (Q(block_name__iexact=name) | Q(events=events)),
             exp_message="Story flow already exists!",
         )
 
@@ -3012,10 +3159,10 @@ class MongoProcessor:
         Utility.is_exist_query(
             data_class,
             query=(
-                Q(id__ne=story_id)
-                & Q(bot=bot)
-                & Q(status=True)
-                & Q(events=data_object["events"])
+                    Q(id__ne=story_id)
+                    & Q(bot=bot)
+                    & Q(status=True)
+                    & Q(events=data_object["events"])
             ),
             exp_message="Flow already exists!",
         )
@@ -3143,9 +3290,9 @@ class MongoProcessor:
             for event in events:
                 step = {}
                 if (
-                    isinstance(value, Rules)
-                    and event.get("name") == RULE_SNIPPET_ACTION_NAME
-                    and event["type"] == ActionExecuted.type_name
+                        isinstance(value, Rules)
+                        and event.get("name") == RULE_SNIPPET_ACTION_NAME
+                        and event["type"] == ActionExecuted.type_name
                 ):
                     continue
                 if event["type"] == UserUttered.type_name:
@@ -3251,15 +3398,15 @@ class MongoProcessor:
                     else:
                         search = False
                 if (
-                    search
-                    and event.type == StoryEventType.action
-                    and event.name in responses
+                        search
+                        and event.type == StoryEventType.action
+                        and event.name in responses
                 ):
                     return event.name, UTTERANCE_TYPE.BOT
                 elif (
-                    search
-                    and event.type == StoryEventType.action
-                    and event.name == CUSTOM_ACTIONS.HTTP_ACTION_NAME
+                        search
+                        and event.type == StoryEventType.action
+                        and event.name == CUSTOM_ACTIONS.HTTP_ACTION_NAME
                 ):
                     if http_action_for_story in actions:
                         return http_action_for_story, UTTERANCE_TYPE.HTTP
@@ -3270,12 +3417,12 @@ class MongoProcessor:
         return None, None
 
     def add_session_config(
-        self,
-        bot: Text,
-        user: Text,
-        id: Text = None,
-        sesssionExpirationTime: int = 60,
-        carryOverSlots: bool = True,
+            self,
+            bot: Text,
+            user: Text,
+            id: Text = None,
+            sesssionExpirationTime: int = 60,
+            carryOverSlots: bool = True,
     ):
         """
         save or update session config
@@ -3388,7 +3535,7 @@ class MongoProcessor:
         except AppException:
             pass
         if endpoint_config and endpoint_config.get(
-            ENDPOINT_TYPE.HISTORY_ENDPOINT.value
+                ENDPOINT_TYPE.HISTORY_ENDPOINT.value
         ):
             history_endpoint = endpoint_config.get(ENDPOINT_TYPE.HISTORY_ENDPOINT.value)
             history_endpoint["type"] = "user"
@@ -3403,7 +3550,7 @@ class MongoProcessor:
         return history_endpoint
 
     def get_endpoints(
-        self, bot: Text, raise_exception=True, mask_characters: bool = False
+            self, bot: Text, raise_exception=True, mask_characters: bool = False
     ):
         """
         fetches endpoint configuration
@@ -3439,7 +3586,7 @@ class MongoProcessor:
                 return {}
 
     def add_model_deployment_history(
-        self, bot: Text, user: Text, model: Text, url: Text, status: Text
+            self, bot: Text, user: Text, model: Text, url: Text, status: Text
     ):
         """
         saves model deployment history
@@ -3506,11 +3653,11 @@ class MongoProcessor:
         return response
 
     def delete_intent(
-        self,
-        intent: Text,
-        bot: Text,
-        user: Text,
-        is_integration: bool,
+            self,
+            intent: Text,
+            bot: Text,
+            user: Text,
+            is_integration: bool,
     ):
         """
         deletes intent including dependencies
@@ -3563,7 +3710,7 @@ class MongoProcessor:
             utterance_name = utterance.name
 
             if validate_form and not Utility.check_empty_string(
-                utterance.form_attached
+                    utterance.form_attached
             ):
                 raise AppException(
                     f"Utterance cannot be deleted as it is linked to form: {utterance.form_attached}"
@@ -3608,11 +3755,11 @@ class MongoProcessor:
         :return: Http configuration id for updated Http action config
         """
         if not Utility.is_exist(
-            HttpActionConfig,
-            raise_error=False,
-            action_name__iexact=request_data["action_name"],
-            bot=bot,
-            status=True,
+                HttpActionConfig,
+                raise_error=False,
+                action_name__iexact=request_data["action_name"],
+                bot=bot,
+                status=True,
         ):
             raise AppException(
                 "No HTTP action found for bot "
@@ -3621,7 +3768,7 @@ class MongoProcessor:
                 + request_data["action_name"]
             )
         for http_action in HttpActionConfig.objects(
-            bot=bot, action_name=request_data["action_name"], status=True
+                bot=bot, action_name=request_data["action_name"], status=True
         ):
             content_type = {
                 HttpContentType.application_json: HttpRequestContentType.json.value,
@@ -3794,11 +3941,11 @@ class MongoProcessor:
         """
 
         if not Utility.is_exist(
-            PyscriptActionConfig,
-            raise_error=False,
-            name=request_data.get("name"),
-            bot=bot,
-            status=True,
+                PyscriptActionConfig,
+                raise_error=False,
+                name=request_data.get("name"),
+                bot=bot,
+                status=True,
         ):
             raise AppException(
                 f'Action with name "{request_data.get("name")}" not found'
@@ -3843,11 +3990,11 @@ class MongoProcessor:
         """
 
         if not Utility.is_exist(
-            DatabaseAction,
-            raise_error=False,
-            name=request_data.get("name"),
-            bot=bot,
-            status=True,
+                DatabaseAction,
+                raise_error=False,
+                name=request_data.get("name"),
+                bot=bot,
+                status=True,
         ):
             raise AppException(
                 f'Action with name "{request_data.get("name")}" not found'
@@ -3884,7 +4031,8 @@ class MongoProcessor:
         Utility.is_valid_action_name(
             vector_db_action_config.get("name"), bot, DatabaseAction
         )
-        if not Utility.is_exist(CognitionSchema, bot=bot, collection_name__iexact=vector_db_action_config.get('collection'),
+        if not Utility.is_exist(CognitionSchema, bot=bot,
+                                collection_name__iexact=vector_db_action_config.get('collection'),
                                 raise_error=False):
             raise AppException('Collection does not exist!')
         set_slots = [
@@ -3894,7 +4042,7 @@ class MongoProcessor:
         action_id = (
             DatabaseAction(
                 name=vector_db_action_config["name"],
-            collection=vector_db_action_config['collection'],
+                collection=vector_db_action_config['collection'],
                 query_type=vector_db_action_config.get("query_type"),
                 payload=DbQuery(**vector_db_action_config.get("payload")),
                 response=HttpActionResponse(
@@ -3920,7 +4068,7 @@ class MongoProcessor:
         if payload.get("type") == DbQueryValueType.from_slot.value:
             slot = payload.get("value")
             if not Utility.is_exist(
-                Slots, raise_error=False, name=slot, bot=bot, status=True
+                    Slots, raise_error=False, name=slot, bot=bot, status=True
             ):
                 raise AppException(f"Slot with name {slot} not found!")
 
@@ -4041,11 +4189,11 @@ class MongoProcessor:
         :return: None
         """
         if not Utility.is_exist(
-            GoogleSearchAction,
-            raise_error=False,
-            name=action_config.get("name"),
-            bot=bot,
-            status=True,
+                GoogleSearchAction,
+                raise_error=False,
+                name=action_config.get("name"),
+                bot=bot,
+                status=True,
         ):
             raise AppException(
                 f'Google search action with name "{action_config.get("name")}" not found'
@@ -4124,11 +4272,11 @@ class MongoProcessor:
         :return: None
         """
         if not Utility.is_exist(
-            WebSearchAction,
-            raise_error=False,
-            name=action_config.get("name"),
-            bot=bot,
-            status=True,
+                WebSearchAction,
+                raise_error=False,
+                name=action_config.get("name"),
+                bot=bot,
+                status=True,
         ):
             raise AppException(
                 f'Public search action with name "{action_config.get("name")}" not found'
@@ -4339,10 +4487,10 @@ class MongoProcessor:
         :return: List of Http actions.
         """
         for log in (
-            ActionServerLogs.objects(bot=bot)
-            .order_by("-timestamp")
-            .skip(start_idx)
-            .limit(page_size)
+                ActionServerLogs.objects(bot=bot)
+                        .order_by("-timestamp")
+                        .skip(start_idx)
+                        .limit(page_size)
         ):
             log = log.to_mongo().to_dict()
             log.pop("bot")
@@ -4354,8 +4502,8 @@ class MongoProcessor:
 
         for story_step in story_steps:
             if (
-                isinstance(story_step, RuleStep)
-                and story_step.block_name.strip().lower() not in saved_rules
+                    isinstance(story_step, RuleStep)
+                    and story_step.block_name.strip().lower() not in saved_rules
             ):
                 rule = self.__extract_rule_events(story_step, bot, user)
                 yield rule
@@ -4531,9 +4679,9 @@ class MongoProcessor:
                 parameter_type = header.get("parameter_type")
                 value = header["value"]
                 if (
-                    parameter_type == ActionParameterType.value.value
-                    and not Utility.check_empty_string(value)
-                    and header.get("encrypt") is True
+                        parameter_type == ActionParameterType.value.value
+                        and not Utility.check_empty_string(value)
+                        and header.get("encrypt") is True
                 ):
                     header["value"] = Utility.decrypt_message(header["value"])
 
@@ -4541,9 +4689,9 @@ class MongoProcessor:
                 parameter_type = param.get("parameter_type")
                 value = param["value"]
                 if (
-                    parameter_type == ActionParameterType.value.value
-                    and not Utility.check_empty_string(value)
-                    and param.get("encrypt") is True
+                        parameter_type == ActionParameterType.value.value
+                        and not Utility.check_empty_string(value)
+                        and param.get("encrypt") is True
                 ):
                     param["value"] = Utility.decrypt_message(param["value"])
 
@@ -4711,7 +4859,8 @@ class MongoProcessor:
             status = "Failure"
             summary = non_event_validation_summary["summary"]
             component_count = non_event_validation_summary["component_count"]
-            if not non_event_validation_summary["validation_failed"]:
+            if not non_event_validation_summary[
+                "validation_failed"]:
                 status = "Success"
             DataImporterLogProcessor.update_summary(
                 bot,
@@ -4725,7 +4874,7 @@ class MongoProcessor:
         return is_event_data
 
     async def validate_and_prepare_data(
-        self, bot: Text, user: Text, training_files: List, overwrite: bool
+            self, bot: Text, user: Text, training_files: List, overwrite: bool
     ):
         """
         Saves training data (zip, file or files) and validates whether at least one
@@ -4737,9 +4886,10 @@ class MongoProcessor:
         non_event_validation_summary = None
         bot_data_home_dir = await DataUtility.save_uploaded_data(bot, training_files)
         files_to_prepare = DataUtility.validate_and_get_requirements(
+            # gets the files that are not present in the uploaded files
             bot_data_home_dir, True
         )
-        files_received = REQUIREMENTS - files_to_prepare
+        files_received = REQUIREMENTS - files_to_prepare  # files that were actually received
         is_event_data = False
 
         if files_received.difference({"config", "actions", "chat_client_config"}):
@@ -4751,7 +4901,7 @@ class MongoProcessor:
         return files_received, is_event_data, non_event_validation_summary
 
     def save_data_without_event(
-        self, data_home_dir: Text, bot: Text, user: Text, overwrite: bool
+            self, data_home_dir: Text, bot: Text, user: Text, overwrite: bool
     ):
         """
         Saves http actions and config file.
@@ -4786,7 +4936,7 @@ class MongoProcessor:
         if not validation_failed and not error_summary.get("config"):
             files_to_save = set()
             if actions and set(actions.keys()).intersection(
-                {a_type.value for a_type in ActionType}
+                    {a_type.value for a_type in ActionType}
             ):
                 files_to_save.add("actions")
             if config:
@@ -4811,7 +4961,7 @@ class MongoProcessor:
         }
 
     def prepare_training_data_for_validation(
-        self, bot: Text, bot_data_home_dir: str = None, which: set = REQUIREMENTS.copy()
+            self, bot: Text, bot_data_home_dir: str = None, which: set = REQUIREMENTS.copy()
     ):
         """
         Writes training data into files and makes them available for validation.
@@ -4906,19 +5056,19 @@ class MongoProcessor:
         self.add_default_fallback_data(bot, user, True, True)
 
     def add_default_fallback_data(
-        self,
-        bot: Text,
-        user: Text,
-        nlu_fallback: bool = True,
-        action_fallback: bool = True,
+            self,
+            bot: Text,
+            user: Text,
+            nlu_fallback: bool = True,
+            action_fallback: bool = True,
     ):
         if nlu_fallback:
             if not Utility.is_exist(
-                Responses,
-                raise_error=False,
-                bot=bot,
-                status=True,
-                name__iexact="utter_please_rephrase",
+                    Responses,
+                    raise_error=False,
+                    bot=bot,
+                    status=True,
+                    name__iexact="utter_please_rephrase",
             ):
                 self.add_text_response(
                     DEFAULT_NLU_FALLBACK_RESPONSE, "utter_please_rephrase", bot, user
@@ -4939,11 +5089,11 @@ class MongoProcessor:
 
         if action_fallback:
             if not Utility.is_exist(
-                Responses,
-                raise_error=False,
-                bot=bot,
-                status=True,
-                name__iexact=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
+                    Responses,
+                    raise_error=False,
+                    bot=bot,
+                    status=True,
+                    name__iexact=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
             ):
                 self.add_text_response(
                     DEFAULT_ACTION_FALLBACK_RESPONSE,
@@ -4968,7 +5118,7 @@ class MongoProcessor:
         utter_bye_exmp = utterance["responses"]["utter_bye"]
         utter_bye = [item["text"] for item in utter_bye_exmp]
         if not Utility.is_exist(
-            Responses, raise_error=False, bot=bot, status=True, name__iexact="utter_bye"
+                Responses, raise_error=False, bot=bot, status=True, name__iexact="utter_bye"
         ):
             for text in utter_bye:
                 self.add_text_response(text, "utter_bye", bot, user)
@@ -4991,11 +5141,11 @@ class MongoProcessor:
         utter_greet_exmp = utterance["responses"]["utter_greet"]
         utter_greet = [item["text"] for item in utter_greet_exmp]
         if not Utility.is_exist(
-            Responses,
-            raise_error=False,
-            bot=bot,
-            status=True,
-            name__iexact="utter_greet",
+                Responses,
+                raise_error=False,
+                bot=bot,
+                status=True,
+                name__iexact="utter_greet",
         ):
             for text in utter_greet:
                 self.add_text_response(text, "utter_greet", bot, user)
@@ -5106,7 +5256,7 @@ class MongoProcessor:
         return added_values
 
     def edit_synonym(
-        self, value_id: Text, value: Text, name: Text, bot: Text, user: Text
+            self, value_id: Text, value: Text, name: Text, bot: Text, user: Text
     ):
         """
         update the synonym value
@@ -5186,12 +5336,12 @@ class MongoProcessor:
             }
 
     def add_utterance_name(
-        self,
-        name: Text,
-        bot: Text,
-        user: Text,
-        form_attached: str = None,
-        raise_error_if_exists: bool = False,
+            self,
+            name: Text,
+            bot: Text,
+            user: Text,
+            form_attached: str = None,
+            raise_error_if_exists: bool = False,
     ):
         if Utility.check_empty_string(name):
             raise AppException("Name cannot be empty")
@@ -5375,8 +5525,8 @@ class MongoProcessor:
         bot_account = kwargs.get("bot_account")
         ip_info = Utility.get_client_ip(request)
         geo_location = (
-            PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip_info)
-            or {}
+                PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip_info)
+                or {}
         )
         data = {"ip_info": ip_info, "geo_location": geo_location}
         MeteringProcessor.add_metrics(bot, account, MetricType.user_metrics, **data)
@@ -5402,7 +5552,7 @@ class MongoProcessor:
         return config.to_mongo().to_dict()
 
     def get_chat_client_config(
-        self, bot: Text, user: Text, is_client_live: bool = False
+            self, bot: Text, user: Text, is_client_live: bool = False
     ):
         from kairon.shared.auth import Authentication
         from kairon.shared.account.processor import AccountProcessor
@@ -5506,7 +5656,7 @@ class MongoProcessor:
 
     def add_regex(self, regex_dict: Dict, bot, user):
         if Utility.check_empty_string(
-            regex_dict.get("name")
+                regex_dict.get("name")
         ) or Utility.check_empty_string(regex_dict.get("pattern")):
             raise AppException("Regex name and pattern cannot be empty or blank spaces")
         try:
@@ -5525,7 +5675,7 @@ class MongoProcessor:
 
     def edit_regex(self, regex_dict: Dict, bot, user):
         if Utility.check_empty_string(
-            regex_dict.get("name")
+                regex_dict.get("name")
         ) or Utility.check_empty_string(regex_dict.get("pattern")):
             raise AppException("Regex name and pattern cannot be empty or blank spaces")
         try:
@@ -5682,7 +5832,7 @@ class MongoProcessor:
             }
 
     def edit_lookup_value(
-        self, lookup_id: Text, value: Text, name: Text, bot: Text, user: Text
+            self, lookup_id: Text, value: Text, name: Text, bot: Text, user: Text
     ):
         """
         update the lookup table value
@@ -5750,7 +5900,7 @@ class MongoProcessor:
             raise AppException(e)
 
     def __add_or_update_form_validations(
-        self, name: Text, path: list, bot: Text, user: Text
+            self, name: Text, path: list, bot: Text, user: Text
     ):
         existing_slot_validations = FormValidationAction.objects(
             name=name, bot=bot, status=True
@@ -5796,7 +5946,7 @@ class MongoProcessor:
             validation.delete()
 
     def __add_form_responses(
-        self, responses: list, utterance_name: Text, form: Text, bot: Text, user: Text
+            self, responses: list, utterance_name: Text, form: Text, bot: Text, user: Text
     ):
         for resp in responses:
             self.add_response(
@@ -5969,11 +6119,11 @@ class MongoProcessor:
                     logging.info(str(e))
             form.delete()
             if Utility.is_exist(
-                FormValidationAction,
-                raise_error=False,
-                name__iexact=f"validate_{name}",
-                bot=bot,
-                status=True,
+                    FormValidationAction,
+                    raise_error=False,
+                    name__iexact=f"validate_{name}",
+                    bot=bot,
+                    status=True,
             ):
                 self.delete_action(f"validate_{name}", bot, user)
         except DoesNotExist:
@@ -5990,7 +6140,7 @@ class MongoProcessor:
         """
         try:
             if not Utility.is_exist(
-                Slots, raise_error=False, name=mapping["slot"], bot=bot, status=True
+                    Slots, raise_error=False, name=mapping["slot"], bot=bot, status=True
             ):
                 raise AppException(f'Slot with name \'{mapping["slot"]}\' not found')
             slot_mapping = SlotMapping.objects(
@@ -6069,7 +6219,7 @@ class MongoProcessor:
             if Utility.check_empty_string(slot.get("name")):
                 raise AppException("slot name cannot be empty or spaces")
             if not Utility.is_exist(
-                Slots, raise_error=False, name=slot["name"], bot=bot, status=True
+                    Slots, raise_error=False, name=slot["name"], bot=bot, status=True
             ):
                 raise AppException(f'Slot with name "{slot["name"]}" not found')
             set_slots.append(SetSlots(**slot))
@@ -6109,7 +6259,7 @@ class MongoProcessor:
                 if Utility.check_empty_string(slot.get("name")):
                     raise AppException("slot name cannot be empty or spaces")
                 if not Utility.is_exist(
-                    Slots, raise_error=False, name=slot["name"], bot=bot, status=True
+                        Slots, raise_error=False, name=slot["name"], bot=bot, status=True
                 ):
                     raise AppException(f'Slot with name "{slot["name"]}" not found')
                 set_slots.append(SetSlots(**slot))
@@ -6245,11 +6395,11 @@ class MongoProcessor:
         :return: None
         """
         if not Utility.is_exist(
-            EmailActionConfig,
-            raise_error=False,
-            action_name=action.get("action_name"),
-            bot=bot,
-            status=True,
+                EmailActionConfig,
+                raise_error=False,
+                action_name=action.get("action_name"),
+                bot=bot,
+                status=True,
         ):
             raise AppException(
                 f'Action with name "{action.get("action_name")}" not found'
@@ -6329,7 +6479,7 @@ class MongoProcessor:
         :return: None
         """
         if not Utility.is_exist(
-            JiraAction, raise_error=False, name=action.get("name"), bot=bot, status=True
+                JiraAction, raise_error=False, name=action.get("name"), bot=bot, status=True
         ):
             raise AppException(f'Action with name "{action.get("name")}" not found')
         jira_action = JiraAction.objects(
@@ -6405,11 +6555,11 @@ class MongoProcessor:
         :return: None
         """
         if not Utility.is_exist(
-            ZendeskAction,
-            raise_error=False,
-            name=action.get("name"),
-            bot=bot,
-            status=True,
+                ZendeskAction,
+                raise_error=False,
+                name=action.get("name"),
+                bot=bot,
+                status=True,
         ):
             raise AppException(f'Action with name "{action.get("name")}" not found')
         zendesk_action = ZendeskAction.objects(
@@ -6472,11 +6622,11 @@ class MongoProcessor:
         :return: None
         """
         if not Utility.is_exist(
-            PipedriveLeadsAction,
-            raise_error=False,
-            name=action.get("name"),
-            bot=bot,
-            status=True,
+                PipedriveLeadsAction,
+                raise_error=False,
+                name=action.get("name"),
+                bot=bot,
+                status=True,
         ):
             raise AppException(f'Action with name "{action.get("name")}" not found')
         pipedrive_action = PipedriveLeadsAction.objects(
@@ -6541,11 +6691,11 @@ class MongoProcessor:
         :return: None
         """
         if not Utility.is_exist(
-            HubspotFormsAction,
-            raise_error=False,
-            name=action.get("name"),
-            bot=bot,
-            status=True,
+                HubspotFormsAction,
+                raise_error=False,
+                name=action.get("name"),
+                bot=bot,
+                status=True,
         ):
             raise AppException(f'Action with name "{action.get("name")}" not found')
         hubspot_forms_action = HubspotFormsAction.objects(
@@ -6578,7 +6728,7 @@ class MongoProcessor:
 
     @staticmethod
     def get_attached_flows(
-        bot: Text, event_name: Text, event_type: Text, raise_error: bool = True
+            bot: Text, event_name: Text, event_type: Text, raise_error: bool = True
     ):
         stories_with_event = list(
             Stories.objects(
@@ -6725,18 +6875,18 @@ class MongoProcessor:
         email_action = list(
             EmailActionConfig.objects(
                 (
-                    (
-                        Q(
-                            smtp_userid__parameter_type=ActionParameterType.key_vault.value
+                        (
+                                Q(
+                                    smtp_userid__parameter_type=ActionParameterType.key_vault.value
+                                )
+                                & Q(smtp_userid__value=key)
                         )
-                        & Q(smtp_userid__value=key)
-                    )
-                    | (
-                        Q(
-                            smtp_password__parameter_type=ActionParameterType.key_vault.value
+                        | (
+                                Q(
+                                    smtp_password__parameter_type=ActionParameterType.key_vault.value
+                                )
+                                & Q(smtp_password__value=key)
                         )
-                        & Q(smtp_password__value=key)
-                    )
                 ),
                 bot=bot,
                 status=True,
@@ -6746,8 +6896,8 @@ class MongoProcessor:
         google_action = list(
             GoogleSearchAction.objects(
                 (
-                    Q(api_key__parameter_type=ActionParameterType.key_vault.value)
-                    & Q(api_key__value=key)
+                        Q(api_key__parameter_type=ActionParameterType.key_vault.value)
+                        & Q(api_key__value=key)
                 ),
                 bot=bot,
                 status=True,
@@ -6759,8 +6909,8 @@ class MongoProcessor:
             attached_action = list(
                 action_class.objects(
                     (
-                        Q(api_token__parameter_type=ActionParameterType.key_vault.value)
-                        & Q(api_token__value=key)
+                            Q(api_token__parameter_type=ActionParameterType.key_vault.value)
+                            & Q(api_token__value=key)
                     ),
                     bot=bot,
                     status=True,
@@ -6786,36 +6936,36 @@ class MongoProcessor:
         razorpay_actions = list(
             RazorpayAction.objects(
                 (
-                    (
-                        Q(api_key__parameter_type=ActionParameterType.key_vault.value)
-                        & Q(api_key__value=key)
-                    )
-                    | (
-                        Q(
-                            api_secret__parameter_type=ActionParameterType.key_vault.value
+                        (
+                                Q(api_key__parameter_type=ActionParameterType.key_vault.value)
+                                & Q(api_key__value=key)
                         )
-                        & Q(api_secret__value=key)
-                    )
-                    | (
-                        Q(amount__parameter_type=ActionParameterType.key_vault.value)
-                        & Q(amount__value=key)
-                    )
-                    | (
-                        Q(currency__parameter_type=ActionParameterType.key_vault.value)
-                        & Q(currency__value=key)
-                    )
-                    | (
-                        Q(username__parameter_type=ActionParameterType.key_vault.value)
-                        & Q(username__value=key)
-                    )
-                    | (
-                        Q(email__parameter_type=ActionParameterType.key_vault.value)
-                        & Q(email__value=key)
-                    )
-                    | (
-                        Q(contact__parameter_type=ActionParameterType.key_vault.value)
-                        & Q(contact__value=key)
-                    )
+                        | (
+                                Q(
+                                    api_secret__parameter_type=ActionParameterType.key_vault.value
+                                )
+                                & Q(api_secret__value=key)
+                        )
+                        | (
+                                Q(amount__parameter_type=ActionParameterType.key_vault.value)
+                                & Q(amount__value=key)
+                        )
+                        | (
+                                Q(currency__parameter_type=ActionParameterType.key_vault.value)
+                                & Q(currency__value=key)
+                        )
+                        | (
+                                Q(username__parameter_type=ActionParameterType.key_vault.value)
+                                & Q(username__value=key)
+                        )
+                        | (
+                                Q(email__parameter_type=ActionParameterType.key_vault.value)
+                                & Q(email__value=key)
+                        )
+                        | (
+                                Q(contact__parameter_type=ActionParameterType.key_vault.value)
+                                & Q(contact__value=key)
+                        )
                 ),
                 bot=bot,
                 status=True,
@@ -6823,12 +6973,12 @@ class MongoProcessor:
         )
 
         actions = (
-            http_action
-            + email_action
-            + google_action
-            + action_list
-            + hubspot_action
-            + razorpay_actions
+                http_action
+                + email_action
+                + google_action
+                + action_list
+                + hubspot_action
+                + razorpay_actions
         )
 
         if len(actions):
@@ -6890,11 +7040,11 @@ class MongoProcessor:
         :param name: action name
         """
         if not Utility.is_exist(
-            KaironTwoStageFallbackAction,
-            raise_error=False,
-            name=KAIRON_TWO_STAGE_FALLBACK,
-            bot=bot,
-            status=True,
+                KaironTwoStageFallbackAction,
+                raise_error=False,
+                name=KAIRON_TWO_STAGE_FALLBACK,
+                bot=bot,
+                status=True,
         ):
             raise AppException(
                 f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'
@@ -6919,10 +7069,10 @@ class MongoProcessor:
         action.save()
 
     def get_two_stage_fallback_action_config(
-        self,
-        bot: Text,
-        name: Text = KAIRON_TWO_STAGE_FALLBACK,
-        with_doc_id: bool = True,
+            self,
+            bot: Text,
+            name: Text = KAIRON_TWO_STAGE_FALLBACK,
+            with_doc_id: bool = True,
     ):
         """
         Retrieve 2 stage fallback config.
@@ -6932,7 +7082,7 @@ class MongoProcessor:
         :param with_doc_id: return document id along with action configuration if True
         """
         for action in KaironTwoStageFallbackAction.objects(
-            name=name, bot=bot, status=True
+                name=name, bot=bot, status=True
         ):
             action = action.to_mongo().to_dict()
             if with_doc_id:
@@ -6977,30 +7127,30 @@ class MongoProcessor:
         for prompt in llm_prompts:
             if prompt["source"] == "slot":
                 if not Utility.is_exist(
-                    Slots, raise_error=False, name=prompt["data"], bot=bot, status=True
+                        Slots, raise_error=False, name=prompt["data"], bot=bot, status=True
                 ):
                     raise AppException(f'Slot with name {prompt["data"]} not found!')
             if prompt["source"] == "action":
                 if not (
-                    Utility.is_exist(
-                        HttpActionConfig,
-                        raise_error=False,
-                        action_name=prompt["data"],
-                        bot=bot,
-                        status=True,
-                    )
-                    or Utility.is_exist(
-                        GoogleSearchAction,
-                        raise_error=False,
-                        name=prompt["data"],
-                        bot=bot,
-                        status=True,
-                    )
+                        Utility.is_exist(
+                            HttpActionConfig,
+                            raise_error=False,
+                            action_name=prompt["data"],
+                            bot=bot,
+                            status=True,
+                        )
+                        or Utility.is_exist(
+                    GoogleSearchAction,
+                    raise_error=False,
+                    name=prompt["data"],
+                    bot=bot,
+                    status=True,
+                )
                 ):
                     raise AppException(f'Action with name {prompt["data"]} not found!')
 
     def edit_prompt_action(
-        self, prompt_action_id: str, request_data: dict, bot: Text, user: Text
+            self, prompt_action_id: str, request_data: dict, bot: Text, user: Text
     ):
         """
         Edit prompt(Kairon FAQ) Action
@@ -7011,7 +7161,7 @@ class MongoProcessor:
         :param user: user
         """
         if not Utility.is_exist(
-            PromptAction, id=prompt_action_id, raise_error=False, bot=bot, status=True
+                PromptAction, id=prompt_action_id, raise_error=False, bot=bot, status=True
         ):
             raise AppException("Action not found")
         self.__validate_llm_prompts(request_data.get("llm_prompts", []), bot)
@@ -7094,13 +7244,15 @@ class MongoProcessor:
         if not to_date:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
-        data_filter = {"attributes__key": 'bot', "attributes__value": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
-        auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by('-timestamp').to_json()
+        data_filter = {"attributes__key": 'bot', "attributes__value": bot, "timestamp__gte": from_date,
+                       "timestamp__lte": to_date}
+        auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by(
+            '-timestamp').to_json()
         row_cnt = processor.get_row_count(AuditLogData, bot, **data_filter)
         return json.loads(auditlog_data), row_cnt
 
     def get_logs(
-        self, bot: Text, logtype: str, start_time: datetime, end_time: datetime
+            self, bot: Text, logtype: str, start_time: datetime, end_time: datetime
     ):
         """
         create zip file containing download data
@@ -7177,75 +7329,75 @@ class MongoProcessor:
                 bot=bot, status=True, template_type=TemplateType.QNA.value
             )
         for qna in query.aggregate(
-            {
-                "$addFields": {
-                    "story": "$block_name",
-                    "intent": {"$arrayElemAt": ["$events", 1]},
-                    "action": {"$arrayElemAt": ["$events", 2]},
-                }
-            },
-            {
-                "$project": {
-                    "_id": {"$toString": "$_id"},
-                    "story": 1,
-                    "intent": "$intent.name",
-                    "utterance": "$action.name",
-                }
-            },
-            {
-                "$lookup": {
-                    "from": "training_examples",
-                    "as": "training_examples",
-                    "let": {"intent_name": "$intent"},
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$and": [
-                                        {"$eq": ["$intent", "$$intent_name"]},
-                                        {"$eq": ["$status", True]},
-                                        {"$eq": ["$bot", bot]},
-                                    ]
+                {
+                    "$addFields": {
+                        "story": "$block_name",
+                        "intent": {"$arrayElemAt": ["$events", 1]},
+                        "action": {"$arrayElemAt": ["$events", 2]},
+                    }
+                },
+                {
+                    "$project": {
+                        "_id": {"$toString": "$_id"},
+                        "story": 1,
+                        "intent": "$intent.name",
+                        "utterance": "$action.name",
+                    }
+                },
+                {
+                    "$lookup": {
+                        "from": "training_examples",
+                        "as": "training_examples",
+                        "let": {"intent_name": "$intent"},
+                        "pipeline": [
+                            {
+                                "$match": {
+                                    "$expr": {
+                                        "$and": [
+                                            {"$eq": ["$intent", "$$intent_name"]},
+                                            {"$eq": ["$status", True]},
+                                            {"$eq": ["$bot", bot]},
+                                        ]
+                                    }
                                 }
-                            }
-                        },
-                        {
-                            "$project": {
-                                "_id": {"$toString": "$_id"},
-                                "text": 1,
-                                "entities": 1,
-                            }
-                        },
-                    ],
-                }
-            },
-            {
-                "$lookup": {
-                    "from": "responses",
-                    "as": "responses",
-                    "let": {"utterance_name": "$utterance"},
-                    "pipeline": [
-                        {
-                            "$match": {
-                                "$expr": {
-                                    "$and": [
-                                        {"$eq": ["$name", "$$utterance_name"]},
-                                        {"$eq": ["$status", True]},
-                                        {"$eq": ["$bot", bot]},
-                                    ]
+                            },
+                            {
+                                "$project": {
+                                    "_id": {"$toString": "$_id"},
+                                    "text": 1,
+                                    "entities": 1,
                                 }
-                            }
-                        },
-                        {
-                            "$project": {
-                                "_id": {"$toString": "$_id"},
-                                "text": 1,
-                                "custom": 1,
-                            }
-                        },
-                    ],
-                }
-            },
+                            },
+                        ],
+                    }
+                },
+                {
+                    "$lookup": {
+                        "from": "responses",
+                        "as": "responses",
+                        "let": {"utterance_name": "$utterance"},
+                        "pipeline": [
+                            {
+                                "$match": {
+                                    "$expr": {
+                                        "$and": [
+                                            {"$eq": ["$name", "$$utterance_name"]},
+                                            {"$eq": ["$status", True]},
+                                            {"$eq": ["$bot", bot]},
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "$project": {
+                                    "_id": {"$toString": "$_id"},
+                                    "text": 1,
+                                    "custom": 1,
+                                }
+                            },
+                        ],
+                    }
+                },
         ):
             training_examples = []
             for t_example in qna.get("training_examples") or []:
@@ -7280,8 +7432,8 @@ class MongoProcessor:
             intent = key_tokens.replace(" ", "_") + "_" + str(index)
             examples = row["questions"].split("\n")
             component_count["training_examples"] = component_count[
-                "training_examples"
-            ] + len(examples)
+                                                       "training_examples"
+                                                   ] + len(examples)
             action = f"utter_{intent}"
             steps = [
                 {"name": RULE_SNIPPET_ACTION_NAME, "type": StoryStepType.bot.value},
@@ -7427,11 +7579,11 @@ class MongoProcessor:
         :param name: action name
         """
         if not Utility.is_exist(
-            RazorpayAction,
-            raise_error=False,
-            name=request_data.get("name"),
-            bot=bot,
-            status=True,
+                RazorpayAction,
+                raise_error=False,
+                name=request_data.get("name"),
+                bot=bot,
+                status=True,
         ):
             raise AppException(
                 f'Action with name "{request_data.get("name")}" not found'
