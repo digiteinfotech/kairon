@@ -2051,7 +2051,7 @@ class TestAccountProcessor:
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 2
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     @pytest.mark.asyncio
@@ -2205,7 +2205,7 @@ class TestAccountProcessor:
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 2
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     def test_sso_login_client_linkedin(self):
