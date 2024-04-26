@@ -32,7 +32,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import UserActivityType
-from kairon.shared.data.constant import INTEGRATION_STATUS
+from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
@@ -55,6 +55,20 @@ loop.run_until_complete(
                 "password": "testChat@12",
                 "confirm_password": "testChat@12",
                 "account": "ChatTesting",
+            }
+        ).dict()
+    )
+)
+loop.run_until_complete(
+    AccountProcessor.account_setup(
+        RegisterAccount(
+            **{
+                "email": "test1@chat.com",
+                "first_name": "Test",
+                "last_name": "Chat",
+                "password": "testChat@12",
+                "confirm_password": "testChat@12",
+                "account": "ChatTesting1",
             }
         ).dict()
     )
@@ -3668,3 +3682,24 @@ def test_instagram_comment_with_parent_comment():
                                                   channel_type="instagram") > 0
 
 
+def test_chat_when_botownerchanged():
+    user1 = "test@chat.com"
+    user2 = "test1@chat.com"
+    access_token, _ = Authentication.generate_integration_token(
+        bot, "test@chat.com", name="integration_token_for_chat_service_botownerchanged"
+    )
+    AccountProcessor.allow_bot_and_generate_invite_url(bot, user2, user1, user['account'], ACCESS_ROLES.ADMIN)
+    AccountProcessor.transfer_ownership(user['account'], bot, user1, user2)
+    response = client.post(
+        f"/api/bot/{bot}/chat",
+        json={"data": "Hi"},
+        headers={"Authorization": token_type + " " + access_token, 'X-USER': "test"},
+        timeout=0,
+    )
+    actual = response.json()
+    owner = AccountProcessor.get_bot_owner(bot)
+    assert owner['accessor_email'] == user2
+    assert actual["success"]
+    assert not actual["error_code"]
+    assert actual["data"]
+    assert not actual["message"]

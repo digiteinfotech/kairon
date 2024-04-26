@@ -2992,7 +2992,7 @@ def test_vectordb_action_execution_payload_search_from_user_message():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 2
+    assert len(response_json['events']) == 1
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
@@ -3072,7 +3072,7 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 2
+    assert len(response_json['events']) == 1
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
@@ -3162,7 +3162,7 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 2
+    assert len(response_json['events']) == 1
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
@@ -3239,7 +3239,7 @@ def test_vectordb_action_execution_payload_search_from_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 2
+    assert len(response_json['events']) == 1
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
@@ -3387,7 +3387,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 2
+    assert len(response_json['events']) == 1
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[15]'},
@@ -3474,7 +3474,7 @@ def test_vectordb_action_execution_no_response_dispatch():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 2
+    assert len(response_json['events']) == 1
     assert len(response_json['responses']) == 0
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
