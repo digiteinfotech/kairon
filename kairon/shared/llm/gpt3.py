@@ -1,4 +1,6 @@
-from typing import Text, Dict, List
+import time
+
+from typing import Text, Dict, List, Tuple
 from urllib.parse import urljoin
 
 import openai
@@ -64,7 +66,8 @@ class GPT3FAQEmbedding(LLMBase):
                 count += 1
         return {"faq": count}
 
-    async def predict(self, query: Text, *args, **kwargs) -> Dict:
+    async def predict(self, query: Text, *args, **kwargs) -> Tuple:
+        start_time = time.time()
         embeddings_created = False
         try:
             query_embedding = await self.__get_embedding(query)
@@ -88,7 +91,9 @@ class GPT3FAQEmbedding(LLMBase):
             logging.exception(e)
             response = {"is_failure": True, "exception": str(e), "content": None}
 
-        return response
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        return response, elapsed_time
 
     def truncate_text(self, text: Text) -> Text:
         """
