@@ -10,7 +10,7 @@
     population: '100'
   - city: City 2
     population: '200'
-  - city: 'City 3 '
+  - city: City 3
     population: '300'
   metadata:
   - column_name: city

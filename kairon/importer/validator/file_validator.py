@@ -24,9 +24,11 @@ from kairon.shared.actions.data_objects import FormValidationAction, SlotSetActi
     ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction, PromptAction, RazorpayAction, \
     PyscriptActionConfig, DatabaseAction
 from kairon.shared.actions.models import ActionType, ActionParameterType, DbActionOperationType
+from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import MultiflowStories, BotSettings
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import StoryStepType
 from kairon.shared.utils import Utility, StoryValidator
@@ -1050,12 +1052,17 @@ class TrainingDataValidator(Validator):
             raise AppException("Invalid actions.yml. Check logs!")
 
     @staticmethod
-    def validate_content(bot: Text, bot_content: List):
+    def validate_content(bot: Text, user: Text, bot_content: List, save_data: bool = False,
+                 overwrite: bool = True):
 
         bot_content_errors=[]
 
-        doc = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
-        if not doc['llm_settings'].get('enable_faq'):
+        # doc = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
+        # if not doc['llm_settings'].get('enable_faq'):
+        #     bot_content_errors.append("Please enable GPT on bot before uploading")
+
+        settings = MongoProcessor.get_bot_settings(bot, user)
+        if not settings.to_mongo().to_dict()['llm_settings'].get('enable_faq'):
             bot_content_errors.append("Please enable GPT on bot before uploading")
 
         current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -1069,21 +1076,43 @@ class TrainingDataValidator(Validator):
             print(f"Validation failed: {e}")
             bot_content_errors.append(f"Validation failed: {e}")
 
+        if save_data and not overwrite:
+            for item in bot_content:
+                if item.get('type') == 'json':
+                    collection_name = item.get('collection')
+                    existing_schema = CognitionSchema.objects(bot=bot, collection_name=collection_name).first()
+                    if existing_schema:
+                        existing_metadata = existing_schema.metadata
+                        new_metadata = item.get('metadata')
+                        if len(existing_metadata) == len(new_metadata):
+                            for existing_meta, new_meta in zip(existing_metadata, new_metadata):
+                                if existing_meta.column_name != new_meta['column_name'] or \
+                                        existing_meta.create_embeddings != new_meta['create_embeddings'] or \
+                                        existing_meta.data_type != new_meta['data_type'] or \
+                                        existing_meta.enable_search != new_meta['enable_search']:
+                                    bot_content_errors.append("Fail")
+                                    break
+
+
+
+
         return bot_content_errors
 
-    def validate_bot_content(self, bot: Text, raise_exception: bool = True):
+    def validate_bot_content(self, bot: Text, user: Text, save_data: bool = True,
+                 overwrite: bool = True, raise_exception: bool = True):
         """
         Validates bot_content.yml.
         @param raise_exception: Set this flag to false to prevent raising exceptions.
         @return:
         """
         if self.bot_content:
-            errors = TrainingDataValidator.validate_content(bot, self.bot_content)
+            errors = TrainingDataValidator.validate_content(bot, user, self.bot_content, save_data, overwrite)
             self.summary['bot_content'] = errors
             if errors and raise_exception:
                 raise AppException("Invalid bot_content.yml. Check logs!")
 
-    def validate_training_data(self, bot: Text, raise_exception: bool = True):
+    def validate_training_data(self, raise_exception: bool = True, bot: Text = None, user: Text = None, save_data: bool = True,
+                 overwrite: bool = True):
         """
         Validate training data.
         @param raise_exception: Set this flag to false to prevent raising exceptions.
@@ -1096,7 +1125,7 @@ class TrainingDataValidator(Validator):
             self.validate_actions(raise_exception)
             self.validate_config(raise_exception)
             self.validate_multiflow(raise_exception)
-            self.validate_bot_content(bot, raise_exception)
+            self.validate_bot_content(bot, user, save_data, overwrite, raise_exception)
 
         except Exception as e:
             logger.error(str(e))

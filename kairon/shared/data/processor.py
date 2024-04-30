@@ -662,14 +662,17 @@ class MongoProcessor:
     def __save_cognition_schema(self, bot_content: list, bot: Text, user: Text):
         for data_item in bot_content:
             if data_item['collection'] != 'Default':
-                cognition_schema = CognitionSchema(
-                    metadata=[ColumnMetadata(**md) for md in data_item['metadata']],
-                    collection_name=data_item['collection'],
-                    user=user,
-                    bot=bot,
-                    timestamp=datetime.utcnow()
-                )
-                cognition_schema.save()
+                existing_schema = CognitionSchema.objects(bot=bot, collection_name=data_item['collection']).first()
+                if not existing_schema:
+                    cognition_schema = CognitionSchema(
+                        metadata=[ColumnMetadata(**md) for md in data_item['metadata']],
+                        collection_name=data_item['collection'],
+                        user=user,
+                        bot=bot,
+                        timestamp=datetime.utcnow()
+                    )
+                    cognition_schema.save()
+
 
     def __save_cognition_data(self, bot_content: list, bot: Text, user: Text):
         for data_item in bot_content:

@@ -67,7 +67,7 @@ class DataUtility:
                     path = os.path.join(data_path, file.filename)
                     Utility.write_to_file(path, await file.read())
                 elif file.filename in ALLOWED_CONFIG_FORMATS.union(ALLOWED_DOMAIN_FORMATS).union(
-                        ALLOWED_ACTIONS_FORMATS, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS):
+                        ALLOWED_ACTIONS_FORMATS, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS,ALLOWED_BOT_CONTENT_FORMATS):
                     path = os.path.join(bot_data_home_dir, file.filename)
                     Utility.write_to_file(path, await file.read())
 

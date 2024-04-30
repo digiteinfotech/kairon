@@ -71,6 +71,7 @@ class TestEventExecution:
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             http_actions_path = os.path.join(path, 'actions.yml')
             multiflow_stories_path = os.path.join(path, 'multiflow_stories.yml')
+            bot_content_path=os.path.join('bot_content.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -80,7 +81,7 @@ class TestEventExecution:
             nlu = importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
             multiflow_stories = Utility.read_yaml(multiflow_stories_path)
-            return nlu, story_graph, domain, config, http_actions, multiflow_stories
+            return nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content_path
 
         return _read_and_get_data
 

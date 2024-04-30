@@ -33,6 +33,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData
 from kairon.shared.constants import EventClass, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import (
@@ -105,9 +106,10 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
     from kairon.events.definitions.model_training import ModelTrainingEvent
     from kairon.events.definitions.model_testing import ModelTestingEvent
     from kairon.events.definitions.history_delete import DeleteHistoryEvent
-
+    
+    overwrite = kwargs.get('overwrite', True)
     if event_class == EventClass.data_importer:
-        TrainingDataImporterEvent(bot, user, import_data=True, overwrite=True).execute()
+        TrainingDataImporterEvent(bot, user, import_data=True, overwrite=overwrite).execute()
     elif event_class == EventClass.model_training:
         ModelTrainingEvent(bot, user).execute()
     elif event_class == EventClass.model_testing:
@@ -1116,6 +1118,420 @@ def test_list_bots():
     assert response["data"]["shared"] == []
 
 
+
+
+@responses.activate
+def test_upload_with_bot_content_only_validate_content_data():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert set(actual["data"]["logs"][0]["files_received"]) == {"bot_content"}
+    assert actual["data"]["logs"][0]["is_data_uploaded"]
+    assert actual["data"]["logs"][0]["start_timestamp"]
+    assert actual["data"]["logs"][0]["end_timestamp"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/cognition",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "data" in actual
+    assert "rows" in actual["data"]
+    assert len(actual["data"]["rows"]) == 3
+    assert all(row["content_type"] == "text" for row in actual["data"]["rows"])
+    assert actual["data"]["rows"][0]["data"] == "I am testing upload download bot content in Default Collection 3"
+    assert all(row["collection"] is None for row in actual["data"]["rows"])
+
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+@responses.activate
+def test_upload_with_bot_content_validate_payload_data():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("template/use-cases/Hi-Hello/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("template/use-cases/Hi-Hello/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("template/use-cases/Hi-Hello/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("template/use-cases/Hi-Hello/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/all/chat_client_config.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert actual["data"]["logs"][0]["is_data_uploaded"]
+    assert actual["data"]["logs"][0]["start_timestamp"]
+    assert actual["data"]["logs"][0]["end_timestamp"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/cognition",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        params={"collection": "test_payload_collection"}
+
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "data" in actual
+    assert "rows" in actual["data"]
+    assert len(actual["data"]["rows"]) == 3
+    assert all(row["content_type"] == "json" for row in actual["data"]["rows"])
+    assert actual["data"]["rows"][0]["data"]["city"] == "City 3"
+    assert actual["data"]["rows"][1]["data"]["population"] == "200"
+    assert all(row["collection"] == "test_payload_collection" for row in actual["data"]["rows"])
+
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+
+@responses.activate
+def test_upload_with_bot_content_event_append_validate_content_data():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("template/use-cases/Hi-Hello/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("template/use-cases/Hi-Hello/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("template/use-cases/Hi-Hello/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("template/use-cases/Hi-Hello/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/all/chat_client_config.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    # actual = response.json()
+    # assert actual["message"] == "Upload in progress! Check logs."
+    # assert actual["error_code"] == 0
+    # assert actual["data"] is None
+    # assert actual["success"]
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer,overwrite=False
+    )
+    #
+    # response = client.get(
+    #     f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+    #     headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    # )
+    # actual = response.json()
+    # assert actual["success"]
+    # assert actual["error_code"] == 0
+    # assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+    # assert actual["data"]["logs"][0]["is_data_uploaded"]
+    # assert actual["data"]["logs"][0]["start_timestamp"]
+    # assert actual["data"]["logs"][0]["end_timestamp"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/cognition",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        params={"collection": "test_content_collection"}
+    )
+
+    actual = response.json()
+    # print("RESPOSNE")
+    # print(actual)
+    # print("RESPONSE")
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "data" in actual
+    assert "rows" in actual["data"]
+    assert len(actual["data"]["rows"]) == 4
+    assert all(row["content_type"] == "text" for row in actual["data"]["rows"])
+    assert actual["data"]["rows"][2]["data"] == "I am testing upload download bot content in Content Collection 2"
+    assert all(row["collection"] == "test_content_collection" for row in actual["data"]["rows"])
+
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+
+@responses.activate
+def test_upload_with_bot_content_event_append_validate_payload_data():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("template/use-cases/Hi-Hello/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("template/use-cases/Hi-Hello/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("template/use-cases/Hi-Hello/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("template/use-cases/Hi-Hello/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/all/chat_client_config.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    # actual = response.json()
+    # assert actual["message"] == "Upload in progress! Check logs."
+    # assert actual["error_code"] == 0
+    # assert actual["data"] is None
+    # assert actual["success"]
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer, overwrite=False
+    )
+    #
+    # response = client.get(
+    #     f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+    #     headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    # )
+    # actual = response.json()
+    # assert actual["success"]
+    # assert actual["error_code"] == 0
+    # assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+    # assert actual["data"]["logs"][0]["is_data_uploaded"]
+    # assert actual["data"]["logs"][0]["start_timestamp"]
+    # assert actual["data"]["logs"][0]["end_timestamp"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/cognition",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        params={"collection": "test_payload_collection"}
+    )
+
+    actual = response.json()
+    print("RESPOSNE")
+    print(actual)
+    print("RESPONSE")
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "data" in actual
+    assert "rows" in actual["data"]
+    assert len(actual["data"]["rows"]) == 6
+    assert all(row["content_type"] == "json" for row in actual["data"]["rows"])
+    assert actual["data"]["rows"][4]["data"]["city"] == "City 2"
+    assert actual["data"]["rows"][1]["data"]["population"] == "200"
+    assert all(row["collection"] == "test_payload_collection" for row in actual["data"]["rows"])
+
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+
+
 def test_add_pyscript_action_empty_name():
     script = """
     data = [1, 2, 3, 4, 5]
@@ -1430,6 +1846,8 @@ def test_get_client_config_url_with_ip_info(monkeypatch):
     assert actual["data"]["logs"][0]["bot"] == pytest.bot
 
 
+
+
 def test_metadata_upload_api(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
@@ -1639,6 +2057,8 @@ def test_metadata_upload_column_name_empty():
         {'loc': ['body', 'metadata', 0, '__root__'], 'msg': 'Column name cannot be empty', 'type': 'value_error'}]
     assert not actual["data"]
     assert actual["error_code"] == 422
+
+
 
 
 def test_get_payload_metadata():
@@ -3827,7 +4247,7 @@ def test_upload_limit_exceeded(monkeypatch):
 @responses.activate
 def test_upload_using_event_failure(monkeypatch):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.data_importer_limit_per_day = 5
+    bot_settings.data_importer_limit_per_day = 15
     bot_settings.save()
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -3892,6 +4312,10 @@ def test_upload_using_event_failure(monkeypatch):
 
 @responses.activate
 def test_upload_using_event_append(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 15
+    bot_settings.save()
+
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
         f"/api/events/execute/{EventClass.data_importer}",
@@ -4253,71 +4677,6 @@ def test_upload_with_chat_client_config_only():
     actual['data'].pop('nudge_server_url')
     assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
 
-
-@responses.activate
-def test_upload_with_bot_content_only():
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.data_importer_limit_per_day = 10
-    bot_settings.llm_settings['enable_faq'] = True
-    bot_settings.save()
-
-    # bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    # print(bot_settings.to_mongo().to_dict())
-
-    event_url = urljoin(
-        Utility.environment["events"]["server_url"],
-        f"/api/events/execute/{EventClass.data_importer}",
-    )
-    responses.add(
-        "POST",
-        event_url,
-        json={"success": True, "message": "Event triggered successfully!"},
-    )
-
-    files = (
-        (
-            "training_files",
-            (
-                "bot_content.yml",
-                open("tests/testing_data/all/bot_content.yml", "rb"),
-            ),
-        ),
-    )
-    response = client.post(
-        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files=files,
-    )
-
-    actual = response.json()
-    assert actual["message"] == "Upload in progress! Check logs."
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["success"]
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
-    assert set(actual["data"]["logs"][0]["files_received"]) == {"bot_content"}
-    assert actual["data"]["logs"][0]["is_data_uploaded"]
-    assert actual["data"]["logs"][0]["start_timestamp"]
-    assert actual["data"]["logs"][0]["end_timestamp"]
-
-    # response = client.get(
-    #     f"/api/bot/{pytest.bot}/chat/client/config",
-    #     headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    # )
-    # actual = response.json()
-    # assert actual["success"]
-    # assert actual["error_code"] == 0
-    # actual['data'].pop('headers')
-    # actual['data'].pop('nudge_server_url')
-    # assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
 
 
 @responses.activate
@@ -9654,6 +10013,12 @@ def test_add_vectordb_action(monkeypatch):
                "message"] == 'Cannot remove collection test_add_vectordb_action linked to action "vectordb_action_test"!'
     assert actual_two["data"] is None
     assert actual_two["error_code"] == 422
+
+
+
+
+
+
 
 
 def test_add_vectordb_action_case_insensitivity():
