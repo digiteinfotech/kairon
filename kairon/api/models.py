@@ -472,19 +472,9 @@ class DatabaseActionRequest(BaseModel):
         return v
 
 class LiveAgentActionRequest(BaseModel):
-    channels: List[str] = []
     bot_response: str = "connecting to live agent"
     dispatch_bot_response: bool = True
 
-    @validator("channels")
-    def validate_channels(cls, v, values, **kwargs):
-
-        if len(v) <= 0:
-            raise ValueError("At least one channel is required")
-        for channel in v:
-            if channel not in ChannelTypes.__members__.values():
-                raise ValueError(f"Invalid channel: {channel}")
-        return v
 
 
 class TrainingData(BaseModel):

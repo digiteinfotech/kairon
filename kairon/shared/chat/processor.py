@@ -55,6 +55,9 @@ class ChatDataProcessor:
             filter_args["config__team__id"] = configuration['config']['team']['id']
         return filter_args
 
+    def __getattribute__(self, __name):
+        return super().__getattribute__(__name)
+
     @staticmethod
     def delete_channel_config(bot: Text, **kwargs):
         """

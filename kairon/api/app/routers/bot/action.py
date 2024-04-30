@@ -561,10 +561,44 @@ async def update_razorpay_action(
     return Response(message="Action updated!")
 
 
-@router.post("/live_agent")
+@router.get("/live_agent", response_model=Response)
+async def get_live_agent(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Returns configuration for live agent action.
+    """
+    config = mongo_processor.get_live_agent(current_user.get_bot())
+    return Response(data=config)
+
+
+@router.post("/live_agent", response_model=Response)
 async def enable_live_agent(
         request_data: LiveAgentActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    await mongo_processor.enable_live_agent(request_data.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message="Live Action updated!")
+    status = mongo_processor.enable_live_agent(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    msg = "Live Agent Action enabled!" if status else "Live Agent Action already enabled!"
+    return Response(message=msg)
+
+
+@router.put("/live_agent", response_model=Response)
+async def update_live_agent(
+        request_data: LiveAgentActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates the live agent action config.
+    """
+
+    mongo_processor.edit_live_agent(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message="Action updated!")
+
+
+@router.get("/live_agent/disable", response_model=Response)
+async def disable_live_agent(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    mongo_processor.disable_live_agent(current_user.get_bot())
+    return Response(message="Live Agent Action disabled!")
+

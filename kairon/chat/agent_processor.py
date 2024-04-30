@@ -5,6 +5,7 @@ from loguru import logger as logging
 from rasa.core.agent import Agent
 from rasa.core.channels import UserMessage
 from rasa.core.lock_store import LockStore
+from kairon.shared.otel import record_custom_attributes
 
 from kairon.shared.chat.cache.in_memory_agent import AgentCache
 from kairon.exceptions import AppException
@@ -33,8 +34,7 @@ class AgentProcessor:
         """
         if not AgentProcessor.cache_provider.is_exists(bot) or not AgentProcessor.is_latest_version_in_mem(bot):
             AgentProcessor.reload(bot)
-
-        Utility.record_custom_metric_apm(num_models=AgentProcessor.cache_provider.len())
+        record_custom_attributes(num_models=AgentProcessor.cache_provider.len())
         return AgentProcessor.cache_provider.get(bot)
 
     @staticmethod

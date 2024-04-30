@@ -11,40 +11,19 @@ logger = logging.getLogger(__name__)
 class LiveAgentHandler:
 
     @staticmethod
-    async def request_live_agent(bot_id, sender_id, channel):
+    async def request_live_agent(bot_id: str, sender_id: str, channel: str):
         url = f"{Utility.environment['live_agent']['url']}/conversation/request"
 
         data = {
             "bot_id": bot_id,
             "sender_id": sender_id,
-            "channel": channel
+            "channel": channel,
         }
         res, status, _ = await ActionUtility. execute_request_async(url, 'POST', data)
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
         return res.get('data')
 
-    @staticmethod
-    async def register_live_agent(bot_id, channels):
-
-        channel_configs = {}
-        for channel in channels:
-            config_dict = ChatDataProcessor.get_channel_config(channel, bot_id, mask_characters=False)
-            if config_dict:
-                channel_configs[channel] = config_dict['config']
-
-        logger.debug(f"channel_configs: {channel_configs}")
-
-        url = f"{Utility.environment['live_agent']['url']}/credentials"
-
-        data = {
-            "bot_id": bot_id,
-            "channels": channel_configs
-        }
-        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data)
-        if status != 200:
-            raise Exception(res.get('message', "Failed to process request"))
-        return res.get('data')
 
     @staticmethod
     async def close_conversation(identifier):
@@ -56,7 +35,6 @@ class LiveAgentHandler:
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
         return res.get('data')
-
 
     @staticmethod
     async def process_live_agent(bot_id, userdata: UserMessage):
@@ -87,4 +65,17 @@ class LiveAgentHandler:
         res, status, _ = await ActionUtility.execute_request_async(url, 'GET')
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
-        return res['data'][0]['status']
+        return res['data']['status']
+
+    @staticmethod
+    async def authenticate_agent(user, bot_id):
+        url = f"{Utility.environment['live_agent']['url']}/auth"
+        data = {
+            "bot_id": bot_id,
+            "user": user
+        }
+        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data)
+        logger.info(res)
+        if status != 200:
+            raise Exception(res.get('message', "Failed to process request"))
+        return res.get('data')

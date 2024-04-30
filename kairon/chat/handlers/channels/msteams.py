@@ -298,7 +298,7 @@ class MSTeamsHandler(InputChannel, ChannelHandlerBase):
         jwt_token = Utility.decrypt_message(secrettoken)
         return secrethash == token, jwt_token
 
-    async def validate(self) :
+    async def validate(self):
         return {"status": "ok"}
 
     async def handle_message(self):

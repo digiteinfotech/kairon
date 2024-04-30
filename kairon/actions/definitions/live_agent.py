@@ -72,10 +72,7 @@ class ActionLiveAgent(ActionsBase):
             action_config = self.retrieve_config()
             dispatch_bot_response = action_config.get('dispatch_bot_response', True)
             bot_response = action_config.get('bot_response')
-            channels = action_config.get('channels')
             channel = CONST_CHANNEL_NAME_MAP[tracker.get_latest_input_channel()]
-            if not channels or channel not in channels:
-                raise ActionFailure("Channel not supported")
             await LiveAgentHandler.request_live_agent(self.bot, tracker.sender_id, channel)
             self.__is_success = True
             self.__response = bot_response

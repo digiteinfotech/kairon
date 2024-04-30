@@ -158,6 +158,7 @@ from ..cognition.data_objects import CognitionSchema
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
+from ..live_agent.live_agent import LiveAgentHandler
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 
@@ -7489,3 +7490,59 @@ class MongoProcessor:
             action.pop("user")
 
             yield action
+
+    def get_live_agent(self, bot: Text):
+        try:
+            live_agent = LiveAgentActionConfig.objects(bot=bot, status=True).get()
+            live_agent = live_agent.to_mongo().to_dict()
+            live_agent.pop("_id")
+            live_agent.pop("bot")
+            live_agent.pop("user")
+            live_agent.pop("status")
+            live_agent.pop("timestamp")
+            return live_agent
+        except:
+            return []
+
+    def enable_live_agent(self, request_data: dict, bot: Text, user: Text):
+        action_name = "live_agent_action"
+        enabled = False
+        if not Utility.is_exist(
+            Actions,
+            name__iexact=action_name,
+            type=ActionType.live_agent_action.value,
+            bot=bot,
+            status=True,
+            raise_error=False
+        ):
+            self.add_action(
+                action_name,
+                bot,
+                user,
+                raise_exception=False,
+                action_type=ActionType.live_agent_action.value,
+            )
+            enabled = True
+        if not Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, user=user):
+            live_agent = LiveAgentActionConfig(**request_data, bot=bot, user=user, status=True)
+            live_agent.save()
+
+        return enabled
+
+    def edit_live_agent(self, request_data: dict, bot: Text, user: Text):
+        la = LiveAgentActionConfig.objects(bot=bot, user=user).update(
+            set__bot_response=request_data.get('bot_response'),
+            set__dispatch_bot_response=request_data.get('dispatch_bot_response')
+        )
+        if not la:
+            raise AppException("Live agent not enabled for the bot")
+
+
+
+
+    def disable_live_agent(self, bot: Text):
+        Utility.hard_delete_document([Actions], bot, name__iexact="live_agent_action")
+        Utility.hard_delete_document([LiveAgentActionConfig], bot=bot)
+
+    def is_live_agent_enabled(self, bot: Text):
+        return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)

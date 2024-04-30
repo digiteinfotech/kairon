@@ -888,8 +888,7 @@ class LiveAgentActionConfig(Auditlog):
 @auditlogger.log
 @push_notification.apply
 class LiveAgentActionConfig(Auditlog):
-    name = StringField(default='alive_agent_action')
-    channels = ListField(StringField(), required=True)
+    name = StringField(default='live_agent_action')
     bot_response = StringField(default='Connecting to live agent')
     dispatch_bot_response = BooleanField(default=True)
     bot = StringField(required=True)
@@ -909,6 +908,5 @@ class LiveAgentActionConfig(Auditlog):
             raise ValidationError("Action name cannot be empty or blank spaces")
         if self.name.startswith("utter_"):
             raise ValidationError("Action name cannot start with utter_")
-        if not self.channels:
-            raise ValidationError("Channels cannot be empty")
+
 
