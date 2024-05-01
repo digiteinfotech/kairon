@@ -471,10 +471,10 @@ class DatabaseActionRequest(BaseModel):
             raise ValueError("collection is required")
         return v
 
+
 class LiveAgentActionRequest(BaseModel):
     bot_response: str = "connecting to live agent"
     dispatch_bot_response: bool = True
-
 
 
 class TrainingData(BaseModel):

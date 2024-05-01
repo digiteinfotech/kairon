@@ -1114,6 +1114,147 @@ def test_list_bots():
     assert response["data"]["account_owned"][1]["_id"]
     assert response["data"]["shared"] == []
 
+def test_get_live_agent_with_no_live_agent():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/live_agent",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"] == []
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+
+
+def test_enable_live_agent():
+    request_body = {
+        "bot_response": "connecting to live agent",
+        "dispatch_bot_response": False,
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/live_agent",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Live Agent Action enabled!'
+    assert actual["success"]
+
+
+def test_get_live_agent_after_enabled():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/live_agent",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["data"] == {'name': 'live_agent_action',
+                              'bot_response': 'connecting to live agent',
+                              'dispatch_bot_response': False}
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+
+
+def test_enable_live_agent_already_exist():
+    request_body = {
+        "bot_response": "connecting to live agent",
+        "dispatch_bot_response": False,
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/live_agent",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Live Agent Action already enabled!'
+    assert actual["success"]
+
+
+def test_update_live_agent():
+    request_body = {
+        "bot_response": "connecting to different live agent...",
+        "dispatch_bot_response": True,
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/live_agent",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated!'
+    assert actual["success"]
+
+def test_get_live_agent_after_updated():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/live_agent",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["data"] == {'name': 'live_agent_action',
+                              'bot_response': 'connecting to different live agent...',
+                              'dispatch_bot_response': True}
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+
+
+def test_disable_live_agent():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/live_agent/disable",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Live Agent Action disabled!"
+    assert actual["success"]
+
+
+def test_update_live_agent_does_not_exist():
+    request_body = {
+        "bot_response": "connecting to different live agent...",
+        "dispatch_bot_response": True,
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/live_agent",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Live agent not enabled for the bot'
+    assert not actual["success"]
+
+
+def test_get_live_agent_after_disabled():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/live_agent",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"] == []
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+
 
 def test_add_pyscript_action_empty_name():
     script = """

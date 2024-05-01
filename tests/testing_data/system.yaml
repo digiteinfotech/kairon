@@ -97,6 +97,9 @@ data_generation:
 nudge:
   server_url: ${NUDGE_SERVER_URL:"http://nudgeserver"}
 
+live_agent:
+  url: ${LIVE_AGENT_SERVER_URL:"http://localhost:8000/api/v1"}
+
 apm:
   enable: ${ENABLE_APM:false}
   service_name: ${APM_APPLICATION_NAME:"Kairon"}

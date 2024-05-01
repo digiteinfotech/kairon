@@ -7530,15 +7530,12 @@ class MongoProcessor:
         return enabled
 
     def edit_live_agent(self, request_data: dict, bot: Text, user: Text):
-        la = LiveAgentActionConfig.objects(bot=bot, user=user).update(
+        live_agent = LiveAgentActionConfig.objects(bot=bot, user=user).update(
             set__bot_response=request_data.get('bot_response'),
             set__dispatch_bot_response=request_data.get('dispatch_bot_response')
         )
-        if not la:
+        if not live_agent:
             raise AppException("Live agent not enabled for the bot")
-
-
-
 
     def disable_live_agent(self, bot: Text):
         Utility.hard_delete_document([Actions], bot, name__iexact="live_agent_action")

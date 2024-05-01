@@ -8,6 +8,7 @@ from kairon.shared.chat.processor import ChatDataProcessor
 
 logger = logging.getLogger(__name__)
 
+
 class LiveAgentHandler:
 
     @staticmethod
@@ -19,7 +20,7 @@ class LiveAgentHandler:
             "sender_id": sender_id,
             "channel": channel,
         }
-        res, status, _ = await ActionUtility. execute_request_async(url, 'POST', data)
+        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data)
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
         return res.get('data')

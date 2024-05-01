@@ -18,7 +18,7 @@ from kairon.shared.constants import ChannelTypes
 
 CONST_CHANNEL_NAME_MAP = {
     'TelegramHandler': ChannelTypes.TELEGRAM.value,
-    'facebook' : ChannelTypes.MESSENGER.value,
+    'facebook': ChannelTypes.MESSENGER.value,
 }
 
 
@@ -100,7 +100,6 @@ class ActionLiveAgent(ActionsBase):
                 user_msg=tracker.latest_message.get('text')
             ).save()
         return filled_slots
-
 
     @property
     def is_success(self):
