@@ -87,12 +87,23 @@ loop.run_until_complete(
         ).dict()
     )
 )
+AccountProcessor.add_bot("Hi-Hello", AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")["account"], "test@chat.com")[
+    "_id"
+].__str__()
+
 
 token, _, _, _ = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
-bot = user["bots"]["account_owned"][0]["_id"]
-bot_account = user["bots"]["account_owned"][0]["account"]
+bot = AccountProcessor.add_bot("Hi-Hello", user["account"], "test@chat.com")[
+    "_id"
+].__str__()
+loop.run_until_complete(
+    MongoProcessor().save_from_path(
+        "./tests/testing_data/use-cases/Hi-Hello", bot, user="test@chat.com"
+    )
+)
+bot_account = user["account"]
 chat_client_config = (
     MongoProcessor().get_chat_client_config(bot, "test@chat.com").to_mongo().to_dict()
 )

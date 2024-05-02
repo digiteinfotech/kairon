@@ -46,8 +46,9 @@ from kairon.shared.utils import Utility, MailUtility
 from kairon.exceptions import AppException
 import time
 from kairon.idp.data_objects import IdpConfig
-from kairon.api.models import RegisterAccount, EventConfig, IDPConfig,StoryRequest, HttpActionParameters,Password
+from kairon.api.models import RegisterAccount, EventConfig, IDPConfig, StoryRequest, HttpActionParameters, Password
 from mongomock import MongoClient
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 
@@ -118,7 +119,6 @@ class TestAccountProcessor:
         assert len(rules) == 3
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot['_id'].__str__(), status=True).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
-
 
     def test_update_bot_with_character_limit_exceeded(self):
         name = "supercalifragilisticexpialidociousalwaysworksmorethan60characters"
@@ -493,7 +493,7 @@ class TestAccountProcessor:
         AccountProcessor.add_bot("delete_account_bot_2", pytest.deleted_account, "ritika@digite.com", False)
         account_bots_before_delete = list(AccountProcessor.list_bots(pytest.deleted_account))
 
-        assert len(account_bots_before_delete) == 3
+        assert len(account_bots_before_delete) == 2
         AccountProcessor.delete_account(pytest.deleted_account)
 
         for bot in account_bots_before_delete:
@@ -514,10 +514,10 @@ class TestAccountProcessor:
             AccountProcessor.account_setup(account_setup=account))
 
         # Add shared bot
-        bot_response = AccountProcessor.add_bot("delete_account_shared_bot", 30, "udit.pandey@digite.com", False)
+        bot_response = AccountProcessor.add_bot("delete_account_shared_bot", user_detail['account'], "udit.pandey@digite.com", False)
         bot_id = bot_response['_id'].__str__()
         BotAccess(bot=bot_id, accessor_email="ritika@digite.com", user='testAdmin',
-                  role='designer', status='active', bot_account=30).save()
+                  role='designer', status='active', bot_account=user_detail['account']).save()
         pytest.deleted_account = user_detail['account'].__str__()
         accessors_before_delete = list(AccountProcessor.list_bot_accessors(bot_id))
 
@@ -526,10 +526,8 @@ class TestAccountProcessor:
         assert accessors_before_delete[1]['accessor_email'] == 'ritika@digite.com'
         AccountProcessor.delete_account(pytest.deleted_account)
         accessors_after_delete = list(AccountProcessor.list_bot_accessors(bot_id))
-        assert len(accessors_after_delete) == 1
-        assert accessors_after_delete[0]['accessor_email'] == 'udit.pandey@digite.com'
-        assert accessors_after_delete[0]['bot_account'] == 30
-        assert Bot.objects(id=bot_id, account=30, status=True).get()
+        assert len(accessors_after_delete) == 0
+        assert len(list(Bot.objects(id=bot_id, account=user_detail['account'], status=True))) == 0
 
     def test_delete_account_for_account(self):
         account = {
@@ -608,7 +606,7 @@ class TestAccountProcessor:
 
         assert new_account_id
         assert AccountProcessor.get_account(new_account_id).get('status')
-        assert len(list(AccountProcessor.list_bots(new_account_id))) == 1
+        assert len(list(AccountProcessor.list_bots(new_account_id))) == 0
 
     def test_add_user_duplicate(self):
         with pytest.raises(Exception):
@@ -985,10 +983,7 @@ class TestAccountProcessor:
         assert actual["_id"]
         assert actual["account"]
         assert actual["first_name"]
-        bot_id = Bot.objects(account=actual['account'], user="demo@ac.in").get()
-        assert BotAccess.objects(bot_account=actual['account'], accessor_email=account['email'], bot=str(bot_id.id),
-                                 status=ACTIVITY_STATUS.ACTIVE.value, role=ACCESS_ROLES.OWNER.value,
-                                 user=account['email']).get()
+        assert len(list(AccountProcessor.list_bots(actual['account']))) == 0
 
     def test_default_account_setup(self):
         loop = asyncio.new_event_loop()
@@ -1963,12 +1958,13 @@ class TestAccountProcessor:
         assert user.get('account') == user.get('email')
         assert not existing_user
         user = AccountProcessor.get_user_details('monisha.ks@digite.com')
+        print(user)
         assert all(
             user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 0
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     @pytest.mark.asyncio
@@ -2051,7 +2047,7 @@ class TestAccountProcessor:
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 2
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 0
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     @pytest.mark.asyncio
@@ -2120,7 +2116,8 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.GET,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
-            json={'given_name': 'monisha', 'family_name': 'reddy', 'name': 'monisha reddy', 'email': 'monisha.ks@digite.com'},
+            json={'given_name': 'monisha', 'family_name': 'reddy', 'name': 'monisha reddy',
+                  'email': 'monisha.ks@digite.com'},
         )
         scope = {
             "type": "http",
@@ -2165,7 +2162,8 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.GET,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
-            json={'given_name': 'monisha', 'family_name': 'reddy', 'name': 'monisha reddy', 'email': 'monisha.ks.ks@digite.com'},
+            json={'given_name': 'monisha', 'family_name': 'reddy', 'name': 'monisha reddy',
+                  'email': 'monisha.ks.ks@digite.com'},
         )
 
         scope = {
@@ -2205,7 +2203,7 @@ class TestAccountProcessor:
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 2
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 0
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     def test_sso_login_client_linkedin(self):

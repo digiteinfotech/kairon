@@ -826,11 +826,13 @@ class Utility:
         output_path = f"models/{bot}"
         tempdir = tempfile.mkdtemp()
         try:
-            model_file = Utility.get_latest_file(
-                f"template/use-cases/{template_name}/models"
-            )
-            modified_model = Utility.__modify_bot_in_domain(bot, model_file, tempdir)
-            Utility.copy_file_to_dir(modified_model, output_path)
+            model_path = f"template/use-cases/{template_name}/models"
+            if os.path.exists(model_path):
+                model_file = Utility.get_latest_file(
+                    model_path
+                )
+                modified_model = Utility.__modify_bot_in_domain(bot, model_file, tempdir)
+                Utility.copy_file_to_dir(modified_model, output_path)
         finally:
             Utility.delete_directory(tempdir)
 
