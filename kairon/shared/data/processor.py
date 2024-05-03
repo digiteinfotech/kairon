@@ -5388,6 +5388,7 @@ class MongoProcessor:
             ACCESS_ROLES.TESTER.value,
             access_limit=["/api/bot/.+/chat/client/config$"],
             token_type=TOKEN_TYPE.DYNAMIC.value,
+            expiry=1440
         )
         url = urljoin(
             Utility.environment["model"]["agent"].get("url"),

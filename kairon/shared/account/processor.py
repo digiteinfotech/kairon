@@ -116,6 +116,7 @@ class AccountProcessor:
         :param account: account id
         :param user: user id
         :param template_name: template name
+        :param enable_llm: enable LLM
         :return: bot id
         """
         from kairon.shared.data.processor import MongoProcessor
@@ -130,15 +131,15 @@ class AccountProcessor:
             processor = MongoProcessor()
             await processor.apply_template(template_name, bot_id, user)
             Utility.copy_pretrained_model(bot_id, template_name)
-            processor.enable_llm_faq(bot_id, user)
-
-        if not Utility.check_empty_string(Utility.environment["llm"].get("key")):
-            Sysadmin.add_bot_secret(
-                bot_id,
-                user,
-                name=BotSecretType.gpt_key.value,
-                secret=Utility.environment["llm"]["key"],
-            )
+            if template_name.__contains__("GPT"):
+                processor.enable_llm_faq(bot_id, user)
+                if not Utility.check_empty_string(Utility.environment["llm"].get("key")):
+                    Sysadmin.add_bot_secret(
+                        bot_id,
+                        user,
+                        name=BotSecretType.gpt_key.value,
+                        secret=Utility.environment["llm"]["key"],
+                    )
         return bot_id
 
     @staticmethod
@@ -810,14 +811,12 @@ class AccountProcessor:
         from kairon.shared.data.processor import MongoProcessor
 
         account = None
-        bot = None
         mail_to = None
         email_enabled = Utility.email_conf["email"]["enable"]
         link = None
         user = account_setup.get("email")
         try:
             account = AccountProcessor.add_account(account_setup.get("account"), user)
-            bot = AccountProcessor.add_bot("Hi-Hello", account["_id"], user, True)
             user_details = AccountProcessor.add_user(
                 email=account_setup.get("email"),
                 first_name=account_setup.get("first_name"),
@@ -825,17 +824,6 @@ class AccountProcessor:
                 password=account_setup.get("password").get_secret_value(),
                 account=account["_id"].__str__(),
                 user=user,
-            )
-            AccountProcessor.__allow_access_to_bot(
-                bot["_id"].__str__(),
-                account_setup.get("email"),
-                account_setup.get("email"),
-                account["_id"],
-                ACCESS_ROLES.OWNER.value,
-                ACTIVITY_STATUS.ACTIVE.value,
-            )
-            await MongoProcessor().save_from_path(
-                "template/use-cases/Hi-Hello", bot["_id"].__str__(), user="sysadmin"
             )
             if email_enabled:
                 token = Utility.generate_token(account_setup.get("email"))
@@ -845,8 +833,6 @@ class AccountProcessor:
         except Exception as e:
             if account and "_id" in account:
                 Account.objects().get(id=account["_id"]).delete()
-            if bot and "_id" in bot:
-                Bot.objects().get(id=bot["_id"]).delete()
             raise e
 
         return user_details, mail_to, link

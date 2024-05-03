@@ -54,8 +54,7 @@ class Authentication:
             Authentication.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:
                 raise credentials_exception
-            token_data = TokenData(username=username)
-            user = AccountProcessor.get_user_details(token_data.username)
+            user = AccountProcessor.get_user_details(username)
             if user is None:
                 raise credentials_exception
             user_model = User(**user)

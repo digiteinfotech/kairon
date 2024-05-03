@@ -497,54 +497,54 @@ def test_account_registation_invalid_email():
             }
         ]
 
-    @responses.activate
-    def test_account_registation_invalid_email():
-        email = "test@temporay.com"
-        api_key = "test"
-        with patch.dict(
-                Utility.environment,
-                {
-                    "verify": {
-                        "email": {"type": "quickemail", "key": api_key, "enable": True}
-                    }
-                },
-        ):
-            responses.add(
-                responses.GET,
-                "http://api.quickemailverification.com/v1/verify?"
-                + urlencode({"apikey": api_key, "email": email}),
-                json={
-                    "result": "valid",
-                    "reason": "rejected_email",
-                    "disposable": "false",
-                    "accept_all": "false",
-                    "role": "false",
-                    "free": "false",
-                    "email": email,
-                    "user": "test",
-                    "domain": "quickemailverification.com",
-                    "mx_record": "us2.mx1.mailhostbox.com",
-                    "mx_domain": "mailhostbox.com",
-                    "safe_to_send": "false",
-                    "did_you_mean": "",
-                    "success": "true",
-                    "message": None,
-                },
-            )
-            response = client.post(
-                "/api/account/registration",
-                json={
-                    "email": email,
-                    "first_name": "Email",
-                    "last_name": "Validation",
-                    "password": "Welcome@1",
-                    "confirm_password": "Welcome@1",
-                    "account": "email_validation",
-                    "bot": "email_validation",
-                },
-            )
-            actual = response.json()
-            assert actual["message"] == "Account Registered!"
+@responses.activate
+def test_account_registation_invalid_email_quick_email_valid():
+    email = "test@temporay.com"
+    api_key = "test"
+    with patch.dict(
+            Utility.environment,
+            {
+                "verify": {
+                    "email": {"type": "quickemail", "key": api_key, "enable": True}
+                }
+            },
+    ):
+        responses.add(
+            responses.GET,
+            "http://api.quickemailverification.com/v1/verify?"
+            + urlencode({"apikey": api_key, "email": email}),
+            json={
+                "result": "valid",
+                "reason": "rejected_email",
+                "disposable": "false",
+                "accept_all": "false",
+                "role": "false",
+                "free": "false",
+                "email": email,
+                "user": "test",
+                "domain": "quickemailverification.com",
+                "mx_record": "us2.mx1.mailhostbox.com",
+                "mx_domain": "mailhostbox.com",
+                "safe_to_send": "false",
+                "did_you_mean": "",
+                "success": "true",
+                "message": None,
+            },
+        )
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "email": email,
+                "first_name": "Email",
+                "last_name": "Validation",
+                "password": "Welcome@12",
+                "confirm_password": "Welcome@12",
+                "account": "email_validation",
+                "bot": "email_validation",
+            },
+        )
+        actual = response.json()
+        assert actual["message"] == "Account Registered!"
 
 
 def test_account_registration(monkeypatch):
@@ -723,7 +723,7 @@ def test_api_login_with_recaptcha_failed(monkeypatch):
     }
 
 
-def test_api_login():
+def test_api_login(monkeypatch):
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -740,6 +740,15 @@ def test_api_login():
     assert actual["error_code"] == 0
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
+
+    response = client.post(
+        "/api/account/bot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token, 'Content-Type': 'application/json'},
+        json={"name": "Hi-Hello", "from_template": "Hi-Hello"},
+    ).json()
+    assert response['message'] == "Bot created"
+    assert response['data']['bot_id']
+
     pytest.username = email
     response = client.get(
         "/api/user/details",
@@ -8406,6 +8415,15 @@ def test_account_registration_with_confirmation(monkeypatch):
     actual = response.json()
     pytest.add_member_token = actual["data"]["access_token"]
     pytest.add_member_token_type = actual["data"]["token_type"]
+
+    response = client.post(
+        "/api/account/bot",
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token, 'Content-Type': 'application/json'},
+        json={"name": "Hi-Hello", "from_template": "Hi-Hello"},
+    ).json()
+    assert response['message'] == "Bot created"
+    assert response['data']['bot_id']
+
     response = client.get(
         "/api/account/bot",
         headers={
@@ -22879,6 +22897,16 @@ def test_get_responses_post_passwd_reset(monkeypatch):
     login_actual = login_response.json()
     pytest.access_token = login_actual["data"]["access_token"]
     pytest.token_type = login_actual["data"]["token_type"]
+
+    response = client.post(
+        "/api/account/bot",
+        json={"name": "covid-bot"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response["data"]['bot_id']
+    assert response['message'] == "Bot created"
+
     bot_response = client.get(
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
