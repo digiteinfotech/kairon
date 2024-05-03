@@ -19,6 +19,8 @@ from kairon.shared.constants import ChannelTypes
 CONST_CHANNEL_NAME_MAP = {
     'TelegramHandler': ChannelTypes.TELEGRAM.value,
     'facebook': ChannelTypes.MESSENGER.value,
+    'instagram': ChannelTypes.INSTAGRAM.value,
+    'whatsapp': ChannelTypes.WHATSAPP.value,
 }
 
 
@@ -94,7 +96,7 @@ class ActionLiveAgent(ActionsBase):
                 sender=tracker.sender_id,
                 bot_response=str(bot_response) if bot_response else None,
                 messages=msg_logger,
-                exception=exception,
+                exception=str(exception) if exception else None,
                 bot=self.bot,
                 status=status,
                 user_msg=tracker.latest_message.get('text')

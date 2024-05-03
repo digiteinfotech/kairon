@@ -56,7 +56,7 @@ def test_index():
 
 
 def test_live_agent_action_execution(aioresponses):
-    action_name = "test_live_agent_action_execution"
+    action_name = "live_agent_action"
     Actions(name=action_name, type=ActionType.live_agent_action.value,
             bot="5f50fd0a56b698ca10d35d2z", user="user").save()
     LiveAgentActionConfig(

@@ -1440,6 +1440,11 @@ class MongoProcessor:
             StoryStepType.web_search_action.value: dict(
                 WebSearchAction.objects(bot=bot, status=True).values_list("name", "id")
             ),
+            StoryStepType.two_stage_fallback_action.value: dict(
+                LiveAgentActionConfig.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
+            ),
         }
         return component_dict
 

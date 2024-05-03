@@ -14,13 +14,18 @@ class LiveAgentHandler:
     @staticmethod
     async def request_live_agent(bot_id: str, sender_id: str, channel: str):
         url = f"{Utility.environment['live_agent']['url']}/conversation/request"
+        auth_token = Utility.environment['live_agent']['auth_token']
 
         data = {
             "bot_id": bot_id,
             "sender_id": sender_id,
             "channel": channel,
         }
-        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data)
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f"Bearer {auth_token}"
+        }
+        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
         return res.get('data')
@@ -43,8 +48,10 @@ class LiveAgentHandler:
         if text is None or text.strip() == "":
             return False
         url = f"{Utility.environment['live_agent']['url']}/conversation/chat"
+        auth_token = Utility.environment['live_agent']['auth_token']
         headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': f"Bearer {auth_token}"
         }
         data = {
             "bot_id": bot_id,
@@ -62,8 +69,12 @@ class LiveAgentHandler:
         channel = userdata.output_channel.name()
         sender_id = userdata.sender_id
         url = f"{Utility.environment['live_agent']['url']}/conversation/status/{bot_id}/{channel}/{sender_id}"
-
-        res, status, _ = await ActionUtility.execute_request_async(url, 'GET')
+        auth_token = Utility.environment['live_agent']['auth_token']
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f"Bearer {auth_token}"
+        }
+        res, status, _ = await ActionUtility.execute_request_async(url, 'GET', None, headers)
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
         return res['data']['status']
@@ -75,7 +86,12 @@ class LiveAgentHandler:
             "bot_id": bot_id,
             "user": user
         }
-        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data)
+        auth_token = Utility.environment['live_agent']['auth_token']
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f"Bearer {auth_token}"
+        }
+        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
         logger.info(res)
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
