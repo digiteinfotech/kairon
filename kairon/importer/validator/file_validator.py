@@ -1053,13 +1053,9 @@ class TrainingDataValidator(Validator):
 
     @staticmethod
     def validate_content(bot: Text, user: Text, bot_content: List, save_data: bool = False,
-                 overwrite: bool = True):
+                         overwrite: bool = True):
 
-        bot_content_errors=[]
-
-        # doc = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
-        # if not doc['llm_settings'].get('enable_faq'):
-        #     bot_content_errors.append("Please enable GPT on bot before uploading")
+        bot_content_errors = []
 
         settings = MongoProcessor.get_bot_settings(bot, user)
         if not settings.to_mongo().to_dict()['llm_settings'].get('enable_faq'):
@@ -1067,14 +1063,13 @@ class TrainingDataValidator(Validator):
 
         current_dir = os.path.dirname(os.path.realpath(__file__))
         bot_content_schema_file_path = os.path.join(current_dir, "bot_content_schema.yaml")
-        print(bot_content)
-        c = Core(source_data=bot_content, schema_files=[bot_content_schema_file_path])
+        schema_validator = Core(source_data=bot_content, schema_files=[bot_content_schema_file_path])
         try:
-            c.validate(raise_exception=True)
+            schema_validator.validate(raise_exception=True)
             print("Validation successful!")
         except Exception as e:
             print(f"Validation failed: {e}")
-            bot_content_errors.append(f"Validation failed: {e}")
+            bot_content_errors.append(f"Invalid bot_content.yml. Content does not match required schema: {e}")
 
         if save_data and not overwrite:
             for item in bot_content:
@@ -1083,27 +1078,29 @@ class TrainingDataValidator(Validator):
                     existing_schema = CognitionSchema.objects(bot=bot, collection_name=collection_name).first()
                     if existing_schema:
                         existing_metadata = existing_schema.metadata
-                        new_metadata = item.get('metadata')
-                        if len(existing_metadata) == len(new_metadata):
-                            for existing_meta, new_meta in zip(existing_metadata, new_metadata):
-                                if existing_meta.column_name != new_meta['column_name'] or \
-                                        existing_meta.create_embeddings != new_meta['create_embeddings'] or \
-                                        existing_meta.data_type != new_meta['data_type'] or \
-                                        existing_meta.enable_search != new_meta['enable_search']:
-                                    bot_content_errors.append("Fail")
+                        uploaded_metadata = item.get('metadata')
+                        if len(existing_metadata) == len(uploaded_metadata):
+                            for existing_meta, uploaded_meta in zip(existing_metadata, uploaded_metadata):
+                                if existing_meta.column_name != uploaded_meta['column_name'] or \
+                                        existing_meta.create_embeddings != uploaded_meta['create_embeddings'] or \
+                                        existing_meta.data_type != uploaded_meta['data_type'] or \
+                                        existing_meta.enable_search != uploaded_meta['enable_search']:
+                                    bot_content_errors.append("Invalid bot_content.yml. Collection with same name and "
+                                                              "different metadata cannot be uploaded")
                                     break
-
-
-
 
         return bot_content_errors
 
     def validate_bot_content(self, bot: Text, user: Text, save_data: bool = True,
-                 overwrite: bool = True, raise_exception: bool = True):
+                             overwrite: bool = True, raise_exception: bool = True):
         """
         Validates bot_content.yml.
-        @param raise_exception: Set this flag to false to prevent raising exceptions.
-        @return:
+        :param bot: bot id
+        :param user: user id
+        :param save_data: flag to save data
+        :param overwrite: flag to overwrite data
+        :param raise_exception: Set this flag to false to prevent raising exceptions.
+        :return:
         """
         if self.bot_content:
             errors = TrainingDataValidator.validate_content(bot, user, self.bot_content, save_data, overwrite)
@@ -1111,12 +1108,17 @@ class TrainingDataValidator(Validator):
             if errors and raise_exception:
                 raise AppException("Invalid bot_content.yml. Check logs!")
 
-    def validate_training_data(self, raise_exception: bool = True, bot: Text = None, user: Text = None, save_data: bool = True,
-                 overwrite: bool = True):
+    def validate_training_data(self, raise_exception: bool = True, bot: Text = None, user: Text = None,
+                               save_data: bool = True,
+                               overwrite: bool = True):
         """
         Validate training data.
-        @param raise_exception: Set this flag to false to prevent raising exceptions.
-        @return:
+        :param raise_exception: Set this flag to false to prevent raising exceptions.
+        :param bot: bot id
+        :param user: user id
+        :param save_data: flag to save data
+        :param overwrite: flag to overwrite data
+        :return:
         """
         try:
             self.verify_story_structure(raise_exception)

@@ -276,7 +276,7 @@ class MongoProcessor:
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             actions_yml = os.path.join(path, "actions.yml")
             multiflow_stories_yml = os.path.join(path, "multiflow_stories.yml")
-            bot_content_yml = os.path.join(path,"bot_content.yml")
+            bot_content_yml = os.path.join(path, "bot_content.yml")
             importer = RasaFileImporter.load_from_config(
                 config_path=config_path,
                 domain_path=domain_path,
@@ -416,7 +416,6 @@ class MongoProcessor:
             else:
                 type_value = "json"
 
-            # Initialize the dictionary for the collection
             collection_data = {
                 "collection": collection_name,
                 "type": type_value,
@@ -424,14 +423,12 @@ class MongoProcessor:
                 "data": []
             }
 
-            # Query CognitionData for the collection
             data_results = CognitionData.objects(bot=bot, collection=collection_name).only("content_type", "data")
             for data_result in data_results:
                 collection_data["data"].append(data_result.data)
 
             formatted_result.append(collection_data)
 
-        # Handle documents in CognitionData without a collection field
         data_results_no_collection = CognitionData.objects(bot=bot, collection=None).only("content_type", "data")
         default_collection_data = {
             "collection": "Default",
@@ -482,8 +479,7 @@ class MongoProcessor:
         if "multiflow_stories" in what:
             self.delete_multiflow_stories(bot, user)
         if "bot_content" in what:
-            self.delete_bot_content(bot,user)
-
+            self.delete_bot_content(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -644,7 +640,7 @@ class MongoProcessor:
         :return: None
         """
         Utility.hard_delete_document([CognitionSchema], bot=bot)
-        Utility.hard_delete_document([CognitionData],bot=bot)
+        Utility.hard_delete_document([CognitionData], bot=bot)
 
     def save_multiflow_stories(self, multiflow_stories: dict, bot: Text, user: Text):
         """
@@ -673,13 +669,11 @@ class MongoProcessor:
                     )
                     cognition_schema.save()
 
-
     def __save_cognition_data(self, bot_content: list, bot: Text, user: Text):
         for data_item in bot_content:
 
             collection_name = data_item['collection']
             if collection_name == 'Default':
-                # Remove the 'collection' field for the 'Default' collection
                 collection_name = None
 
             if data_item['type'] == 'text':

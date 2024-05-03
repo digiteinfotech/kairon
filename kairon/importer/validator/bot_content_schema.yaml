@@ -6,7 +6,6 @@ sequence:
         required: true
         type: str
       data:
-        required: true
         type: any
       metadata:
         required: true
