@@ -35,7 +35,7 @@ class IntegrationProcessor:
             iat = datetime.fromtimestamp(iat, tz=timezone.utc)
         if not Utility.is_exist(
                 Integration, raise_error=False,
-                name=name, bot=bot, user=user, iat=iat, role=role, status=INTEGRATION_STATUS.ACTIVE.value
+                name=name, bot=bot, iat=iat, role=role, status=INTEGRATION_STATUS.ACTIVE.value
         ):
             raise AppException("Could not validate credentials")
 

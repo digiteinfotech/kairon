@@ -2,7 +2,6 @@ import ast
 import asyncio
 import hashlib
 import html
-import ujson as json
 import os
 import re
 import shutil
@@ -27,11 +26,12 @@ import bson
 import pandas as pd
 import pytz
 import requests
+import ujson as json
 import yaml
 from botocore.exceptions import ClientError
 from bson import InvalidDocument
 from dateutil import tz
-from fastapi import File, UploadFile
+from fastapi import File, UploadFile, Request
 from jwt import encode, decode, PyJWTError
 from loguru import logger
 from mongoengine.document import BaseDocument, Document
@@ -62,8 +62,8 @@ from smart_config import ConfigLoader
 from starlette import status
 from starlette.exceptions import HTTPException
 from urllib3.util import parse_url
-from validators.utils import ValidationError as ValidationFailure
 from validators import email as mail_check
+from validators.utils import ValidationError as ValidationFailure
 from websockets import connect
 
 from .actions.models import ActionParameterType
@@ -150,6 +150,16 @@ class Utility:
             return True
         else:
             return False
+
+    @staticmethod
+    def check_character_limit(value: str):
+        """
+        checks for character limit
+
+        :param value: string value
+        :return: boolean
+        """
+        return len(value) <= 60
 
     @staticmethod
     def retrieve_search_payload_and_embedding_payload(data: Any, metadata: Dict):
@@ -698,12 +708,39 @@ class Utility:
         return date_time.timestamp()
 
     @staticmethod
+    def get_back_date_1month(request: Request):
+        key = "from_date"
+        if not request.query_params.get(key):
+            return date.today() - timedelta(30)
+        else:
+            return date.fromisoformat(request.query_params.get(key))
+
+    @staticmethod
+    def get_back_date_6month(request: Request) -> date:
+        key = "from_date"
+        if not request.query_params.get(key):
+            return date.today() - timedelta(180)
+        else:
+            return date.fromisoformat(request.query_params.get(key))
+
+    @staticmethod
+    def get_to_date(request: Request):
+        key = "to_date"
+        if not request.query_params.get(key):
+            return date.today()
+        else:
+            return date.fromisoformat(request.query_params.get(key))
+
+    @staticmethod
     def validate_from_date_and_to_date(from_date: date, to_date: date):
         six_months_back_date = (datetime.utcnow() - timedelta(6 * 30)).date()
         today_date = datetime.utcnow().date()
         if six_months_back_date > from_date or from_date > today_date:
+            logger.info(f"from_date: {from_date}, to_date: {to_date}, six_month_back_date: {six_months_back_date}, today_date: {today_date}")
             raise AppException("from_date should be within six months and today date")
         elif six_months_back_date > to_date or to_date > today_date:
+            logger.info(
+                f"from_date: {from_date}, to_date: {to_date}, six_month_back_date: {six_months_back_date}, today_date: {today_date}")
             raise AppException("to_date should be within six months and today date")
         elif from_date >= to_date:
             raise AppException("from_date must be less than to_date")
@@ -789,11 +826,13 @@ class Utility:
         output_path = f"models/{bot}"
         tempdir = tempfile.mkdtemp()
         try:
-            model_file = Utility.get_latest_file(
-                f"template/use-cases/{template_name}/models"
-            )
-            modified_model = Utility.__modify_bot_in_domain(bot, model_file, tempdir)
-            Utility.copy_file_to_dir(modified_model, output_path)
+            model_path = f"template/use-cases/{template_name}/models"
+            if os.path.exists(model_path):
+                model_file = Utility.get_latest_file(
+                    model_path
+                )
+                modified_model = Utility.__modify_bot_in_domain(bot, model_file, tempdir)
+                Utility.copy_file_to_dir(modified_model, output_path)
         finally:
             Utility.delete_directory(tempdir)
 
@@ -2407,6 +2446,10 @@ class MailUtility:
             "add_trusted_device": MailUtility.__handle_add_trusted_device,
             "book_a_demo": MailUtility.__handle_book_a_demo,
         }
+        base_url = kwargs.get("base_url")
+        if not base_url:
+            base_url = Utility.environment["app"]["frontend_url"]
+
         if not mail_actions_dict.get(mail_type):
             logger.debug("Skipping sending mail as no template found for the mail type")
             return
@@ -2417,6 +2460,9 @@ class MailUtility:
         body = body.replace("USER_EMAIL", email)
         if url:
             body = body.replace("VERIFICATION_LINK", url)
+
+        if base_url:
+            body = body.replace("BASE_URL", base_url)
         await MailUtility.validate_and_send_mail(email, subject, body)
 
     @staticmethod

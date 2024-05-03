@@ -1,8 +1,8 @@
-from datetime import datetime, date, timedelta
+from datetime import date
 from io import BytesIO
 from typing import Text
 
-from fastapi import APIRouter, Security
+from fastapi import APIRouter, Security, Depends
 from fastapi import Query
 from starlette.responses import StreamingResponse
 
@@ -22,8 +22,8 @@ router = APIRouter()
 
 @router.get("/users", response_model=Response)
 async def chat_history_users(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -39,8 +39,8 @@ async def chat_history_users(
 @router.get("/users/{sender:path}", response_model=Response)
 async def chat_history(
         sender: Text,
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -55,8 +55,8 @@ async def chat_history(
 
 @router.get("/metrics/users", response_model=Response)
 async def user_with_metrics(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -71,8 +71,8 @@ async def user_with_metrics(
 
 @router.get("/metrics/fallback", response_model=Response)
 async def visitor_hit_fallback(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -89,8 +89,8 @@ async def visitor_hit_fallback(
 
 @router.get("/metrics/conversation/steps", response_model=Response)
 async def conversation_steps(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -105,8 +105,8 @@ async def conversation_steps(
 
 @router.get("/metrics/conversation/time", response_model=Response)
 async def conversation_time(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -121,8 +121,8 @@ async def conversation_time(
 
 @router.get("/metrics/user/engaged", response_model=Response)
 async def count_engaged_users(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         conversation_step_threshold: int = Query(default=10, ge=2),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -140,8 +140,8 @@ async def count_engaged_users(
 
 @router.get("/metrics/user/new", response_model=Response)
 async def count_new_users(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -156,8 +156,8 @@ async def count_new_users(
 
 @router.get("/metrics/conversation/success", response_model=Response)
 async def complete_conversations(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -174,8 +174,8 @@ async def complete_conversations(
 
 @router.get("/metrics/user/retention", response_model=Response)
 async def calculate_retention(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -190,8 +190,8 @@ async def calculate_retention(
 
 @router.get("/metrics/trend/user/engaged", response_model=Response)
 async def engaged_users_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_6month),
+        to_date: date = Depends(Utility.get_to_date),
         conversation_step_threshold: int = Query(default=10, ge=2),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -209,8 +209,8 @@ async def engaged_users_trend(
 
 @router.get("/metrics/trend/user/new", response_model=Response)
 async def new_users_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_6month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -225,8 +225,8 @@ async def new_users_trend(
 
 @router.get("/metrics/trend/conversation/success", response_model=Response)
 async def complete_conversation_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_6month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -243,8 +243,8 @@ async def complete_conversation_trend(
 
 @router.get("/metrics/trend/user/retention", response_model=Response)
 async def retention_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_6month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -259,8 +259,8 @@ async def retention_trend(
 
 @router.get("/metrics/trend/user/fallback", response_model=Response)
 async def fallback_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_6month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -277,8 +277,8 @@ async def fallback_trend(
 
 @router.get("/conversations", response_model=Response)
 async def flat_conversations(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -293,8 +293,8 @@ async def flat_conversations(
 
 @router.get("/conversations/download")
 async def download_conversations(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
 ):
     """
@@ -311,8 +311,8 @@ async def download_conversations(
 
 @router.get("/metrics/intents/topmost", response_model=Response)
 async def top_n_intents(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         top_n: int = Query(default=10, ge=1),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
@@ -328,8 +328,8 @@ async def top_n_intents(
 
 @router.get("/metrics/actions/topmost", response_model=Response)
 async def top_n_actions(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         top_n: int = Query(default=10, ge=1),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
@@ -345,8 +345,8 @@ async def top_n_actions(
 
 @router.get("/metrics/trend/conversations/total", response_model=Response)
 async def total_conversation_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_6month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the counts of conversations of the bot for previous months
@@ -360,8 +360,8 @@ async def total_conversation_trend(
 
 @router.get("/metrics/trend/conversations/steps", response_model=Response)
 async def conversation_step_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_6month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -376,8 +376,8 @@ async def conversation_step_trend(
 
 @router.get("/conversations/wordcloud")
 async def word_cloud(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         l_bound: float = Query(default=0, ge=0, lt=1),
         u_bound: float = Query(default=1, gt=0, le=1),
         stopword_list: list = Query(default=None),
@@ -396,8 +396,8 @@ async def word_cloud(
 
 @router.get("/conversations/input/unique")
 async def user_input_unique(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
@@ -410,8 +410,8 @@ async def user_input_unique(
 
 @router.get("/metrics/trend/conversations/time", response_model=Response)
 async def conversation_time_trend(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the average conversation time of the bot for previous months
@@ -425,8 +425,8 @@ async def conversation_time_trend(
 
 @router.get("/metrics/user/fallback/dropoff", response_model=Response)
 async def fallback_dropoff(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -443,8 +443,8 @@ async def fallback_dropoff(
 
 @router.get("/metrics/user/intent/dropoff", response_model=Response)
 async def user_intent_dropoff(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the identified intents and their counts for users before dropping off from the conversations.
@@ -458,8 +458,8 @@ async def user_intent_dropoff(
 
 @router.get("/metrics/user/sessions/unsuccessful", response_model=Response)
 async def unsuccessful_session_count(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the count of sessions that encountered a fallback for a particular user.
@@ -475,8 +475,8 @@ async def unsuccessful_session_count(
 
 @router.get("/metrics/user/sessions/total", response_model=Response)
 async def total_sessions(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the total session count for users for the past months.
@@ -491,7 +491,7 @@ async def total_sessions(
 @router.delete("/delete/{sender}", response_model=Response)
 async def delete_user_chat_history(
         sender: Text,
-        till_date: date = Query(default=datetime.utcnow().date()),
+        till_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
@@ -507,7 +507,7 @@ async def delete_user_chat_history(
 
 @router.delete("/bot/delete", response_model=Response)
 async def delete_bot_conversations_history(
-        till_date: date = Query(default=datetime.utcnow().date()),
+        till_date: date = Depends(Utility.get_to_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """

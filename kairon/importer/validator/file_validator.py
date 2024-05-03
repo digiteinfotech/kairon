@@ -742,10 +742,10 @@ class TrainingDataValidator(Validator):
                 for key, value in hyperparameters.items():
                     if key == 'similarity_threshold':
                         if not (0.3 <= value <= 1.0) or not (
-                                isinstance(key, float) or isinstance(key, int)):
+                                isinstance(value, float) or isinstance(value, int)):
                             error_list.append(
                                 f"similarity_threshold should be within 0.3 and 1.0 and of type int or float!")
-                    if key == 'top_results' and (value > 30 or not isinstance(key, int)):
+                    if key == 'top_results' and (value > 30 or not isinstance(value, int)):
                         error_list.append("top_results should not be greater than 30 and of type int!")
 
             if prompt.get('type') == 'system':
@@ -776,7 +776,7 @@ class TrainingDataValidator(Validator):
                 error_list.append('data field in prompts should of type string.')
             if not prompt.get('data') and prompt.get('source') == 'static':
                 error_list.append('data is required for static prompts')
-            if Utility.check_empty_string(prompt.get('collection')) and prompt.get('source') == 'bot_content':
+            if prompt.get('source') == 'bot_content' and Utility.check_empty_string(prompt.get('data')):
                 error_list.append("Collection is required for bot content prompts!")
             if system_prompt_count > 1:
                 error_list.append('Only one system prompt can be present')

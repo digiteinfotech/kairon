@@ -32,7 +32,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import UserActivityType
-from kairon.shared.data.constant import INTEGRATION_STATUS
+from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
@@ -63,6 +63,20 @@ loop.run_until_complete(
     AccountProcessor.account_setup(
         RegisterAccount(
             **{
+                "email": "test1@chat.com",
+                "first_name": "Test",
+                "last_name": "Chat",
+                "password": "testChat@12",
+                "confirm_password": "testChat@12",
+                "account": "ChatTesting1",
+            }
+        ).dict()
+    )
+)
+loop.run_until_complete(
+    AccountProcessor.account_setup(
+        RegisterAccount(
+            **{
                 "email": "resetpaswrd@chat.com",
                 "first_name": "Reset",
                 "last_name": "Password",
@@ -73,12 +87,23 @@ loop.run_until_complete(
         ).dict()
     )
 )
+AccountProcessor.add_bot("Hi-Hello", AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")["account"], "test@chat.com")[
+    "_id"
+].__str__()
+
 
 token, _, _, _ = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
-bot = user["bots"]["account_owned"][0]["_id"]
-bot_account = user["bots"]["account_owned"][0]["account"]
+bot = AccountProcessor.add_bot("Hi-Hello", user["account"], "test@chat.com")[
+    "_id"
+].__str__()
+loop.run_until_complete(
+    MongoProcessor().save_from_path(
+        "./tests/testing_data/use-cases/Hi-Hello", bot, user="test@chat.com"
+    )
+)
+bot_account = user["account"]
 chat_client_config = (
     MongoProcessor().get_chat_client_config(bot, "test@chat.com").to_mongo().to_dict()
 )
@@ -683,6 +708,29 @@ def test_business_messages_with_valid_data(
         )
         actual = response.json()
         assert actual == {"status": "OK"}
+
+
+def test_messenger_with_quick_reply():
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+        with patch.object(KaironAgent, "handle_message") as mock_agent:
+            mock_agent.side_effect = mock_agent_response
+            response = client.post(
+                f"/api/bot/messenger/{bot}/{token}",
+                headers={"Authorization": "Bearer Test"},
+                json={'object': 'page', 'entry': [{'id': '193566777888505', 'time': 1709550920950, 'messaging': [
+                    {'sender': {'id': '715782344534303980'},
+                     'recipient': {'id': '19357777855505'},
+                     'timestamp': 174739433964,
+                     'message': {
+                        'mid': 'm_l5_0QHbTfskfIL-rZjh_PJsdksjdlkj6VRBodfud98dXFD3-XljmN-sRqfXnAGA99uu42alStBFiOjujUog',
+                        'text': '+919876543210',
+                        'quick_reply': {'payload': '+919876543210'}}}]}]}
+            )
+            actual = response.json()
+            assert actual == "success"
 
 
 def test_chat():
@@ -3645,3 +3693,24 @@ def test_instagram_comment_with_parent_comment():
                                                   channel_type="instagram") > 0
 
 
+def test_chat_when_botownerchanged():
+    user1 = "test@chat.com"
+    user2 = "test1@chat.com"
+    access_token, _ = Authentication.generate_integration_token(
+        bot, "test@chat.com", name="integration_token_for_chat_service_botownerchanged"
+    )
+    AccountProcessor.allow_bot_and_generate_invite_url(bot, user2, user1, user['account'], ACCESS_ROLES.ADMIN)
+    AccountProcessor.transfer_ownership(user['account'], bot, user1, user2)
+    response = client.post(
+        f"/api/bot/{bot}/chat",
+        json={"data": "Hi"},
+        headers={"Authorization": token_type + " " + access_token, 'X-USER': "test"},
+        timeout=0,
+    )
+    actual = response.json()
+    owner = AccountProcessor.get_bot_owner(bot)
+    assert owner['accessor_email'] == user2
+    assert actual["success"]
+    assert not actual["error_code"]
+    assert actual["data"]
+    assert not actual["message"]

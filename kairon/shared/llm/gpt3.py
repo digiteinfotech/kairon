@@ -1,5 +1,6 @@
-import ujson as json
-from typing import Text, Dict, List
+import time
+
+from typing import Text, Dict, List, Tuple
 from urllib.parse import urljoin
 
 import openai
@@ -65,7 +66,8 @@ class GPT3FAQEmbedding(LLMBase):
                 count += 1
         return {"faq": count}
 
-    async def predict(self, query: Text, *args, **kwargs) -> Dict:
+    async def predict(self, query: Text, *args, **kwargs) -> Tuple:
+        start_time = time.time()
         embeddings_created = False
         try:
             query_embedding = await self.__get_embedding(query)
@@ -89,7 +91,9 @@ class GPT3FAQEmbedding(LLMBase):
             logging.exception(e)
             response = {"is_failure": True, "exception": str(e), "content": None}
 
-        return response
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        return response, elapsed_time
 
     def truncate_text(self, text: Text) -> Text:
         """
@@ -210,8 +214,10 @@ class GPT3FAQEmbedding(LLMBase):
             score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
             extracted_values = []
             if use_similarity_prompt:
-                collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}" if similarity_context_prompt.get(
-                    'collection') else f"{self.bot}{self.suffix}"
+                if similarity_context_prompt.get('collection') == 'default':
+                    collection_name = f"{self.bot}{self.suffix}"
+                else:
+                    collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}"
                 search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
                                                                  score_threshold=score_threshold)
 
@@ -224,7 +230,7 @@ class GPT3FAQEmbedding(LLMBase):
                         extracted_values.append(extracted_payload)
                     else:
                         extracted_values.append(entry['payload']['content'])
-            if similarity_prompt_instructions:
-                similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
-                context_prompt = f"{context_prompt}\n{similarity_context}"
+                if extracted_values:
+                    similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
+                    context_prompt = f"{context_prompt}\n{similarity_context}"
         return context_prompt

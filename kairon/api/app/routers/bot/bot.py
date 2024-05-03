@@ -1417,18 +1417,19 @@ async def add_slot_mapping(request: SlotMappingRequest,
     """
     Adds slot mapping.
     """
-    mongo_processor.add_or_update_slot_mapping(request.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Slot mapping added')
+    mapping_id = mongo_processor.add_slot_mapping(request.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Slot mapping added', data={"id": mapping_id})
 
 
-@router.put("/slots/mapping", response_model=Response)
+@router.put("/slots/mapping/{mapping_id}", response_model=Response)
 async def update_slot_mapping(request: SlotMappingRequest,
+                              mapping_id: str = Path(description="Slot Mapping id"),
                               current_user: User = Security(Authentication.get_current_user_and_bot,
                                                             scopes=DESIGNER_ACCESS)):
     """
     Updates slot mapping.
     """
-    mongo_processor.add_or_update_slot_mapping(request.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.update_slot_mapping(request.dict(), mapping_id)
     return Response(message='Slot mapping updated')
 
 
@@ -1441,7 +1442,18 @@ async def get_slot_mapping(
     Retrieves slot mapping.
     If form name is given as `form` query parameter, then slot mappings for that particular form will be retrieved.
     """
-    return Response(data=list(mongo_processor.get_slot_mappings(current_user.get_bot(), form)))
+    return Response(data=list(mongo_processor.get_slot_mappings(current_user.get_bot(), form, True)))
+
+
+@router.delete("/slots/mapping_id/{mapping_id}", response_model=Response)
+async def delete_slot_mapping(mapping_id: str = Path(description="Slot Mapping id"),
+                              current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                            scopes=DESIGNER_ACCESS)):
+    """
+    Deletes a slot mapping.
+    """
+    mongo_processor.delete_single_slot_mapping(mapping_id)
+    return Response(message='Slot mapping deleted')
 
 
 @router.delete("/slots/mapping/{name}", response_model=Response)

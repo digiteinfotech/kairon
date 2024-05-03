@@ -292,11 +292,6 @@ class DataUtility:
         return response_type, data
 
     @staticmethod
-    def get_rasa_core_policies():
-        from rasa.core.policies import registry
-        return list(Utility.get_imports(registry.__file__))
-
-    @staticmethod
     def trigger_data_generation_event(bot: str, user: str, token: str):
         try:
             event_url = Utility.environment['data_generation']['event_url']

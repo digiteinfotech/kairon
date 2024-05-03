@@ -1,9 +1,10 @@
-from datetime import datetime, date, timedelta
+from datetime import date
 
 from fastapi import APIRouter, Query
-from kairon.api.models import Response
 from fastapi import Depends
 
+from kairon.api.models import Response
+from kairon.shared.utils import Utility
 from ..processor import HistoryProcessor
 from ...shared.auth import Authentication
 
@@ -12,8 +13,8 @@ router = APIRouter()
 
 @router.get("/users", response_model=Response)
 async def user_with_metrics(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the list of user who has conversation with the agent with steps and time."""
@@ -25,8 +26,8 @@ async def user_with_metrics(
 
 @router.get("/fallback", response_model=Response)
 async def visitor_hit_fallback_count(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         fallback_intent: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
@@ -39,8 +40,8 @@ async def visitor_hit_fallback_count(
 
 @router.get("/conversation/steps", response_model=Response)
 async def conversation_steps(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the number of conversation steps that took place in the chat between the users and the agent."""
@@ -50,8 +51,8 @@ async def conversation_steps(
 
 @router.get("/users/engaged", response_model=Response)
 async def count_engaged_users(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         conversation_step_threshold: int = Query(default=10, ge=2),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
@@ -64,8 +65,8 @@ async def count_engaged_users(
 
 @router.get("/users/new", response_model=Response)
 async def count_new_users(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the number of new users of the bot."""
@@ -77,8 +78,8 @@ async def count_new_users(
 
 @router.get("/conversation/success", response_model=Response)
 async def complete_conversations(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         fallback_intent: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
@@ -91,8 +92,8 @@ async def complete_conversations(
 
 @router.get("/users/retention", response_model=Response)
 async def calculate_retention(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the user retention percentage of the bot."""
@@ -104,8 +105,8 @@ async def calculate_retention(
 
 @router.get("/intents/topmost", response_model=Response)
 async def top_intents(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         top_n: int = Query(default=10, ge=1),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
@@ -118,8 +119,8 @@ async def top_intents(
 
 @router.get("/actions/topmost", response_model=Response)
 async def top_actions(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         top_n: int = Query(default=10, ge=1),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
@@ -132,8 +133,8 @@ async def top_actions(
 
 @router.get("/users/input", response_model=Response)
 async def user_input_count(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the user inputs along with their frequencies."""
@@ -145,8 +146,8 @@ async def user_input_count(
 
 @router.get("/fallback/dropoff", response_model=Response)
 async def fallback_dropoff(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         fallback_intent: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
@@ -159,8 +160,8 @@ async def fallback_dropoff(
 
 @router.get("/intents/dropoff", response_model=Response)
 async def intents_dropoff(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the identified intents and their counts for users before dropping off from the conversations."""
@@ -172,8 +173,8 @@ async def intents_dropoff(
 
 @router.get("/sessions/unsuccessful", response_model=Response)
 async def unsuccessful_sessions(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         fallback_intent: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
@@ -186,8 +187,8 @@ async def unsuccessful_sessions(
 
 @router.get("/sessions/total", response_model=Response)
 async def total_sessions(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the total session count for users for the past months."""

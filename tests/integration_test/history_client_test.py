@@ -382,7 +382,7 @@ def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_
 
 @responses.activate
 def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -851,7 +851,7 @@ def test_user_retention_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -876,7 +876,7 @@ def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -900,7 +900,7 @@ def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -925,7 +925,7 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
 
 @responses.activate
 def test_user_retention_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -974,7 +974,7 @@ def test_engaged_users_with_value_with_kairon_client(mock_auth, mock_mongo_proce
 
 @responses.activate
 def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -999,7 +999,7 @@ def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_
 
 @responses.activate
 def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -1148,7 +1148,7 @@ def test_download_conversation_with_error_with_kairon_client(mock_auth_admin, mo
 
 @responses.activate
 def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -1222,7 +1222,7 @@ def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,

@@ -422,9 +422,6 @@ class PayloadConfig(BaseModel):
         if Utility.check_empty_string(values.get("type")):
             raise ValueError("type is required")
 
-        if not values.get("value") or values.get("value") is None:
-            raise ValueError("value is required")
-
         return values
 
 
@@ -737,7 +734,7 @@ class SlotMapping(BaseModel):
 
 class SlotMappingRequest(BaseModel):
     slot: constr(to_lower=True, strip_whitespace=True)
-    mapping: List[SlotMapping]
+    mapping: SlotMapping
 
     class Config:
         use_enum_values = True
@@ -1000,6 +997,15 @@ class LlmPromptRequest(BaseModel):
     type: LlmPromptType
     source: LlmPromptSource
     is_enabled: bool = True
+
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        if (values.get('source') == LlmPromptSource.bot_content.value and
+                Utility.check_empty_string(values.get('data'))):
+            values['data'] = "default"
+        return values
 
 
 class UserQuestionModel(BaseModel):

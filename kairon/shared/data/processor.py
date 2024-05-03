@@ -1080,11 +1080,12 @@ class MongoProcessor:
             slot_mapping = items["mappings"]
             if slot_mapping and slot_name in slots_name_list:
                 if slot_name not in existing_slot_mappings:
-                    mapping_to_save.append(
-                        SlotMapping(
-                            slot=slot_name, mapping=slot_mapping, bot=bot, user=user
+                    for mapping in slot_mapping:
+                        mapping_to_save.append(
+                            SlotMapping(
+                                slot=slot_name, mapping=mapping, bot=bot, user=user
+                            )
                         )
-                    )
         if mapping_to_save:
             SlotMapping.objects.insert(mapping_to_save)
 
@@ -3985,6 +3986,9 @@ class MongoProcessor:
         :param bot: bot id
         :return: VectorDb configuration id for updated VectorDb action config
         """
+        bot_settings = MongoProcessor.get_bot_settings(bot=bot, user=user)
+        if not bot_settings['llm_settings']["enable_faq"]:
+            raise AppException("Faq feature is disabled for the bot! Please contact support.")
 
         if not Utility.is_exist(
                 DatabaseAction,
@@ -4024,6 +4028,9 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
+        bot_settings = MongoProcessor.get_bot_settings(bot=bot, user=user)
+        if not bot_settings['llm_settings']["enable_faq"]:
+            raise AppException("Faq feature is disabled for the bot! Please contact support.")
         self.__validate_payload(vector_db_action_config.get("payload"), bot)
         Utility.is_valid_action_name(
             vector_db_action_config.get("name"), bot, DatabaseAction
@@ -5534,6 +5541,7 @@ class MongoProcessor:
             ACCESS_ROLES.TESTER.value,
             access_limit=["/api/bot/.+/chat/client/config$"],
             token_type=TOKEN_TYPE.DYNAMIC.value,
+            expiry=1440
         )
         url = urljoin(
             Utility.environment["model"]["agent"].get("url"),
@@ -5955,6 +5963,16 @@ class MongoProcessor:
             )
 
     def __validate_slots_attached_to_form(self, required_slots: set, bot: Text):
+        any_slots = set(
+            Slots.objects(bot=bot, type="any", status=True, name__in=required_slots).values_list(
+                "name"
+            )
+        )
+        if any_slots:
+            raise AppException(
+                f"form will not accept any type slots: {any_slots}"
+            )
+
         existing_slots = set(
             Slots.objects(bot=bot, status=True, name__in=required_slots).values_list(
                 "name"
@@ -6146,9 +6164,79 @@ class MongoProcessor:
         except DoesNotExist:
             slot_mapping = SlotMapping(slot=mapping["slot"], bot=bot)
         slot_mapping.mapping = mapping["mapping"]
+        if mapping["mapping"].get("conditions"):
+            slot_mapping.form_name = mapping["mapping"]["condition"][0]["active_loop"]
         slot_mapping.user = user
         slot_mapping.timestamp = datetime.utcnow()
         return slot_mapping.save().id.__str__()
+
+    def add_slot_mapping(self, mapping: dict, bot: Text, user: Text):
+        """
+        Add slot mapping.
+
+        :param mapping: slot mapping request
+        :param bot: bot id
+        :param user: user id
+        :return: document id of the mapping
+        """
+        if not Utility.is_exist(
+            Slots, raise_error=False, name=mapping["slot"], bot=bot, status=True
+        ):
+            raise AppException(f'Slot with name "{mapping["slot"]}" not found')
+        form_name = None
+        if mapping["mapping"].get("conditions"):
+            form_name = mapping["mapping"]["conditions"][0]["active_loop"]
+
+        slot_mapping = SlotMapping.objects(
+            slot=mapping["slot"], bot=bot, user=user, status=True, mapping=mapping["mapping"]
+        ).first()
+        if slot_mapping:
+            raise AppException(f'Slot mapping already exists for slot: {mapping["slot"]}')
+
+        slot_mapping = SlotMapping(
+            slot=mapping["slot"],
+            mapping=mapping["mapping"],
+            bot=bot,
+            user=user,
+            form_name= form_name,
+        )
+
+        return slot_mapping.save().id.__str__()
+
+    def update_slot_mapping(self, mapping: dict, slot_mapping_id: str):
+        """
+        Update slot mapping.
+
+        :param mapping: slot mapping request
+        :param slot_mapping_id: document id of the mapping
+        """
+        try:
+            slot_mapping = SlotMapping.objects(id=slot_mapping_id, status=True).get()
+            slot_mapping.mapping = mapping["mapping"]
+            if mapping["mapping"].get("conditions"):
+                slot_mapping.form_name = mapping["mapping"]["conditions"][0]["active_loop"]
+            slot_mapping.timestamp = datetime.utcnow()
+            slot_mapping.save()
+        except Exception as e:
+            raise AppException(e)
+
+
+
+    def delete_single_slot_mapping(self, slot_mapping_id: str):
+        """
+        Delete slot mapping.
+
+        :param slot_mapping_id: document id of the mapping
+        """
+        try:
+            slot_mapping = SlotMapping.objects(id=slot_mapping_id, status=True).get()
+            slot_mapping.delete()
+        except Exception as e:
+            raise AppException(e)
+
+
+
+
 
     def __prepare_slot_mappings(self, bot: Text):
         """
@@ -6161,7 +6249,7 @@ class MongoProcessor:
         for mapping in mappings:
             yield {mapping["slot"]: mapping["mapping"]}
 
-    def get_slot_mappings(self, bot: Text, form: Text = None):
+    def get_slot_mappings(self, bot: Text, form: Text = None, include_id = False):
         """
         Fetches existing slot mappings.
 
@@ -6169,20 +6257,19 @@ class MongoProcessor:
         :param form: retrieve slot mappings for a particular form
         :return: list of slot mappings
         """
-        query = Q(bot=bot, status=True)
-        if Utility.check_empty_string(form):
-            mappings = SlotMapping.objects(query)
-        else:
-            query &= Q(mapping__conditions__exists=True) & Q(mapping__conditions__elemMatch={"active_loop": form})
-            mappings = SlotMapping.objects(query)
-        for slot_mapping in mappings:
-            slot_mapping = slot_mapping.to_mongo().to_dict()
-            slot_mapping.pop("bot")
-            slot_mapping.pop("user")
-            slot_mapping.pop("_id")
-            slot_mapping.pop("timestamp")
-            slot_mapping.pop("status")
-            yield slot_mapping
+        filter = {"bot": bot, "status": True}
+        if form:
+            filter["form_name"] = form
+        pipeline = [{"$match": filter}]
+        if include_id:
+            pipeline.append({"$addFields": {"mapping._id": {"$toString": "$_id"}}})
+
+        pipeline.extend([
+            {"$group": {"_id": "$slot", "mapping": {"$push": "$mapping"}}},
+            {"$project": {"_id": 0, "slot": "$_id", "mapping": "$mapping"}}
+        ])
+
+        return SlotMapping.objects.aggregate(pipeline)
 
     def delete_slot_mapping(self, name: Text, bot: Text, user: Text):
         """
@@ -6194,7 +6281,6 @@ class MongoProcessor:
         :return: document id of the mapping
         """
         try:
-            slot_mapping = SlotMapping.objects(slot=name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(
                 bot=bot, status=True, required_slots__contains=name
             )
@@ -6202,10 +6288,25 @@ class MongoProcessor:
                 raise AppException(
                     f'Slot mapping is required for form: {[form["name"] for form in forms_with_slot]}'
                 )
-            slot_mapping.user = user
-            slot_mapping.delete()
+            slot_mappings = SlotMapping.objects(slot=name, bot=bot, status=True)
+            if len(slot_mappings) == 0:
+                raise DoesNotExist
+            slot_mappings.delete()
         except DoesNotExist:
             raise AppException(f"No slot mapping exists for slot: {name}")
+
+    def delete_singular_slot_mapping(self, slot_mapping_id: Text):
+        """
+        Delete slot mapping.
+
+        :param slot_mapping_id: document id of the mapping
+        :return: None
+        """
+        try:
+            slot_mapping = SlotMapping.objects(id=slot_mapping_id, status=True).get()
+            slot_mapping.delete()
+        except DoesNotExist:
+            raise AppException("No slot mapping exists")
 
     def add_slot_set_action(self, action: dict, bot: Text, user: Text):
         set_slots = []

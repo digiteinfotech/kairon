@@ -36,11 +36,15 @@ class ActionDatabase(ActionsBase):
         :return: DatabaseAction containing configuration for the action as dict.
         """
         try:
+            bot_settings = ActionUtility.get_bot_settings(bot=self.bot)
+            if not bot_settings['llm_settings']["enable_faq"]:
+                raise ActionFailure("Faq feature is disabled for the bot! Please contact support.")
             vector_action_dict = DatabaseAction.objects(bot=self.bot, name=self.name,
                                                         status=True).get().to_mongo().to_dict()
             vector_action_dict.pop('_id', None)
+            logger.debug("bot_settings: " + str(bot_settings))
             logger.debug("vector_action_config: " + str(vector_action_dict))
-            return vector_action_dict
+            return vector_action_dict, bot_settings
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("No Vector action found for given action and bot")
@@ -67,23 +71,24 @@ class ActionDatabase(ActionsBase):
         request_body = None
 
         try:
-            vector_action_config = self.retrieve_config()
+            vector_action_config, bot_settings = self.retrieve_config()
             dispatch_bot_response = vector_action_config['response']['dispatch']
             failure_response = vector_action_config['failure_response']
             collection_name = f"{self.bot}_{vector_action_config['collection']}{self.suffix}"
             db_type = vector_action_config['db_type']
-            vector_db = VectorEmbeddingsDbFactory.get_instance(db_type)(collection_name)
+            vector_db = VectorEmbeddingsDbFactory.get_instance(db_type)(self.bot, collection_name,
+                                                                        bot_settings["llm_settings"])
             operation_type = vector_action_config['query_type']
             payload = vector_action_config['payload']
             request_body = ActionUtility.get_payload(payload, tracker)
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)
-            response = vector_db.perform_operation(operation_type, request_body)
+            response = await vector_db.perform_operation(operation_type, request_body)
             logger.info("response: " + str(response))
             response_context = self.__add_user_context_to_http_response(response, tracker_data)
-            bot_response, bot_resp_log = ActionUtility.compose_response(vector_action_config['response'], response_context)
+            bot_response, bot_resp_log, _ = ActionUtility.compose_response(vector_action_config['response'], response_context)
             msg_logger.append(bot_resp_log)
-            slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(vector_action_config.get('set_slots', []),
+            slot_values, slot_eval_log, _ = ActionUtility.fill_slots_from_response(vector_action_config.get('set_slots', []),
                                                                                 response_context)
             msg_logger.extend(slot_eval_log)
             filled_slots.update(slot_values)

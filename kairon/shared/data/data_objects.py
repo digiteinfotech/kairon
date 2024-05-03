@@ -332,43 +332,42 @@ class Forms(Auditlog):
 @push_notification.apply
 class SlotMapping(Auditlog):
     slot = StringField(required=True)
-    mapping = ListField(required=True)
+    mapping = DictField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    form_name = StringField(default=None)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
     def clean(self):
         self.slot = self.slot.strip().lower()
-        mapping = []
-        for slot_mapping in self.mapping:
-            mapping_info = {"type": slot_mapping["type"]}
-            if slot_mapping["type"] == SLOT_MAPPING_TYPE.FROM_ENTITY.value:
-                mapping_info["entity"] = slot_mapping.get("entity") or self.slot
-                mapping_info["entity"] = mapping_info["entity"].lower()
-            if slot_mapping.get("value") is not None:
-                mapping_info["value"] = slot_mapping["value"]
-            if slot_mapping.get("intent"):
-                on_intents = []
-                for intent in slot_mapping["intent"]:
-                    on_intents.append(intent.lower())
-                mapping_info["intent"] = on_intents
-            if slot_mapping.get("not_intent"):
-                not_intents = []
-                for intent in slot_mapping["not_intent"]:
-                    not_intents.append(intent.lower())
-                mapping_info["not_intent"] = not_intents
-            if slot_mapping.get("conditions"):
-                mapping_conditions = []
-                for condition in slot_mapping["conditions"]:
-                    if not Utility.check_empty_string(condition.get("active_loop")):
-                        mapping_conditions.append({"active_loop": condition["active_loop"], "requested_slot": condition["requested_slot"]})
-                if mapping_conditions:
-                    mapping_info["conditions"] = mapping_conditions
-            mapping.append(mapping_info)
-        self.mapping = mapping
+
+        mapping_info = {"type": self.mapping["type"]}
+        if self.mapping["type"] == SLOT_MAPPING_TYPE.FROM_ENTITY.value:
+            mapping_info["entity"] = self.mapping.get("entity") or self.slot
+            mapping_info["entity"] = mapping_info["entity"].lower()
+        if self.mapping.get("value") is not None:
+            mapping_info["value"] = self.mapping["value"]
+        if self.mapping.get("intent"):
+            on_intents = []
+            for intent in self.mapping["intent"]:
+                on_intents.append(intent.lower())
+            mapping_info["intent"] = on_intents
+        if self.mapping.get("not_intent"):
+            not_intents = []
+            for intent in self.mapping["not_intent"]:
+                not_intents.append(intent.lower())
+            mapping_info["not_intent"] = not_intents
+        if self.mapping.get("conditions"):
+            mapping_conditions = []
+            for condition in self.mapping["conditions"]:
+                if not Utility.check_empty_string(condition.get("active_loop")):
+                    mapping_conditions.append({"active_loop": condition["active_loop"], "requested_slot": condition["requested_slot"]})
+            if mapping_conditions:
+                mapping_info["conditions"] = mapping_conditions
+        self.mapping = mapping_info
 
     def validate(self, clean=True):
         from rasa.shared.core.slot_mappings import validate_slot_mappings
@@ -383,7 +382,7 @@ class SlotMapping(Auditlog):
             self.clean()
 
         try:
-            validate_slot_mappings({self.slot: {SLOT_MAPPINGS: self.mapping}})
+            validate_slot_mappings({self.slot: {SLOT_MAPPINGS: [self.mapping]}})
         except Exception as e:
             raise ValidationError(e)
 

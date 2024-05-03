@@ -315,6 +315,16 @@ class TestUtility:
         token = AugmentationUtils.get_keywords(paragraph)
         assert Utility.check_empty_string(token[0][0]) == False
 
+    def test_check_character_limit_success(self):
+        name = "supercalifragilisticexpialidociousalwaysworks"
+        result = Utility.check_character_limit(value=name)
+        assert result is True
+
+    def test_check_character_limit_failure(self):
+        name = "supercalifragilisticexpialidociousalwaysworksmorethan60characters"
+        result = Utility.check_character_limit(value=name)
+        assert result is False
+
     @pytest.mark.asyncio
     async def test_upload_and_save(self):
         nlu_content = "## intent:greet\n- hey\n- hello".encode()
@@ -724,10 +734,12 @@ class TestUtility:
             open("template/emails/passwordReset.html", "rb").read().decode()
         )
         expected_body = Utility.email_conf["email"]["templates"]["password_reset"]
+        base_url = Utility.environment["app"]["frontend_url"]
         expected_body = (
             expected_body.replace("FIRST_NAME", first_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "password_reset_subject"
@@ -748,6 +760,7 @@ class TestUtility:
         mail_type = "password_reset_confirmation"
         email = "sampletest@gmail.com"
         first_name = "sample"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["password_reset_confirmation"] = (
             open("template/emails/passwordResetConfirmation.html", "rb").read().decode()
         )
@@ -756,7 +769,7 @@ class TestUtility:
         ]
         expected_body = expected_body.replace("FIRST_NAME", first_name).replace(
             "USER_EMAIL", email
-        )
+        ).replace("BASE_URL", base_url)
         expected_subject = Utility.email_conf["email"]["templates"][
             "password_changed_subject"
         ]
@@ -774,6 +787,7 @@ class TestUtility:
         mail_type = "verification"
         email = "sampletest@gmail.com"
         first_name = "sample"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["verification"] = (
             open("template/emails/verification.html", "rb").read().decode()
         )
@@ -782,6 +796,7 @@ class TestUtility:
             expected_body.replace("FIRST_NAME", first_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "confirmation_subject"
@@ -799,6 +814,7 @@ class TestUtility:
         mail_type = "verification_confirmation"
         email = "sampletest@gmail.com"
         first_name = "sample"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["verification_confirmation"] = (
             open("template/emails/verificationConfirmation.html", "rb").read().decode()
         )
@@ -809,6 +825,7 @@ class TestUtility:
             expected_body.replace("FIRST_NAME", first_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"]["confirmed_subject"]
 
@@ -828,6 +845,7 @@ class TestUtility:
         url = "https://www.testurl.com"
         bot_name = "test_bot"
         role = "test_role"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["add_member_invitation"] = (
             open("template/emails/memberAddAccept.html", "rb").read().decode()
         )
@@ -842,6 +860,7 @@ class TestUtility:
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
             .replace("VERIFICATION_LINK", url)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "add_member_subject"
@@ -870,6 +889,7 @@ class TestUtility:
         role = "test_role"
         accessor_email = "test@gmail.com"
         member_confirm = "test_name"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["add_member_confirmation"] = (
             open("template/emails/memberAddConfirmation.html", "rb").read().decode()
         )
@@ -883,6 +903,7 @@ class TestUtility:
             .replace("NAME", member_confirm.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "add_member_confirmation_subject"
@@ -914,6 +935,7 @@ class TestUtility:
         new_role = "test_role"
         status = "test_status"
         member_name = "test_name"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["update_role"] = (
             open("template/emails/memberUpdateRole.html", "rb").read().decode()
         )
@@ -932,6 +954,7 @@ class TestUtility:
             .replace("NAME", member_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "update_role_subject"
@@ -962,6 +985,7 @@ class TestUtility:
         status = "test_status"
         owner_name = "test_name"
         member_email = "test@gmail.com"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["update_role"] = (
             open("template/emails/memberUpdateRole.html", "rb").read().decode()
         )
@@ -979,6 +1003,7 @@ class TestUtility:
             .replace("NAME", owner_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "update_role_subject"
@@ -1008,6 +1033,7 @@ class TestUtility:
         bot_name = "test_bot"
         new_role = "test_role"
         member_email = "test@gmail.com"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["update_role"] = (
             open("template/emails/memberUpdateRole.html", "rb").read().decode()
         )
@@ -1025,6 +1051,7 @@ class TestUtility:
             .replace("MODIFIER_NAME", first_name.capitalize())
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "update_role_subject"
@@ -1050,6 +1077,7 @@ class TestUtility:
         email = "sampletest@gmail.com"
         first_name = "sample"
         password = "test@123"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["password_generated"] = (
             open("template/emails/passwordGenerated.html", "rb").read().decode()
         )
@@ -1058,6 +1086,7 @@ class TestUtility:
             expected_body.replace("PASSWORD", password)
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "password_generated_subject"
@@ -1079,6 +1108,7 @@ class TestUtility:
         url = "https://www.testurl.com"
         geo_location = {"City": "Mumbai", "Network": "CATO"}
         reset_password_url = Utility.email_conf["app"]["url"] + "/reset_password"
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["untrusted_login"] = (
             open("template/emails/untrustedLogin.html", "rb").read().decode()
         )
@@ -1094,6 +1124,7 @@ class TestUtility:
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
             .replace("VERIFICATION_LINK", url)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "untrusted_login_subject"
@@ -1117,6 +1148,7 @@ class TestUtility:
         email = "sampletest@gmail.com"
         first_name = "sample"
         geo_location = {"City": "Mumbai", "Network": "CATO"}
+        base_url = Utility.environment["app"]["frontend_url"]
         Utility.email_conf["email"]["templates"]["add_trusted_device"] = (
             open("template/emails/untrustedLogin.html", "rb").read().decode()
         )
@@ -1129,6 +1161,7 @@ class TestUtility:
             expected_body.replace("GEO_LOCATION", expected_geo_location)
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "add_trusted_device"
@@ -1149,6 +1182,7 @@ class TestUtility:
         first_name = "sample"
         request = MagicMock()
         request.headers = {"X-Forwarded-For": "58.0.127.89"}
+        base_url = Utility.environment["app"]["frontend_url"]
         data = {
             "first_name": "sample",
             "last_name": "test",
@@ -1173,6 +1207,7 @@ class TestUtility:
             .replace("SUBJECT", expected_subject)
             .replace("FIRST_NAME", first_name)
             .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
         )
 
         await MailUtility.format_and_send_mail(
@@ -2077,7 +2112,7 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user, action="save"
         ).count()
-        assert count == 1
+        assert count == 2
 
     def test_save_and_publish_auditlog_action_save_another(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
@@ -2100,7 +2135,7 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user, action="save"
         ).count()
-        assert count == 2
+        assert count == 3
 
     def test_save_and_publish_auditlog_action_update(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
@@ -2122,7 +2157,7 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user, action="update"
         ).count()
-        assert count == 1
+        assert count == 2
 
     def test_save_and_publish_auditlog_total_count(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
@@ -2206,7 +2241,7 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user
         ).count()
-        assert count == 1
+        assert count == 4
 
     @pytest.mark.asyncio
     async def test_messageConverter_messenger_button_one(self):
@@ -2216,6 +2251,50 @@ class TestUtility:
         response = await messenger.messageConverter(input_json)
         expected_output = json_data.get("messenger_button_op_one")
         assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_quick_reply_one(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_one")
+        messenger = ConverterFactory.getConcreteInstance("quick_reply", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_quick_reply_op_one")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_quick_reply_two(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_two")
+        messenger = ConverterFactory.getConcreteInstance("quick_reply", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_quick_reply_op_two")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_messenger_quick_reply_three(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_three")
+        messenger = ConverterFactory.getConcreteInstance("quick_reply", "messenger")
+        response = await messenger.messageConverter(input_json)
+        expected_output = json_data.get("messenger_quick_reply_op_three")
+        assert expected_output == response
+
+    def test_quick_reply_transformer_messenger_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_three")
+        from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+        messenger = MessengerResponseConverter("quick_reply", "messenger_fake")
+        with pytest.raises(Exception):
+            messenger.quick_reply_transformer(input_json)
+
+    @pytest.mark.asyncio
+    async def test_message_converter_quick_reply_messenger_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("quick_reply_three")
+        from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+        messenger = MessengerResponseConverter("quick_reply", "messenger_fail")
+        with pytest.raises(Exception):
+            await messenger.messageConverter(input_json)
 
     @pytest.mark.asyncio
     async def test_messageConverter_messenger_button_two(self):

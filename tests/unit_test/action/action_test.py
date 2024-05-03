@@ -1629,7 +1629,6 @@ class TestActions:
         assert log['intent']
         assert log['action']
         assert log['bot_response']
-        assert log['api_response']
 
     @pytest.mark.asyncio
     @responses.activate
@@ -1681,9 +1680,7 @@ class TestActions:
         assert log['intent']
         assert log['action']
         assert log['bot_response']
-        assert log['api_response']
         assert log['url'] == "http://www.google.com/sender_test_run_with_params?id=param2value"
-        assert log['request_params'] == {'key1': 'value1', 'key2': 'value2'}
 
     @pytest.mark.asyncio
     @responses.activate
@@ -1745,11 +1742,8 @@ class TestActions:
         assert log['intent']
         assert log['action']
         assert log['bot_response']
-        assert log['api_response']
         assert log['status']
         assert log['url'] == http_url
-        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                         'intent': 'test_run'}
 
     @pytest.mark.asyncio
     @responses.activate
@@ -1841,8 +1835,6 @@ class TestActions:
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_post_and_parameters"
-        assert log['request_params'] == {"key1": "value1", "key2": "value2"}
-        assert log['api_response'] == '5000'
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
@@ -1903,9 +1895,6 @@ class TestActions:
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_post_and_dynamic_params"
-        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                         'intent': 'test_run'}
-        assert log['api_response'] == '5000'
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
@@ -2034,7 +2023,6 @@ class TestActions:
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_get_with_json_response"
-        assert log['api_response'] == str(data_obj)
         assert log['bot_response'] == str(data_obj)
 
     @pytest.mark.asyncio
@@ -2142,8 +2130,6 @@ class TestActions:
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_get_with_dynamic_params"
-        assert log['request_params'] ==  {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}
-        assert log['api_response'] == str(data_obj)
         assert log['bot_response'] == "Mayank"
 
     @pytest.mark.asyncio
@@ -2650,7 +2636,14 @@ class TestActions:
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                         'source': 'static', 'is_enabled': True},
-                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Similarity Prompt',
+                        "data": "default",
+                        'hyperparameters': {'top_results': 30,
+                                            'similarity_threshold': 0.3},
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                       ]
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
 
         assert actual['type'] == ActionType.prompt_action.value
@@ -2664,10 +2657,15 @@ class TestActions:
                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                                     'logit_bias': {}}, 'llm_prompts': [
-                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
-                 'is_enabled': True},
-                {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                                                     'logit_bias': {}},
+                                 'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                                  'type': 'system', 'source': 'static', 'is_enabled': True},
+                                                 {'name': 'History Prompt', 'type': 'user',
+                                                  'source': 'history', 'is_enabled': True},
+                                                 {'name': 'Similarity Prompt',
+                                                  'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
+                                                  'data': 'default', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                                  'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
                                  'instructions': [], 'set_slots': [], 'dispatch_response': True}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
@@ -3766,7 +3764,7 @@ class TestActions:
         response_config = {"value": "${data.a.b.d}", "evaluation_type": "expression"}
         http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
                          "context": {}}
-        result, log = ActionUtility.compose_response(response_config, http_response)
+        result, log, _ = ActionUtility.compose_response(response_config, http_response)
         assert result == '[\'red\', \'buggy\', \'bumpers\']'
         assert log == ['evaluation_type: expression', 'expression: ${data.a.b.d}',
                        "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
@@ -3790,7 +3788,7 @@ class TestActions:
             status=200,
             match=[responses.matchers.json_params_matcher({'source_code': script, 'predefined_objects': http_response})],
         )
-        result, log = ActionUtility.compose_response(response_config, http_response)
+        result, log, _ = ActionUtility.compose_response(response_config, http_response)
         assert result == 'Mayank'
 
         assert log ==  ['evaluation_type: script', "script: bot_response=data['name']", "data: {'name': 'Mayank'}", 'raise_err_on_failure: True']
@@ -3814,7 +3812,7 @@ class TestActions:
         set_slots = [{"name": "experience", "value": "${data.a.b.d}"}, {"name": "score", "value": "${data.a.b.3}"}]
         http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
                          "context": {}}
-        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        evaluated_slot_values, response_log, _ = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation', 'Slot: experience', 'evaluation_type: expression',
                                 'expression: ${data.a.b.d}',
@@ -3843,7 +3841,7 @@ class TestActions:
             status=200,
             match=[responses.matchers.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
         )
-        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        evaluated_slot_values, response_log, _ = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation', 'Slot: experience', 'evaluation_type: expression',
                                 'expression: ${data.a.b.d}',
@@ -3874,7 +3872,7 @@ class TestActions:
             status=200,
             match=[responses.matchers.json_params_matcher({'source_code': "bot_response=data['score']", 'predefined_objects': http_response})],
         )
-        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        evaluated_slot_values, response_log, _ = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': None, 'score': 10}
         assert response_log == ['initiating slot evaluation', 'Slot: experience', "Evaluation error for experience: Pyscript evaluation failed: {'success': False}", 'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script', "script: bot_response=data['score']", "data: {'data': {'name': 'mayank', 'exp': 30, 'score': 10}, 'context': {}}", 'raise_err_on_failure: True']
 
@@ -3927,8 +3925,15 @@ class TestActions:
         bot = "test_bot_action_test"
         user = "test_user_action_test"
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
+                        'source': 'static', 'is_enabled': True},
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Similarity Prompt',
+                        "data": "default",
+                        'hyperparameters': {'top_results': 30,
+                                            'similarity_threshold': 0.3},
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                       ]
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
         k_faq_action_config = ActionUtility.get_faq_action_config(bot, "kairon_faq_action")
         k_faq_action_config.pop('timestamp')
@@ -3942,8 +3947,15 @@ class TestActions:
                                                            'logit_bias': {}}, 'dispatch_response': True, 'set_slots': [],
                                        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                                         'type': 'system', 'source': 'static', 'is_enabled': True},
-                                                       {'name': 'History Prompt', 'type': 'user', 'source': 'history',
-                                                        'is_enabled': True}], 'instructions': [],
+                                                       {'name': 'History Prompt', 'type': 'user',
+                                                        'source': 'history', 'is_enabled': True},
+                                                       {'name': 'Similarity Prompt',
+                                                        'hyperparameters': {'top_results': 30,
+                                                                            'similarity_threshold': 0.3},
+                                                        'data': 'default',
+                                                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
+                                       'instructions': [],
                                        'status': True}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):

@@ -277,14 +277,16 @@ class TestMongoProcessor:
 
     def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(self):
         processor = MongoProcessor()
-        bot = 'test_bot'
-        user = 'test_user'
+        bot = 'bot'
+        user = 'user'
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
+                                    'data': '',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -295,9 +297,73 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}]}
-        with pytest.raises(ValidationError,
-                           match="Data must contain collection name is required for bot content prompts!"):
-            processor.add_prompt_action(request, bot, user)
+        processor.add_prompt_action(request, bot, user)
+        prompt_action = processor.get_prompt_action(bot)
+        prompt_action[0].pop("_id")
+        assert prompt_action == [
+            {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
+             'num_bot_responses': 5,
+             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+             'user_question': {'type': 'from_user_message'},
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                 'frequency_penalty': 0.0, 'logit_bias': {}},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                              'type': 'system', 'source': 'static', 'is_enabled': True},
+                             {'name': 'Similarity Prompt', 'data': 'default',
+                              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                              'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}]
+
+    def test_add_prompt_action_with_bot_content_prompt(self):
+        processor = MongoProcessor()
+        bot = 'bot'
+        user = 'user'
+        request = {'name': 'test_add_prompt_action_with_bot_content_prompt',
+                   'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'data': 'Bot_collection',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}]}
+        processor.add_prompt_action(request, bot, user)
+        prompt_action = processor.get_prompt_action(bot)
+        prompt_action[1].pop("_id")
+        print(prompt_action)
+        assert prompt_action[1] == {
+            'name': 'test_add_prompt_action_with_bot_content_prompt',
+            'num_bot_responses': 5,
+            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            'user_question': {'type': 'from_user_message'},
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                             'type': 'system', 'source': 'static', 'is_enabled': True},
+                            {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                            {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                             'is_enabled': True},
+                            {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}
 
     def test_add_prompt_action_with_invalid_query_prompt(self):
         processor = MongoProcessor()
@@ -1033,7 +1099,7 @@ class TestMongoProcessor:
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 5
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 11
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 12
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 9
         multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
@@ -1451,16 +1517,17 @@ class TestMongoProcessor:
         assert story_graph.story_steps[0].block_name == 'greet'
         assert story_graph.story_steps[1].block_name == 'say goodbye'
         domain = processor.load_domain("test_upload_case_insensitivity")
-        assert all(slot.name in ['session_started_metadata', 'requested_slot', 'application_name', 'bot', 'email_id',
-                                 'location', 'user', 'kairon_action_response', 'image', 'video', 'audio', 'doc_url',
-                                 'document', 'order', 'longitude', 'latitude', 'flow_reply', 'http_status_code'] for
+        assert all(slot.name in ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
+                                'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
+                                'longitude', 'latitude', 'flow_reply', 'quick_reply', 'session_started_metadata',
+                                'requested_slot'] for
                    slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                             'utter_default'], ignore_order=True)
         assert not DeepDiff(domain.entities,
                             ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
-                             'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url', 'longitude',
-                             'latitude', 'flow_reply'], ignore_order=True)
+                             'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
+                             'longitude', 'latitude', 'flow_reply', 'quick_reply'], ignore_order=True)
         assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
                                 'ask_location': {'required_slots': ['location', 'application_name']}}
         assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
@@ -1559,8 +1626,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
+        assert domain.slots.__len__() == 23
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -1568,7 +1635,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {
@@ -1628,11 +1695,11 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 21
+        assert domain.slots.__len__() == 22
         assert all(slot.mappings[0]['type'] == 'from_entity' and slot.mappings[0]['entity'] == slot.name for slot in
                    domain.slots if slot.name not in ['requested_slot', 'session_started_metadata'])
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 21
+        assert domain.entities.__len__() == 22
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
@@ -1672,9 +1739,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 21
+        assert domain.slots.__len__() == 22
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 21
+        assert domain.entities.__len__() == 22
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 38
@@ -1700,10 +1767,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 13
+        assert domain.slots.__len__() == 14
         assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
         assert domain.responses.keys().__len__() == 11
-        assert domain.entities.__len__() == 12
+        assert domain.entities.__len__() == 13
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
@@ -1950,7 +2017,7 @@ class TestMongoProcessor:
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert slots.__len__() == 13
+        assert slots.__len__() == 14
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
@@ -1983,7 +2050,7 @@ class TestMongoProcessor:
                 for value in actual
             ]
         )
-        assert slots.__len__() == 14
+        assert slots.__len__() == 15
         assert new_slot.name == "ticketid"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
@@ -2026,7 +2093,7 @@ class TestMongoProcessor:
     def test_get_entities(self):
         processor = MongoProcessor()
         expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio',
-                    'doc_url', 'document', 'order', 'longitude', 'latitude', 'flow_reply', 'http_status_code']
+                    'doc_url', 'document', 'order', 'quick_reply', 'longitude', 'latitude', 'flow_reply', 'http_status_code']
         actual = processor.get_entities("tests")
         assert actual.__len__() == expected.__len__()
         assert all(item["name"] in expected for item in actual)
@@ -4112,9 +4179,9 @@ class TestMongoProcessor:
         user = 'test_user'
         slot_name = 'is_new_user'
         slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": False}
-        mapping = {"slot": slot_name, 'mapping': [{'type': 'from_entity', 'entity': 'name'}]}
+        mapping = {"slot": slot_name, 'mapping': {'type': 'from_entity', 'entity': 'name'}}
         processor.add_slot(slot_value=slot, bot=bot, user=user)
-        processor.add_or_update_slot_mapping(mapping, bot, user)
+        processor.add_slot_mapping(mapping, bot, user)
 
         with pytest.raises(AppException, match="Cannot delete slot without removing its mappings!"):
             processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
@@ -4648,8 +4715,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
+        assert domain.slots.__len__() == 23
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -4657,7 +4724,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -4711,9 +4778,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 21
+        assert domain.slots.__len__() == 22
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 21
+        assert domain.entities.__len__() == 22
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 38
         assert domain.intents.__len__() == 29
@@ -4768,8 +4835,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
+        assert domain.slots.__len__() == 23
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -4777,7 +4844,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -4832,8 +4899,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
+        assert domain.slots.__len__() == 23
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -4841,7 +4908,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -4882,8 +4949,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
+        assert domain.slots.__len__() == 23
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -4891,7 +4958,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -4940,8 +5007,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
+        assert domain.slots.__len__() == 23
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -4949,7 +5016,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -4985,8 +5052,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
+        assert domain.slots.__len__() == 23
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -4994,7 +5061,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -5040,10 +5107,10 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 16
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
+        assert domain.slots.__len__() == 23
         assert domain.intent_properties.__len__() == 33
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 33
@@ -5118,10 +5185,10 @@ class TestMongoProcessor:
         assert len(rules) == 3
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
+        assert domain.slots.__len__() == 23
         assert domain.intent_properties.__len__() == 32
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 32
@@ -6722,31 +6789,27 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        expected_slot = {"slot": "cuisine", 'mapping': [{'type': 'from_entity', 'entity': 'name'}]}
-        with pytest.raises(AppException, match='Slot with name \'cuisine\' not found'):
-            processor.add_or_update_slot_mapping(expected_slot, bot, user)
+        expected_slot = {"slot": "cuisine", 'mapping': {'type': 'from_entity', 'entity': 'name'}}
+        with pytest.raises(AppException, match='Slot with name \"cuisine\" not found'):
+            processor.add_slot_mapping(expected_slot, bot, user)
 
     def test_add_slot_with_mapping(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        expected_slot = {"slot": "name", 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
-                                                     {'type': 'from_entity', 'entity': 'name'}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
+        expected_slot = {"slot": "name", 'mapping': {'type': 'from_intent', 'value': 'user'}}
+        processor.add_slot_mapping(expected_slot, bot, user)
         slot = SlotMapping.objects(slot='name', bot=bot, user=user).get()
-        assert slot.mapping == [{'type': 'from_text', 'value': 'user'}, {'type': 'from_entity', 'entity': 'name'}]
+        assert slot.mapping == {'type': 'from_intent', 'value': 'user'}
 
     def test_add_slot_with_empty_mapping(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        expected_slot = {"slot": "name", 'mapping': []}
+        expected_slot = {"slot": "name", 'mapping': {}}
         with pytest.raises(ValueError, match='At least one mapping is required'):
-            processor.add_or_update_slot_mapping(expected_slot, bot, user)
+            processor.add_slot_mapping(expected_slot, bot, user)
 
-        expected_slot = {"slot": "name", 'mapping': [{}]}
-        with pytest.raises(ValueError, match='At least one mapping is required'):
-            processor.add_or_update_slot_mapping(expected_slot, bot, user)
 
     def test_update_slot_with_mapping(self):
         expected_slot = {"name": "age", "type": "float", "influence_conversation": True}
@@ -6761,17 +6824,17 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
 
         expected_slot = {"slot": "age",
-                         'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18',
-                                      "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
+                         'mapping': {'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18',
+                                      "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}}
+        processor.add_slot_mapping(expected_slot, bot, user)
         slot = Slots.objects(name__iexact='age', bot=bot, user=user).get()
         assert slot['name'] == 'age'
         assert slot['type'] == 'float'
         assert slot['initial_value'] is None
         assert slot['influence_conversation']
         slot = SlotMapping.objects(slot='age', bot=bot, user=user).get()
-        assert slot.mapping == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18',
-                                 "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}]
+        assert slot.mapping == {'type': 'from_intent', 'intent': ['get_age'], 'value': '18',
+                                 "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}
 
     def test_remove_slot_mapping(self):
         processor = MongoProcessor()
@@ -6786,7 +6849,11 @@ class TestMongoProcessor:
                                      {'type': 'from_trigger_intent', 'value': 'tester',
                                       'intent': ['get_business', 'is_engineer', 'is_tester'],
                                       'not_intent': ['get_age', 'get_name']}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
+        expected_slots = []
+        for m in expected_slot['mapping']:
+            expected_slots.append({"slot": "occupation", "mapping": m})
+        for slot in expected_slots:
+            processor.add_slot_mapping(slot, bot, user)
         processor.delete_slot_mapping("occupation", bot, user)
         slot = Slots.objects(name__iexact='occupation', bot=bot, user=user).get()
         assert slot['name'] == 'occupation'
@@ -6795,6 +6862,7 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
         with pytest.raises(DoesNotExist):
             SlotMapping.objects(slot='occupation', bot=bot, status=True).get()
+        expected_slots=[]
         expected_slot = {"slot": "occupation", 'mapping': [
             {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
             {'type': 'from_text', 'value': 'engineer',
@@ -6803,9 +6871,13 @@ class TestMongoProcessor:
             {'type': 'from_trigger_intent', 'value': 'tester',
              'intent': ['get_business', 'is_engineer', 'is_tester'],
              'not_intent': ['get_age', 'get_name']}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
-        slot = SlotMapping.objects(slot='occupation', bot=bot, status=True).get()
-        assert slot.mapping == expected_slot['mapping']
+        for m in expected_slot['mapping']:
+            expected_slots.append({"slot": "occupation", "mapping": m})
+        for slot in expected_slots:
+            processor.add_slot_mapping(slot, bot, user)
+        slots = SlotMapping.objects(slot='occupation', bot=bot, status=True)
+        assert len(list(slots)) == 4
+
 
     def test_get_slot(self):
         bot = 'test'
@@ -6837,9 +6909,10 @@ class TestMongoProcessor:
              'influence_conversation': True, '_has_been_set': False},
             {'name': 'age', 'type': 'float', 'max_value': 1.0, 'min_value': 0.0, 'influence_conversation': True,
              '_has_been_set': False},
-            {'name': 'occupation', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}
+            {'name': 'occupation', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'quick_reply', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}
         ]
-        assert len(slots) == 22
+        assert len(slots) == 23
         assert not DeepDiff(slots, expected, ignore_order=True)
 
     def test_update_slot_add_value_intent_and_not_intent(self):
@@ -6847,88 +6920,45 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         processor.add_slot({"name": "location", "type": "text", "influence_conversation": True}, bot, user)
-        slot = {"slot": "location", 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
-                                                {'type': 'from_entity', 'entity': 'location'}]}
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        slot = {"slot": "location", 'mapping': {'type': 'from_text', 'value': 'user', 'entity': 'location'}}
 
-        slots = [{"slot": "age", 'mapping': [{'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
-                                              'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}]},
+        slot2 = {"slot": "location", 'mapping': {'type': 'from_entity', 'entity': 'location'}}
+        id1 = processor.add_slot_mapping(slot, bot, user)
+        id2 = processor.add_slot_mapping(slot2, bot, user)
+
+        slots = [{"slot": "age", 'mapping': {'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
+                                              'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}},
                  {"slot": "location",
-                  'mapping': [{'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'},
-                              {'type': 'from_text', 'value': 'Bengaluru'},
-                              {'type': 'from_entity', 'entity': 'location'},
-                              {'type': 'from_trigger_intent', 'value': 'Kolkata',
-                               'intent': ['get_location', 'is_location', 'current_location'],
-                               'not_intent': ['get_age', 'get_name']}]}]
-        processor.add_or_update_slot_mapping(slots[0], bot, user)
-        processor.add_or_update_slot_mapping(slots[1], bot, user)
+                  'mapping': {'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'}},
+                 {"slot": "location",
+                  'mapping': {'type': 'from_text', 'value': 'Bengaluru'}}]
+
+        processor.add_slot_mapping(slots[0], bot, user)
+        processor.update_slot_mapping(slots[1], id1)
+        processor.update_slot_mapping(slots[2], id2)
+
         slots = list(processor.get_slot_mappings(bot))
         diff = DeepDiff(slots,
-                        [
-                            {
-                                "slot": "date_time",
-                                "mapping": [{"type": "from_entity", "entity": "date_time"}],
-                            },
-                            {
-                                "slot": "priority",
-                                "mapping": [{"type": "from_entity", "entity": "priority"}],
-                            },
-                            {"slot": "file", "mapping": [{"type": "from_entity", "entity": "file"}]},
-                            {
-                                "slot": "name",
-                                "mapping": [
-                                    {"type": "from_text", "value": "user"},
-                                    {"type": "from_entity", "entity": "name"},
-                                ],
-                            },
-                            {
-                                "slot": "age",
-                                "mapping": [
-                                    {
-                                        "type": "from_intent",
-                                        "value": 20,
-                                        "intent": ["retrieve_age", "ask_age"],
-                                        "not_intent": ["get_age", "affirm", "deny"],
-                                    }
-                                ],
-                            },
-                            {
-                                "slot": "occupation",
-                                "mapping": [
-                                    {
-                                        "type": "from_intent",
-                                        "value": "business",
-                                        "intent": ["get_occupation"],
-                                    },
-                                    {"type": "from_text", "value": "engineer",
-                                     "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
-                                    {"type": "from_entity", "entity": "occupation"},
-                                    {
-                                        "type": "from_trigger_intent",
-                                        "value": "tester",
-                                        "intent": ["get_business", "is_engineer", "is_tester"],
-                                        "not_intent": ["get_age", "get_name"],
-                                    },
-                                ],
-                            },
-                            {
-                                "slot": "location",
-                                "mapping": [
-                                    {"type": "from_intent", "value": "Mumbai", "intent": ["get_location"]},
-                                    {"type": "from_text", "value": "Bengaluru"},
-                                    {"type": "from_entity", "entity": "location"},
-                                    {
-                                        "type": "from_trigger_intent",
-                                        "value": "Kolkata",
-                                        "intent": ["get_location", "is_location", "current_location"],
-                                        "not_intent": ["get_age", "get_name"],
-                                    },
-                                ],
-                            },
-                        ],
+                        [{'slot': 'age', 'mapping': [{'type': 'from_intent', 'value': '18', 'intent': ['get_age'], 'conditions': [{'active_loop': 'booking', 'requested_slot': 'age'}]}, {'type': 'from_intent', 'value': 20, 'intent': ['retrieve_age', 'ask_age'], 'not_intent': ['get_age', 'affirm', 'deny']}]}, {'slot': 'date_time', 'mapping': [{'type': 'from_entity', 'entity': 'date_time'}]}, {'slot': 'file', 'mapping': [{'type': 'from_entity', 'entity': 'file'}]}, {'slot': 'location', 'mapping': [{'type': 'from_intent', 'value': 'Mumbai', 'intent': ['get_location']}, {'type': 'from_text', 'value': 'Bengaluru'}]}, {'slot': 'name', 'mapping': [{'type': 'from_intent', 'value': 'user'}]}, {'slot': 'occupation', 'mapping': [{'type': 'from_intent', 'value': 'business', 'intent': ['get_occupation']}, {'type': 'from_text', 'value': 'engineer', 'conditions': [{'active_loop': 'booking', 'requested_slot': 'engineer'}]}, {'type': 'from_entity', 'entity': 'occupation'}, {'type': 'from_trigger_intent', 'value': 'tester', 'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]}, {'slot': 'priority', 'mapping': [{'type': 'from_entity', 'entity': 'priority'}]}],
                         ignore_order=True,
                         )
         assert not diff
+
+    def test_add_form_with_any_slot(self):
+        processor = MongoProcessor()
+        path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+                {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
+                 'slot_set': {'type': 'current', 'value': 22}},
+                {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'slot_set': {'type': 'slot', 'value': 'occupation'}},
+                {'ask_questions': ['what is your order?', 'order?'], 'slot': 'order',
+                 'slot_set': {'type': 'slot', 'value': 'order'}}
+                ]
+        bot = 'test'
+        user = 'user'
+        with pytest.raises(AppException, match="form will not accept any type slots: {'order'}"):
+            processor.add_form('know_user', path, bot, user)
 
     def test_add_form(self):
         processor = MongoProcessor()
@@ -7243,28 +7273,31 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         slot = {"slot": "num_people",
-                'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]}
-        processor.add_or_update_slot_mapping(slot, bot, user)
-        slot = {"slot": "cuisine", 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]}
-        processor.add_or_update_slot_mapping(slot, bot, user)
+                'mapping': {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}}
+        processor.add_slot_mapping(slot, bot, user)
+        slot = {"slot": "cuisine", 'mapping': {'type': 'from_entity', 'entity': 'cuisine'}}
+        processor.add_slot_mapping(slot, bot, user)
         slot = {"slot": "outdoor_seating",
                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
         processor.add_slot({"name": "outdoor_seating", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        for s in slot['mapping']:
+            processor.add_slot_mapping({"slot": slot["slot"], "mapping": s}, bot, user)
         slot = {"slot": "preferences",
                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]}
         processor.add_slot({"name": "preferences", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        for s in slot['mapping']:
+            processor.add_slot_mapping({"slot": slot["slot"], "mapping": s}, bot, user)
         slot = {"slot": "feedback", 'mapping': [{'type': 'from_text'},
                                                 {'type': 'from_entity', 'entity': 'feedback'}]}
         processor.add_slot({"name": "feedback", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        for s in slot['mapping']:
+            processor.add_slot_mapping({"slot": slot["slot"], "mapping": s}, bot, user)
 
         assert processor.add_form('restaurant_form', path, bot, user)
         form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
@@ -7736,6 +7769,38 @@ class TestMongoProcessor:
         assert validations_added[2].slot_set.type == 'slot'
         assert validations_added[2].slot_set.value == 'occupation'
 
+    def test_edit_form_with_any_slot(self):
+        processor = MongoProcessor()
+        path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
+                 'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
+                {'ask_questions': ['seats required?'], 'slot': 'num_people',
+                 'slot_set': {'type': 'current', 'value': 10}},
+                {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+                 'validation_semantic': "if (&& cuisine.contains('i') && cuisine.length() > 4 || "
+                                        "!cuisine.contains(" ")) {return true;} else {return false;}",
+                 'slot_set': {'type': 'current', 'value': 'Indian Cuisine'}},
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'slot_set': {'type': 'custom', 'value': True}},
+                {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+                 'slot_set': {'type': 'current'}},
+                {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',
+                 'slot_set': {'type': 'slot', 'value': 'ac_required'}},
+                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
+        bot = 'test'
+        user = 'user'
+        slot = {"slot": "ac_required",
+                'mapping': {'type': 'from_intent', 'intent': ['affirm'], 'value': True}}
+        slot2 = {"slot": "ac_required",
+                  'mapping': {'type': 'from_intent', 'intent': ['deny'], 'value': False}}
+        processor.add_slot({"name": "ac_required", "type": "any", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+        processor.add_slot_mapping(slot, bot, user)
+        processor.add_slot_mapping(slot2, bot, user)
+
+        with pytest.raises(AppException, match="form will not accept any type slots: {'ac_required'}"):
+            processor.edit_form('restaurant_form', path, bot, user)
+
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
@@ -7757,11 +7822,14 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         slot = {"slot": "ac_required",
-                'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
-                            {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
+                'mapping': {'type': 'from_intent', 'intent': ['affirm'], 'value': True}}
+        slot2 = {"slot": "ac_required",
+                'mapping':{'type': 'from_intent', 'intent': ['deny'], 'value': False}}
         processor.add_slot({"name": "ac_required", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        processor.delete_slot_mapping('ac_required', bot, user)
+        processor.add_slot_mapping(slot, bot, user)
+        processor.add_slot_mapping(slot2, bot, user)
 
         processor.edit_form('restaurant_form', path, bot, user)
         form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
@@ -9601,6 +9669,7 @@ class TestMongoProcessor:
             "bot": bot,
             "user": user
         }
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         pytest.delete_schema_id_db_action = processor.save_cognition_schema(schema, user, bot)
         CognitionData(
             data={"country": "India"},
@@ -9740,6 +9809,7 @@ class TestMongoProcessor:
         response = 'nupur.khare'
         query_type = 'embedding_search'
         payload = {'type': 'from_slot', 'value': 'cuisine'}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_op_embedding_search_from_slot_does_not_exists',
@@ -9817,6 +9887,7 @@ class TestMongoProcessor:
             "with_vector": True
         }
         payload = {'type': 'from_value', 'value': payload_body}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
             collection_name="test_add_vector_embedding_action_config_empty_payload_values",
@@ -9845,20 +9916,9 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response)
         )
         vectordb_action_two = vectordb_action_config_two.dict()
-        vectordb_action_two['payload']['value'] = ''
-        with pytest.raises(ValidationError, match="payload value is required"):
-            processor.add_db_action(vectordb_action_two, user, bot)
-        vectordb_action_config_three = DatabaseActionRequest(
-            name=action,
-            collection='test_add_vector_embedding_action_config_empty_payload_values',
-            query_type=query_type,
-            payload=payload,
-            response=ActionResponseEvaluation(value=response)
-        )
-        vectordb_action_three = vectordb_action_config_three.dict()
-        vectordb_action_three['payload']['type'] = ''
+        vectordb_action_two['payload']['type'] = ''
         with pytest.raises(ValidationError, match="payload type is required"):
-            processor.add_db_action(vectordb_action_three, user, bot)
+            processor.add_db_action(vectordb_action_two, user, bot)
 
     def test_add_vector_embedding_action_config_empty_operation_values(self):
         processor = MongoProcessor()
@@ -9875,6 +9935,7 @@ class TestMongoProcessor:
             "with_vector": True
         }
         payload = {'type': 'from_value', 'value': payload_body}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
             collection_name="test_add_vector_embedding_action_config_empty_operation_values",
@@ -9994,6 +10055,7 @@ class TestMongoProcessor:
             }
         }
         payload = {'type': 'from_value', 'value': payload_body}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
@@ -15474,7 +15536,7 @@ class TestModelProcessor:
         model_training = ModelTraining.objects(bot="tests", status="Fail")
         assert model_training.__len__() == 2
         print(model_training[1].to_mongo().to_dict())
-        assert model_training[1].exception in str("Failed to load the model for the bot.")
+        assert model_training[1].exception in str("invalid model file")
 
     def test_train_model_for_bot(self):
         model = train_model_for_bot("tests")
