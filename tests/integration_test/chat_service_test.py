@@ -160,6 +160,7 @@ ChatDataProcessor.save_channel_config(
             "app_secret": "jagbd34567890",
             "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
             "verify_token": "valid",
+            "phone_number": "1234567890",
         },
     },
     bot,
