@@ -1,6 +1,6 @@
 import hashlib
 import hmac
-import json
+import ujson as json
 import logging
 import re
 import time
@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Text
 import rasa.shared.utils.io
 from fastapi import HTTPException
 from rasa.core.channels.channel import InputChannel, OutputChannel, UserMessage
-from slack import WebClient
+from slack_sdk.web.client import WebClient
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -45,23 +45,23 @@ class SlackBot(OutputChannel):
         self.slack_channel = slack_channel
         self.thread_id = thread_id
         self.proxy = proxy
-        self.client = WebClient(token, run_async=True, proxy=proxy)
+        self.client = WebClient(token, proxy=proxy)
         super().__init__()
 
-    async def _post_message(self, channel: Text, **kwargs: Any) -> None:
+    def _post_message(self, channel: Text, **kwargs: Any) -> None:
         if self.thread_id:
-            await self.client.chat_postMessage(
+            self.client.chat_postMessage(
                 channel=channel, **kwargs, thread_ts=self.thread_id
             )
         else:
-            await self.client.chat_postMessage(channel=channel, **kwargs)
+            self.client.chat_postMessage(channel=channel, **kwargs)
 
     async def send_text_message(
             self, recipient_id: Text, text: Text, **kwargs: Any
     ) -> None:
         recipient = self.slack_channel or recipient_id
         for message_part in text.strip().split("\n\n"):
-            await self._post_message(
+            self._post_message(
                 channel=recipient, as_user=True, text=message_part, type="mrkdwn"
             )
 
@@ -71,7 +71,7 @@ class SlackBot(OutputChannel):
         recipient = self.slack_channel or recipient_id
         image_block = {"type": "image", "image_url": image, "alt_text": image}
 
-        await self._post_message(
+        self._post_message(
             channel=recipient, as_user=True, text=image, blocks=[image_block]
         )
 
@@ -79,7 +79,7 @@ class SlackBot(OutputChannel):
             self, recipient_id: Text, attachment: Dict[Text, Any], **kwargs: Any
     ) -> None:
         recipient = self.slack_channel or recipient_id
-        await self._post_message(
+        self._post_message(
             channel=recipient, as_user=True, attachments=[attachment], **kwargs
         )
 
@@ -111,7 +111,7 @@ class SlackBot(OutputChannel):
                 }
             )
 
-        await self._post_message(
+        self._post_message(
             channel=recipient,
             as_user=True,
             text=text,
@@ -131,10 +131,10 @@ class SlackBot(OutputChannel):
                 response = await converter_instance.messageConverter(message)
                 channel = json_message.get("channel", self.slack_channel or recipient_id)
                 json_message.setdefault("as_user", True)
-                await self._post_message(channel=channel, **response)
+                self._post_message(channel=channel, **response)
             else:
                 channel = json_message.get("channel", self.slack_channel or recipient_id)
-                await self._post_message(channel=channel, as_user=True, text=json_message, type="mrkdwn")
+                self._post_message(channel=channel, as_user=True, text=json_message, type="mrkdwn")
         except Exception as ap:
             raise Exception(f"Error in slack send_custom_json {str(ap)}")
 
@@ -312,8 +312,8 @@ class SlackHandler(InputChannel, ChannelHandlerBase):
             )
             await AgentProcessor.get_agent(bot).handle_message(user_msg)
         except Exception as e:
-            logger.error(f"Exception when trying to handle message.{e}")
-            logger.error(str(e), exc_info=True)
+            logger.info(f"Exception when trying to handle message.{e}")
+            logger.info(str(e), exc_info=True)
             return ""
 
     def get_metadata(self, request: Request) -> Dict[Text, Any]:

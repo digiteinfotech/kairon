@@ -1,0 +1,54 @@
+version: "3.1"
+stories:
+- story: default path
+  steps:
+  - intent: greet
+  - action: utter_how_can_i_help
+- story: out_of_scope_story
+  steps:
+  - intent: out_of_scope
+  - action: utter_out_of_scope
+- story: smalltalk_human_story
+  steps:
+  - intent: smalltalk_human
+  - action: utter_smalltalk_human
+- story: faq_distancing_story
+  steps:
+  - intent: faq_distancing
+  - action: utter_faq_distancing
+- story: faq_symptoms_story
+  steps:
+  - intent: faq_symptoms
+  - action: utter_faq_symptoms
+- story: faq_vaccine_story
+  steps:
+  - intent: faq_vaccine
+  - action: utter_faq_vaccine
+- story: faq_vulnerable_story
+  steps:
+  - intent: faq_vulnerable
+  - action: utter_faq_vulnerable
+- story: faq_testing_story
+  steps:
+  - intent: faq_testing
+  - action: utter_faq_testing
+- story: faq_supplies_story
+  steps:
+  - intent: faq_supplies
+  - action: utter_faq_supplies
+- story: faq_whatisit_story
+  steps:
+  - intent: faq_whatisit
+  - action: utter_faq_whatisit
+- story: thanks
+  steps:
+  - intent: thanks
+  - action: utter_thanks
+- story: say goodbye
+  steps:
+  - intent: goodbye
+  - action: utter_goodbye
+- story: mood_unhappy_story
+  steps:
+  - intent: mood_unhappy
+  - action: utter_cheer_up

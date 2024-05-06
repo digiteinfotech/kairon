@@ -1,3 +1,4 @@
+version: "3.1"
 session_config:
   session_expiration_time: 0
   carry_over_slots_to_new_session: true
@@ -31,17 +32,23 @@ entities:
 
 slots:
   address:
-    type: unfeaturized
+    type: text
+    mappings: []
   facility_type:
     type: text
+    mappings: []
   location:
     type: text
+    mappings: []
   username:
-    type: unfeaturized
+    type: text
+    mappings: []
   emailid:
-    type: unfeaturized
+    type: text
+    mappings: []
   mobilenumber:
-    type: unfeaturized
+    type: text
+    mappings: []
 
 responses:
   utter_address:

@@ -1,5 +1,4 @@
-# Configuration for Rasa NLU.
-# https://rasa.com/docs/rasa/nlu/components/
+recipe: default.v1
 language: "en"
 
 pipeline:
@@ -8,6 +7,8 @@ pipeline:
 - name: "CRFEntityExtractor"
 - name: "EntitySynonymMapper"
 - name: "CountVectorsFeaturizer"
+- name: FallbackClassifier
+  threshold: 0.3
 - name: "DIETClassifier"
   epochs: 100
 # Configuration for Rasa Core.
@@ -16,11 +17,8 @@ policies:
   - name: MemoizationPolicy
     max_history: 29
   - name: TEDPolicy
-    epochs: 200
+    epochs: 100
     max_history: 29
-  - name: FallbackPolicy
-    nlu_threshold: 0.3
-    core_threshold: 0.3
-    fallback_action_name: 'action_default_fallback'
   - name: RulePolicy
-  - name: FormPolicy
+    core_fallback_threshold: 0.3
+    core_fallback_action_name: action_default_fallback

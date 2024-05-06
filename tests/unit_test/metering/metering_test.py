@@ -6,6 +6,7 @@ from mongoengine import connect
 from kairon import Utility
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
+from mongomock import MongoClient
 from kairon.shared.metering.metering_processor import MeteringProcessor
 
 

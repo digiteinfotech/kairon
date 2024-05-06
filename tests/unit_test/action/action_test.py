@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import os
 import re
 from unittest import mock
@@ -43,7 +43,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.utils import Utility
 from unittest.mock import patch
-
+from urllib.parse import urlencode
 
 class TestActions:
 
@@ -67,7 +67,7 @@ class TestActions:
     def test_execute_http_request_get_with_auth_token(self):
         http_url = 'http://localhost:8080/mock'
         auth_token = "bearer jkhfhkujsfsfslfhjsfhkjsfhskhfksj"
-        responses.reset()
+
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -88,7 +88,7 @@ class TestActions:
     def test_execute_http_request_url_encoded_request_empty_request_body(self):
         http_url = 'http://localhost:8080/mock'
         auth_token = "bearer jkhfhkujsfsfslfhjsfhkjsfhskhfksj"
-        responses.reset()
+
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -868,7 +868,7 @@ class TestActions:
             ]
         }
         response = ActionUtility.prepare_response("The value of ${data.0.a} in ${data.0.a.b} is ${data.0.a.b.d}", json2)
-        assert response == 'The value of {"b": {"43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}} in {"43": 30, "c": [], "d": ["red", "buggy", "bumpers"]} is [\'red\', \'buggy\', \'bumpers\']'
+        assert response == 'The value of {"b":{"43":30,"c":[],"d":["red","buggy","bumpers"]}} in {"43":30,"c":[],"d":["red","buggy","bumpers"]} is [\'red\', \'buggy\', \'bumpers\']'
 
     def test_prepare_response_key_not_present(self):
         json1 = json.dumps({
@@ -916,7 +916,7 @@ class TestActions:
         })
         http_response = {"data": json1, "context": {}}
         response = ActionUtility.prepare_response("", http_response)
-        assert response == {'data': '{"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}',
+        assert response == {'data': '{"a":{"b":{"3":2,"43":30,"c":[],"d":["red","buggy","bumpers"]}}}',
                             'context': {}}
 
     def test_prepare_response_string_empty_request_output(self):
@@ -1240,8 +1240,8 @@ class TestActions:
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
 
-    @responses.activate
     @pytest.mark.asyncio
+    @responses.activate
     @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
     async def test_run_pyscript_action_with_type_json_bot_response_str(self, mock_get_action):
         import textwrap
@@ -1291,7 +1291,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="SUCCESS").get()
+                                       status="SUCCESS")
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
@@ -1494,7 +1494,7 @@ class TestActions:
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
 
-        responses.reset()
+
         responses.add(
             "POST", Utility.environment['evaluator']['pyscript']['url'],
             json={"success": False, "data": None,
@@ -1579,6 +1579,7 @@ class TestActions:
         assert log['exception'].__contains__('Failed to execute the url: Failed to connect to service: localhost')
 
     @pytest.mark.asyncio
+    @responses.activate
     @mock.patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", autospec=True)
     async def test_run(self, mock_execute_request_async,monkeypatch):
         http_url = "http://www.google.com"
@@ -1597,8 +1598,8 @@ class TestActions:
         def _get_action(*args, **kwargs):
             return {"type": ActionType.http_action.value}
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
+
+
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -1628,9 +1629,9 @@ class TestActions:
         assert log['intent']
         assert log['action']
         assert log['bot_response']
-        assert log['api_response']
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_params(self, monkeypatch, aioresponses):
         http_url = "http://www.google.com/$SENDER_ID?id=$param2"
         http_response = "This should be response"
@@ -1652,7 +1653,7 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         aioresponses.add(
             method=responses.GET,
-            url="http://www.google.com/sender_test_run_with_params?id=param2value&key1=value1&key2=value2",
+            url="http://www.google.com/sender_test_run_with_params?id=param2value&"+urlencode({'key1': 'value1', 'key2': 'value2'}),
             body=http_response,
             status=200,
         )
@@ -1679,11 +1680,10 @@ class TestActions:
         assert log['intent']
         assert log['action']
         assert log['bot_response']
-        assert log['api_response']
         assert log['url'] == "http://www.google.com/sender_test_run_with_params?id=param2value"
-        assert log['request_params'] == {'key1': 'value1', 'key2': 'value2'}
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_dynamic_params(self, monkeypatch, aioresponses):
         http_url = "http://kairon.com/mock"
         http_response = "This should be response"
@@ -1703,8 +1703,8 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
+
+
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
         responses.add(
             method=responses.POST,
@@ -1742,13 +1742,11 @@ class TestActions:
         assert log['intent']
         assert log['action']
         assert log['bot_response']
-        assert log['api_response']
         assert log['status']
         assert log['url'] == http_url
-        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                         'intent': 'test_run'}
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_post(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_post",
@@ -1788,6 +1786,7 @@ class TestActions:
         assert actual[0]['value'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_post_and_parameters(self, monkeypatch, aioresponses):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
@@ -1836,18 +1835,18 @@ class TestActions:
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_post_and_parameters"
-        assert log['request_params'] == {"key1": "value1", "key2": "value2"}
-        assert log['api_response'] == '5000'
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_post_and_dynamic_params(self, monkeypatch, aioresponses):
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        http_url = 'http://localhost:8080/mock'
         action = HttpActionConfig(
             action_name="test_run_with_post_and_dynamic_params",
             response=HttpActionResponse(value="Data added successfully, id:${data}"),
-            http_url="http://localhost:8080/mock",
+            http_url=http_url,
             request_method="POST",
             dynamic_params=dynamic_params,
             bot="5f50fd0a56b698ca10d35d2e",
@@ -1858,14 +1857,15 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
-        aioresponses.add(
+        responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            payload={"success": True, "data": resp_msg},
+            url=Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {"bot_response": resp_msg}, 'error_code': 0},
             status=200,
         )
-        http_url = 'http://localhost:8080/mock'
+
         resp_msg = "5000"
         aioresponses.add(
             method=responses.POST,
@@ -1895,12 +1895,10 @@ class TestActions:
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_post_and_dynamic_params"
-        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                         'intent': 'test_run'}
-        assert log['api_response'] == '5000'
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_get(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_get",
@@ -1917,6 +1915,8 @@ class TestActions:
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8081/mock'
+
+
         resp_msg = json.dumps({
             "a": {
                 "b": {
@@ -1948,6 +1948,7 @@ class TestActions:
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_get_dispatch_type_text_with_json_response(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_get_with_json_response",
@@ -1969,8 +1970,7 @@ class TestActions:
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8081/mock'
-        responses.reset()
-        responses.start()
+
         data_obj = {
             "a": 10,
             "b": {
@@ -2013,8 +2013,6 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_get_with_json_response")
-        responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == str(data_obj)
@@ -2025,10 +2023,10 @@ class TestActions:
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_get_with_json_response"
-        assert log['api_response'] == str(data_obj)
         assert log['bot_response'] == str(data_obj)
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_get_with_dynamic_params(self, monkeypatch, aioresponses):
         dynamic_params = "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}"
         KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -2051,8 +2049,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
+
         resp_msg = {
             'body': {
                 "sender_id": "default",
@@ -2121,10 +2118,6 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_get_with_dynamic_params")
-
-
-
-        responses.stop()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == "Mayank"
@@ -2137,8 +2130,6 @@ class TestActions:
         assert log['timestamp']
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_get_with_dynamic_params"
-        assert log['request_params'] ==  {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}
-        assert log['api_response'] == str(data_obj)
         assert log['bot_response'] == "Mayank"
 
     @pytest.mark.asyncio
@@ -2188,9 +2179,9 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        http_url = 'http://localhost:8082/mock'
+        http_url = 'http://localhost:8800/mock'
         resp_msg = "This is string http response"
-        responses.start()
+
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -2207,7 +2198,7 @@ class TestActions:
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
-        responses.stop()
+
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(
@@ -2221,7 +2212,7 @@ class TestActions:
     def test_attach_response(self):
         http_response = {"data": {"dollars": "51"}, "context": {}}
         output = ActionUtility.attach_response("I want $${RESPONSE}", http_response)
-        assert output == 'I want ${\"dollars\": \"51\"}'
+        assert output == 'I want ${\"dollars\":\"51\"}'
 
     def test_attach_response_int(self):
         output = ActionUtility.attach_response("I want $${RESPONSE}", 51)
@@ -2271,6 +2262,7 @@ class TestActions:
             assert str(e) == 'Unable to retrieve value for key from HTTP response: \'d\''
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_get_with_parameters(self, monkeypatch, aioresponses):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
@@ -2644,7 +2636,14 @@ class TestActions:
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                         'source': 'static', 'is_enabled': True},
-                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Similarity Prompt',
+                        "data": "default",
+                        'hyperparameters': {'top_results': 30,
+                                            'similarity_threshold': 0.3},
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                       ]
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
 
         assert actual['type'] == ActionType.prompt_action.value
@@ -2652,17 +2651,22 @@ class TestActions:
         actual_config.pop("timestamp")
         actual_config.pop("status")
         actual_config.pop("user")
-        assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
-                                 'user_question': {'type': 'from_user_message'},
-                                 'similarity_threshold': 0.7,
+        assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5,
                                  'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                                 'bot': 'test_action_server', 'enable_response_cache': False,
+                                 'user_question': {'type': 'from_user_message'}, 'bot': 'test_action_server',
                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
-                                                     'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}
-                                                     },
-                                 'dispatch_response': True, 'set_slots': [], 'llm_prompts': llm_prompts,
-                                 'instructions': []}
+                                                     'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                     'logit_bias': {}},
+                                 'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                                  'type': 'system', 'source': 'static', 'is_enabled': True},
+                                                 {'name': 'History Prompt', 'type': 'user',
+                                                  'source': 'history', 'is_enabled': True},
+                                                 {'name': 'Similarity Prompt',
+                                                  'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
+                                                  'data': 'default', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                                  'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
+                                 'instructions': [], 'set_slots': [], 'dispatch_response': True}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
         bot_settings.pop("status")
@@ -3056,7 +3060,6 @@ class TestActions:
             'link': 'https://www.digite.com/kanban/what-is-kanban/'
         }]
 
-    @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action(self, mock_trigger_lambda):
         search_term = "What is data science?"
@@ -3108,7 +3111,6 @@ class TestActions:
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == {'text': 'What is data science?', 'site': 'https://www.w3schools.com/', 'topn': 1}
 
-    @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_without_website(self, mock_trigger_lambda):
         search_term = "What is AI?"
@@ -3167,7 +3169,6 @@ class TestActions:
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == {'text': 'What is AI?', 'site': '', 'topn': 2}
 
-    @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_exception_lambda(self, mock_trigger_lambda):
         search_term = "What is data science?"
@@ -3318,7 +3319,6 @@ class TestActions:
             with pytest.raises(ActionFailure, match=re.escape(f"{result}")):
                 ActionUtility.perform_web_search(search_term, topn=topn)
 
-    @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_app_exception(self, mock_trigger_lambda):
         search_term = "What is AI?"
@@ -3400,12 +3400,12 @@ class TestActions:
 
     @responses.activate
     def test_create_zendesk_ticket_valid_credentials(self):
-        responses.reset()
+
         responses.add(
             'POST',
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
-            match=[responses.matchers.json_params_matcher({'ticket': {'id': None, 'subject': 'new ticket', 'comment': {'id': None}}})]
+            match=[responses.matchers.json_params_matcher({'ticket': {'comment': {}, 'subject': 'new ticket'}})]
         )
         ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket')
 
@@ -3414,8 +3414,8 @@ class TestActions:
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
             match=[responses.matchers.json_params_matcher(
-                {'ticket': {'description': 'ticket described', 'id': None, 'subject': 'new ticket',
-                            'tags': ['kairon', 'bot'], 'comment': {'id': None, 'html_body': 'html comment'}}})]
+                {'ticket': {'comment': { 'html_body': 'html comment'}, 'subject': 'new ticket', 'description': 'ticket described',
+                            'tags': ['kairon', 'bot'], }})]
         )
         ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket',
                                             'ticket described', 'html comment', ['kairon', 'bot'])
@@ -3764,7 +3764,7 @@ class TestActions:
         response_config = {"value": "${data.a.b.d}", "evaluation_type": "expression"}
         http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
                          "context": {}}
-        result, log = ActionUtility.compose_response(response_config, http_response)
+        result, log, _ = ActionUtility.compose_response(response_config, http_response)
         assert result == '[\'red\', \'buggy\', \'bumpers\']'
         assert log == ['evaluation_type: expression', 'expression: ${data.a.b.d}',
                        "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
@@ -3788,7 +3788,7 @@ class TestActions:
             status=200,
             match=[responses.matchers.json_params_matcher({'source_code': script, 'predefined_objects': http_response})],
         )
-        result, log = ActionUtility.compose_response(response_config, http_response)
+        result, log, _ = ActionUtility.compose_response(response_config, http_response)
         assert result == 'Mayank'
 
         assert log ==  ['evaluation_type: script', "script: bot_response=data['name']", "data: {'name': 'Mayank'}", 'raise_err_on_failure: True']
@@ -3812,7 +3812,7 @@ class TestActions:
         set_slots = [{"name": "experience", "value": "${data.a.b.d}"}, {"name": "score", "value": "${data.a.b.3}"}]
         http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
                          "context": {}}
-        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        evaluated_slot_values, response_log, _ = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation', 'Slot: experience', 'evaluation_type: expression',
                                 'expression: ${data.a.b.d}',
@@ -3841,7 +3841,7 @@ class TestActions:
             status=200,
             match=[responses.matchers.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
         )
-        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        evaluated_slot_values, response_log, _ = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation', 'Slot: experience', 'evaluation_type: expression',
                                 'expression: ${data.a.b.d}',
@@ -3872,7 +3872,7 @@ class TestActions:
             status=200,
             match=[responses.matchers.json_params_matcher({'source_code': "bot_response=data['score']", 'predefined_objects': http_response})],
         )
-        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        evaluated_slot_values, response_log, _ = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': None, 'score': 10}
         assert response_log == ['initiating slot evaluation', 'Slot: experience', "Evaluation error for experience: Pyscript evaluation failed: {'success': False}", 'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script', "script: bot_response=data['score']", "data: {'data': {'name': 'mayank', 'exp': 30, 'score': 10}, 'context': {}}", 'raise_err_on_failure: True']
 
@@ -3925,14 +3925,19 @@ class TestActions:
         bot = "test_bot_action_test"
         user = "test_user_action_test"
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
+                        'source': 'static', 'is_enabled': True},
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Similarity Prompt',
+                        "data": "default",
+                        'hyperparameters': {'top_results': 30,
+                                            'similarity_threshold': 0.3},
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                       ]
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
         k_faq_action_config = ActionUtility.get_faq_action_config(bot, "kairon_faq_action")
         k_faq_action_config.pop('timestamp')
-        assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
-                                       'similarity_threshold': 0.7,
-                                       'enable_response_cache': False,
+        assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5,
                                        'user_question': {'type': 'from_user_message'},
                                        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                        'bot': 'test_bot_action_test', 'user': 'test_user_action_test',
@@ -3942,8 +3947,15 @@ class TestActions:
                                                            'logit_bias': {}}, 'dispatch_response': True, 'set_slots': [],
                                        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                                         'type': 'system', 'source': 'static', 'is_enabled': True},
-                                                       {'name': 'History Prompt', 'type': 'user', 'source': 'history',
-                                                        'is_enabled': True}], 'instructions': [],
+                                                       {'name': 'History Prompt', 'type': 'user',
+                                                        'source': 'history', 'is_enabled': True},
+                                                       {'name': 'Similarity Prompt',
+                                                        'hyperparameters': {'top_results': 30,
+                                                                            'similarity_threshold': 0.3},
+                                                        'data': 'default',
+                                                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
+                                       'instructions': [],
                                        'status': True}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):

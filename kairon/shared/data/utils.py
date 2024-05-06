@@ -1,8 +1,9 @@
 import os
 import shutil
 import tempfile
-from typing import Text, List, Dict
 import uuid
+from typing import Text, List, Dict
+from urllib.parse import urljoin
 
 import pandas as pd
 import requests
@@ -11,6 +12,7 @@ from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 from mongoengine.errors import ValidationError
 from pandas import DataFrame
+from rasa.shared.core.training_data.structures import RuleStep
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
@@ -21,7 +23,6 @@ from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
 from ...shared.models import StoryStepType
 from ...shared.utils import Utility
-from urllib.parse import urljoin
 
 
 class DataUtility:
@@ -59,6 +60,8 @@ class DataUtility:
             Utility.make_dirs(data_path)
 
             for file in training_files:
+                if not file:
+                    continue
                 if file.filename in ALLOWED_NLU_FORMATS.union(ALLOWED_STORIES_FORMATS).union(ALLOWED_RULES_FORMATS):
                     path = os.path.join(data_path, file.filename)
                     Utility.write_to_file(path, await file.read())
@@ -269,11 +272,6 @@ class DataUtility:
         return response_type, data
 
     @staticmethod
-    def get_rasa_core_policies():
-        from rasa.core.policies import registry
-        return list(Utility.get_imports(registry.__file__))
-
-    @staticmethod
     def trigger_data_generation_event(bot: str, user: str, token: str):
         try:
             event_url = Utility.environment['data_generation']['event_url']
@@ -287,21 +285,6 @@ class DataUtility:
                                                        user=user,
                                                        status=EVENT_STATUS.FAIL.value,
                                                        exception=str(e))
-
-    @staticmethod
-    def get_interpreter(model_path):
-        from rasa.model import get_model, get_model_subdirectories
-        from rasa.core.interpreter import create_interpreter
-        try:
-            with get_model(model_path) as unpacked_model:
-                _, nlu_model = get_model_subdirectories(unpacked_model)
-                _interpreter = create_interpreter(
-                    nlu_model
-                )
-        except Exception:
-            logger.debug(f"Could not load interpreter from '{model_path}'.")
-            _interpreter = None
-        return _interpreter
 
     @staticmethod
     def validate_flow_events(events, event_type, name):
@@ -343,7 +326,7 @@ class DataUtility:
     @staticmethod
     def parse_fallback_action(config: Dict):
         fallback_action = "action_default_fallback"
-        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        action_fallback = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
         if action_fallback:
             fallback_action = action_fallback.get("core_fallback_action_name", fallback_action)
         return fallback_action
@@ -352,7 +335,7 @@ class DataUtility:
     def get_template_type(story):
         """
         Retrieve template type(either QnA or Custom) from events in the flow.
-        Receives a dict or list and returns its type.
+        Receives a dict or instance of RuleStep or StoryStep and returns its type.
         """
         from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
         from rasa.shared.core.events import UserUttered, ActionExecuted
@@ -362,10 +345,12 @@ class DataUtility:
             steps = story['steps']
             if (
                     len(steps) == 2 and
+                    story["type"] == 'RULE' and
                     steps[0]['type'] == StoryStepType.intent and
                     steps[1]['type'] == StoryStepType.bot
             ) or (
                     len(steps) == 3 and
+                    story["type"] == 'RULE' and
                     steps[0]['name'] == RULE_SNIPPET_ACTION_NAME and
                     steps[0]['type'] == StoryStepType.action and
                     steps[1]['type'] == StoryStepType.intent and
@@ -373,18 +358,21 @@ class DataUtility:
             ):
                 template_type = 'Q&A'
         else:
+            events = story.events
             if (
-                    len(story) == 2 and
-                    story[0].type == UserUttered.type_name and
-                    story[1].type == ActionExecuted.type_name and
-                    story[1].name.startswith("utter_")
+                    len(events) == 2 and
+                    isinstance(story, RuleStep) and
+                    isinstance(events[0], UserUttered) and
+                    isinstance(events[1], ActionExecuted) and
+                    events[1].action_name.startswith("utter_")
             ) or (
-                    len(story) == 3 and
-                    story[0].name == RULE_SNIPPET_ACTION_NAME and
-                    story[0].type == ActionExecuted.type_name and
-                    story[1].type == UserUttered.type_name and
-                    story[2].type == ActionExecuted.type_name and
-                    story[2].name.startswith("utter_")
+                    len(events) == 3 and
+                    isinstance(story, RuleStep) and
+                    isinstance(events[0], ActionExecuted) and
+                    events[0].action_name == RULE_SNIPPET_ACTION_NAME and
+                    isinstance(events[1], UserUttered) and
+                    isinstance(events[2], ActionExecuted) and
+                    events[2].action_name.startswith("utter_")
             ):
                 template_type = 'Q&A'
         return template_type
@@ -398,7 +386,7 @@ class DataUtility:
             access_limit=[f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/.+"],
             token_type=TOKEN_TYPE.CHANNEL.value
         )
-        if channel_config['connector_type'] == ChannelTypes.MSTEAMS.value:
+        if channel_config['connector_type'] in [ChannelTypes.MSTEAMS.value, ChannelTypes.LINE.value]:
             token = DataUtility.save_channel_metadata(config=channel_config, token=token)
 
         channel_endpoint = urljoin(

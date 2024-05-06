@@ -1,4 +1,4 @@
-import json
+import ujson as json
 from typing import List, Text, Dict
 
 import pymongo
@@ -148,7 +148,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
     def __log_broadcast_in_conversation_history(self, template_id, contact: Text, template_params, template, mongo_client):
         import time
 
-        mongo_client.insert({
+        mongo_client.insert_one({
             "type": "broadcast", "sender_id": contact, "conversation_id": uuid7().hex, "timestamp": time.time(),
             "data": {"name":template_id, "template": template, "template_params": template_params}
         })

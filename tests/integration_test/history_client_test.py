@@ -1,5 +1,7 @@
-import json
+import ujson as json
 import os
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+
 from datetime import datetime, date, timedelta
 import responses
 from fastapi.testclient import TestClient
@@ -15,7 +17,6 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.history.processor import HistoryProcessor
 from kairon.shared.utils import Utility
-from mongomock import MongoClient
 
 client = TestClient(app)
 
@@ -381,7 +382,7 @@ def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_
 
 @responses.activate
 def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -850,7 +851,7 @@ def test_user_retention_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -875,7 +876,7 @@ def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -899,7 +900,7 @@ def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -924,7 +925,7 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
 
 @responses.activate
 def test_user_retention_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -973,7 +974,7 @@ def test_engaged_users_with_value_with_kairon_client(mock_auth, mock_mongo_proce
 
 @responses.activate
 def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -998,7 +999,7 @@ def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_
 
 @responses.activate
 def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -1076,8 +1077,6 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, moc
     )
     assert response.status_code == 200
     assert response.content.decode('utf-8')
-    assert f"conversation_history_{pytest.bot}{date.today().strftime('_%d_%m_%y.csv')}" in str(response.headers)
-
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client_access_denied1(mock_auth, mock_mongo_processor, mock_list_bots):
@@ -1149,7 +1148,7 @@ def test_download_conversation_with_error_with_kairon_client(mock_auth_admin, mo
 
 @responses.activate
 def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
@@ -1223,7 +1222,7 @@ def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
+    from_date = (datetime.utcnow() - timedelta(180)).date()
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,

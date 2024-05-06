@@ -16,6 +16,7 @@ from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
+from mongomock import MongoClient
 
 
 class TestBusinessServiceProvider:
@@ -28,7 +29,6 @@ class TestBusinessServiceProvider:
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
-        responses.reset()
 
     @responses.activate
     def test_get_auth_token(self, monkeypatch):

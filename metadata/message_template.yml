@@ -37,7 +37,7 @@ slack:
   	]
     }'
 
-hangout:
+hangouts:
   link: '{
   "text": "<data>"
 }'
@@ -132,13 +132,29 @@ telegram:
 msteams:
   body_message: "Please select from quick buttons:"
 
+line:
+  image: '{
+    "type": "image",
+    "originalContentUrl": "<imageurl>",
+    "previewImageUrl": "<imageurl>"
+  }'
+  link: '{
+    "type": "text",
+    "text": "<data>"
+  }'
+  video: '{
+  "type": "video",
+  "originalContentUrl": "<data>",
+  "previewImageUrl": "https://www.learntotrade.com.ph/assets-lttph/uploads/2016/04/video-preview-pic.jpg"
+  }'
+
 No_Config_error_message: Configuration not provided for channel {} and elementtype {}
 
 channel_messagetype_and_key_mapping: '{"slack": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
                                  "link": {"data": "<data>"},"video":{"data": "<data>"}},
                        "messenger": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
                                  "link": {"data": "<data>"},"video":{"data": "<data>"} } ,
-                       "hangout": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
+                       "hangouts": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
                                      "link": {"data": "<data>"},"video":{"data": "<data>"}},
                        "telegram": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
                                    "link": {"data": "<data>"}, "video":{"data": "<data>"}},
@@ -146,6 +162,9 @@ channel_messagetype_and_key_mapping: '{"slack": {"image": {"URL": "<imageurl>", 
                                      "link": {"data": "<data>"}, "video":{"data": "<data>", "caption": "<alttext>"}, 
                                      "audio":{"data": "<data>"}},
                        "instagram": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
-                                    "link": {"data": "<data>"}, "video":{"data": "<data>"}}
+                                    "link": {"data": "<data>"}, "video":{"data": "<data>"}},
+                      "line": {"image": {"URL": "<imageurl>", "caption": "<alttext>"},
+                                "link": {"data": "<data>"},
+                                "video":{"data": "<data>"}}
                                      }'
 channel_key_mapping_missing: Element key mapping missing for {} or {}

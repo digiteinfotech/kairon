@@ -2,6 +2,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from mongoengine import connect
 from kairon.shared.utils import Utility
 from loguru import logger
+from kairon.shared.otel import instrument
 
 """
 CLI to train or import(and validate) data into kairon.
@@ -64,6 +65,7 @@ def create_argument_parser():
     return parser
 
 
+@instrument
 def cli():
     parser = create_argument_parser()
     arguments = parser.parse_args()

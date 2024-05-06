@@ -19,8 +19,8 @@ from rasa.validator import Validator
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, \
     ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction, PromptAction, RazorpayAction, \
-    PyscriptActionConfig
-from kairon.shared.actions.models import ActionType, ActionParameterType
+    PyscriptActionConfig, DatabaseAction
+from kairon.shared.actions.models import ActionType, ActionParameterType, DbActionOperationType
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import MultiflowStories
@@ -38,7 +38,7 @@ class TrainingDataValidator(Validator):
     def __init__(self, validator: Validator):
         """Initiate class with rasa validator object."""
 
-        super().__init__(validator.domain, validator.intents, validator.story_graph, validator.nlu_config.as_dict())
+        super().__init__(validator.domain, validator.intents, validator.story_graph, validator.config)
         self.validator = validator
         self.summary = {}
         self.component_count = {}
@@ -50,11 +50,11 @@ class TrainingDataValidator(Validator):
         @param importer: rasa training data importer object.
         @return: validator
         """
-        validator = await Validator.from_importer(importer)
+        validator = Validator.from_importer(importer)
         cls.story_graph = validator.story_graph
         cls.domain = validator.domain
         cls.intents = validator.intents
-        cls.config = await importer.get_config()
+        cls.config = importer.get_config()
         return cls(validator)
 
     @classmethod
@@ -397,22 +397,21 @@ class TrainingDataValidator(Validator):
         :return: None
         """
         config_errors = []
-        from rasa.nlu.registry import registered_components as nlu_components
+        from rasa.engine.recipes.default_components import DEFAULT_COMPONENTS
+        components = [item.__name__ for item in DEFAULT_COMPONENTS]
+        components = list(set(components).difference(set(Utility.environment['core']['deprecated-components'])))
         if config.get('pipeline'):
             for item in config['pipeline']:
                 component_cfg = item['name']
-                if not (component_cfg in nlu_components or
-                        component_cfg in ["custom.ner.SpacyPatternNER", "custom.fallback.FallbackIntentFilter",
-                                          "kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer"] or
-                        component_cfg in [custom_component for custom_component in Utility.environment['model']['pipeline']['custom']]):
+                if not (component_cfg in components or
+                        component_cfg in Utility.environment['core']['components']):
                     config_errors.append("Invalid component " + component_cfg)
         else:
             config_errors.append("You didn't define any pipeline")
 
         if config.get('policies'):
-            core_policies = DataUtility.get_rasa_core_policies()
             for policy in config['policies']:
-                if policy['name'] not in core_policies:
+                if not (policy['name'] in components or policy['name'] in Utility.environment['core']['policies']):
                     config_errors.append("Invalid policy " + policy['name'])
         else:
             config_errors.append("You didn't define any policies")
@@ -436,12 +435,12 @@ class TrainingDataValidator(Validator):
         """
         self.component_count['domain'] = {}
         self.component_count['domain']['intents'] = len(self.domain.intents)
-        self.component_count['domain']['utterances'] = len(self.domain.templates)
+        self.component_count['domain']['utterances'] = len(self.domain.responses)
         self.component_count['domain']['actions'] = len(self.domain.user_actions)
         self.component_count['domain']['forms'] = len(self.domain.form_names)
         self.component_count['domain']['slots'] = len(self.domain.slots)
         self.component_count['domain']['entities'] = len(self.domain.entities)
-        self.component_count['utterances'] = len(self.domain.templates)
+        self.component_count['utterances'] = len(self.domain.responses)
         if self.domain.is_empty():
             self.summary['domain'] = ["domain.yml is empty!"]
 
@@ -584,7 +583,11 @@ class TrainingDataValidator(Validator):
                 is_data_invalid = True if errors else False
                 error_summary['pyscript_actions'] = errors
                 component_count['pyscript_actions'] = len(actions_list)
-
+            elif action_type == ActionType.database_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_database_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['database_actions'] = errors
+                component_count['database_actions'] = len(actions_list)
         return is_data_invalid, error_summary, component_count
 
     @staticmethod
@@ -668,15 +671,10 @@ class TrainingDataValidator(Validator):
         for action in prompt_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
-                    data_error.append(f'Required fields {required_fields} not found in action: {action.get("name")}')
+                    data_error.append(f'Required fields {sorted(required_fields)} not found in action: {action.get("name")}')
                     continue
                 if action.get('num_bot_responses') and (action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int)):
                     data_error.append(f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
-                if action.get('top_results') and (action['top_results'] > 30 or not isinstance(action['top_results'], int)):
-                    data_error.append(f'top_results should not be greater than 30 and of type int: {action.get("name")}')
-                if action.get('similarity_threshold'):
-                    if not (0.3 <= action['similarity_threshold'] <= 1) or not (isinstance(action['similarity_threshold'], float) or isinstance(action['similarity_threshold'], int)):
-                        data_error.append(f'similarity_threshold should be within 0.3 and 1 and of type int or float: {action.get("name")}')
                 llm_prompts_errors = TrainingDataValidator.__validate_llm_prompts(action['llm_prompts'])
                 if action.get('hyperparameters') is not None:
                     llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(action.get('hyperparameters'))
@@ -690,18 +688,48 @@ class TrainingDataValidator(Validator):
         return data_error
 
     @staticmethod
+    def __validate_database_actions(database_actions: list):
+        data_error = []
+        actions_present = set()
+        required_fields = {k for k, v in DatabaseAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in database_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['query_type'] not in [qtype.value for qtype in DbActionOperationType]:
+                    data_error.append(f"Unknown query_type found: {action['query_type']}")
+                if not action['payload'].get('type') or not action['payload'].get('value'):
+                    data_error.append(f"Payload must contain fields 'type' and 'value'!")
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+        return data_error
+
+    @staticmethod
     def __validate_llm_prompts(llm_prompts: dict):
         error_list = []
         system_prompt_count = 0
         history_prompt_count = 0
-        bot_content_prompt_count = 0
         for prompt in llm_prompts:
+            if prompt.get('hyperparameters') is not None:
+                hyperparameters = prompt.get('hyperparameters')
+                for key, value in hyperparameters.items():
+                    if key == 'similarity_threshold':
+                        if not (0.3 <= value <= 1.0) or not (
+                                isinstance(value, float) or isinstance(value, int)):
+                            error_list.append(
+                                f"similarity_threshold should be within 0.3 and 1.0 and of type int or float!")
+                    if key == 'top_results' and (value > 30 or not isinstance(value, int)):
+                        error_list.append("top_results should not be greater than 30 and of type int!")
+
             if prompt.get('type') == 'system':
                 system_prompt_count += 1
             elif prompt.get('source') == 'history':
                 history_prompt_count += 1
-            elif prompt.get('source') == 'bot_content':
-                bot_content_prompt_count += 1
             if prompt.get('type') not in ['user', 'system', 'query']:
                 error_list.append('Invalid prompt type')
             if prompt.get('source') not in ['static', 'slot', 'action', 'history', 'bot_content']:
@@ -726,14 +754,14 @@ class TrainingDataValidator(Validator):
                 error_list.append('data field in prompts should of type string.')
             if not prompt.get('data') and prompt.get('source') == 'static':
                 error_list.append('data is required for static prompts')
+            if prompt.get('source') == 'bot_content' and Utility.check_empty_string(prompt.get('data')):
+                error_list.append("Collection is required for bot content prompts!")
             if system_prompt_count > 1:
                 error_list.append('Only one system prompt can be present')
             if system_prompt_count == 0:
                 error_list.append('System prompt is required')
             if history_prompt_count > 1:
                 error_list.append('Only one history source can be present')
-            if bot_content_prompt_count > 1:
-                error_list.append('Only one bot_content source can be present')
         return error_list
 
     @staticmethod
@@ -984,7 +1012,7 @@ class TrainingDataValidator(Validator):
     def validate_domain(domain_path: Text):
         try:
             domain = Domain.load(domain_path)
-            domain.check_missing_templates()
+            domain.check_missing_responses()
         except Exception as e:
             raise AppException(f"Failed to load domain.yml. Error: '{e}'")
 

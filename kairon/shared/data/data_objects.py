@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import re
 from datetime import datetime
 
@@ -15,24 +15,32 @@ from mongoengine import (
     DictField,
     DynamicField,
     IntField,
-    FloatField
+    FloatField,
+    SequenceField,
 )
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.slots import (
     CategoricalSlot,
     FloatSlot,
-    UnfeaturizedSlot,
     ListSlot,
     TextSlot,
-    BooleanSlot, AnySlot,
+    BooleanSlot,
+    AnySlot,
 )
 from validators import domain
-from validators import url, ValidationFailure
+from validators import url
+from validators.utils import ValidationError as ValidationFailure
 
 from kairon.exceptions import AppException
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
-from kairon.shared.models import TemplateType, StoryStepType, StoryType
+from kairon.shared.models import (
+    TemplateType,
+    StoryStepType,
+    StoryType,
+    CognitionDataType,
+    CognitionMetadataType,
+)
 from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
 from ..constants import WhatsappBSPTypes, LLMResourceProvider
@@ -48,7 +56,7 @@ class Entity(EmbeddedDocument):
         if clean:
             self.clean()
         if Utility.check_empty_string(self.value) or Utility.check_empty_string(
-                self.entity
+            self.entity
         ):
             raise ValidationError(
                 "Entity name and value cannot be empty or blank spaces"
@@ -59,9 +67,13 @@ class Entity(EmbeddedDocument):
             self.entity = self.entity.strip().lower()
 
     def __eq__(self, other):
-        return isinstance(other,
-                          self.__class__) and self.start == other.start and self.end == other.end and self.value == other.value \
+        return (
+            isinstance(other, self.__class__)
+            and self.start == other.start
+            and self.end == other.end
+            and self.value == other.value
             and self.entity == other.entity
+        )
 
 
 @auditlogger.log
@@ -75,7 +87,11 @@ class TrainingExamples(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["$text", ("bot", "status"), ("bot", "intent", "status")]}]}
+    meta = {
+        "indexes": [
+            {"fields": ["$text", ("bot", "status"), ("bot", "intent", "status")]}
+        ]
+    }
 
     def validate(self, clean=True):
         if clean:
@@ -84,7 +100,7 @@ class TrainingExamples(Auditlog):
         if self.entities:
             for ent in self.entities:
                 ent.validate()
-                extracted_ent = self.text[ent.start: ent.end]
+                extracted_ent = self.text[ent.start : ent.end]
                 if extracted_ent != ent.value:
                     raise ValidationError(
                         "Invalid entity: "
@@ -95,7 +111,7 @@ class TrainingExamples(Auditlog):
                         + extracted_ent
                     )
         elif Utility.check_empty_string(self.text) or Utility.check_empty_string(
-                self.intent
+            self.intent
         ):
             raise ValidationError(
                 "Training Example name and text cannot be empty or blank spaces"
@@ -117,16 +133,14 @@ class Synonyms(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "status" ,"name")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status", "name")]}]}
 
     def validate(self, clean=True):
         if clean:
             self.clean()
 
         if Utility.check_empty_string(self.name):
-            raise ValidationError(
-                "Synonym cannot be empty or blank spaces"
-            )
+            raise ValidationError("Synonym cannot be empty or blank spaces")
 
     def clean(self):
         self.name = self.name.strip().lower()
@@ -149,7 +163,7 @@ class EntitySynonyms(Auditlog):
             self.clean()
 
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
-                self.value
+            self.value
         ):
             raise ValidationError(
                 "Synonym name and value cannot be empty or blank spaces"
@@ -176,9 +190,7 @@ class Lookup(Auditlog):
             self.clean()
 
         if Utility.check_empty_string(self.name):
-            raise ValidationError(
-                "Lookup cannot be empty or blank spaces"
-            )
+            raise ValidationError("Lookup cannot be empty or blank spaces")
 
     def clean(self):
         self.name = self.name.strip().lower()
@@ -201,7 +213,7 @@ class LookupTables(Auditlog):
             self.clean()
 
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
-                self.value
+            self.value
         ):
             raise ValidationError(
                 "Lookup name and value cannot be empty or blank spaces"
@@ -232,7 +244,7 @@ class RegexFeatures(Auditlog):
             self.clean()
 
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
-                self.pattern
+            self.pattern
         ):
             raise ValidationError(
                 "Regex name and pattern cannot be empty or blank spaces"
@@ -320,39 +332,46 @@ class Forms(Auditlog):
 @push_notification.apply
 class SlotMapping(Auditlog):
     slot = StringField(required=True)
-    mapping = ListField(required=True)
+    mapping = DictField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    form_name = StringField(default=None)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
     def clean(self):
         self.slot = self.slot.strip().lower()
-        mapping = []
-        for slot_mapping in self.mapping:
-            mapping_info = {'type': slot_mapping['type']}
-            if slot_mapping['type'] == SLOT_MAPPING_TYPE.FROM_ENTITY.value:
-                mapping_info['entity'] = slot_mapping.get('entity') or self.slot
-                mapping_info['entity'] = mapping_info['entity'].lower()
-            if slot_mapping.get('value') is not None:
-                mapping_info['value'] = slot_mapping['value']
-            if slot_mapping.get('intent'):
-                on_intents = []
-                for intent in slot_mapping['intent']:
-                    on_intents.append(intent.lower())
-                mapping_info['intent'] = on_intents
-            if slot_mapping.get('not_intent'):
-                not_intents = []
-                for intent in slot_mapping['not_intent']:
-                    not_intents.append(intent.lower())
-                mapping_info['not_intent'] = not_intents
-            mapping.append(mapping_info)
-        self.mapping = mapping
+
+        mapping_info = {"type": self.mapping["type"]}
+        if self.mapping["type"] == SLOT_MAPPING_TYPE.FROM_ENTITY.value:
+            mapping_info["entity"] = self.mapping.get("entity") or self.slot
+            mapping_info["entity"] = mapping_info["entity"].lower()
+        if self.mapping.get("value") is not None:
+            mapping_info["value"] = self.mapping["value"]
+        if self.mapping.get("intent"):
+            on_intents = []
+            for intent in self.mapping["intent"]:
+                on_intents.append(intent.lower())
+            mapping_info["intent"] = on_intents
+        if self.mapping.get("not_intent"):
+            not_intents = []
+            for intent in self.mapping["not_intent"]:
+                not_intents.append(intent.lower())
+            mapping_info["not_intent"] = not_intents
+        if self.mapping.get("conditions"):
+            mapping_conditions = []
+            for condition in self.mapping["conditions"]:
+                if not Utility.check_empty_string(condition.get("active_loop")):
+                    mapping_conditions.append({"active_loop": condition["active_loop"], "requested_slot": condition["requested_slot"]})
+            if mapping_conditions:
+                mapping_info["conditions"] = mapping_conditions
+        self.mapping = mapping_info
 
     def validate(self, clean=True):
-        from rasa.shared.core.domain import _validate_slot_mappings
+        from rasa.shared.core.slot_mappings import validate_slot_mappings
+        from rasa.shared.core.constants import SLOT_MAPPINGS
 
         if not self.mapping or self.mapping == [{}]:
             raise ValueError("At least one mapping is required")
@@ -363,7 +382,7 @@ class SlotMapping(Auditlog):
             self.clean()
 
         try:
-            _validate_slot_mappings({'form_name': {self.slot: self.mapping}})
+            validate_slot_mappings({self.slot: {SLOT_MAPPINGS: [self.mapping]}})
         except Exception as e:
             raise ValidationError(e)
 
@@ -399,7 +418,7 @@ class ResponseButton(EmbeddedDocument):
         if not self.title or not self.payload:
             raise ValidationError("title and payload must be present!")
         elif Utility.check_empty_string(self.title) or Utility.check_empty_string(
-                self.payload.strip()
+            self.payload.strip()
         ):
             raise ValidationError(
                 "Response title and payload cannot be empty or blank spaces"
@@ -437,7 +456,9 @@ class Responses(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["$text", ("bot", "status"), ("bot", "name", "status")]}]}
+    meta = {
+        "indexes": [{"fields": ["$text", ("bot", "status"), ("bot", "name", "status")]}]
+    }
 
     def validate(self, clean=True):
         if clean:
@@ -478,16 +499,14 @@ class Slots(Auditlog):
         choices=[
             FloatSlot.type_name,
             CategoricalSlot.type_name,
-            UnfeaturizedSlot.type_name,
             ListSlot.type_name,
             TextSlot.type_name,
             BooleanSlot.type_name,
-            AnySlot.type_name
+            AnySlot.type_name,
         ],
     )
     initial_value = DynamicField()
     value_reset_delay = LongField()
-    auto_fill = BooleanField(default=True)
     values = ListField(StringField(), default=None)
     max_value = FloatField()
     min_value = FloatField()
@@ -508,7 +527,7 @@ class Slots(Auditlog):
             self.clean()
 
         if Utility.check_empty_string(self.name) or Utility.check_empty_string(
-                self.type
+            self.type
         ):
             raise ValueError("Slot name and type cannot be empty or blank spaces")
         error = ""
@@ -532,18 +551,26 @@ class Slots(Auditlog):
 
 class StoryEvents(EmbeddedDocument):
     name = StringField(default=None)
-    type = StringField(required=True, choices=["user", "action", "form", "slot", "active_loop"])
+    type = StringField(
+        required=True, choices=["user", "action", "form", "slot", "active_loop"]
+    )
     value = DynamicField()
     entities = ListField(EmbeddedDocumentField(Entity), default=None)
 
     def validate(self, clean=True):
         if clean:
             self.clean()
-        if self.type != 'slot' and self.value is not None:
+        if self.type != "slot" and self.value is not None:
             raise ValidationError("Value is allowed only for slot events")
-        if self.type == 'slot' and self.value is not None and not isinstance(self.value, (str, int, bool)):
-            raise ValidationError("slot values must be either None or of type int, str or boolean")
-        if Utility.check_empty_string(self.name) and self.type != 'active_loop':
+        if (
+            self.type == "slot"
+            and self.value is not None
+            and not isinstance(self.value, (str, int, bool))
+        ):
+            raise ValidationError(
+                "slot values must be either None or of type int, str or boolean"
+            )
+        if Utility.check_empty_string(self.name) and self.type != "active_loop":
             raise ValidationError("Empty name is allowed only for active_loop")
 
     def clean(self):
@@ -554,14 +581,20 @@ class StoryEvents(EmbeddedDocument):
                 entity.clean()
 
     def __eq__(self, other):
-        return isinstance(other,
-                          self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value \
+        return (
+            isinstance(other, self.__class__)
+            and self.name == other.name
+            and self.type == other.type
+            and self.value == other.value
             and self.entities == other.entities
+        )
 
 
 class StepFlowEvent(EmbeddedDocument):
     name = StringField(required=True)
-    type = StringField(required=True, choices=[step_type.value for step_type in StoryStepType])
+    type = StringField(
+        required=True, choices=[step_type.value for step_type in StoryStepType]
+    )
     value = DynamicField()
     node_id = StringField(required=True)
     component_id = StringField(required=True)
@@ -573,8 +606,14 @@ class StepFlowEvent(EmbeddedDocument):
             raise ValidationError("Name cannot be empty")
         if self.type != StoryStepType.slot.value and self.value is not None:
             raise ValidationError("Value is allowed only for slot events")
-        if self.type == StoryStepType.slot.value and self.value is not None and not isinstance(self.value, (str, int, bool)):
-            raise ValidationError("slot values must be either None or of type int, str or boolean")
+        if (
+            self.type == StoryStepType.slot.value
+            and self.value is not None
+            and not isinstance(self.value, (str, int, bool))
+        ):
+            raise ValidationError(
+                "slot values must be either None or of type int, str or boolean"
+            )
 
     def clean(self):
         if not Utility.check_empty_string(self.name):
@@ -588,7 +627,10 @@ class MultiflowStoryEvents(EmbeddedDocument):
 
 class MultiFlowStoryMetadata(EmbeddedDocument):
     node_id = StringField(required=True)
-    flow_type = StringField(default=StoryType.story.value, choices=[StoryType.story.value, StoryType.rule.value])
+    flow_type = StringField(
+        default=StoryType.story.value,
+        choices=[StoryType.story.value, StoryType.rule.value],
+    )
 
     def clean(self):
         if Utility.check_empty_string(self.flow_type):
@@ -606,8 +648,10 @@ class Stories(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    template_type = StringField(default=TemplateType.CUSTOM.value,
-                                choices=[template.value for template in TemplateType])
+    template_type = StringField(
+        default=TemplateType.CUSTOM.value,
+        choices=[template.value for template in TemplateType],
+    )
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "block_name", "status")]}]}
 
@@ -616,6 +660,7 @@ class Stories(Auditlog):
             self.clean()
 
         from .utils import DataUtility
+
         if Utility.check_empty_string(self.block_name):
             raise ValidationError("Story name cannot be empty or blank spaces")
         elif not self.events:
@@ -640,8 +685,10 @@ class MultiflowStories(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    template_type = StringField(default=TemplateType.CUSTOM.value,
-                                choices=[template.value for template in TemplateType])
+    template_type = StringField(
+        default=TemplateType.CUSTOM.value,
+        choices=[template.value for template in TemplateType],
+    )
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "block_name")]}]}
 
@@ -674,8 +721,10 @@ class Rules(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    template_type = StringField(default=TemplateType.CUSTOM.value,
-                                choices=[template.value for template in TemplateType])
+    template_type = StringField(
+        default=TemplateType.CUSTOM.value,
+        choices=[template.value for template in TemplateType],
+    )
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "block_name")]}]}
 
@@ -688,6 +737,7 @@ class Rules(Auditlog):
         if clean:
             self.clean()
         from .utils import DataUtility
+
         if Utility.check_empty_string(self.block_name):
             raise ValidationError("rule name cannot be empty or blank spaces")
         elif not self.events:
@@ -698,6 +748,7 @@ class Rules(Auditlog):
 @auditlogger.log
 @push_notification.apply
 class Configs(Auditlog):
+    recipe = StringField(required=True, default="default.v1")
     language = StringField(required=True, default="en")
     pipeline = DynamicField(required=True)
     policies = ListField(DictField(), required=True)
@@ -722,7 +773,7 @@ class EndPointAction(EmbeddedDocument):
     url = StringField(required=True)
 
     def validate(self, clean=True):
-        if isinstance(url(self.url), ValidationFailure):
+        if isinstance(url(self.url, simple_host=True), ValidationFailure):
             raise AppException("Invalid Action server url ")
 
 
@@ -732,7 +783,7 @@ class EndPointBot(EmbeddedDocument):
     token_type = StringField()
 
     def validate(self, clean=True):
-        if isinstance(url(self.url), ValidationFailure):
+        if isinstance(url(self.url, simple_host=True), ValidationFailure):
             raise AppException("Invalid Bot server url")
 
 
@@ -794,7 +845,9 @@ class TrainingExamplesTrainingDataGenerator(EmbeddedDocument):
 
 class TrainingDataGeneratorResponse(EmbeddedDocument):
     intent = StringField(required=True)
-    training_examples = ListField(EmbeddedDocumentField(TrainingExamplesTrainingDataGenerator), required=True)
+    training_examples = ListField(
+        EmbeddedDocumentField(TrainingExamplesTrainingDataGenerator), required=True
+    )
     response = StringField(required=True)
 
 
@@ -804,20 +857,28 @@ class TrainingDataGenerator(Document):
     user = StringField(required=True)
     document_path = StringField(default=None)
     source_type = StringField(
-        choices=[TrainingDataSourceType.document.value, TrainingDataSourceType.website.value],
-        default=TrainingDataSourceType.document.value)
+        choices=[
+            TrainingDataSourceType.document.value,
+            TrainingDataSourceType.website.value,
+        ],
+        default=TrainingDataSourceType.document.value,
+    )
     status = StringField(default=EVENT_STATUS.INITIATED.value)
     start_timestamp = DateTimeField(default=None)
     last_update_timestamp = DateTimeField(default=None)
     end_timestamp = DateTimeField(default=None)
-    response = ListField(EmbeddedDocumentField(TrainingDataGeneratorResponse), default=None)
+    response = ListField(
+        EmbeddedDocumentField(TrainingDataGeneratorResponse), default=None
+    )
     exception = StringField(default=None)
 
 
 class LLMSettings(EmbeddedDocument):
     enable_faq = BooleanField(default=False)
-    provider = StringField(default=LLMResourceProvider.openai.value, choices=[LLMResourceProvider.azure.value,
-                                                                             LLMResourceProvider.openai.value])
+    provider = StringField(
+        default=LLMResourceProvider.openai.value,
+        choices=[LLMResourceProvider.azure.value, LLMResourceProvider.openai.value],
+    )
     embeddings_model_id = StringField()
     chat_completion_model_id = StringField()
     api_version = StringField()
@@ -839,7 +900,9 @@ class BotSettings(Auditlog):
     analytics = EmbeddedDocumentField(Analytics, default=Analytics())
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
-    whatsapp = StringField(default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value])
+    whatsapp = StringField(
+        default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value]
+    )
     notification_scheduling_limit = IntField(default=4)
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -861,7 +924,9 @@ class BotSettings(Auditlog):
             self.clean()
 
         if self.refresh_token_expiry <= self.chat_token_expiry:
-            raise ValidationError("refresh_token_expiry must be greater than chat_token_expiry!")
+            raise ValidationError(
+                "refresh_token_expiry must be greater than chat_token_expiry!"
+            )
 
 
 @auditlogger.log
@@ -930,7 +995,9 @@ class KeyVault(Auditlog):
 
 from mongoengine import signals
 
-signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)
+signals.pre_save_post_validation.connect(
+    KeyVault.pre_save_post_validation, sender=KeyVault
+)
 
 
 @auditlogger.log
@@ -954,8 +1021,12 @@ class EventConfig(Auditlog):
         document.headers = Utility.encrypt_message(json.dumps(document.headers))
 
 
-signals.pre_save_post_validation.connect(EventConfig.pre_save_post_validation, sender=EventConfig)
-signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)
+signals.pre_save_post_validation.connect(
+    EventConfig.pre_save_post_validation, sender=EventConfig
+)
+signals.pre_save_post_validation.connect(
+    KeyVault.pre_save_post_validation, sender=KeyVault
+)
 
 
 @push_notification.apply

@@ -1,7 +1,5 @@
-import logging
 from typing import Text
 
-from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, Request, Path, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -15,11 +13,12 @@ from kairon.api.models import Response
 from kairon.events.models import EventRequest
 from kairon.events.scheduler.kscheduler import KScheduler
 from kairon.events.utility import EventUtility
-from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.constants import EventClass
 from kairon.shared.utils import Utility
+from contextlib import asynccontextmanager
+from kairon.shared.otel import instrument_fastapi
 
-logging.basicConfig(level="DEBUG")
+
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (
@@ -51,7 +50,17 @@ secure_headers = Secure(
     content=content
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """ MongoDB is connected on the bot trainer startup """
+    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
+    connect(**config)
+    yield
+    disconnect()
+
+
+app = FastAPI(lifespan=lifespan)
 allowed_origins = Utility.environment['cors']['origin']
 app.add_middleware(
     CORSMiddleware,
@@ -62,10 +71,7 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-apm_client = Utility.initiate_fastapi_apm_client()
-
-if apm_client:
-    app.add_middleware(ElasticAPM, client=apm_client)
+instrument_fastapi(app)
 
 
 @app.middleware("http")
@@ -96,22 +102,6 @@ async def catch_exceptions_middleware(request: Request, call_next):
             ).dict()
         )
 
-
-@app.on_event("startup")
-async def startup():
-    """ MongoDB is connected on the bot trainer startup """
-    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
-    connect(**config)
-    await AccountProcessor.default_account_setup()
-    AccountProcessor.load_system_properties()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """ MongoDB is disconnected when bot trainer is shut down """
-    disconnect()
-
-
 @app.get("/", response_model=Response)
 def index():
     return {"message": "Event server running!"}
@@ -120,8 +110,8 @@ def index():
 @app.post("/api/events/execute/{event_type}", response_model=Response)
 def add_event(
         request: EventRequest,
-        is_scheduled: bool = Query(description="Whether the event is to be run once or scheduled"),
-        event_type: EventClass = Path(description="Event type", example=[e.value for e in EventClass])
+        is_scheduled: bool = Query(default=False, description="Whether the event is to be run once or scheduled"),
+        event_type: EventClass = Path(description="Event type", examples=[e.value for e in EventClass])
 ):
     request.validate_request(is_scheduled, event_type)
     response, message = EventUtility.add_job(event_type, request.dict(), is_scheduled)
@@ -131,8 +121,8 @@ def add_event(
 @app.put("/api/events/execute/{event_type}", response_model=Response)
 def update_scheduled_event(
         request: EventRequest,
-        is_scheduled: bool = Query(description="Whether the event is to be run once or scheduled"),
-        event_type: EventClass = Path(description="Event type", example=[e.value for e in EventClass])
+        is_scheduled: bool = Query(default=False, description="Whether the event is to be run once or scheduled"),
+        event_type: EventClass = Path(description="Event type", examples=[e.value for e in EventClass])
 ):
     request.validate_request(is_scheduled, event_type)
     response, message = EventUtility.update_job(event_type, request.dict(), is_scheduled)

@@ -8,6 +8,7 @@ from io import BytesIO
 from unittest.mock import patch
 from urllib.parse import urljoin
 
+import mock
 import mongomock
 import pytest
 import responses
@@ -28,20 +29,25 @@ from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
+from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
+from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
+from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.constants import EventClass, EventRequestType, ChannelTypes
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.shared.data.data_objects import Configs, BotSettings
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
-from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
+from kairon.shared.utils import Utility
 from kairon.test.test_models import ModelTester
 
-from kairon.events.definitions.faq_importer import FaqDataImporterEvent
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 
 class TestEventExecution:
@@ -68,10 +74,10 @@ class TestEventExecution:
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
-            domain = await importer.get_domain()
-            story_graph = await importer.get_stories()
-            config = await importer.get_config()
-            nlu = await importer.get_nlu_data(config.get('language'))
+            domain = importer.get_domain()
+            story_graph = importer.get_stories()
+            config = importer.get_config()
+            nlu = importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
             multiflow_stories = Utility.read_yaml(multiflow_stories_path)
             return nlu, story_graph, domain, config, http_actions, multiflow_stories
@@ -89,8 +95,7 @@ class TestEventExecution:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user,
-                                         files_received=REQUIREMENTS - {"http_actions", "chat_client_config"})
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS-{"http_actions", "chat_client_config"})
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -159,7 +164,7 @@ class TestEventExecution:
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
-        assert logs[0].get('exception').__contains__('Failed to read YAML')
+        assert logs[0].get('exception').__contains__("Failed to validate nlu.yml. Please make sure the file is correct and all mandatory parameters are specified. Here are the errors found during validation:\n  in nlu.yml:3:\n      Value 'intent' is not a dict. Value path: '/nlu/1'")
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
         assert logs[0]['status'] == 'Failure'
@@ -337,8 +342,7 @@ class TestEventExecution:
     def test_trigger_data_importer_validate_event(self, monkeypatch):
         bot = 'test_events_bot'
         user = 'test_user'
-        event_url = urljoin(Utility.environment['events']['server_url'],
-                            f"/api/events/execute/{EventClass.data_importer}")
+        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
         BotSettings(bot="test_events_bot", user="test_user").save()
 
         responses.add("POST",
@@ -348,13 +352,11 @@ class TestEventExecution:
                       match=[
                           responses.matchers.json_params_matcher(
                               {"cron_exp": None, "data": {"bot": "test_events_bot", "event_type": "data_importer",
-                                                          "import_data": "--import-data", "overwrite": "",
-                                                          "user": "test_user"}, "timezone": None})],
+                                                          "import_data": "--import-data", "overwrite": "", "user": "test_user"}, "timezone": None})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=True)
         event.validate()
         event.enqueue()
-        responses.reset()
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -375,8 +377,7 @@ class TestEventExecution:
     def test_trigger_data_importer_validate_and_save_event_overwrite(self, monkeypatch):
         bot = 'test_events_bot_1'
         user = 'test_user'
-        event_url = urljoin(Utility.environment['events']['server_url'],
-                            f"/api/events/execute/{EventClass.data_importer}")
+        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
         BotSettings(bot="test_events_bot_1", user="test_user").save()
         responses.add("POST",
                       event_url,
@@ -411,8 +412,7 @@ class TestEventExecution:
     def test_trigger_data_importer_validate_only_event(self, monkeypatch):
         bot = 'test_events_bot_2'
         user = 'test_user'
-        event_url = urljoin(Utility.environment['events']['server_url'],
-                            f"/api/events/execute/{EventClass.data_importer}")
+        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
         BotSettings(bot="test_events_bot_2", user="test_user").save()
 
         responses.add("POST",
@@ -421,7 +421,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {"data": {'bot': bot, 'user': user, 'import_data': '',
+                              {"data": {'bot': bot, 'user': user, 'import_data': '', 
                                         'event_type': EventClass.data_importer, 'overwrite': ''},
                                "cron_exp": None, "timezone": None})],
                       )
@@ -464,8 +464,7 @@ class TestEventExecution:
         nlu_path = os.path.join(test_data_path, 'data')
         Utility.make_dirs(nlu_path)
         shutil.copy2('tests/testing_data/validator/valid/data/nlu.yml', nlu_path)
-        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(
-            get_training_data('tests/testing_data/validator/valid'))
+        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
@@ -563,8 +562,7 @@ class TestEventExecution:
         data_path = os.path.join(test_data_path, 'data')
         Utility.make_dirs(data_path)
         shutil.copy2('tests/testing_data/validator/valid/data/stories.yml', data_path)
-        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(
-            get_training_data('tests/testing_data/validator/valid'))
+        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
@@ -610,8 +608,7 @@ class TestEventExecution:
         data_path = os.path.join(test_data_path, 'data')
         Utility.make_dirs(data_path)
         shutil.copy2('tests/testing_data/validator/valid/data/rules.yml', data_path)
-        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(
-            get_training_data('tests/testing_data/validator/valid'))
+        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
@@ -656,8 +653,7 @@ class TestEventExecution:
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         Utility.make_dirs(test_data_path)
         shutil.copy2('tests/testing_data/validator/valid/domain.yml', test_data_path)
-        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(
-            get_training_data('tests/testing_data/validator/valid'))
+        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
@@ -983,14 +979,14 @@ class TestEventExecution:
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=data_path)
-            domain = await importer.get_domain()
-            story_graph = await importer.get_stories()
-            config = await importer.get_config()
-            nlu = await importer.get_nlu_data(config.get('language'))
+            domain = importer.get_domain()
+            story_graph = importer.get_stories()
+            config = importer.get_config()
+            nlu = importer.get_nlu_data(config.get('language'))
 
             processor = MongoProcessor()
             processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True,
-                                         what=REQUIREMENTS.copy() - {"chat_client_config"})
+                                         what=REQUIREMENTS.copy()-{"chat_client_config"})
 
         return _read_and_get_data
 
@@ -1022,9 +1018,8 @@ class TestEventExecution:
         pytest.model_path = ModelTrainingEvent(bot, user).execute()
         assert not Utility.check_empty_string(pytest.model_path)
 
-    def test_trigger_model_testing_event_run_tests_on_model(self, load_data, create_model, monkeypatch):
-        import rasa.utils.common
-
+    @mock.patch("kairon.test.test_models.ModelTester.run_test_on_stories")
+    def test_trigger_model_testing_event_run_tests_on_model(self, mocked_run_stories, load_data, create_model):
         bot = 'test_events_bot'
         user = 'test_user'
         config_path = 'tests/testing_data/model_tester/config.yml'
@@ -1033,15 +1028,12 @@ class TestEventExecution:
         stories_path = 'tests/testing_data/model_tester/training_stories_success/stories.yml'
         asyncio.run(load_data(config_path, domain_path, nlu_path, stories_path, bot, user))
 
-        def _mock_stories_output(*args, **kwargs):
-            return {
-                "precision": 0.91,
-                "f1": 0.98,
-                "accuracy": 0.99,
-                "failed_stories": [],
-            }
-
-        monkeypatch.setattr(rasa.utils.common, 'run_in_loop', _mock_stories_output)
+        mocked_run_stories.return_value = {
+            "precision": 0.91,
+            "f1": 0.98,
+            "accuracy": 0.99,
+            "failed_stories": [],
+        }
         ModelTestingEvent(bot, user, run_e2e=False).execute()
         logs, row_count = ModelTestingLogProcessor.get_logs(bot)
         assert row_count == 2
@@ -1103,19 +1095,16 @@ class TestEventExecution:
     def test_trigger_model_testing_event(self):
         bot = 'test_events_bot'
         user = 'test_user'
-        event_url = urljoin(Utility.environment['events']['server_url'],
-                            f"/api/events/execute/{EventClass.model_testing}")
+        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_testing}")
         responses.add("POST",
                       event_url,
                       json={"success": True, "message": "Event triggered successfully!"},
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {"data": {'bot': bot, 'user': user, 'augment_data': '--augment'}, "cron_exp": None,
-                               "timezone": None})],
+                              {"data": {'bot': bot, 'user': user, 'augment_data': '--augment'}, "cron_exp": None, "timezone": None})],
                       )
         ModelTestingEvent(bot, user).enqueue()
-        responses.reset()
 
         logs, row_count = ModelTestingLogProcessor.get_logs(bot)
         assert row_count == 4
@@ -1131,19 +1120,16 @@ class TestEventExecution:
     def test_trigger_model_testing_event_2(self):
         bot = 'test_events_bot_2'
         user = 'test_user'
-        event_url = urljoin(Utility.environment['events']['server_url'],
-                            f"/api/events/execute/{EventClass.model_testing}")
+        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_testing}")
         responses.add("POST",
                       event_url,
                       json={"success": True, "message": "Event triggered successfully!"},
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {"data": {'bot': bot, 'user': user, 'augment_data': ''}, "cron_exp": None,
-                               "timezone": None})],
+                              {"data": {'bot': bot, 'user': user, 'augment_data': ''}, "cron_exp": None, "timezone": None})],
                       )
         ModelTestingEvent(bot, user, augment_data=False).enqueue()
-        responses.reset()
 
         logs, row_count = ModelTestingLogProcessor.get_logs(bot)
         assert row_count == 1
@@ -1155,30 +1141,26 @@ class TestEventExecution:
         assert not logs[0]['is_augmented']
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
+    @responses.activate
     def test_trigger_history_deletion_for_bot(self):
         from datetime import datetime
         bot = 'test_events_bot'
         user = 'test_user'
         till_date = datetime.utcnow().date()
         sender_id = ""
-        event_url = urljoin(Utility.environment['events']['server_url'],
-                            f"/api/events/execute/{EventClass.delete_history}")
-        responses.reset()
+        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.delete_history}")
         responses.add("POST",
                       event_url,
                       json={"success": True, "message": "Event triggered successfully!"},
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {"data": {'bot': bot, 'user': user,
-                                        'till_date': Utility.convert_date_to_string(till_date),
-                                        'sender_id': sender_id}, "cron_exp": None, "timezone": None})],
+                              {"data": {'bot': bot, 'user': user, 'till_date': Utility.convert_date_to_string(till_date),
+                               'sender_id': sender_id}, "cron_exp": None, "timezone": None})],
                       )
-        responses.start()
         event = DeleteHistoryEvent(bot, user, till_date=till_date, sender_id=None)
         event.validate()
         event.enqueue()
-        responses.stop()
 
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -1319,8 +1301,7 @@ class TestEventExecution:
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_execute_message_broadcast_with_static_values(self, mock_is_exist, mock_channel_config,
-                                                          mock_get_bot_settings, mock_send,
-                                                          mock_get_partner_auth_token):
+                                                           mock_get_bot_settings, mock_send, mock_get_partner_auth_token):
         bot = 'test_execute_message_broadcast'
         user = 'test_user'
         config = {
@@ -1373,8 +1354,7 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
-                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
@@ -1414,6 +1394,7 @@ class TestEventExecution:
         assert len(settings) == 1
         assert settings[0]["status"] == False
 
+    @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
@@ -1470,7 +1451,6 @@ class TestEventExecution:
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
         template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1494,7 +1474,6 @@ class TestEventExecution:
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
             event.execute(event_id)
-            responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         print(logs)
@@ -1545,12 +1524,13 @@ class TestEventExecution:
             'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
             'filename': 'Brochure.pdf'}}]}]
 
+    @responses.activate
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_execute_message_broadcast_with_recipient_evaluation_failure(self, mock_is_exist, mock_channel_config,
-                                                                         mock_get_bot_settings, mock_send):
+                                                           mock_get_bot_settings, mock_send):
         bot = 'test_execute_dynamic_message_broadcast_recipient_evaluation_failure'
         user = 'test_user'
         config = {
@@ -1569,14 +1549,12 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
-                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
@@ -1585,7 +1563,6 @@ class TestEventExecution:
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -1607,11 +1584,11 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
+    @responses.activate
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_expression_evaluation_failure(self, mock_is_exist, mock_get_bot_settings,
-                                                                     mock_channel_config):
+    def test_execute_message_broadcast_expression_evaluation_failure(self, mock_is_exist, mock_get_bot_settings, mock_channel_config):
         bot = 'test_execute_message_broadcast_expression_evaluation_failure'
         user = 'test_user'
         config = {
@@ -1629,14 +1606,12 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
-                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -1649,8 +1624,8 @@ class TestEventExecution:
         assert len(logs[0]) == logs[1] == 1
         exception = logs[0][0].pop("exception")
         assert exception.startswith('Failed to evaluate template: ')
-        responses.reset()
 
+    @responses.activate
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -1673,14 +1648,12 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
-                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
         event = MessageBroadcastEvent(bot, user)
@@ -1692,7 +1665,6 @@ class TestEventExecution:
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
 
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -1719,8 +1691,7 @@ class TestEventExecution:
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_evaluate_template_parameters(self, mock_is_exist, mock_send, mock_channel_config,
-                                                                    mock_get_bot_settings, mock_bsp_auth_token):
+    def test_execute_message_broadcast_evaluate_template_parameters(self, mock_is_exist, mock_send, mock_channel_config, mock_get_bot_settings, mock_bsp_auth_token):
         bot = 'test_execute_message_broadcast_evaluate_template_parameters'
         user = 'test_user'
         template_script = str([[{'body': 'Udit Pandey'}]])
@@ -1740,29 +1711,29 @@ class TestEventExecution:
             ]
         }
         template = [
-            {
-                "format": "TEXT",
-                "text": "Kisan Suvidha Program Follow-up",
-                "type": "HEADER"
-            },
-            {
-                "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
-                "type": "BODY"
-            },
-            {
-                "text": "reply with STOP to unsubscribe",
-                "type": "FOOTER"
-            },
-            {
-                "buttons": [
-                    {
-                        "text": "Connect to Agronomist",
-                        "type": "QUICK_REPLY"
-                    }
-                ],
-                "type": "BUTTONS"
-            }
-        ]
+                {
+                    "format": "TEXT",
+                    "text": "Kisan Suvidha Program Follow-up",
+                    "type": "HEADER"
+                },
+                {
+                    "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                    "type": "BODY"
+                },
+                {
+                    "text": "reply with STOP to unsubscribe",
+                    "type": "FOOTER"
+                },
+                {
+                    "buttons": [
+                        {
+                            "text": "Connect to Agronomist",
+                            "type": "QUICK_REPLY"
+                        }
+                    ],
+                    "type": "BUTTONS"
+                }
+            ]
 
         mock_bsp_auth_token.return_value = "kdjfnskjksjfksjf"
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
@@ -1776,11 +1747,8 @@ class TestEventExecution:
             json={"waba_templates": [
                 {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
         )
-        mock_channel_config.return_value = {
-            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
-                       "waba_account_id": "asdfghjk"}}
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 10,
-                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 10, "dynamic_broadcast_execution_timeout": 21600}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
         with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
@@ -1799,7 +1767,7 @@ class TestEventExecution:
         history[0].pop("conversation_id")
         assert history == [{
             'type': 'broadcast', 'sender_id': '918958030541',
-            'data': {'name': 'agronomy_support', 'template': template, 'template_params': [{'body': 'Udit Pandey'}], }}]
+            'data': {'name': 'agronomy_support', 'template': template, 'template_params': [{'body': 'Udit Pandey'}],}}]
 
         assert len(logs[0]) == logs[1] == 2
         logs[0][1].pop("timestamp")
@@ -1837,6 +1805,7 @@ class TestEventExecution:
             with pytest.raises(Exception):
                 ScheduledEventsBase("test", "test").enqueue(event_request_type, config={})
 
+    @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
@@ -1844,7 +1813,7 @@ class TestEventExecution:
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_execute_message_broadcast_with_pyscript(self, mock_is_exist, mock_channel_config,
-                                                     mock_get_bot_settings, mock_send, mock_get_partner_auth_token):
+                                                           mock_get_bot_settings, mock_send, mock_get_partner_auth_token):
         bot = 'test_execute_message_broadcast_with_pyscript'
         user = 'test_user'
         script = """
@@ -1867,33 +1836,32 @@ class TestEventExecution:
             "pyscript": script
         }
         template = [
-            {
-                "format": "TEXT",
-                "text": "Kisan Suvidha Program Follow-up",
-                "type": "HEADER"
-            },
-            {
-                "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
-                "type": "BODY"
-            },
-            {
-                "text": "reply with STOP to unsubscribe",
-                "type": "FOOTER"
-            },
-            {
-                "buttons": [
-                    {
-                        "text": "Connect to Agronomist",
-                        "type": "QUICK_REPLY"
-                    }
-                ],
-                "type": "BUTTONS"
-            }
-        ]
+                {
+                    "format": "TEXT",
+                    "text": "Kisan Suvidha Program Follow-up",
+                    "type": "HEADER"
+                },
+                {
+                    "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                    "type": "BODY"
+                },
+                {
+                    "text": "reply with STOP to unsubscribe",
+                    "type": "FOOTER"
+                },
+                {
+                    "buttons": [
+                        {
+                            "text": "Connect to Agronomist",
+                            "type": "QUICK_REPLY"
+                        }
+                    ],
+                    "type": "BUTTONS"
+                }
+            ]
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
         template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1909,11 +1877,9 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "brochure_pdf", "language": "hi"}]}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
-                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
-            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
-                       "waba_account_id": "asdfghjk"}}
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
 
@@ -1922,7 +1888,6 @@ class TestEventExecution:
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
             event.execute(event_id)
-            responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 
@@ -1994,11 +1959,11 @@ class TestEventExecution:
         #     'filename': 'Brochure.pdf'}}]}]
         # assert mock_send.call_args[0][5] == '13b1e228_4a08_4d19_a0da_cdb80bc76380'
 
+    @responses.activate
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_pyscript_failure(self, mock_is_exist, mock_channel_config,
-                                                             mock_get_bot_settings):
+    def test_execute_message_broadcast_with_pyscript_failure(self, mock_is_exist, mock_channel_config, mock_get_bot_settings):
         bot = 'test_execute_message_broadcast_with_pyscript_failure'
         user = 'test_user'
         script = """
@@ -2012,14 +1977,12 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
-                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -2027,7 +1990,6 @@ class TestEventExecution:
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -2047,6 +2009,7 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
+    @responses.activate
     @patch("kairon.shared.channels.broadcast.whatsapp.json")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
@@ -2067,14 +2030,12 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
-                                              "dynamic_broadcast_execution_timeout": 1}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 1}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -2087,7 +2048,6 @@ class TestEventExecution:
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1

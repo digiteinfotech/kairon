@@ -1,4 +1,4 @@
-version: '2.0'
+version: "3.1"
 config:
   store_entities_as_slots: true
 session_config:
@@ -16,15 +16,15 @@ entities:
 - kairon_action_response
 slots:
   kairon_action_response:
-    type: rasa.shared.core.slots.AnySlot
+    type: any
     initial_value: null
-    auto_fill: false
     influence_conversation: false
+    mappings: []
   bot:
-    type: rasa.shared.core.slots.AnySlot
+    type: any
     initial_value: 64025900afe8e6ee25ddfc67
-    auto_fill: true
     influence_conversation: false
+    mappings: []
 responses:
   utter_bye:
   - text: Take care, I'm here for you if you need anything.

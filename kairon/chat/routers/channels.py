@@ -15,8 +15,9 @@ router = APIRouter()
 async def handle_validation_request_for_channel(
         request: Request,
         channel: ChannelTypes = Path(description="Channel name",
-                                     example=[ChannelTypes.WHATSAPP.value, ChannelTypes.SLACK.value]),
-        bot: Text = Path(description="Bot id"), token: Text = Path(description="Token generated from api server"),
+                                     examples=[ChannelTypes.WHATSAPP.value, ChannelTypes.SLACK.value]),
+        bot: Text = Path(description="Bot id"),
+        token: Text = Path(description="Token generated from api server"),
         current_user: User = Security(Authentication.authenticate_token_in_path_param, scopes=CHAT_ACCESS)
 ):
     """
@@ -31,8 +32,9 @@ async def handle_validation_request_for_channel(
 async def get_agent_response_for_channel(
         request: Request,
         channel: ChannelTypes = Path(description="Channel name",
-                                     example=[ChannelTypes.WHATSAPP.value, ChannelTypes.SLACK.value]),
-        bot: Text = Path(description="Bot id"), token: Text = Path(description="Token generated from api server"),
+                                     examples=[ChannelTypes.WHATSAPP.value, ChannelTypes.SLACK.value]),
+        bot: Text = Path(description="Bot id"),
+        token: Text = Path(description="Token generated from api server"),
         current_user: User = Security(Authentication.authenticate_token_in_path_param, scopes=CHAT_ACCESS)
 ):
     """

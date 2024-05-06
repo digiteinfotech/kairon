@@ -1,0 +1,627 @@
+version: "3.1"
+rules:
+- rule: ask the user to rephrase whenever they send a message with low nlu confidence
+  steps:
+  - intent: nlu_fallback
+  - action: kairon_two_stage_fallback
+  - action: reset_slot_navig
+- rule: set context
+  steps:
+  - intent: set_context
+  - action: utter_greet
+- rule: navigation
+  steps:
+  - intent: navigation_query
+  - action: apigee
+  - action: navigation_action
+  - action: reset_slot_navig
+- rule: inbox query
+  steps:
+  - intent: inbox_query
+  - action: apigee
+  - action: action_inbox_query
+  - action: reset_slot_navig
+- rule: processes_recommended_0
+  steps:
+  - intent: processes_recommended_0
+  - action: utter_processes_recommended_0
+- rule: standard_activities_as_na_1
+  steps:
+  - intent: standard_activities_as_na_1
+  - action: utter_standard_activities_as_na_1
+- rule: critical_practice_2
+  steps:
+  - intent: critical_practice_2
+  - action: utter_critical_practice_2
+- rule: process_critical_practice_tailoring_3
+  steps:
+  - intent: process_critical_practice_tailoring_3
+  - action: utter_process_critical_practice_tailoring_3
+- rule: process_selection_limitation_4
+  steps:
+  - intent: process_selection_limitation_4
+  - action: utter_process_selection_limitation_4
+- rule: process_selection_mapping_multivendor_5
+  steps:
+  - intent: process_selection_mapping_multivendor_5
+  - action: utter_process_selection_mapping_multivendor_5
+- rule: changes_to_critical_practices_after_pm_plan_baseline_6
+  steps:
+  - intent: changes_to_critical_practices_after_pm_plan_baseline_6
+  - action: utter_changes_to_critical_practices_after_pm_plan_baseline_6
+- rule: change_in_process_mapping_7
+  steps:
+  - intent: change_in_process_mapping_7
+  - action: utter_change_in_process_mapping_7
+- rule: addition_of_critical_practices_8
+  steps:
+  - intent: addition_of_critical_practices_8
+  - action: utter_addition_of_critical_practices_8
+- rule: process_space_view_9
+  steps:
+  - intent: process_space_view_9
+  - action: utter_process_space_view_9
+- rule: critical_practices_demarcation_in_process_space_10
+  steps:
+  - intent: critical_practices_demarcation_in_process_space_10
+  - action: utter_critical_practices_demarcation_in_process_space_10
+- rule: view_processes_from_mainspring_11
+  steps:
+  - intent: view_processes_from_mainspring_11
+  - action: utter_view_processes_from_mainspring_11
+- rule: method_components_against_critical_practices_in_process_space_12
+  steps:
+  - intent: method_components_against_critical_practices_in_process_space_12
+  - action: utter_method_components_against_critical_practices_in_process_space_12
+- rule: usage_of_org_templates_mandated_or_not_13
+  steps:
+  - intent: usage_of_org_templates_mandated_or_not_13
+  - action: utter_usage_of_org_templates_mandated_or_not_13
+- rule: process_selection_mandatory_for_release_creation_14
+  steps:
+  - intent: process_selection_mandatory_for_release_creation_14
+  - action: utter_process_selection_mandatory_for_release_creation_14
+- rule: critical_practices_implementation_affirmation_15
+  steps:
+  - intent: critical_practices_implementation_affirmation_15
+  - action: utter_critical_practices_implementation_affirmation_15
+- rule: impact_of_critical_practice_addition_in_release_16
+  steps:
+  - intent: impact_of_critical_practice_addition_in_release_16
+  - action: utter_impact_of_critical_practice_addition_in_release_16
+- rule: options_to_affirm_critical_practices_implementation_17
+  steps:
+  - intent: options_to_affirm_critical_practices_implementation_17
+  - action: utter_options_to_affirm_critical_practices_implementation_17
+- rule: metrics_plan_18
+  steps:
+  - intent: metrics_plan_18
+  - action: utter_metrics_plan_18
+- rule: metrics_plan_19
+  steps:
+  - intent: metrics_plan_19
+  - action: utter_metrics_plan_19
+- rule: metrics_plan_20
+  steps:
+  - intent: metrics_plan_20
+  - action: utter_metrics_plan_20
+- rule: metrics_plan_21
+  steps:
+  - intent: metrics_plan_21
+  - action: utter_metrics_plan_21
+- rule: metrics_plan_22
+  steps:
+  - intent: metrics_plan_22
+  - action: utter_metrics_plan_22
+- rule: metrics_plan_23
+  steps:
+  - intent: metrics_plan_23
+  - action: utter_metrics_plan_23
+- rule: metrics_plan_24
+  steps:
+  - intent: metrics_plan_24
+  - action: utter_metrics_plan_24
+- rule: metrics_plan_25
+  steps:
+  - intent: metrics_plan_25
+  - action: utter_metrics_plan_25
+- rule: metrics_plan_26
+  steps:
+  - intent: metrics_plan_26
+  - action: utter_metrics_plan_26
+- rule: metrics_plan_27
+  steps:
+  - intent: metrics_plan_27
+  - action: utter_metrics_plan_27
+- rule: metrics_plan_28
+  steps:
+  - intent: metrics_plan_28
+  - action: utter_metrics_plan_28
+- rule: metrics_plan_29
+  steps:
+  - intent: metrics_plan_29
+  - action: utter_metrics_plan_29
+- rule: measure_inputs_30
+  steps:
+  - intent: measure_inputs_30
+  - action: utter_measure_inputs_30
+- rule: measure_inputs_31
+  steps:
+  - intent: measure_inputs_31
+  - action: utter_measure_inputs_31
+- rule: measure_inputs_32
+  steps:
+  - intent: measure_inputs_32
+  - action: utter_measure_inputs_32
+- rule: measure_inputs_33
+  steps:
+  - intent: measure_inputs_33
+  - action: utter_measure_inputs_33
+- rule: measure_inputs_34
+  steps:
+  - intent: measure_inputs_34
+  - action: utter_measure_inputs_34
+- rule: metrics_preview_35
+  steps:
+  - intent: metrics_preview_35
+  - action: utter_metrics_preview_35
+- rule: measure_inputs_36
+  steps:
+  - intent: measure_inputs_36
+  - action: utter_measure_inputs_36
+- rule: metrics_preview_37
+  steps:
+  - intent: metrics_preview_37
+  - action: utter_metrics_preview_37
+- rule: metrics_preview_38
+  steps:
+  - intent: metrics_preview_38
+  - action: utter_metrics_preview_38
+- rule: metrics_preview_39
+  steps:
+  - intent: metrics_preview_39
+  - action: utter_metrics_preview_39
+- rule: metrics_preview_40
+  steps:
+  - intent: metrics_preview_40
+  - action: utter_metrics_preview_40
+- rule: metrics_preview_41
+  steps:
+  - intent: metrics_preview_41
+  - action: utter_metrics_preview_41
+- rule: metrics_actuals_42
+  steps:
+  - intent: metrics_actuals_42
+  - action: utter_metrics_actuals_42
+- rule: metrics_report_43
+  steps:
+  - intent: metrics_report_43
+  - action: utter_metrics_report_43
+- rule: metrics_report_44
+  steps:
+  - intent: metrics_report_44
+  - action: utter_metrics_report_44
+- rule: spectrum_45
+  steps:
+  - intent: spectrum_45
+  - action: utter_spectrum_45
+- rule: tools_46
+  steps:
+  - intent: tools_46
+  - action: utter_tools_46
+- rule: tools_47
+  steps:
+  - intent: tools_47
+  - action: utter_tools_47
+- rule: tools_48
+  steps:
+  - intent: tools_48
+  - action: utter_tools_48
+- rule: tools_49
+  steps:
+  - intent: tools_49
+  - action: utter_tools_49
+- rule: tools_50
+  steps:
+  - intent: tools_50
+  - action: utter_tools_50
+- rule: tools_51
+  steps:
+  - intent: tools_51
+  - action: utter_tools_51
+- rule: tools_52
+  steps:
+  - intent: tools_52
+  - action: utter_tools_52
+- rule: tools_53
+  steps:
+  - intent: tools_53
+  - action: utter_tools_53
+- rule: tools_54
+  steps:
+  - intent: tools_54
+  - action: utter_tools_54
+- rule: tools_55
+  steps:
+  - intent: tools_55
+  - action: utter_tools_55
+- rule: accelerator_information_56
+  steps:
+  - intent: accelerator_information_56
+  - action: utter_accelerator_information_56
+- rule: accelerator_information_57
+  steps:
+  - intent: accelerator_information_57
+  - action: utter_accelerator_information_57
+- rule: accelerator_information_58
+  steps:
+  - intent: accelerator_information_58
+  - action: utter_accelerator_information_58
+- rule: accelerator_information_59
+  steps:
+  - intent: accelerator_information_59
+  - action: utter_accelerator_information_59
+- rule: accelerator_information_60
+  steps:
+  - intent: accelerator_information_60
+  - action: utter_accelerator_information_60
+- rule: accelerator_information_61
+  steps:
+  - intent: accelerator_information_61
+  - action: utter_accelerator_information_61
+- rule: accelerator_recommendation_62
+  steps:
+  - intent: accelerator_recommendation_62
+  - action: utter_accelerator_recommendation_62
+- rule: accelerator_recommendation_63
+  steps:
+  - intent: accelerator_recommendation_63
+  - action: utter_accelerator_recommendation_63
+- rule: accelerator_subscription_64
+  steps:
+  - intent: accelerator_subscription_64
+  - action: utter_accelerator_subscription_64
+- rule: accelerator_subscription_65
+  steps:
+  - intent: accelerator_subscription_65
+  - action: utter_accelerator_subscription_65
+- rule: accelerator_subscription_66
+  steps:
+  - intent: accelerator_subscription_66
+  - action: utter_accelerator_subscription_66
+- rule: accelerator_subscription_67
+  steps:
+  - intent: accelerator_subscription_67
+  - action: utter_accelerator_subscription_67
+- rule: accelerator_subscription_68
+  steps:
+  - intent: accelerator_subscription_68
+  - action: utter_accelerator_subscription_68
+- rule: accelerator_usage_69
+  steps:
+  - intent: accelerator_usage_69
+  - action: utter_accelerator_usage_69
+- rule: accelerator_usage_70
+  steps:
+  - intent: accelerator_usage_70
+  - action: utter_accelerator_usage_70
+- rule: accelerator_benefit_reporting_71
+  steps:
+  - intent: accelerator_benefit_reporting_71
+  - action: utter_accelerator_benefit_reporting_71
+- rule: support_72
+  steps:
+  - intent: support_72
+  - action: utter_support_72
+- rule: support_73
+  steps:
+  - intent: support_73
+  - action: utter_support_73
+- rule: risk_capture_74
+  steps:
+  - intent: risk_capture_74
+  - action: utter_risk_capture_74
+- rule: risk_capture_75
+  steps:
+  - intent: risk_capture_75
+  - action: utter_risk_capture_75
+- rule: risk_capture_76
+  steps:
+  - intent: risk_capture_76
+  - action: utter_risk_capture_76
+- rule: risk_capture_77
+  steps:
+  - intent: risk_capture_77
+  - action: utter_risk_capture_77
+- rule: risk_capture_78
+  steps:
+  - intent: risk_capture_78
+  - action: utter_risk_capture_78
+- rule: risk_capture_79
+  steps:
+  - intent: risk_capture_79
+  - action: utter_risk_capture_79
+- rule: risk_capture_80
+  steps:
+  - intent: risk_capture_80
+  - action: utter_risk_capture_80
+- rule: risk_capture_81
+  steps:
+  - intent: risk_capture_81
+  - action: utter_risk_capture_81
+- rule: risk_capture_82
+  steps:
+  - intent: risk_capture_82
+  - action: utter_risk_capture_82
+- rule: risk_capture_83
+  steps:
+  - intent: risk_capture_83
+  - action: utter_risk_capture_83
+- rule: risk_capture_84
+  steps:
+  - intent: risk_capture_84
+  - action: utter_risk_capture_84
+- rule: risk_capture_85
+  steps:
+  - intent: risk_capture_85
+  - action: utter_risk_capture_85
+- rule: risk_capture_86
+  steps:
+  - intent: risk_capture_86
+  - action: utter_risk_capture_86
+- rule: risk_capture_87
+  steps:
+  - intent: risk_capture_87
+  - action: utter_risk_capture_87
+- rule: risk_capture_88
+  steps:
+  - intent: risk_capture_88
+  - action: utter_risk_capture_88
+- rule: risk_capture_89
+  steps:
+  - intent: risk_capture_89
+  - action: utter_risk_capture_89
+- rule: risk_capture_90
+  steps:
+  - intent: risk_capture_90
+  - action: utter_risk_capture_90
+- rule: risk_capture_91
+  steps:
+  - intent: risk_capture_91
+  - action: utter_risk_capture_91
+- rule: risk_capture_92
+  steps:
+  - intent: risk_capture_92
+  - action: utter_risk_capture_92
+- rule: risk_capture_93
+  steps:
+  - intent: risk_capture_93
+  - action: utter_risk_capture_93
+- rule: risk_capture_94
+  steps:
+  - intent: risk_capture_94
+  - action: utter_risk_capture_94
+- rule: risk_capture_95
+  steps:
+  - intent: risk_capture_95
+  - action: utter_risk_capture_95
+- rule: risk_discovery_96
+  steps:
+  - intent: risk_discovery_96
+  - action: utter_risk_discovery_96
+- rule: risk_discovery_97
+  steps:
+  - intent: risk_discovery_97
+  - action: utter_risk_discovery_97
+- rule: risk_discovery_98
+  steps:
+  - intent: risk_discovery_98
+  - action: utter_risk_discovery_98
+- rule: risk_import_from_similar_projects_99
+  steps:
+  - intent: risk_import_from_similar_projects_99
+  - action: utter_risk_import_from_similar_projects_99
+- rule: risk_import_from_similar_projects_100
+  steps:
+  - intent: risk_import_from_similar_projects_100
+  - action: utter_risk_import_from_similar_projects_100
+- rule: risk_escalation_101
+  steps:
+  - intent: risk_escalation_101
+  - action: utter_risk_escalation_101
+- rule: risk_escalation_102
+  steps:
+  - intent: risk_escalation_102
+  - action: utter_risk_escalation_102
+- rule: risk_escalation_103
+  steps:
+  - intent: risk_escalation_103
+  - action: utter_risk_escalation_103
+- rule: financial_impact_104
+  steps:
+  - intent: financial_impact_104
+  - action: utter_financial_impact_104
+- rule: financial_impact_105
+  steps:
+  - intent: financial_impact_105
+  - action: utter_financial_impact_105
+- rule: financial_impact_106
+  steps:
+  - intent: financial_impact_106
+  - action: utter_financial_impact_106
+- rule: financial_impact_107
+  steps:
+  - intent: financial_impact_107
+  - action: utter_financial_impact_107
+- rule: risk_re-evaluation_108
+  steps:
+  - intent: risk_re-evaluation_108
+  - action: utter_risk_re-evaluation_108
+- rule: risk_re-evaluation_109
+  steps:
+  - intent: risk_re-evaluation_109
+  - action: utter_risk_re-evaluation_109
+- rule: risk_migration_110
+  steps:
+  - intent: risk_migration_110
+  - action: utter_risk_migration_110
+- rule: delivery_governance_111
+  steps:
+  - intent: delivery_governance_111
+  - action: utter_delivery_governance_111
+- rule: delivery_governance_112
+  steps:
+  - intent: delivery_governance_112
+  - action: utter_delivery_governance_112
+- rule: delivery_governance_113
+  steps:
+  - intent: delivery_governance_113
+  - action: utter_delivery_governance_113
+- rule: delivery_governance_114
+  steps:
+  - intent: delivery_governance_114
+  - action: utter_delivery_governance_114
+- rule: delivery_governance_115
+  steps:
+  - intent: delivery_governance_115
+  - action: utter_delivery_governance_115
+- rule: delivery_governance_116
+  steps:
+  - intent: delivery_governance_116
+  - action: utter_delivery_governance_116
+- rule: delivery_governance_117
+  steps:
+  - intent: delivery_governance_117
+  - action: utter_delivery_governance_117
+- rule: delivery_governance_118
+  steps:
+  - intent: delivery_governance_118
+  - action: utter_delivery_governance_118
+- rule: risk_reports_119
+  steps:
+  - intent: risk_reports_119
+  - action: utter_risk_reports_119
+- rule: risk_reports_120
+  steps:
+  - intent: risk_reports_120
+  - action: utter_risk_reports_120
+- rule: project_creation_0
+  steps:
+  - intent: project_creation_0
+  - action: utter_project_creation_0
+- rule: project_creation_1
+  steps:
+  - intent: project_creation_1
+  - action: utter_project_creation_1
+- rule: pm_plan_workflow_2
+  steps:
+  - intent: pm_plan_workflow_2
+  - action: utter_pm_plan_workflow_2
+- rule: document_repository_3
+  steps:
+  - intent: document_repository_3
+  - action: utter_document_repository_3
+- rule: access_roles__4
+  steps:
+  - intent: access_roles__4
+  - action: utter_access_roles__4
+- rule: allocation_details_5
+  steps:
+  - intent: allocation_details_5
+  - action: utter_allocation_details_5
+- rule: tracking_mode_change_6
+  steps:
+  - intent: tracking_mode_change_6
+  - action: utter_tracking_mode_change_6
+- rule: risk_tracking_7
+  steps:
+  - intent: risk_tracking_7
+  - action: utter_risk_tracking_7
+- rule: work_package__8
+  steps:
+  - intent: work_package__8
+  - action: utter_work_package__8
+- rule: metric_report_9
+  steps:
+  - intent: metric_report_9
+  - action: utter_metric_report_9
+- rule: metric_actuals_10
+  steps:
+  - intent: metric_actuals_10
+  - action: utter_metric_actuals_10
+- rule: release_sprint_11
+  steps:
+  - intent: release_sprint_11
+  - action: utter_release_sprint_11
+- rule: archeytpe_and_demographics_12
+  steps:
+  - intent: archeytpe_and_demographics_12
+  - action: utter_archeytpe_and_demographics_12
+- rule: risk_tracking_13
+  steps:
+  - intent: risk_tracking_13
+  - action: utter_risk_tracking_13
+- rule: pm_plan_workflow_14
+  steps:
+  - intent: pm_plan_workflow_14
+  - action: utter_pm_plan_workflow_14
+- rule: project_creation_15
+  steps:
+  - intent: project_creation_15
+  - action: utter_project_creation_15
+- rule: release_sprint_16
+  steps:
+  - intent: release_sprint_16
+  - action: utter_release_sprint_16
+- rule: work_package__17
+  steps:
+  - intent: work_package__17
+  - action: utter_work_package__17
+- rule: work_package__18
+  steps:
+  - intent: work_package__18
+  - action: utter_work_package__18
+- rule: user_story_19
+  steps:
+  - intent: user_story_19
+  - action: utter_user_story_19
+- rule: metric_actuals_20
+  steps:
+  - intent: metric_actuals_20
+  - action: utter_metric_actuals_20
+- rule: project_merger_21
+  steps:
+  - intent: project_merger_21
+  - action: utter_project_merger_21
+- rule: project_merger_22
+  steps:
+  - intent: project_merger_22
+  - action: utter_project_merger_22
+- rule: metric_report_23
+  steps:
+  - intent: metric_report_23
+  - action: utter_metric_report_23
+- rule: archeytpe_and_demographics_24
+  steps:
+  - intent: archeytpe_and_demographics_24
+  - action: utter_archeytpe_and_demographics_24
+- rule: archeytpe_and_demographics_25
+  steps:
+  - intent: archeytpe_and_demographics_25
+  - action: utter_archeytpe_and_demographics_25
+- rule: project_scope_26
+  steps:
+  - intent: project_scope_26
+  - action: utter_project_scope_26
+- rule: risk_tracking_27
+  steps:
+  - intent: risk_tracking_27
+  - action: utter_risk_tracking_27
+- rule: release_sprint_28
+  steps:
+  - intent: release_sprint_28
+  - action: utter_release_sprint_28
+- rule: release_sprint_29
+  steps:
+  - intent: release_sprint_29
+  - action: utter_release_sprint_29

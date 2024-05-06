@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .gpt3.generator import GPT3ParaphraseGenerator
 from .gpt3.models import GPTRequest
 import uvicorn
+from kairon.shared.otel import instrument_fastapi
 
 
 class Response(BaseModel):
@@ -29,6 +30,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+instrument_fastapi(app)
 
 
 @app.exception_handler(StarletteHTTPException)

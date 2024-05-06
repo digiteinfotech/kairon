@@ -1,6 +1,6 @@
 import asyncio
 import glob
-import json
+import ujson as json
 import os
 import re
 import shutil
@@ -8,13 +8,12 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
-from unittest.mock import patch
 
+from mock import patch
 import numpy as np
 import pandas as pd
 import pytest
 import responses
-from elasticmock import elasticmock
 from fastapi import UploadFile
 from jira import JIRAError, JIRA
 from mongoengine import connect, DoesNotExist
@@ -84,9 +83,11 @@ from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
-from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
+from kairon.train import train_model_for_bot, start_training
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
+from deepdiff import DeepDiff
 
 
 class TestMongoProcessor:
@@ -94,9 +95,6 @@ class TestMongoProcessor:
     @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         connect(**Utility.mongoengine_connection())
-        Utility.environment['elasticsearch']['enable'] = False
-        yield None
-        Utility.environment['notifications']['enable'] = False
 
     @pytest.fixture()
     def get_training_data(self):
@@ -111,10 +109,10 @@ class TestMongoProcessor:
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
-            domain = await importer.get_domain()
-            story_graph = await importer.get_stories()
-            config = await importer.get_config()
-            nlu = await importer.get_nlu_data(config.get('language'))
+            domain = importer.get_domain()
+            story_graph = importer.get_stories()
+            config = importer.get_config()
+            nlu = importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
             multiflow_stories = Utility.read_yaml(multiflow_story_path)
             chat_client_config = Utility.read_yaml(chat_client_config_path)
@@ -155,7 +153,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test_user'
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
             processor.add_prompt_action(request, bot, user)
@@ -167,22 +165,24 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_slots', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 10,
-                   'similarity_threshold': 1.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-             'is_enabled': True},
-            {'name': 'Similarity Prompt',
-             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-            {'name': 'Identification Prompt',
-             'data': 'info',
-             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
-             'is_enabled': True}]}
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 10,
+                                                        'similarity_threshold': 1.70},
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Identification Prompt',
+                                    'data': 'info',
+                                    'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+                                    'is_enabled': True}]}
         with pytest.raises(AppException, match="Slot with name info not found!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -193,22 +193,25 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_http_action', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 10,
-                   'similarity_threshold': 1.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-             'is_enabled': True},
-            {'name': 'Similarity Prompt',
-             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-            {'name': 'Http action Prompt',
-             'data': 'test_http_action',
-             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
-             'is_enabled': True}]}
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+                                    "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 10,
+                                                        'similarity_threshold': 1.70}},
+                                   {'name': 'Http action Prompt',
+                                    'data': 'test_http_action',
+                                    'instructions': 'Answer according to the context', 'type': 'user',
+                                    'source': 'action',
+                                    'is_enabled': True}]}
         with pytest.raises(AppException, match="Action with name test_http_action not found!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -219,8 +222,6 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_prompt_action_similarity', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 10,
-                   'similarity_threshold': 1.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
@@ -229,7 +230,11 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+                                    "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 10,
+                                                        'similarity_threshold': 1.70},
+                                    },
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -247,8 +252,6 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {'name': 'test_prompt_action_invalid_top_results', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 40,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
@@ -256,6 +259,9 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
+                                    "data": "Bot_collection",
+                                    'hyperparameters': {'top_results': 40,
+                                                        'similarity_threshold': 0.3},
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -269,6 +275,96 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="top_results should not be greater than 30"):
             processor.add_prompt_action(request, bot, user)
 
+    def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(self):
+        processor = MongoProcessor()
+        bot = 'bot'
+        user = 'user'
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        request = {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
+                   'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'data': '',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}]}
+        processor.add_prompt_action(request, bot, user)
+        prompt_action = processor.get_prompt_action(bot)
+        prompt_action[0].pop("_id")
+        assert prompt_action == [
+            {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
+             'num_bot_responses': 5,
+             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+             'user_question': {'type': 'from_user_message'},
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                 'frequency_penalty': 0.0, 'logit_bias': {}},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                              'type': 'system', 'source': 'static', 'is_enabled': True},
+                             {'name': 'Similarity Prompt', 'data': 'default',
+                              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                              'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}]
+
+    def test_add_prompt_action_with_bot_content_prompt(self):
+        processor = MongoProcessor()
+        bot = 'bot'
+        user = 'user'
+        request = {'name': 'test_add_prompt_action_with_bot_content_prompt',
+                   'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'data': 'Bot_collection',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}]}
+        processor.add_prompt_action(request, bot, user)
+        prompt_action = processor.get_prompt_action(bot)
+        prompt_action[1].pop("_id")
+        print(prompt_action)
+        assert prompt_action[1] == {
+            'name': 'test_add_prompt_action_with_bot_content_prompt',
+            'num_bot_responses': 5,
+            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            'user_question': {'type': 'from_user_message'},
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                             'type': 'system', 'source': 'static', 'is_enabled': True},
+                            {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                            {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                             'is_enabled': True},
+                            {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}
+
     def test_add_prompt_action_with_invalid_query_prompt(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -276,14 +372,14 @@ class TestMongoProcessor:
         request = {'name': 'test_add_prompt_action_with_invalid_query_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'history', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
                    "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Query prompt must have static source!"):
             processor.add_prompt_action(request, bot, user)
@@ -295,7 +391,7 @@ class TestMongoProcessor:
         request = {'name': 'test_add_prompt_action_with_invalid_num_bot_responses',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -306,7 +402,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
                    "num_bot_responses": 15}
         with pytest.raises(ValidationError, match="num_bot_responses should not be greater than 5"):
             processor.add_prompt_action(request, bot, user)
@@ -319,7 +415,7 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'history',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -330,8 +426,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="System prompt must have static source!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -346,7 +441,7 @@ class TestMongoProcessor:
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
                                     'source': 'static',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -357,8 +452,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Only one system prompt can be present!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -367,9 +461,9 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompt_name',
-                   'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',  'type': 'system',
+                   'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -380,8 +474,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Name cannot be empty!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -392,7 +485,7 @@ class TestMongoProcessor:
         request = {'name': 'test_add_prompt_action_with_empty_data_for_static_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -402,11 +495,9 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="data is required for static prompts!"):
             processor.add_prompt_action(request, bot, user)
-
 
     def test_add_prompt_action_with_multiple_history_source_prompts(self):
         processor = MongoProcessor()
@@ -416,8 +507,9 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -428,33 +520,8 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Only one history source can be present!"):
-            processor.add_prompt_action(request, bot, user)
-
-    def test_add_prompt_action_with_multiple_bot_content_source_prompts(self):
-        processor = MongoProcessor()
-        bot = 'test_bot'
-        user = 'test_user'
-        request = {'name': 'test_add_prompt_action_with_multiple_bot_content_source_prompts',
-                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Another Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}
-                                   ],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
-        with pytest.raises(ValidationError, match="Only one bot_content source can be present!"):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_no_system_prompts(self):
@@ -463,16 +530,15 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {'name': 'test_add_prompt_action_with_no_system_prompts',
                    'llm_prompts': [
-                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Another Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}
-                                   ],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                       {'name': 'Similarity Prompt', "data": "Bot_collection",
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                       {'name': 'Another Similarity Prompt', "data": "Bot_collection_two",
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                   ],
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="System prompt is required!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -482,8 +548,6 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompts', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
@@ -509,22 +573,21 @@ class TestMongoProcessor:
         pytest.action_id = processor.add_prompt_action(request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_add_prompt_action_faq_action_with_default_values',
-             'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-             'enable_response_cache': False, 'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
-             'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-             'status': True, "set_slots": [
-                {"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
-                {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
-             "dispatch_response": False}]
+        print(action)
+        assert action == [{'name': 'test_add_prompt_action_faq_action_with_default_values', 'num_bot_responses': 5,
+                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                           'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+                           'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                                         {'name': 'gpt_result_type', 'value': '${data.type}',
+                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}]
 
     def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
         processor = MongoProcessor()
@@ -533,15 +596,13 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_temperature_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Temperature must be between 0.0 and 2.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -552,16 +613,16 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_stop_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"], 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"],
+                                       'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError,
+                           match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_presence_penalty_hyperparameter(self):
@@ -569,17 +630,16 @@ class TestMongoProcessor:
         bot = 'test_bot_three'
         user = 'test_user_three'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
-        request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter', 'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter',
+                   'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': -3.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Presence penalty must be between -2.0 and 2.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -588,17 +648,16 @@ class TestMongoProcessor:
         bot = 'test_bot_four'
         user = 'test_user_four'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
-        request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter', 'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter',
+                   'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 3.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Frequency penalty must be between -2.0 and 2.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -609,15 +668,13 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -628,15 +685,13 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -647,15 +702,13 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_top_p_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 3.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="top_p must be between 0.0 and 1.0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -666,15 +719,13 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 7, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -685,15 +736,13 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 0, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -704,15 +753,13 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_logit_bias_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'top_results': 20,
-                   'similarity_threshold': 0.70,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
                                        'top_p': 0.0,
                                        'n': 2, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': 'a'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="logit_bias must be a dictionary!"):
             processor.add_prompt_action(request, bot, user)
 
@@ -733,9 +780,9 @@ class TestMongoProcessor:
         user = 'test_user'
         action_id = '646344d6f7fa1a62db69cceb'
         request = {'name': 'test_edit_prompt_action_does_not_exist',
-            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -746,7 +793,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Action not found"):
             processor.edit_prompt_action(action_id, request, bot, user)
@@ -759,7 +806,7 @@ class TestMongoProcessor:
                    'user_question': {'type': 'from_user_message'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
+                                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -770,7 +817,7 @@ class TestMongoProcessor:
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}],
-                   "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
+                   "failure_message": "updated_failure_message",
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
                    "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters(),
                    "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
@@ -780,47 +827,50 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5, 'top_results': 10,
-             'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'user_question': {'type': 'from_user_message'},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt',
-                              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                             {'name': 'Query Prompt',
-                              'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': [],
-             "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
-                           {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
-             "dispatch_response": False}]
+        print(action)
+        assert action == [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
+                           'failure_message': 'updated_failure_message', 'user_question': {'type': 'from_user_message'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
+                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                                                                               'instructions': 'Answer according to the context',
+                                                                                               'type': 'query',
+                                                                                               'source': 'static',
+                                                                                               'is_enabled': True},
+                               {'name': 'Query Prompt',
+                                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                                'is_enabled': True}], 'instructions': [],
+                           'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                                         {'name': 'gpt_result_type', 'value': '${data.type}',
+                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}]
         request = {'name': 'test_edit_prompt_action_faq_action_again',
                    'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static'}], 'instructions': ['Answer in a short manner.', 'Keep it simple.']}
+                                    'source': 'static'}],
+                   'instructions': ['Answer in a short manner.', 'Keep it simple.']}
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5, 'top_results': 10,
-             'similarity_threshold': 0.7, 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-             'enable_response_cache': False,
-             'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True}], 'status': True,
-             "set_slots": [], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-             "dispatch_response": True
-             }]
+        print(action)
+        assert action == [{'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5,
+                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True}],
+                           'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
+                           'dispatch_response': True, 'status': True}]
 
     def test_edit_prompt_action_with_less_hyperparameters(self):
         processor = MongoProcessor()
@@ -831,7 +881,7 @@ class TestMongoProcessor:
                    'llm_prompts': [
                        {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                         'source': 'static', 'is_enabled': True},
-                       {'name': 'Similarity Prompt',
+                       {'name': 'Similarity Prompt', 'data': 'Bot_collection',
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                        {'name': 'Query Prompt',
@@ -853,22 +903,29 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
-             'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
+        print(action)
+        assert action == [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
+                           'failure_message': 'updated_failure_message',
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
+                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                                                                               'instructions': 'Answer according to the context',
+                                                                                               'type': 'query',
+                                                                                               'source': 'static',
+                                                                                               'is_enabled': True},
+                               {'name': 'Query Prompt',
+                                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                                'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
+                           'status': True}]
 
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -881,22 +938,29 @@ class TestMongoProcessor:
         bot = 'test_bot'
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert action == [
-            {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
-             'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}},
-             'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
+        print(action)
+        assert action == [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
+                           'failure_message': 'updated_failure_message',
+                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
+                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                                                                               'instructions': 'Answer according to the context',
+                                                                                               'type': 'query',
+                                                                                               'source': 'static',
+                                                                                               'is_enabled': True},
+                               {'name': 'Query Prompt',
+                                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                                'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
+                           'status': True}]
 
     def test_delete_prompt_action(self):
         processor = MongoProcessor()
@@ -908,7 +972,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        with pytest.raises(AppException, match=f'Action with name "test_add_prompt_action_faq_action_with_default_values" not found'):
+        with pytest.raises(AppException,
+                           match=f'Action with name "test_add_prompt_action_faq_action_with_default_values" not found'):
             processor.delete_action('test_add_prompt_action_faq_action_with_default_values', bot, user)
 
     def test_delete_prompt_action_not_present(self):
@@ -1034,9 +1099,9 @@ class TestMongoProcessor:
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 5
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 11
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 12
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 10
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 9
         multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
         print(multiflow_stories['multiflow_story'][0]['events'][0])
         step_data = multiflow_stories['multiflow_story'][0]['events'][0]['step']
@@ -1283,27 +1348,25 @@ class TestMongoProcessor:
         assert config['language'] == 'fr'
         assert len(config['pipeline']) == 9
         assert len(config['policies']) == 3
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
         assert rule_policy['core_fallback_threshold'] == 0.75
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot, status=True).get()
-        with pytest.raises(DoesNotExist):
-            Responses.objects(name='utter_default', bot=bot, status=True).get()
 
     def test_add_or_overwrite_config(self):
         bot = 'test_config'
         user = 'test_config'
         processor = MongoProcessor()
         config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
-        idx = next((idx for idx, comp in enumerate(config["policies"]) if comp['name'] == 'RulePolicy'), {})
+        idx = next((idx for idx, comp in enumerate(config["policies"]) if 'RulePolicy' in comp['name']), {})
         del config['policies'][idx]
         processor.add_or_overwrite_config(config, bot, user)
         config = Configs.objects().get(bot=bot).to_mongo().to_dict()
         assert config['language'] == 'fr'
         assert len(config['pipeline']) == 9
         assert len(config['policies']) == 3
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
@@ -1317,7 +1380,7 @@ class TestMongoProcessor:
         config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
         comp = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
         comp['epoch'] = 200
-        comp = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        comp = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         comp['core_fallback_action_name'] = 'action_error'
         comp['core_fallback_threshold'] = 0.5
         processor.add_or_overwrite_config(config, bot, user)
@@ -1327,7 +1390,7 @@ class TestMongoProcessor:
         assert len(config['policies']) == 3
         diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
         assert diet_classifier['epoch'] == 200
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_error'
         assert rule_policy['core_fallback_threshold'] == 0.5
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
@@ -1339,7 +1402,7 @@ class TestMongoProcessor:
         user = 'test_config'
         processor = MongoProcessor()
         config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
-        comp = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        comp = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         del comp['core_fallback_action_name']
         del comp['core_fallback_threshold']
         processor.add_or_overwrite_config(config, bot, user)
@@ -1347,7 +1410,7 @@ class TestMongoProcessor:
         assert config['language'] == 'fr'
         assert len(config['pipeline']) == 9
         assert len(config['policies']) == 3
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
@@ -1367,7 +1430,7 @@ class TestMongoProcessor:
         assert len(config['policies']) == 3
         diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
         assert diet_classifier['epochs'] == 5
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
         assert rule_policy['core_fallback_threshold'] == 0.75
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
@@ -1387,7 +1450,7 @@ class TestMongoProcessor:
         assert len(config['policies']) == 3
         diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
         assert diet_classifier['epochs'] == 5
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
         assert rule_policy['core_fallback_threshold'] == 0.75
         assert not next((comp for comp in config["policies"] if comp['name'] == 'FallbackPolicy'), None)
@@ -1407,6 +1470,7 @@ class TestMongoProcessor:
         assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
                                       {'core_fallback_action_name': 'action_default_fallback',
                                        'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
+                                       'max_history': 5,
                                        'name': 'RulePolicy'}]
 
     def test_add_or_overwrite_gpt_featurizer_config_with_bot_id(self):
@@ -1426,6 +1490,7 @@ class TestMongoProcessor:
         assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
                                       {'core_fallback_action_name': 'action_default_fallback',
                                        'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
+                                       'max_history': 5,
                                        'name': 'RulePolicy'}]
 
     @pytest.mark.asyncio
@@ -1452,28 +1517,25 @@ class TestMongoProcessor:
         assert story_graph.story_steps[0].block_name == 'greet'
         assert story_graph.story_steps[1].block_name == 'say goodbye'
         domain = processor.load_domain("test_upload_case_insensitivity")
-        assert all(slot.name in ['session_started_metadata', 'requested_slot', 'application_name', 'bot', 'email_id',
-                                 'location', 'user', 'kairon_action_response', 'image', 'video', 'audio', 'doc_url',
-                                 'document', 'order', 'longitude', 'latitude', 'flow_reply',
-                                 'quick_reply', 'http_status_code'] for slot in domain.slots)
-        assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
-                                                 'utter_default']
-        assert domain.entities == ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
-                                   'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
-                                   'longitude', 'latitude', 'flow_reply', 'quick_reply']
-        assert domain.forms == {'ask_user': {'required_slots': {'user': [{'type': 'from_entity', 'entity': 'user'}],
-                                                                'email_id': [
-                                                                    {'type': 'from_entity', 'entity': 'email_id'}]}},
-                                'ask_location': {
-                                    'required_slots': {'location': [{'type': 'from_entity', 'entity': 'location'}],
-                                                       'application_name': [
-                                                           {'type': 'from_entity', 'entity': 'application_name'}]}}}
+        assert all(slot.name in ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
+                                'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
+                                'longitude', 'latitude', 'flow_reply', 'quick_reply', 'session_started_metadata',
+                                'requested_slot'] for
+                   slot in domain.slots)
+        assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
+                                                            'utter_default'], ignore_order=True)
+        assert not DeepDiff(domain.entities,
+                            ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
+                             'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
+                             'longitude', 'latitude', 'flow_reply', 'quick_reply'], ignore_order=True)
+        assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
+                                'ask_location': {'required_slots': ['location', 'application_name']}}
         assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
                                        'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
         assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application',
                                                                              'action_get_microsoft_application']
         assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
-        assert domain.templates == {
+        assert domain.responses == {
             'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
             'utter_greet': [{'text': 'Hey! How are you?'}], 'utter_goodbye': [{'text': 'Bye'}],
             'utter_default': [{'text': 'Can you rephrase!'}]}
@@ -1565,32 +1627,32 @@ class TestMongoProcessor:
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 23
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
-        assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 22
+        assert domain.responses.keys().__len__() == 29
+        assert domain.entities.__len__() == 23
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {
-            'required_slots': {'date_time': [{'type': 'from_entity', 'entity': 'date_time'}],
-                               'priority': [{'type': 'from_entity', 'entity': 'priority'}]}}
+            'required_slots': ['date_time',
+                               'priority']}
         assert domain.forms['ticket_file_form'] == {
-            'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
+            'required_slots': ['file']}
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 48
         assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 12
         assert processor.list_actions('test_load_from_path_yml_training_files')["form_validation_action"].__len__() == 1
         assert domain.intents.__len__() == 32
         assert not Utility.check_empty_string(
-            domain.templates["utter_cheer_up"][0]["image"]
+            domain.responses["utter_cheer_up"][0]["image"]
         )
-        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.responses["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.responses["utter_offer_help"][0]["custom"]
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
         assert len(rules) == 4
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
@@ -1626,31 +1688,29 @@ class TestMongoProcessor:
         assert isinstance(story_graph, StoryGraph) is True
         assert story_graph.story_steps.__len__() == 16
         assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
-        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
         assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
-        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 22
-        assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 21
+        assert all(slot.mappings[0]['type'] == 'from_entity' and slot.mappings[0]['entity'] == slot.name for slot in
+                   domain.slots if slot.name not in ['requested_slot', 'session_started_metadata'])
+        assert domain.responses.keys().__len__() == 27
+        assert domain.entities.__len__() == 22
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 40
-        assert processor.list_actions('all')["actions"].__len__() == 13
+        assert domain.user_actions.__len__() == 38
+        assert processor.list_actions('all')["actions"].__len__() == 11
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
-            domain.templates["utter_cheer_up"][0]["image"]
+            domain.responses["utter_cheer_up"][0]["image"]
         )
-        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.responses["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.responses["utter_offer_help"][0]["custom"]
         assert Utterances.objects(bot='all').count() == 27
 
     @pytest.mark.asyncio
@@ -1672,30 +1732,26 @@ class TestMongoProcessor:
         assert isinstance(story_graph, StoryGraph) is True
         assert story_graph.story_steps.__len__() == 16
         assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
-        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
         assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
-        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 22
-        assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 21
+        assert domain.responses.keys().__len__() == 27
+        assert domain.entities.__len__() == 22
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 40
+        assert domain.user_actions.__len__() == 38
         assert domain.intents.__len__() == 29
-        assert processor.list_actions('all')["actions"].__len__() == 13
+        assert processor.list_actions('all')["actions"].__len__() == 11
         assert not Utility.check_empty_string(
-            domain.templates["utter_cheer_up"][0]["image"]
+            domain.responses["utter_cheer_up"][0]["image"]
         )
-        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.responses["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.responses["utter_offer_help"][0]["custom"]
         assert Utterances.objects(bot='all').count() == 27
 
     def test_load_nlu(self):
@@ -1713,7 +1769,7 @@ class TestMongoProcessor:
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 14
         assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
-        assert domain.templates.keys().__len__() == 11
+        assert domain.responses.keys().__len__() == 11
         assert domain.entities.__len__() == 13
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
@@ -2037,8 +2093,7 @@ class TestMongoProcessor:
     def test_get_entities(self):
         processor = MongoProcessor()
         expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio',
-                    'doc_url', 'document', 'order', 'longitude', 'latitude', 'flow_reply',
-                    'quick_reply', 'http_status_code']
+                    'doc_url', 'document', 'order', 'quick_reply', 'longitude', 'latitude', 'flow_reply', 'http_status_code']
         actual = processor.get_entities("tests")
         assert actual.__len__() == expected.__len__()
         assert all(item["name"] in expected for item in actual)
@@ -2463,44 +2518,26 @@ class TestMongoProcessor:
         folder = os.path.join("models/tests", "old_model", "*.tar.gz")
         assert len(list(glob.glob(folder))) == 4
 
-    @pytest.mark.asyncio
-    async def test_train_model_empty_data(self):
-        with pytest.raises(AppException):
-            model = await (train_model_from_mongo("test"))
-            assert model
-
     def test_start_training_done(self, monkeypatch):
-        def mongo_store(*args, **kwargs):
-            return None
-
-        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
         model_path = start_training("tests", "testUser")
         assert model_path
         model_training = ModelTraining.objects(bot="tests", status="Done")
         assert model_training.__len__() == 1
         assert model_training.first().model_path == model_path
 
-    @elasticmock
-    def test_start_training_done_with_intrumentation(self, monkeypatch):
-        def mongo_store(*args, **kwargs):
-            return None
+    def test_start_training_done_with_intrumentation(self):
+        with patch.dict(Utility.environment["apm"], {"enable": True, 'service_name': 'kairon'}, clear=True):
+            processor = MongoProcessor()
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(processor.save_from_path(
+                "./tests/testing_data/initial", bot="test_initial", user="testUser"
+            ))
 
-        monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', "kairon")
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', "http://localhost:8082")
-
-        processor = MongoProcessor()
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(processor.save_from_path(
-            "./tests/testing_data/initial", bot="test_initial", user="testUser"
-        ))
-
-        model_path = start_training("test_initial", "testUser")
-        assert model_path
-        model_training = ModelTraining.objects(bot="test_initial", status="Done")
-        assert model_training.__len__() == 1
-        assert model_training.first().model_path == model_path
+            model_path = start_training("test_initial", "testUser")
+            assert model_path
+            model_training = ModelTraining.objects(bot="test_initial", status="Done")
+            assert model_training.__len__() == 1
+            assert model_training.first().model_path == model_path
 
     def test_start_training_fail(self):
         start_training("test", "testUser")
@@ -2843,7 +2880,8 @@ class TestMongoProcessor:
             {"name": "deny", "type": "INTENT"},
             {"name": "utter_deny", "type": "BOT"}
         ]
-        story_dict_one = {'name': "story for download", 'steps': steps_story, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_dict_one = {'name': "story for download", 'steps': steps_story, 'type': 'STORY',
+                          'template_type': 'CUSTOM'}
         processor.add_complex_story(story_dict_one, "tests_download", "user@integration.com")
 
         steps_rule = [
@@ -2864,10 +2902,10 @@ class TestMongoProcessor:
         assert file_multiflow_stories == b"multiflow_story:\n- block_name: multiflow_story_story_download_data_files\n  end_checkpoints: []\n  events:\n  - connections:\n    - component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n    step:\n      component_id: 637d0j9GD059jEwt2jPnlZ7I\n      name: asking\n      node_id: '1'\n      type: INTENT\n  - connections:\n    - component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n    - component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n    step:\n      component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n  - connections:\n    - component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n    step:\n      component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n  - connections: []\n    step:\n      component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n  - connections: []\n    step:\n      component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n  - connections:\n    - component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n    step:\n      component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n  metadata:\n  - flow_type: STORY\n    node_id: '6'\n  - flow_type: RULE\n    node_id: '5'\n  start_checkpoints:\n  - STORY_START\n  template_type: CUSTOM\n"
         file_stories = zip_file.getinfo('data/stories.yml')
         stories = zip_file.read(file_stories)
-        assert stories == b'version: "2.0"\nstories:\n- story: story for download\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - intent: deny\n  - action: utter_deny\n'
+        assert stories == b'version: "3.1"\nstories:\n- story: story for download\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - intent: deny\n  - action: utter_deny\n'
         file_rules = zip_file.getinfo('data/rules.yml')
         rules = zip_file.read(file_rules)
-        assert rules == b'version: "2.0"\nrules:\n- rule: rule for download\n  steps:\n  - intent: food\n  - action: utter_food\n  - action: utter_cheer_up\n'
+        assert rules == b'version: "3.1"\nrules:\n- rule: rule for download\n  steps:\n  - intent: food\n  - action: utter_food\n  - action: utter_cheer_up\n'
         zip_file.close()
 
         file_two = processor.download_files("tests_download", "user@integration.com", True)
@@ -2881,8 +2919,8 @@ class TestMongoProcessor:
         file_rules = zip_file.read(file_info_rules)
         multiflow_story = zip_file.getinfo('multiflow_stories.yml')
         file_multiflow_story = zip_file.read(multiflow_story)
-        assert file_stories == b'version: "2.0"\nstories:\n- story: story for download\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - intent: deny\n  - action: utter_deny\n- story: multiflow_story_story_download_data_files_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
-        assert file_rules == b'version: "2.0"\nrules:\n- rule: rule for download\n  steps:\n  - intent: food\n  - action: utter_food\n  - action: utter_cheer_up\n- rule: multiflow_story_story_download_data_files_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foodyy\n'
+        assert file_stories == b'version: "3.1"\nstories:\n- story: story for download\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - intent: deny\n  - action: utter_deny\n- story: multiflow_story_story_download_data_files_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
+        assert file_rules == b'version: "3.1"\nrules:\n- rule: rule for download\n  steps:\n  - intent: food\n  - action: utter_food\n  - action: utter_cheer_up\n- rule: multiflow_story_story_download_data_files_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foodyy\n'
         assert file_multiflow_story == b"multiflow_story:\n- block_name: multiflow_story_story_download_data_files\n  end_checkpoints: []\n  events:\n  - connections:\n    - component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n    step:\n      component_id: 637d0j9GD059jEwt2jPnlZ7I\n      name: asking\n      node_id: '1'\n      type: INTENT\n  - connections:\n    - component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n    - component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n    step:\n      component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n  - connections:\n    - component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n    step:\n      component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n  - connections: []\n    step:\n      component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n  - connections: []\n    step:\n      component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n  - connections:\n    - component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n    step:\n      component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n  metadata:\n  - flow_type: STORY\n    node_id: '6'\n  - flow_type: RULE\n    node_id: '5'\n  start_checkpoints:\n  - STORY_START\n  template_type: CUSTOM\n"
         zip_file.close()
 
@@ -2896,7 +2934,8 @@ class TestMongoProcessor:
 
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
-        BotSettings(bot="tests_download_prompt", user="user@integration.com", llm_settings=LLMSettings(enable_faq=True)).save()
+        BotSettings(bot="tests_download_prompt", user="user@integration.com",
+                    llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'prompt_action_with_default_values',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -2942,8 +2981,8 @@ class TestMongoProcessor:
         file_info_rules = zip_file.getinfo('data/rules.yml')
         file_content_stories = zip_file.read(file_info_stories)
         file_content_rules = zip_file.read(file_info_rules)
-        assert file_content_stories == b'version: "2.0"\n'
-        assert file_content_rules == b'version: "2.0"\n'
+        assert file_content_stories == b'version: "3.1"\n'
+        assert file_content_rules == b'version: "3.1"\n'
         zip_file.close()
 
     def test_download_data_files_multiflow_stories_with_actions(self, monkeypatch):
@@ -3004,38 +3043,13 @@ class TestMongoProcessor:
         print(file_content_stories)
         print(file_content_rules)
 
-        assert file_content_stories == b'version: "2.0"\nstories:\n- story: multiflow_story_story_download_data_files_with_actions_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
-        assert file_content_rules == b'version: "2.0"\nrules:\n- rule: multiflow_story_story_download_data_files_with_actions_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foody\n'
-        zip_file.close()
-
-    def test_download_data_files_empty_data(self, monkeypatch):
-        from zipfile import ZipFile
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        processor = MongoProcessor()
-
-        file = processor.download_files("tests_download_empty_data", "user@integration.com")
-        assert file.endswith(".zip")
-        zip_file = ZipFile(file, mode='r')
-        assert zip_file.filelist.__len__() == 9
-        assert zip_file.getinfo('data/stories.yml')
-        assert zip_file.getinfo('data/rules.yml')
-        file_info_stories = zip_file.getinfo('data/stories.yml')
-        file_info_rules = zip_file.getinfo('data/rules.yml')
-        file_content_stories = zip_file.read(file_info_stories)
-        file_content_rules = zip_file.read(file_info_rules)
-        assert file_content_stories == b'version: "2.0"\n'
-        assert file_content_rules == b'version: "2.0"\n'
+        assert file_content_stories == b'version: "3.1"\nstories:\n- story: multiflow_story_story_download_data_files_with_actions_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
+        assert file_content_rules == b'version: "3.1"\nrules:\n- rule: multiflow_story_story_download_data_files_with_actions_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foody\n'
         zip_file.close()
 
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
-        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action: []\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
+        expected_actions = b'database_action: []\nemail_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action: []\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
             encoding='utf-8')
 
         def _mock_bot_info(*args, **kwargs):
@@ -3071,7 +3085,7 @@ class TestMongoProcessor:
         assert action_config == {'http_action': [], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
                                  'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': [],
-                                 'razorpay_action': [], 'pyscript_action': []}
+                                 'razorpay_action': [], 'pyscript_action': [], 'database_action': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -3192,7 +3206,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_path_story"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'},
+                                                  {'node_id': '5', 'flow_type': 'STORY'}]
         assert multiflow_story[0]['name'] == 'get_multiflow_story_story'
 
     def test_get_multiflow_stories_with_RULE_metadata(self):
@@ -3237,7 +3252,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_path_rule"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'},
+                                                  {"node_id": "5", "flow_type": 'RULE'}]
         assert multiflow_story[0]['name'] == 'get_multiflow_story_rule'
 
     def test_get_multiflow_stories_with_empty_metadata(self):
@@ -3290,9 +3306,11 @@ class TestMongoProcessor:
         bot = "test_get_empty_path_type_metadata"
         user = "test_get_user_empty_path_type_metadata"
         steps = [
-            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1",
+                      "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
              "connections": [
-                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
+                  "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
             {"step": {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
@@ -3326,7 +3344,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_empty_path_type_metadata"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'},
+                                                  {'node_id': '5', 'flow_type': 'STORY'}]
         assert multiflow_story[0]['name'] == 'test_get_multiflow_stories_with_empty_path_type_metadata'
 
     def test_get_multiflow_stories_with_STORY_metadata(self):
@@ -3371,7 +3390,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_path_story"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'},
+                                                  {'node_id': '5', 'flow_type': 'STORY'}]
         assert multiflow_story[0]['name'] == 'get_multiflow_story_story'
 
     def test_get_multiflow_stories_with_RULE_metadata(self):
@@ -3416,7 +3436,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_path_rule"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'},
+                                                  {"node_id": "5", "flow_type": 'RULE'}]
         assert multiflow_story[0]['name'] == 'get_multiflow_story_rule'
 
     def test_get_multiflow_stories_with_empty_metadata(self):
@@ -3469,9 +3490,11 @@ class TestMongoProcessor:
         bot = "test_get_empty_path_type_metadata"
         user = "test_get_user_empty_path_type_metadata"
         steps = [
-            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1",
+                      "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
              "connections": [
-                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
+                  "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
             {"step": {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
@@ -3505,7 +3528,8 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = list(processor.get_multiflow_stories("test_get_empty_path_type_metadata"))
         assert multiflow_story.__len__() == 1
-        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'},
+                                                  {'node_id': '5', 'flow_type': 'STORY'}]
         assert multiflow_story[0]['name'] == 'test_get_multiflow_stories_with_empty_path_type_metadata'
 
     def test_edit_training_example_duplicate(self):
@@ -3735,11 +3759,11 @@ class TestMongoProcessor:
         utter_intentA_2_id = processor.add_response({"text": "demo_response2"}, utterance, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 2
-        processor.delete_response(utter_intentA_1_id, bot, user)
+        processor.delete_response(utter_intentA_1_id, bot)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 1
         assert Utterances.objects(name=utterance, bot=bot, status=True).get()
-        processor.delete_response(utter_intentA_2_id, bot, user)
+        processor.delete_response(utter_intentA_2_id, bot)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 0
         with pytest.raises(DoesNotExist):
@@ -3748,13 +3772,12 @@ class TestMongoProcessor:
     def test_delete_response_non_existing(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_response("0123456789ab0123456789ab", "testBot",
-                                      "testUser")
+            processor.delete_response("0123456789ab0123456789ab", "testBot")
 
     def test_delete_response_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_response(" ", "testBot", "testUser")
+            processor.delete_response(" ", "testBot")
 
     def test_delete_utterance(self):
         processor = MongoProcessor()
@@ -3805,7 +3828,7 @@ class TestMongoProcessor:
 
         with pytest.raises(AppException, match='initial value must not be an empty string'):
             processor.add_slot(
-                {"name": "bot", "type": "unfeaturized", "initial_value": " ", "influence_conversation": False},
+                {"name": "bot", "type": "text", "initial_value": " ", "influence_conversation": False},
                 bot, user, raise_exception_if_exists=True
             )
 
@@ -3905,11 +3928,11 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_slot'
         user = 'test_user'
-        processor.add_slot({"name": "bot", "type": "unfeaturized", "influence_conversation": True}, bot, user,
+        processor.add_slot({"name": "bot", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
         slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
         assert slot['name'] == 'bot'
-        assert slot['type'] == 'unfeaturized'
+        assert slot['type'] == 'text'
         assert slot['initial_value'] is None
         assert slot['influence_conversation']
         assert Entities.objects(name='bot', bot=bot, user=user, status=True).get()
@@ -4035,9 +4058,9 @@ class TestMongoProcessor:
 
         processor.delete_slot(slot_name='color', bot=bot, user=user)
 
-        slot = Slots.objects(name__iexact='color', bot=bot, user=user).get()
-        assert not Entities.objects(name='color', bot=bot, user=user, status=True)
-        assert slot.status is False
+        with pytest.raises(DoesNotExist):
+            Slots.objects(name__iexact='color', bot=bot).get()
+        assert not Entities.objects(name='color', bot=bot, status=True)
 
     def test_delete_slot_default_slot(self):
         processor = MongoProcessor()
@@ -4156,9 +4179,9 @@ class TestMongoProcessor:
         user = 'test_user'
         slot_name = 'is_new_user'
         slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": False}
-        mapping = {"slot": slot_name, 'mapping': [{'type': 'from_entity', 'entity': 'name'}]}
+        mapping = {"slot": slot_name, 'mapping': {'type': 'from_entity', 'entity': 'name'}}
         processor.add_slot(slot_value=slot, bot=bot, user=user)
-        processor.add_or_update_slot_mapping(mapping, bot, user)
+        processor.add_slot_mapping(mapping, bot, user)
 
         with pytest.raises(AppException, match="Cannot delete slot without removing its mappings!"):
             processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
@@ -4333,12 +4356,12 @@ class TestMongoProcessor:
     @pytest.mark.asyncio
     async def test_upload_and_save(self):
         processor = MongoProcessor()
-        nlu_content = "## intent:greet\n- hey\n- hello".encode()
-        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        nlu_content = "nlu:\n  - intent: greet\n    examples: |\n      - hey\n      - hello".encode()
+        stories_content = "stories:\n  - story: greet\n    steps:\n      - intent: greet\n      - action: utter_offer_help\n      - action: action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         await processor.upload_and_save(nlu, domain, stories, config, None, None, None, "test_upload_and_save",
@@ -4352,13 +4375,13 @@ class TestMongoProcessor:
     @pytest.mark.asyncio
     async def test_upload_and_save_with_rules(self):
         processor = MongoProcessor()
-        nlu_content = "## intent:greet\n- hey\n- hello".encode()
-        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        nlu_content = "nlu:\n  - intent: greet\n    examples: |\n      - hey\n      - hello".encode()
+        stories_content = "stories:\n  - story: greet\n    steps:\n      - intent: greet\n      - action: utter_offer_help\n      - action: action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         rules_content = "rules:\n\n- rule: Only say `hello` if the user provided a location\n  condition:\n  - slot_was_set:\n    - location: true\n  steps:\n  - intent: greet\n  - action: utter_greet\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
@@ -4375,13 +4398,13 @@ class TestMongoProcessor:
     @pytest.mark.asyncio
     async def test_upload_and_save_with_http_action(self):
         processor = MongoProcessor()
-        nlu_content = "## intent:greet\n- hey\n- hello".encode()
-        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        nlu_content = "nlu:\n  - intent: greet\n    examples: |\n      - hey\n      - hello".encode()
+        stories_content = "stories:\n  - story: greet\n    steps:\n      - intent: greet\n      - action: utter_offer_help\n      - action: action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
@@ -4398,14 +4421,14 @@ class TestMongoProcessor:
     @pytest.mark.asyncio
     async def test_upload_and_save_with_empty_multiflow_stories(self):
         processor = MongoProcessor()
-        nlu_content = "## intent:greet\n- hey\n- hello\n- intent:query\n- Tell me about AI\n- What is AI\n- What do you mean by AI\n- Define AI\n- I want to know about AI".encode()
-        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        nlu_content = 'version: "3.1"\nnlu:\n- intent: greet\n  examples: |\n    - hey\n    - hello\n    - hi\n    - good morning\n- intent: deny\n  examples: |\n    - no\n    - never\n    - I dont think so\n    - dont like that\n- intent: query\n  examples: |\n    - What is AI?\n    - Tell me about AI?\n    - Do you know about AI\n'.encode()
+        stories_content = 'version: "3.1"\nstories:\n- story: greet\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - action: action_restart\n'.encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- query\nresponses:\n  utter_query:\n  - text: 'Artificial intelligence is the simulation of human intelligence processes by machines, especially computer systems'\nactions:\n- utter_query\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
         multiflow_stories_content = "multiflow_story:\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
@@ -4418,20 +4441,20 @@ class TestMongoProcessor:
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
-                                          status=True))) == 8
+                                          status=True))) == 4
         assert len(list(MultiflowStories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 0
 
     @pytest.mark.asyncio
     async def test_upload_and_save_with_empty_multiflow_stories_none(self):
         processor = MongoProcessor()
-        nlu_content = "## intent:greet\n- hey\n- hello\n- intent:query\n- Tell me about AI\n- What is AI\n- What do you mean by AI\n- Define AI\n- I want to know about AI".encode()
-        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        nlu_content = 'version: "3.1"\nnlu:\n- intent: greet\n  examples: |\n    - hey\n    - hello\n    - hi\n    - good morning\n- intent: deny\n  examples: |\n    - no\n    - never\n    - I dont think so\n    - dont like that\n- intent: query\n  examples: |\n    - What is AI?\n    - Tell me about AI?\n    - Do you know about AI\n'.encode()
+        stories_content = 'version: "3.1"\nstories:\n- story: greet\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - action: action_restart\n'.encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- query\nresponses:\n  utter_query:\n  - text: 'Artificial intelligence is the simulation of human intelligence processes by machines, especially computer systems'\nactions:\n- utter_query\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
         multiflow_stories_content = "".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
@@ -4444,21 +4467,20 @@ class TestMongoProcessor:
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
-                                          status=True))) == 8
+                                          status=True))) == 4
         assert len(list(MultiflowStories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 0
 
     @pytest.mark.asyncio
     async def test_upload_and_save_with_multiflow_stories(self):
         processor = MongoProcessor()
-        nlu_content = "## intent:greet\n- hey\n- hello\n- intent:query\n- Tell me about AI\n- What is AI\n- What do you mean by AI\n- Define AI\n- I want to know about AI\n- intent:deny\n- No\n- I don't want this\n- not really\n- intent:affirm\n- affirmative\n- sure, please go ahead\n- sounds good right".encode()
-        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        nlu_content = 'version: "3.1"\nnlu:\n- intent: greet\n  examples: |\n    - hey\n    - hello\n    - hi\n    - good morning\n- intent: deny\n  examples: |\n    - no\n    - never\n    - I dont think so\n    - dont like that\n- intent: query\n  examples: |\n    - What is AI?\n    - Tell me about AI?\n    - Do you know about AI\n- intent: affirm\n  examples: |\n    - affirmative\n    - sure, please go ahead\n    - sounds good right\n'.encode()
+        stories_content = 'version: "3.1"\nstories:\n- story: greet\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - action: action_restart\n'.encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\n- query\n- deny\n- affirm\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\n  utter_query:\n  - text: 'Artificial intelligence is the simulation of human intelligence processes by machines, especially computer systems'\n  utter_goodbye:\n  - text: 'Bye'\n  utter_feedback:\n  - text: 'Thanks you for loving us. Keep using.'\nactions:\n- utter_offer_help\n- utter_query\n- utter_goodbye\n- utter_feedback\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
-        # multiflow_stories_content = "multiflow_story:\n- block_name: mf_one_1\n  events:\n    - step:\n        name: query\n        type: INTENT\n        node_id: \"1\"\n        component_id: \"61m96mPGu2VexybDeVg1dLyH\"\n      connections:\n        - name: utter_query\n          type: BOT\n          node_id: \"2\"\n          component_id: \"61uaImwNrsJI1pVphl8mZh20\"\n    - step:\n        name: utter_query\n        type: BOT\n        node_id: \"2\"\n        component_id: \"61uaImwNrsJI1pVphl8mZh20\"\n      connections:\n        - name: deny\n          type: INTENT\n          node_id: \"3\"\n          component_id: \"62By0VXVLpUNDNPqkr5vRRzm\"\n        - name: affirm\n          type: INTENT\n          node_id: \"4\"\n          component_id: \"62N9BCfSKVYOKoBivGhWDRHC\"\n    - step:\n        name: affirm\n        type: INTENT\n        node_id: \"4\"\n        component_id: \"62N9BCfSKVYOKoBivGhWDRHC\"\n      connections:\n        - name: utter_feedback\n          type: BOT\n          node_id: \"5\"\n          component_id: \"62uzXd9Pj5a9tEbVBkMuVn3o\"\n    - step:\n        name: utter_feedback\n        type: BOT\n        node_id: \"5\"\n        component_id: \"62uzXd9Pj5a9tEbVBkMuVn3o\"\n      connections: null\n    - step:\n        name: utter_goodbye\n        type: BOT\n        node_id: \"6\"\n        component_id: \"62ib6tlbgIGth8vBSwSYFvbS\"\n      connections: null\n    - step:\n        name: deny\n        type: INTENT\n        node_id: \"3\"\n        component_id: \"62By0VXVLpUNDNPqkr5vRRzm\"\n      connections:\n        - name: utter_goodbye\n          type: BOT\n          node_id: \"6\"\n          component_id: \"62ib6tlbgIGth8vBSwSYFvbS\"\n  metadata:\n    - node_id: \"6\"\n      flow_type: STORY\n".encode()
         multiflow_stories_content = "multiflow_story:\n- block_name: mf_one_1\n  events:\n    - step:\n        name: query\n        type: INTENT\n        node_id: '1'\n      connections:\n        - name: utter_query\n          type: BOT\n          node_id: '2'\n    - step:\n        name: utter_query\n        type: BOT\n        node_id: '2'\n      connections:\n        - name: deny\n          type: INTENT\n          node_id: '3'\n        - name: affirm\n          type: INTENT\n          node_id: '4'\n    - step:\n        name: affirm\n        type: INTENT\n        node_id: '4'\n      connections:\n        - name: utter_feedback\n          type: BOT\n          node_id: '5'\n    - step:\n        name: utter_feedback\n        type: BOT\n        node_id: '5'\n      connections: null\n    - step:\n        name: utter_goodbye\n        type: BOT\n        node_id: '6'\n      connections: null\n    - step:\n        name: deny\n        type: INTENT\n        node_id: '3'\n      connections:\n        - name: utter_goodbye\n          type: BOT\n          node_id: '6'\n  metadata:\n    - node_id: '6'\n      flow_type: STORY\n  start_checkpoints: [STORY_START]\n  end_checkpoints:".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
@@ -4471,7 +4493,7 @@ class TestMongoProcessor:
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
-                                          status=True))) == 16
+                                          status=True))) == 4
         assert len(list(MultiflowStories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
 
     def test_load_and_delete_http_action(self):
@@ -4665,7 +4687,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
@@ -4693,23 +4716,23 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 23
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
-        assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 22
+        assert domain.responses.keys().__len__() == 29
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
         assert not Utility.check_empty_string(
-            domain.templates["utter_cheer_up"][0]["image"]
+            domain.responses["utter_cheer_up"][0]["image"]
         )
-        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.responses["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.responses["utter_offer_help"][0]["custom"]
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -4731,7 +4754,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/all'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
@@ -4747,32 +4771,29 @@ class TestMongoProcessor:
         assert isinstance(story_graph, StoryGraph) is True
         assert story_graph.story_steps.__len__() == 16
         assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
-        assert story_graph.story_steps[14].events[2].entities[0]['start'] == 13
-        assert story_graph.story_steps[14].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
         assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
         assert story_graph.story_steps[15].events[2].intent['name'] == 'user_feedback'
-        assert story_graph.story_steps[15].events[2].entities[0]['start'] == 13
-        assert story_graph.story_steps[15].events[2].entities[0]['end'] == 34
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 22
-        assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 21
+        assert domain.responses.keys().__len__() == 27
+        assert domain.entities.__len__() == 22
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 40
+        assert domain.user_actions.__len__() == 38
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
-            domain.templates["utter_cheer_up"][0]["image"]
+            domain.responses["utter_cheer_up"][0]["image"]
         )
-        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.responses["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.responses["utter_offer_help"][0]["custom"]
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert rules == ['ask the user to rephrase whenever they send a message with low nlu confidence']
         actions = mongo_processor.load_http_action(bot)
         assert not actions['http_action']
+        assert Utterances.objects(bot=bot).count() == 27
 
     @pytest.mark.asyncio
     async def test_save_training_data_all_overwrite(self, get_training_data, monkeypatch):
@@ -4786,7 +4807,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
@@ -4814,23 +4836,23 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 23
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
-        assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 22
+        assert domain.responses.keys().__len__() == 29
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
         assert not Utility.check_empty_string(
-            domain.templates["utter_cheer_up"][0]["image"]
+            domain.responses["utter_cheer_up"][0]["image"]
         )
-        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.responses["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.responses["utter_offer_help"][0]["custom"]
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -4849,7 +4871,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/validator/append'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
@@ -4877,23 +4900,23 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 23
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
-        assert domain.templates.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.responses.keys().__len__() == 31
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
-            domain.templates["utter_cheer_up"][0]["image"]
+            domain.responses["utter_cheer_up"][0]["image"]
         )
-        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.responses["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.responses["utter_offer_help"][0]["custom"]
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -4927,23 +4950,23 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 23
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
-        assert domain.templates.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.responses.keys().__len__() == 31
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
-            domain.templates["utter_cheer_up"][0]["image"]
+            domain.responses["utter_cheer_up"][0]["image"]
         )
-        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.responses["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.responses["utter_offer_help"][0]["custom"]
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -4955,7 +4978,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, nlu=nlu, overwrite=True, what={'nlu'})
@@ -4984,23 +5008,23 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 23
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
-        assert domain.templates.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.responses.keys().__len__() == 31
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
-            domain.templates["utter_cheer_up"][0]["image"]
+            domain.responses["utter_cheer_up"][0]["image"]
         )
-        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
-        assert domain.templates["utter_offer_help"][0]["custom"]
+        assert domain.responses["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.responses["utter_offer_help"][0]["custom"]
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -5029,15 +5053,15 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 23
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 11
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
-        assert domain.templates.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.responses.keys().__len__() == 31
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -5047,7 +5071,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, story_graph=story_graph, overwrite=True, what={'stories'})
@@ -5084,8 +5109,8 @@ class TestMongoProcessor:
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 23
         assert domain.intent_properties.__len__() == 33
-        assert domain.templates.keys().__len__() == 31
-        assert domain.entities.__len__() == 22
+        assert domain.responses.keys().__len__() == 31
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 33
@@ -5101,7 +5126,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
         config['language'] = 'fr'
 
         mongo_processor = MongoProcessor()
@@ -5132,7 +5158,7 @@ class TestMongoProcessor:
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 1
         assert domain.intent_properties.__len__() == 5
-        assert domain.templates.keys().__len__() == 0
+        assert domain.responses.keys().__len__() == 0
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 6
@@ -5148,7 +5174,8 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+            path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, story_graph=story_graph, domain=domain, overwrite=True,
@@ -5160,8 +5187,8 @@ class TestMongoProcessor:
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 23
         assert domain.intent_properties.__len__() == 32
-        assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 22
+        assert domain.responses.keys().__len__() == 27
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 32
@@ -5362,7 +5389,7 @@ class TestMongoProcessor:
 
     @pytest.fixture()
     def resource_validate_and_prepare_data_save_actions_and_config_append(self):
-        import json
+        import ujson as json
 
         pytest.bot = 'test_validate_and_prepare_data'
         config = "language: fr\npipeline:\n- name: WhitespaceTokenizer\n- name: LexicalSyntacticFeaturizer\n-  name: DIETClassifier\npolicies:\n-  name: TEDPolicy".encode()
@@ -5382,7 +5409,7 @@ class TestMongoProcessor:
                          pytest.chat_client_config]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
-        assert REQUIREMENTS - {'multiflow_stories'}== files_received
+        assert REQUIREMENTS - {'multiflow_stories'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
@@ -5603,7 +5630,7 @@ class TestMongoProcessor:
 
     @pytest.fixture()
     def resource_validate_and_prepare_data_invalid_zip_actions_config(self):
-        import json
+        import ujson as json
         tmp_dir = tempfile.mkdtemp()
         pytest.bot = 'validate_and_prepare_data_zip_actions_config'
         zip_file = os.path.join(tmp_dir, 'test')
@@ -5718,27 +5745,29 @@ class TestMongoProcessor:
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.6
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
-                                                    'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 200, 'name': 'DIETClassifier'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.6},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'epochs': 300, 'name': 'ResponseSelector'}],
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                  'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 200, 'name': 'DIETClassifier'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.6},
+                                 {'name': 'EntitySynonymMapper'},
+                                 {'epochs': 300, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
+                                  'max_history': 5,
                                   'name': 'RulePolicy'}]}
-        assert config == expected
+        assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_get_config_properties(self):
         expected = {'nlu_confidence_threshold': 0.6,
@@ -5785,8 +5814,8 @@ class TestMongoProcessor:
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.6
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.6
 
@@ -5817,23 +5846,25 @@ class TestMongoProcessor:
         ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         assert ted['name'] == 'TEDPolicy'
         assert ted['epochs'] == 400
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
-                                                    'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 200, 'name': 'DIETClassifier'},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
-                                                   {'epochs': 300, 'name': 'ResponseSelector'}],
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                  'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 200, 'name': 'DIETClassifier'},
+                                 {'name': 'EntitySynonymMapper'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                 {'epochs': 300, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
+                                  'max_history': 5,
                                   'name': 'RulePolicy'}]}
-        assert config == expected
+        assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_get_config_properties_epoch_only(self):
         expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
@@ -5844,22 +5875,22 @@ class TestMongoProcessor:
 
     def test_save_component_properties_empty(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["model"]["train"], "default_model_training_config_path",
-                            "./template/config/kairon-default.yml")
+                            "./tests/testing_data/kairon-default.yml")
         processor = MongoProcessor()
         with pytest.raises(AppException) as e:
             processor.save_component_properties({}, 'test_properties_empty', 'test')
         assert str(e).__contains__('At least one field is required')
         config = processor.load_config('test_properties_empty')
-        assert config == Utility.read_yaml('./template/config/kairon-default.yml')
+        assert config == Utility.read_yaml('./tests/testing_data/kairon-default.yml')
         nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
         assert nlu['name'] == 'DIETClassifier'
-        assert nlu['epochs'] == 50
+        assert nlu['epochs'] == 5
         response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
         assert response['name'] == 'ResponseSelector'
-        assert response['epochs'] == 100
+        assert response['epochs'] == 5
         ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         assert ted['name'] == 'TEDPolicy'
-        assert ted['epochs'] == 100
+        assert ted['epochs'] == 5
 
     def test_get_config_properties_fallback_not_set(self):
         expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
@@ -5870,7 +5901,7 @@ class TestMongoProcessor:
 
     def test_list_epochs_for_components_not_present(self):
         configs = Configs._from_son(
-            read_config_file("./template/config/kairon-default.yml")
+            read_config_file("./tests/testing_data/kairon-default.yml")
         ).to_mongo().to_dict()
         del configs['pipeline'][4]
         del configs['pipeline'][6]
@@ -5879,14 +5910,14 @@ class TestMongoProcessor:
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
 
         expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
-                    'action_fallback_threshold': 0.5, 'ted_epochs': None, 'nlu_epochs': 50, 'response_epochs': 100}
+                    'action_fallback_threshold': 0.5, 'ted_epochs': None, 'nlu_epochs': 5, 'response_epochs': 5}
         processor = MongoProcessor()
         actual = processor.list_epoch_and_fallback_config('test_list_component_not_exists')
         assert actual == expected
 
     def test_save_component_properties_component_not_exists(self):
         configs = Configs._from_son(
-            read_config_file("./template/config/kairon-default.yml")
+            read_config_file("./tests/testing_data/kairon-default.yml")
         ).to_mongo().to_dict()
         del configs['pipeline'][5]
         del configs['pipeline'][7]
@@ -5894,26 +5925,26 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_config(configs, 'test_component_not_exists', 'test')
 
-        config = {"nlu_epochs": 100,
-                  "response_epochs": 200,
-                  "ted_epochs": 300}
+        config = {"nlu_epochs": 10,
+                  "response_epochs": 10,
+                  "ted_epochs": 10}
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_component_not_exists', 'test')
         config = processor.load_config('test_component_not_exists')
         diet = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
         assert diet['name'] == 'DIETClassifier'
-        assert diet['epochs'] == 100
+        assert diet['epochs'] == 10
         response = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), None)
         assert response['name'] == 'ResponseSelector'
-        assert response['epochs'] == 200
+        assert response['epochs'] == 10
         ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         assert ted['name'] == 'TEDPolicy'
-        assert ted['epochs'] == 300
+        assert ted['epochs'] == 10
 
     def test_save_component_fallback_not_configured(self):
         Actions(name='action_say_bye', bot='test_fallback_not_configured', user='test').save()
         configs = Configs._from_son(
-            read_config_file("./template/config/kairon-default.yml")
+            read_config_file("./tests/testing_data/kairon-default.yml")
         ).to_mongo().to_dict()
         del configs['pipeline'][6]
         del configs['policies'][2]
@@ -5925,19 +5956,20 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_fallback_not_configured', 'test')
         config = processor.load_config('test_fallback_not_configured')
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 50, 'name': 'DIETClassifier'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.8},
-                                                   {'epochs': 100, 'name': 'ResponseSelector'}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'name': 'TEDPolicy'},
-                                 {'name': 'RulePolicy', 'core_fallback_action_name': 'action_say_bye',
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 5, 'name': 'DIETClassifier'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.8},
+                                 {'epochs': 5, 'name': 'ResponseSelector'}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 5, 'name': 'TEDPolicy'},
+                                 {'name': 'RulePolicy', 'max_history': 5, 'core_fallback_action_name': 'action_say_bye',
                                   'core_fallback_threshold': 0.3}]}
-        assert config == expected
+        assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_save_component_properties_nlu_fallback_only(self):
         nlu_fallback = {"nlu_confidence_threshold": 0.75}
@@ -5947,25 +5979,27 @@ class TestMongoProcessor:
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.75
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
-                                                    'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 5, 'name': 'DIETClassifier'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.75},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'epochs': 10, 'name': 'ResponseSelector'}],
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                  'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 5, 'name': 'DIETClassifier'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.75},
+                                 {'name': 'EntitySynonymMapper'},
+                                 {'epochs': 10, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
+                                  'max_history': 5,
                                   'name': 'RulePolicy'}]}
-        assert config == expected
+        assert not DeepDiff(config, expected)
 
     def test_save_component_properties_all_nlu_fallback_update_threshold(self):
         nlu_fallback = {"nlu_confidence_threshold": 0.7}
@@ -5975,8 +6009,8 @@ class TestMongoProcessor:
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.7
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
 
     def test_save_component_properties_action_fallback_only(self):
         nlu_fallback = {'action_fallback': 'action_say_bye'}
@@ -5985,26 +6019,27 @@ class TestMongoProcessor:
         processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
-                                                   {'model_name': 'bert', 'from_pt': True,
-                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
-                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
-                                                   {'name': 'LexicalSyntacticFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer'},
-                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
-                                                    'name': 'CountVectorsFeaturizer'},
-                                                   {'epochs': 5, 'name': 'DIETClassifier'},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
-                                                   {'epochs': 10, 'name': 'ResponseSelector'}],
+        expected = {'recipe': 'default.v1', 'language': 'en',
+                    'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                 {'model_name': 'bert', 'from_pt': True,
+                                  'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                  'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
+                                 {'name': 'LexicalSyntacticFeaturizer'},
+                                 {'name': 'CountVectorsFeaturizer'},
+                                 {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                  'name': 'CountVectorsFeaturizer'},
+                                 {'epochs': 5, 'name': 'DIETClassifier'},
+                                 {'name': 'EntitySynonymMapper'},
+                                 {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                 {'epochs': 10, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_say_bye', 'core_fallback_threshold': 0.3,
-                                  'enable_fallback_prediction': True, 'name': 'RulePolicy'}]}
-        assert config == expected
+                                  'enable_fallback_prediction': True, 'max_history': 5, 'name': 'RulePolicy'}]}
+        assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_save_component_properties_all_action_fallback_update(self):
         nlu_fallback = {'action_fallback': 'action_say_bye_bye'}
@@ -6013,8 +6048,8 @@ class TestMongoProcessor:
         processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
@@ -6026,21 +6061,22 @@ class TestMongoProcessor:
         assert str(e).__contains__("Action fallback action_say_hello does not exists")
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
     def test_save_component_properties_all_action_fallback_utter_default_not_set(self):
         nlu_fallback = {'action_fallback': 'action_default_fallback'}
         processor = MongoProcessor()
+        Responses.objects(name="utter_default", bot="test_action_fallback_only").delete()
         with pytest.raises(AppException) as e:
             processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
         assert str(e).__contains__("Utterance utter_default not defined")
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
@@ -6052,8 +6088,8 @@ class TestMongoProcessor:
         processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
@@ -6093,7 +6129,6 @@ class TestMongoProcessor:
         with pytest.raises(TypeError):
             processor.add_synonym_value(
                 None, "bot", bot, user)
-
 
         with pytest.raises(ValidationError, match="Synonym name and value cannot be empty or blank spaces"):
             processor.add_synonym_value(
@@ -6608,14 +6643,11 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
             processor.add_lookup_value("number", "one", bot, user)
 
-
         with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
             processor.add_lookup_value(" ", "one", bot, user)
 
         with pytest.raises(TypeError):
             processor.add_lookup_value(None, "one", bot, user)
-
-
 
     def test_add_lookup(self):
         processor = MongoProcessor()
@@ -6632,7 +6664,6 @@ class TestMongoProcessor:
 
         with pytest.raises(AppException, match="Lookup already exists!"):
             processor.add_lookup("number", bot, user)
-
 
     def test_add__and_get_lookup_values(self):
         processor = MongoProcessor()
@@ -6758,31 +6789,27 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        expected_slot = {"slot": "cuisine", 'mapping': [{'type': 'from_entity', 'entity': 'name'}]}
-        with pytest.raises(AppException, match='Slot with name \'cuisine\' not found'):
-            processor.add_or_update_slot_mapping(expected_slot, bot, user)
+        expected_slot = {"slot": "cuisine", 'mapping': {'type': 'from_entity', 'entity': 'name'}}
+        with pytest.raises(AppException, match='Slot with name \"cuisine\" not found'):
+            processor.add_slot_mapping(expected_slot, bot, user)
 
     def test_add_slot_with_mapping(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        expected_slot = {"slot": "name", 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
-                                                     {'type': 'from_entity', 'entity': 'name'}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
+        expected_slot = {"slot": "name", 'mapping': {'type': 'from_intent', 'value': 'user'}}
+        processor.add_slot_mapping(expected_slot, bot, user)
         slot = SlotMapping.objects(slot='name', bot=bot, user=user).get()
-        assert slot.mapping == [{'type': 'from_text', 'value': 'user'}, {'type': 'from_entity', 'entity': 'name'}]
+        assert slot.mapping == {'type': 'from_intent', 'value': 'user'}
 
     def test_add_slot_with_empty_mapping(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        expected_slot = {"slot": "name", 'mapping': []}
+        expected_slot = {"slot": "name", 'mapping': {}}
         with pytest.raises(ValueError, match='At least one mapping is required'):
-            processor.add_or_update_slot_mapping(expected_slot, bot, user)
+            processor.add_slot_mapping(expected_slot, bot, user)
 
-        expected_slot = {"slot": "name", 'mapping': [{}]}
-        with pytest.raises(ValueError, match='At least one mapping is required'):
-            processor.add_or_update_slot_mapping(expected_slot, bot, user)
 
     def test_update_slot_with_mapping(self):
         expected_slot = {"name": "age", "type": "float", "influence_conversation": True}
@@ -6797,15 +6824,17 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
 
         expected_slot = {"slot": "age",
-                         'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
+                         'mapping': {'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18',
+                                      "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}}
+        processor.add_slot_mapping(expected_slot, bot, user)
         slot = Slots.objects(name__iexact='age', bot=bot, user=user).get()
         assert slot['name'] == 'age'
         assert slot['type'] == 'float'
         assert slot['initial_value'] is None
         assert slot['influence_conversation']
         slot = SlotMapping.objects(slot='age', bot=bot, user=user).get()
-        assert slot.mapping == [{'type': 'from_intent', 'intent': ['get_age'], 'value': '18'}]
+        assert slot.mapping == {'type': 'from_intent', 'intent': ['get_age'], 'value': '18',
+                                 "conditions": [{"active_loop": "booking", "requested_slot": "age"}]}
 
     def test_remove_slot_mapping(self):
         processor = MongoProcessor()
@@ -6814,12 +6843,17 @@ class TestMongoProcessor:
         processor.add_slot({"name": "occupation", "type": "text", "influence_conversation": True}, bot, user)
         expected_slot = {"slot": "occupation",
                          'mapping': [{'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
-                                     {'type': 'from_text', 'value': 'engineer'},
+                                     {'type': 'from_text', 'value': 'engineer',
+                                      "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
                                      {'type': 'from_entity', 'entity': 'occupation'},
                                      {'type': 'from_trigger_intent', 'value': 'tester',
                                       'intent': ['get_business', 'is_engineer', 'is_tester'],
                                       'not_intent': ['get_age', 'get_name']}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
+        expected_slots = []
+        for m in expected_slot['mapping']:
+            expected_slots.append({"slot": "occupation", "mapping": m})
+        for slot in expected_slots:
+            processor.add_slot_mapping(slot, bot, user)
         processor.delete_slot_mapping("occupation", bot, user)
         slot = Slots.objects(name__iexact='occupation', bot=bot, user=user).get()
         assert slot['name'] == 'occupation'
@@ -6828,115 +6862,103 @@ class TestMongoProcessor:
         assert slot['influence_conversation']
         with pytest.raises(DoesNotExist):
             SlotMapping.objects(slot='occupation', bot=bot, status=True).get()
+        expected_slots=[]
         expected_slot = {"slot": "occupation", 'mapping': [
             {'type': 'from_intent', 'intent': ['get_occupation'], 'value': 'business'},
-            {'type': 'from_text', 'value': 'engineer'},
+            {'type': 'from_text', 'value': 'engineer',
+             "conditions": [{"active_loop": "booking", "requested_slot": "engineer"}]},
             {'type': 'from_entity', 'entity': 'occupation'},
             {'type': 'from_trigger_intent', 'value': 'tester',
              'intent': ['get_business', 'is_engineer', 'is_tester'],
              'not_intent': ['get_age', 'get_name']}]}
-        processor.add_or_update_slot_mapping(expected_slot, bot, user)
-        slot = SlotMapping.objects(slot='occupation', bot=bot, status=True).get()
-        assert slot.mapping == expected_slot['mapping']
+        for m in expected_slot['mapping']:
+            expected_slots.append({"slot": "occupation", "mapping": m})
+        for slot in expected_slots:
+            processor.add_slot_mapping(slot, bot, user)
+        slots = SlotMapping.objects(slot='occupation', bot=bot, status=True)
+        assert len(list(slots)) == 4
+
 
     def test_get_slot(self):
         bot = 'test'
         processor = MongoProcessor()
         slots = list(processor.get_existing_slots(bot))
-        assert len(slots) == 23
-        assert slots == [
-            {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'auto_fill': False, 'influence_conversation': False,
+        expected = [
+            {'name': 'kairon_action_response', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'influence_conversation': False,
              '_has_been_set': False},
-            {'name': 'kairon_action_response', 'type': 'any', 'auto_fill': False, 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'order', 'type': 'any', 'auto_fill': False, 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'http_status_code', 'type': 'float', 'auto_fill': False, 'influence_conversation': False,
-             '_has_been_set': False, 'max_value': 550.0, 'min_value': 100.0},
-            {'name': 'image', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'audio', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'video', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'document', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'doc_url', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'longitude', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'latitude', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'flow_reply', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'quick_reply', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'category', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'file', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'file_error', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'file_text', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'name', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'priority', 'type': 'categorical', 'auto_fill': True,
-             'values': ['low', 'medium', 'high', '__other__'], 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'ticketid', 'type': 'float', 'initial_value': 1.0, 'auto_fill': True, 'max_value': 1.0,
-             'min_value': 0.0, 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'date_time', 'type': 'any', 'auto_fill': True, 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'age', 'type': 'float', 'auto_fill': True, 'max_value': 1.0, 'min_value': 0.0,
+            {'name': 'order', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'flow_reply', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'http_status_code', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'image', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'audio', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'video', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'document', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'doc_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'longitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'latitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'date_time', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'category', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'file', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'file_error', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'file_text', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'name', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'priority', 'type': 'categorical', 'values': ['low', 'medium', 'high', '__other__'],
              'influence_conversation': True, '_has_been_set': False},
-            {'name': 'occupation', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+            {'name': 'ticketid', 'type': 'float', 'initial_value': 1.0, 'max_value': 1.0, 'min_value': 0.0,
+             'influence_conversation': True, '_has_been_set': False},
+            {'name': 'age', 'type': 'float', 'max_value': 1.0, 'min_value': 0.0, 'influence_conversation': True,
              '_has_been_set': False},
+            {'name': 'occupation', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+            {'name': 'quick_reply', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}
         ]
+        assert len(slots) == 23
+        assert not DeepDiff(slots, expected, ignore_order=True)
 
     def test_update_slot_add_value_intent_and_not_intent(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
         processor.add_slot({"name": "location", "type": "text", "influence_conversation": True}, bot, user)
-        slot = {"slot": "location", 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
-                                                {'type': 'from_entity', 'entity': 'location'}]}
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        slot = {"slot": "location", 'mapping': {'type': 'from_text', 'value': 'user', 'entity': 'location'}}
 
-        slots = [{"slot": "age", 'mapping': [{'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
-                                              'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}]},
+        slot2 = {"slot": "location", 'mapping': {'type': 'from_entity', 'entity': 'location'}}
+        id1 = processor.add_slot_mapping(slot, bot, user)
+        id2 = processor.add_slot_mapping(slot2, bot, user)
+
+        slots = [{"slot": "age", 'mapping': {'type': 'from_intent', 'intent': ['retrieve_age', 'ask_age'],
+                                              'not_intent': ['get_age', 'affirm', 'deny'], 'value': 20}},
                  {"slot": "location",
-                  'mapping': [{'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'},
-                              {'type': 'from_text', 'value': 'Bengaluru'},
-                              {'type': 'from_entity', 'entity': 'location'},
-                              {'type': 'from_trigger_intent', 'value': 'Kolkata',
-                               'intent': ['get_location', 'is_location', 'current_location'],
-                               'not_intent': ['get_age', 'get_name']}]}]
-        processor.add_or_update_slot_mapping(slots[0], bot, user)
-        processor.add_or_update_slot_mapping(slots[1], bot, user)
+                  'mapping': {'type': 'from_intent', 'intent': ['get_location'], 'value': 'Mumbai'}},
+                 {"slot": "location",
+                  'mapping': {'type': 'from_text', 'value': 'Bengaluru'}}]
+
+        processor.add_slot_mapping(slots[0], bot, user)
+        processor.update_slot_mapping(slots[1], id1)
+        processor.update_slot_mapping(slots[2], id2)
+
         slots = list(processor.get_slot_mappings(bot))
-        assert slots == [{'slot': 'date_time', 'mapping': [{'type': 'from_entity', 'entity': 'date_time'}]},
-                         {'slot': 'priority', 'mapping': [{'type': 'from_entity', 'entity': 'priority'}]},
-                         {'slot': 'file', 'mapping': [{'type': 'from_entity', 'entity': 'file'}]}, {'slot': 'name',
-                                                                                                    'mapping': [{
-                                                                                                        'type': 'from_text',
-                                                                                                        'value': 'user'},
-                                                                                                        {
-                                                                                                            'type': 'from_entity',
-                                                                                                            'entity': 'name'}]},
-                         {'slot': 'age', 'mapping': [
-                             {'type': 'from_intent', 'value': 20, 'intent': ['retrieve_age', 'ask_age'],
-                              'not_intent': ['get_age', 'affirm', 'deny']}]}, {'slot': 'occupation', 'mapping': [
-                {'type': 'from_intent', 'value': 'business', 'intent': ['get_occupation']},
-                {'type': 'from_text', 'value': 'engineer'}, {'type': 'from_entity', 'entity': 'occupation'},
-                {'type': 'from_trigger_intent', 'value': 'tester',
-                 'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]},
-                         {'slot': 'location',
-                          'mapping': [{'type': 'from_intent', 'value': 'Mumbai', 'intent': ['get_location']},
-                                      {'type': 'from_text', 'value': 'Bengaluru'},
-                                      {'type': 'from_entity', 'entity': 'location'},
-                                      {'type': 'from_trigger_intent', 'value': 'Kolkata',
-                                       'intent': ['get_location', 'is_location', 'current_location'],
-                                       'not_intent': ['get_age', 'get_name']}]}]
+        diff = DeepDiff(slots,
+                        [{'slot': 'age', 'mapping': [{'type': 'from_intent', 'value': '18', 'intent': ['get_age'], 'conditions': [{'active_loop': 'booking', 'requested_slot': 'age'}]}, {'type': 'from_intent', 'value': 20, 'intent': ['retrieve_age', 'ask_age'], 'not_intent': ['get_age', 'affirm', 'deny']}]}, {'slot': 'date_time', 'mapping': [{'type': 'from_entity', 'entity': 'date_time'}]}, {'slot': 'file', 'mapping': [{'type': 'from_entity', 'entity': 'file'}]}, {'slot': 'location', 'mapping': [{'type': 'from_intent', 'value': 'Mumbai', 'intent': ['get_location']}, {'type': 'from_text', 'value': 'Bengaluru'}]}, {'slot': 'name', 'mapping': [{'type': 'from_intent', 'value': 'user'}]}, {'slot': 'occupation', 'mapping': [{'type': 'from_intent', 'value': 'business', 'intent': ['get_occupation']}, {'type': 'from_text', 'value': 'engineer', 'conditions': [{'active_loop': 'booking', 'requested_slot': 'engineer'}]}, {'type': 'from_entity', 'entity': 'occupation'}, {'type': 'from_trigger_intent', 'value': 'tester', 'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}]}, {'slot': 'priority', 'mapping': [{'type': 'from_entity', 'entity': 'priority'}]}],
+                        ignore_order=True,
+                        )
+        assert not diff
+
+    def test_add_form_with_any_slot(self):
+        processor = MongoProcessor()
+        path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+                {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
+                 'slot_set': {'type': 'current', 'value': 22}},
+                {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'slot_set': {'type': 'slot', 'value': 'occupation'}},
+                {'ask_questions': ['what is your order?', 'order?'], 'slot': 'order',
+                 'slot_set': {'type': 'slot', 'value': 'order'}}
+                ]
+        bot = 'test'
+        user = 'user'
+        with pytest.raises(AppException, match="form will not accept any type slots: {'order'}"):
+            processor.add_form('know_user', path, bot, user)
 
     def test_add_form(self):
         processor = MongoProcessor()
@@ -6981,7 +7003,7 @@ class TestMongoProcessor:
         assert resp[0].text.text == 'what is your occupation?'
         assert resp[1].text.text == 'occupation?'
         assert resp[2].text.text == 'your occupation?'
-        assert not processor.delete_response(str(resp[2].id), bot, user)
+        assert not processor.delete_response(str(resp[2].id), bot)
 
     def test_add_utterance_to_form_not_exists(self):
         bot = 'test'
@@ -7251,28 +7273,31 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         slot = {"slot": "num_people",
-                'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]}
-        processor.add_or_update_slot_mapping(slot, bot, user)
-        slot = {"slot": "cuisine", 'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]}
-        processor.add_or_update_slot_mapping(slot, bot, user)
+                'mapping': {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}}
+        processor.add_slot_mapping(slot, bot, user)
+        slot = {"slot": "cuisine", 'mapping': {'type': 'from_entity', 'entity': 'cuisine'}}
+        processor.add_slot_mapping(slot, bot, user)
         slot = {"slot": "outdoor_seating",
                 'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                             {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                             {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
         processor.add_slot({"name": "outdoor_seating", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        for s in slot['mapping']:
+            processor.add_slot_mapping({"slot": slot["slot"], "mapping": s}, bot, user)
         slot = {"slot": "preferences",
                 'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                             {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]}
         processor.add_slot({"name": "preferences", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        for s in slot['mapping']:
+            processor.add_slot_mapping({"slot": slot["slot"], "mapping": s}, bot, user)
         slot = {"slot": "feedback", 'mapping': [{'type': 'from_text'},
                                                 {'type': 'from_entity', 'entity': 'feedback'}]}
         processor.add_slot({"name": "feedback", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        for s in slot['mapping']:
+            processor.add_slot_mapping({"slot": slot["slot"], "mapping": s}, bot, user)
 
         assert processor.add_form('restaurant_form', path, bot, user)
         form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
@@ -7744,6 +7769,38 @@ class TestMongoProcessor:
         assert validations_added[2].slot_set.type == 'slot'
         assert validations_added[2].slot_set.value == 'occupation'
 
+    def test_edit_form_with_any_slot(self):
+        processor = MongoProcessor()
+        path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
+                 'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
+                {'ask_questions': ['seats required?'], 'slot': 'num_people',
+                 'slot_set': {'type': 'current', 'value': 10}},
+                {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+                 'validation_semantic': "if (&& cuisine.contains('i') && cuisine.length() > 4 || "
+                                        "!cuisine.contains(" ")) {return true;} else {return false;}",
+                 'slot_set': {'type': 'current', 'value': 'Indian Cuisine'}},
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'slot_set': {'type': 'custom', 'value': True}},
+                {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+                 'slot_set': {'type': 'current'}},
+                {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',
+                 'slot_set': {'type': 'slot', 'value': 'ac_required'}},
+                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
+        bot = 'test'
+        user = 'user'
+        slot = {"slot": "ac_required",
+                'mapping': {'type': 'from_intent', 'intent': ['affirm'], 'value': True}}
+        slot2 = {"slot": "ac_required",
+                  'mapping': {'type': 'from_intent', 'intent': ['deny'], 'value': False}}
+        processor.add_slot({"name": "ac_required", "type": "any", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+        processor.add_slot_mapping(slot, bot, user)
+        processor.add_slot_mapping(slot2, bot, user)
+
+        with pytest.raises(AppException, match="form will not accept any type slots: {'ac_required'}"):
+            processor.edit_form('restaurant_form', path, bot, user)
+
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
@@ -7765,11 +7822,14 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         slot = {"slot": "ac_required",
-                'mapping': [{'type': 'from_intent', 'intent': ['affirm'], 'value': True},
-                            {'type': 'from_intent', 'intent': ['deny'], 'value': False}]}
+                'mapping': {'type': 'from_intent', 'intent': ['affirm'], 'value': True}}
+        slot2 = {"slot": "ac_required",
+                'mapping':{'type': 'from_intent', 'intent': ['deny'], 'value': False}}
         processor.add_slot({"name": "ac_required", "type": "text", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        processor.add_or_update_slot_mapping(slot, bot, user)
+        processor.delete_slot_mapping('ac_required', bot, user)
+        processor.add_slot_mapping(slot, bot, user)
+        processor.add_slot_mapping(slot2, bot, user)
 
         processor.edit_form('restaurant_form', path, bot, user)
         form = Forms.objects(name='restaurant_form', bot=bot, status=True).get()
@@ -7833,11 +7893,9 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         utterance = Utterances.objects(name='utter_ask_know_user_name', bot=bot).get()
-        utterance.status = False
-        utterance.save()
+        utterance.delete()
         for response in Responses.objects(name='utter_ask_know_user_name', bot=bot):
-            response.status = False
-            response.save()
+            response.delete()
 
         processor.edit_form('know_user', path, bot, user)
         assert Forms.objects(name='know_user', bot=bot, status=True).get()
@@ -7916,8 +7974,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         utterance = Utterances.objects(name='utter_ask_know_user_age', bot=bot).get()
-        utterance.status = False
-        utterance.save()
+        utterance.delete()
         processor.delete_form('know_user', bot, user)
         with pytest.raises(DoesNotExist):
             Forms.objects(name='know_user', bot=bot, status=True).get()
@@ -7934,7 +7991,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         with pytest.raises(AppException,
-                           match='At least one question is required for utterance linked to form: restaurant_form'):
+                           match='Utterance cannot be deleted as it is linked to form: restaurant_form'):
             processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, "test")
         assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
@@ -7945,8 +8002,8 @@ class TestMongoProcessor:
         user = 'test'
         response = Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         with pytest.raises(AppException,
-                           match='At least one question is required for utterance linked to form: restaurant_form'):
-            processor.delete_response(str(response.id), bot, user)
+                           match='Utterance cannot be deleted as it is linked to form: restaurant_form'):
+            processor.delete_response(str(response.id), bot)
         assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
 
@@ -8036,8 +8093,8 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         processor.delete_complex_story(pytest.form_story_id, 'STORY', bot, user)
-        assert Stories.objects(block_name="story with form", bot=bot,
-                               events__name='restaurant_form', status=False).get()
+        assert not Stories.objects(block_name="story with form", bot=bot,
+                                   events__name='restaurant_form')
 
     def test_update_story_step_that_is_attached_to_form(self):
         processor = MongoProcessor()
@@ -8337,12 +8394,12 @@ class TestMongoProcessor:
         prompt_action_config = PromptActionConfigRequest(
             name='test_delete_action_with_attached_http_action',
             llm_prompts=[{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Action Prompt',
-                                    'data': 'tester_action',
-                                    'instructions': 'Answer according to the context', 'type': 'user',
-                                    'source': 'action',
-                                    'is_enabled': True}]
+                          'source': 'static', 'is_enabled': True},
+                         {'name': 'Action Prompt',
+                          'data': 'tester_action',
+                          'instructions': 'Answer according to the context', 'type': 'user',
+                          'source': 'action',
+                          'is_enabled': True}]
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         processor.add_prompt_action(prompt_action_config.dict(), bot, user)
@@ -8351,84 +8408,73 @@ class TestMongoProcessor:
 
     @responses.activate
     def test_push_notifications_enabled_create_type_event(self):
-        Utility.environment['notifications']['enable'] = True
         bot = 'test_notifications'
         user = 'test'
         url = f"http://localhost/events/{bot}"
-        Utility.environment['notifications']['server_endpoint'] = url
-        processor = MongoProcessor()
-        responses.add(
-            'POST',
-            url,
-            json={'message': 'Event added'}
-        )
-        processor.add_intent('greet', bot, user, False)
-        request_body = responses.calls[0].request
-        request_body = request_body.body.decode('utf8')
-        request_body = json.loads(request_body)
-        assert responses.calls[0].request.headers['Authorization']
-        assert request_body['event_type'] == "create"
-        assert request_body['event']['entity_type'] == "Intents"
-        assert request_body['event']['data']['name'] == 'greet'
-        assert request_body['event']['data']['bot'] == bot
-        assert request_body['event']['data']['user'] == user
-        assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
-        assert request_body['event']['data']['status']
-        assert not request_body['event']['data']['is_integration']
-        assert not request_body['event']['data']['use_entities']
+        with patch.dict(Utility.environment['notifications'], {"enable": True, "server_endpoint": url}):
+            processor = MongoProcessor()
+            responses.add(
+                'POST',
+                url,
+                json={'message': 'Event added'}
+            )
+            processor.add_intent('greet', bot, user, False)
+            request_body = responses.calls[0].request
+            request_body = request_body.body.decode('utf8')
+            request_body = json.loads(request_body)
+            assert responses.calls[0].request.headers['Authorization']
+            assert request_body['event_type'] == "create"
+            assert request_body['event']['entity_type'] == "Intents"
+            assert request_body['event']['data']['name'] == 'greet'
+            assert request_body['event']['data']['bot'] == bot
+            assert request_body['event']['data']['user'] == user
+            assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
+            assert request_body['event']['data']['status']
+            assert not request_body['event']['data']['is_integration']
+            assert not request_body['event']['data']['use_entities']
 
     @responses.activate
     def test_push_notifications_enabled_update_type_event(self):
-        Utility.environment['notifications']['enable'] = True
         bot = "tests"
         user = 'testUser'
         url = "http://localhost/events"
-        Utility.environment['notifications']['server_endpoint'] = url
-        processor = MongoProcessor()
-
-        responses.add(
-            'POST',
-            f'{url}/tests',
-            json={'message': 'Event updated'}
-        )
-        examples = list(processor.get_training_examples("greet", bot))
-        processor.edit_training_example(examples[0]["_id"], example="[Kanpur](location) India", intent="greet",
-                                        bot=bot, user=user)
-        request_body = responses.calls[0].request
-        request_body = request_body.body.decode('utf8')
-        request_body = json.loads(request_body)
-        assert responses.calls[0].request.headers['Authorization']
-        assert request_body['event_type'] == "update"
-        assert request_body['event']['entity_type'] == "TrainingExamples"
-        assert request_body['event']['data']['intent'] == 'greet'
-        assert not Utility.check_empty_string(request_body['event']['data']['text'])
-        assert request_body['event']['data']['bot'] == bot
-        assert request_body['event']['data']['user'] == user
-        assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
-        assert request_body['event']['data']['status']
+        with patch.dict(Utility.environment['notifications'], {"enable": True, "server_endpoint": url}):
+            processor = MongoProcessor()
+            responses.add(
+                'POST',
+                f'{url}/tests',
+                json={'message': 'Event updated'}
+            )
+            examples = list(processor.get_training_examples("greet", bot))
+            processor.edit_training_example(examples[0]["_id"], example="[Kanpur](location) India", intent="greet",
+                                            bot=bot, user=user)
+            request_body = responses.calls[0].request
+            request_body = request_body.body.decode('utf8')
+            request_body = json.loads(request_body)
+            assert responses.calls[0].request.headers['Authorization']
+            assert request_body['event_type'] == "update"
+            assert request_body['event']['entity_type'] == "TrainingExamples"
+            assert request_body['event']['data']['intent'] == 'greet'
+            assert not Utility.check_empty_string(request_body['event']['data']['text'])
+            assert request_body['event']['data']['bot'] == bot
+            assert request_body['event']['data']['user'] == user
+            assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
+            assert request_body['event']['data']['status']
 
     @responses.activate
     def test_push_notifications_enabled_delete_type_event(self):
-        Utility.environment['notifications']['enable'] = True
         bot = "test"
         user = 'test'
         url = "http://localhost/events"
-        Utility.environment['notifications']['server_endpoint'] = url
-        processor = MongoProcessor()
+        with patch.dict(Utility.environment['notifications'], {"enable": True, "server_endpoint": url}):
+            processor = MongoProcessor()
 
-        responses.add(
-            'POST',
-            f'{url}/test',
-            json={'message': 'Event deleted'}
-        )
-        processor.delete_complex_story(pytest.slot_set_action_story_id, 'STORY', bot, user)
-        request_body = responses.calls[0].request
-        request_body = request_body.body.decode('utf8')
-        request_body = json.loads(request_body)
-        assert responses.calls[0].request.headers['Authorization']
-        assert request_body['event_type'] == "delete"
-        assert request_body['event']['entity_type'] == "Stories"
-        assert request_body['event']['data'][0]['_id']
+            responses.add(
+                'POST',
+                f'{url}/test',
+                json={'message': 'Event deleted'}
+            )
+            processor.delete_complex_story(pytest.slot_set_action_story_id, 'STORY', bot, user)
 
     def test_push_notifications_enabled_update_type_event_connection_error(self):
         bot = "test"
@@ -8452,7 +8498,6 @@ class TestMongoProcessor:
         processor.delete_complex_story(story_id, 'STORY', bot, user)
         with pytest.raises(DoesNotExist):
             Stories.objects(block_name=story_name, bot=bot, status=True).get()
-        Utility.environment['notifications']['enable'] = False
 
     @responses.activate
     def test_add_jira_action(self):
@@ -8958,9 +9003,9 @@ class TestMongoProcessor:
         user = 'test'
         processor.delete_action('jira_action', bot, user)
         with pytest.raises(DoesNotExist):
-            JiraAction.objects(name='jira_action', status=True, bot=bot).get()
+            Actions.objects(name='jira_action', bot=bot).get()
         with pytest.raises(DoesNotExist):
-            Actions.objects(name='jira_action', status=True, bot=bot).get()
+            JiraAction.objects(name='jira_action', bot=bot).get()
 
     def test_list_zendesk_actions_empty(self):
         bot = 'test'
@@ -9144,7 +9189,7 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             Actions.objects(name='zendesk_action', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
-            PipedriveLeadsAction.objects(name='zendesk_action', status=True, bot=bot).get()
+            ZendeskAction.objects(name='zendesk_action', status=True, bot=bot).get()
 
     def test_add_pipedrive_leads_action(self):
         processor = MongoProcessor()
@@ -9487,33 +9532,31 @@ class TestMongoProcessor:
 
     @responses.activate
     def test_push_notifications_enabled_message_type_event(self, monkeypatch):
-        Utility.environment['notifications']['enable'] = True
         bot = "test"
         user = 'test'
         url = "http://localhost/events"
-        monkeypatch.setitem(Utility.environment['notifications'], 'server_endpoint', url)
-        responses.add(
-            'POST',
-            f'{url}/test',
-            json={'message': 'Event in progress'}
-        )
-        ModelProcessor.set_training_status(bot, user, "Inprogress")
-        request_body = responses.calls[0].request
-        request_body = request_body.body.decode('utf8')
-        request_body = json.loads(request_body)
-        assert responses.calls[0].request.headers['Authorization']
-        assert request_body['event_type'] == "message"
-        assert request_body['event']['entity_type'] == "ModelTraining"
-        assert request_body['event']['data']['status'] == 'Inprogress'
-        assert request_body['event']['data']['bot'] == bot
-        assert request_body['event']['data']['user'] == user
-        assert not Utility.check_empty_string(request_body['event']['data']['start_timestamp'])
+        with patch.dict(Utility.environment['notifications'], {"enable": True, "server_endpoint": url}):
+            responses.add(
+                'POST',
+                f'{url}/test',
+                json={'message': 'Event in progress'}
+            )
+            ModelProcessor.set_training_status(bot, user, "Inprogress")
+            request_body = responses.calls[0].request
+            request_body = request_body.body.decode('utf8')
+            request_body = json.loads(request_body)
+            assert responses.calls[0].request.headers['Authorization']
+            assert request_body['event_type'] == "message"
+            assert request_body['event']['entity_type'] == "ModelTraining"
+            assert request_body['event']['data']['status'] == 'Inprogress'
+            assert request_body['event']['data']['bot'] == bot
+            assert request_body['event']['data']['user'] == user
+            assert not Utility.check_empty_string(request_body['event']['data']['start_timestamp'])
 
     def test_delete_valid_intent_only(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
-        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False,
-                                delete_dependencies=False)
+        processor.delete_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         with pytest.raises(Exception):
             intent = Intents.objects(bot="tests", status=True).get(name="TestingDelGreeting")
 
@@ -9620,11 +9663,13 @@ class TestMongoProcessor:
         }
         payload = {'type': 'from_value', 'value': payload_body}
         schema = {
-            "metadata": [{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "metadata": [
+                {"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "test_add_vector_embedding_action_config_op_embedding_search",
             "bot": bot,
             "user": user
         }
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         pytest.delete_schema_id_db_action = processor.save_cognition_schema(schema, user, bot)
         CognitionData(
             data={"country": "India"},
@@ -9659,7 +9704,8 @@ class TestMongoProcessor:
             {"name": "helu", "type": "INTENT"},
             {"name": "test_vectordb_action_op_embedding_search", "type": "DATABASE_ACTION"},
         ]
-        story_dict = {'name': "story with vector embedding action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "story with vector embedding action", 'steps': steps, 'type': 'STORY',
+                      'template_type': 'CUSTOM'}
         story_id = processor.add_complex_story(story_dict, bot, user)
         story = Stories.objects(block_name="story with vector embedding action", bot=bot,
                                 events__name='test_vectordb_action_op_embedding_search', status=True).get()
@@ -9723,7 +9769,8 @@ class TestMongoProcessor:
         response = 'nupur.khare'
         query_type = 'embedding_search'
         payload = {'type': 'from_slot', 'value': 'email'}
-        processor.add_slot({"name": "email", "type": "text", "initial_value": "nupur.khare@digite.com", "influence_conversation": True}, bot, user,
+        processor.add_slot({"name": "email", "type": "text", "initial_value": "nupur.khare@digite.com",
+                            "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
@@ -9747,7 +9794,8 @@ class TestMongoProcessor:
         assert actual_vectordb_action is not None
         assert Actions.objects(name=action, status=True, bot=bot).get()
         assert actual_vectordb_action['name'] == action
-        assert actual_vectordb_action['collection'] == 'test_add_vector_embedding_action_config_op_embedding_search_from_slot'
+        assert actual_vectordb_action[
+                   'collection'] == 'test_add_vector_embedding_action_config_op_embedding_search_from_slot'
         assert actual_vectordb_action['payload']['type'] == 'from_slot'
         assert actual_vectordb_action['payload']['value'] == 'email'
         assert actual_vectordb_action['query_type'] == 'embedding_search'
@@ -9761,6 +9809,7 @@ class TestMongoProcessor:
         response = 'nupur.khare'
         query_type = 'embedding_search'
         payload = {'type': 'from_slot', 'value': 'cuisine'}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_op_embedding_search_from_slot_does_not_exists',
@@ -9838,6 +9887,7 @@ class TestMongoProcessor:
             "with_vector": True
         }
         payload = {'type': 'from_value', 'value': payload_body}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
             collection_name="test_add_vector_embedding_action_config_empty_payload_values",
@@ -9866,20 +9916,9 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response)
         )
         vectordb_action_two = vectordb_action_config_two.dict()
-        vectordb_action_two['payload']['value'] = ''
-        with pytest.raises(ValidationError, match="payload value is required"):
-            processor.add_db_action(vectordb_action_two, user, bot)
-        vectordb_action_config_three = DatabaseActionRequest(
-            name=action,
-            collection='test_add_vector_embedding_action_config_empty_payload_values',
-            query_type=query_type,
-            payload=payload,
-            response=ActionResponseEvaluation(value=response)
-        )
-        vectordb_action_three = vectordb_action_config_three.dict()
-        vectordb_action_three['payload']['type'] = ''
+        vectordb_action_two['payload']['type'] = ''
         with pytest.raises(ValidationError, match="payload type is required"):
-            processor.add_db_action(vectordb_action_three, user, bot)
+            processor.add_db_action(vectordb_action_two, user, bot)
 
     def test_add_vector_embedding_action_config_empty_operation_values(self):
         processor = MongoProcessor()
@@ -9896,6 +9935,7 @@ class TestMongoProcessor:
             "with_vector": True
         }
         payload = {'type': 'from_value', 'value': payload_body}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
             collection_name="test_add_vector_embedding_action_config_empty_operation_values",
@@ -9962,7 +10002,8 @@ class TestMongoProcessor:
         assert actual['query_type'] == 'embedding_search'
         assert actual['payload'] == {'type': 'from_slot', 'value': 'email'}
         assert actual['collection'] == 'test_get_vector_embedding_action'
-        assert actual['response'] == {'value': 'nupur.khare', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'}
+        assert actual['response'] == {'value': 'nupur.khare', 'dispatch': True, 'evaluation_type': 'expression',
+                                      'dispatch_type': 'text'}
         assert actual['db_type'] == 'qdrant'
         assert actual['set_slots'] == [{'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}]
 
@@ -10014,6 +10055,7 @@ class TestMongoProcessor:
             }
         }
         payload = {'type': 'from_value', 'value': payload_body}
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
@@ -10036,7 +10078,8 @@ class TestMongoProcessor:
         assert actual is not None
         assert actual['name'] == action
         assert actual['response']['value'] == '15'
-        assert actual['payload']['value'] == {'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+        assert actual['payload']['value'] == {'filter': {
+            'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
         response_two = 'nimble'
         processor.add_slot({"name": "name", "type": "text", "initial_value": "nupur",
                             "influence_conversation": True}, bot, user,
@@ -10079,7 +10122,8 @@ class TestMongoProcessor:
             payload=payload,
             response=ActionResponseEvaluation(value=response)
         )
-        with pytest.raises(AppException, match='Action with name "test_update_vectordb_action_does_not_exists" not found'):
+        with pytest.raises(AppException,
+                           match='Action with name "test_update_vectordb_action_does_not_exists" not found'):
             processor.update_db_action(vectordb_action_config.dict(), user, bot)
 
     def test_delete_vector_embedding_action_config(self):
@@ -10141,7 +10185,8 @@ class TestMongoProcessor:
         ).save().to_mongo()
 
         try:
-            processor.delete_action("test_delete_vector_embedding_action_config_non_existing_non_existing", user=user, bot=bot)
+            processor.delete_action("test_delete_vector_embedding_action_config_non_existing_non_existing", user=user,
+                                    bot=bot)
             assert False
         except AppException as e:
             assert str(e).__contains__(
@@ -10566,7 +10611,7 @@ class TestMongoProcessor:
         request_method = 'GET'
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
-        dispatch_type="json"
+        dispatch_type = "json"
         header: List[HttpActionParameters] = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
@@ -10833,24 +10878,26 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
-                           'hubspot_forms_action': [],
-                           'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
-                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
-                           'kairon_bot_response': [],
-                           'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
-                           'database_action': [], 'pyscript_action': [], 'web_search_action': [],
-                           'utterances': ['utter_greet',
-                                          'utter_cheer_up',
-                                          'utter_did_that_help',
-                                          'utter_happy',
-                                          'utter_goodbye',
-                                          'utter_iamabot',
-                                          'utter_feedback',
-                                          'utter_good_feedback',
-                                          'utter_bad_feedback',
-                                          'utter_default',
-                                          'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']}
+        assert not DeepDiff(actions, {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+                                      'hubspot_forms_action': [],
+                                      'http_action': [], 'google_search_action': [], 'jira_action': [],
+                                      'two_stage_fallback': [],
+                                      'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
+                                      'kairon_bot_response': [],
+                                      'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
+                                      'database_action': [], 'pyscript_action': [], 'web_search_action': [],
+                                      'utterances': ['utter_greet',
+                                                     'utter_cheer_up',
+                                                     'utter_did_that_help',
+                                                     'utter_happy',
+                                                     'utter_goodbye',
+                                                     'utter_iamabot',
+                                                     'utter_feedback',
+                                                     'utter_good_feedback',
+                                                     'utter_bad_feedback',
+                                                     'utter_default',
+                                                     'utter_please_rephrase', 'utter_custom', 'utter_query',
+                                                     'utter_more_queries']}, ignore_order=True)
 
     def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()
@@ -11020,7 +11067,8 @@ class TestMongoProcessor:
              },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "food", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
             {"step": {"name": "food", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
@@ -11055,10 +11103,13 @@ class TestMongoProcessor:
              },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_food", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11076,7 +11127,8 @@ class TestMongoProcessor:
                               "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
              }
         ]
-        updated_story_dict = {'name': story_name, 'steps': updated_steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        updated_story_dict = {'name': story_name, 'steps': updated_steps, 'type': 'MULTIFLOW',
+                              'template_type': 'CUSTOM'}
         processor.update_multiflow_story(pytest.story_id, updated_story_dict, bot)
         updated_multiflow_story = MultiflowStories.objects(block_name=story_name, bot=bot).get()
         assert len(updated_multiflow_story.events) == 6
@@ -11099,9 +11151,11 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "age", "type": "SLOT", "value": 23, "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "age", "type": "SLOT", "value": 23, "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "foody", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
             {"step": {"name": "foody", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
@@ -11140,12 +11194,15 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
                  {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "foody", "type": "SLOT", "value": True, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "foody", "type": "SLOT", "value": True, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "foody", "type": "SLOT", "value": True, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "foody", "type": "SLOT", "value": True, "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11181,12 +11238,15 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
                  {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_hobbies", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11222,12 +11282,15 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
                  {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11246,7 +11309,8 @@ class TestMongoProcessor:
              }
         ]
         story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-        with pytest.raises(ValidationError, match="slot values in multiflow story must be either None or of type int, str or boolean"):
+        with pytest.raises(ValidationError,
+                           match="slot values in multiflow story must be either None or of type int, str or boolean"):
             processor.add_multiflow_story(story_dict, bot, user)
 
     def test_add_multiflow_story_with_slot_value_invalid_type(self):
@@ -11258,12 +11322,15 @@ class TestMongoProcessor:
              "connections": [
                  {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
                  {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
@@ -11298,7 +11365,8 @@ class TestMongoProcessor:
              },
             {"step": {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
             {"step": {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
@@ -11335,7 +11403,8 @@ class TestMongoProcessor:
              },
             {"step": {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
             {"step": {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
@@ -11359,7 +11428,8 @@ class TestMongoProcessor:
         story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         events = [MultiflowStoryEvents(**step) for step in steps]
         with pytest.raises(ValidationError, match="Value is allowed only for slot events"):
-            MultiflowStories(block_name="multiflow story with value for invalid events", bot=bot, user=user, events=events).save()
+            MultiflowStories(block_name="multiflow story with value for invalid events", bot=bot, user=user,
+                             events=events).save()
 
     def test_add_multiflow_story_with_path_type_as_STORY(self):
         processor = MongoProcessor()
@@ -11398,7 +11468,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'STORY'}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = MultiflowStories.objects(bot=bot).get()
         assert len(multiflow_story.events) == 6
@@ -11441,7 +11512,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = MultiflowStories.objects(bot=bot).get()
         assert len(multiflow_story.events) == 6
@@ -11484,7 +11556,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'STORY'}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="Path tagged as RULE can have only one intent!"):
             processor.add_multiflow_story(story_dict, bot, user)
 
@@ -11525,7 +11598,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6'}, {"node_id": "5"}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = MultiflowStories.objects(bot=bot).get()
         assert len(multiflow_story.events) == 6
@@ -11569,7 +11643,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="Slots cannot be leaf nodes!"):
             processor.add_multiflow_story(story_dict, bot, user)
 
@@ -11678,13 +11753,13 @@ class TestMongoProcessor:
         metadata_three = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
 
         story_dict_one = {'name': story_name_one, 'steps': steps_one, "metadata": metadata_one, 'type': 'MULTIFLOW',
-                      'template_type': 'CUSTOM'}
+                          'template_type': 'CUSTOM'}
         story_dict_two = {'name': story_name_two, 'steps': steps_two, "metadata": metadata_two,
                           'type': 'MULTIFLOW',
                           'template_type': 'CUSTOM'}
         story_dict_three = {'name': story_name_three, 'steps': steps_three, "metadata": metadata_three,
-                          'type': 'MULTIFLOW',
-                          'template_type': 'CUSTOM'}
+                            'type': 'MULTIFLOW',
+                            'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict_one, bot, user)
         processor.add_multiflow_story(story_dict_two, bot, user)
         processor.add_multiflow_story(story_dict_three, bot, user)
@@ -11736,7 +11811,8 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '2', "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}]
-        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Only leaf nodes can be tagged with a flow"):
             processor.add_multiflow_story(story_dict, bot, user)
 
@@ -12577,13 +12653,14 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
-        assert actions == {
+        assert not DeepDiff(actions, {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [],
-            'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default', 'utter_please_rephrase']}
+            'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
+                           'utter_please_rephrase'], 'web_search_action': []}, ignore_order=True)
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -12657,19 +12734,19 @@ class TestMongoProcessor:
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
         with pytest.raises(Exception):
             processor.delete_intent("TestingDelGreeting", "tests", "testUser1", is_integration=True,
-                                    delete_dependencies=False)
+                                    )
 
     def test_add_and_delete_integration_intent_by_same_integration_user(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting1", "tests", "testUser", is_integration=True)
         processor.delete_intent("TestingDelGreeting1", "tests", "testUser", is_integration=True,
-                                delete_dependencies=False)
+                                )
 
     def test_add_and_delete_integration_intent_by_different_integration_user(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting2", "tests", "testUser", is_integration=True)
         processor.delete_intent("TestingDelGreeting2", "tests", "testUser2", is_integration=True,
-                                delete_dependencies=False)
+                                )
 
     def test_add_rule(self):
         processor = MongoProcessor()
@@ -12685,7 +12762,7 @@ class TestMongoProcessor:
         assert story.events[0].name == "..."
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
-        assert actions == {
+        assert not DeepDiff(actions, {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
@@ -12701,7 +12778,8 @@ class TestMongoProcessor:
                            'utter_good_feedback',
                            'utter_bad_feedback',
                            'utter_default',
-                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']}
+                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']},
+                            ignore_order=True)
 
     def test_add_duplicate_rule(self):
         processor = MongoProcessor()
@@ -13104,7 +13182,6 @@ class TestMongoProcessor:
             with pytest.raises(ValidationError, match="custom_text can only be of type value or slot!"):
                 processor.add_email_action(email_config, "TEST", "tests")
 
-
     def test_add_email_action_duplicate(self):
         processor = MongoProcessor()
         email_config = {"action_name": "email_config",
@@ -13463,7 +13540,6 @@ class TestMongoProcessor:
             processor.add_web_search_action(action, bot, user)
         assert Actions.objects(name='public_custom_search', status=True, bot=bot).get()
         assert WebSearchAction.objects(name='public_custom_search', status=True, bot=bot).get()
-
 
     def test_list_web_search_action_masked(self):
         processor = MongoProcessor()
@@ -14317,7 +14393,8 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
         AuditLogData(
-            attributes=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            attributes=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time,
+            action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
@@ -14534,7 +14611,8 @@ class TestMongoProcessor:
 
         schema_three = {
             "metadata": [
-                {"column_name": "metadata_three", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+                {"column_name": "metadata_three", "data_type": "str", "enable_search": True,
+                 "create_embeddings": True}],
             "collection_name": "metadata_three",
             "bot": bot,
             "user": user
@@ -14625,7 +14703,8 @@ class TestMongoProcessor:
         print(data)
         assert data[0]
         assert data[0]['_id']
-        assert data[0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True, 'create_embeddings': True}
+        assert data[0]['metadata'][0] == {'column_name': 'details', 'data_type': 'str', 'enable_search': True,
+                                          'create_embeddings': True}
         assert data[0]['collection_name'] == 'details_collection'
 
     def test_delete_payload_metadata(self):
@@ -14685,13 +14764,12 @@ class TestMongoProcessor:
                        {'name': 'Query Prompt', 'data': "What kind of language is python?",
                         'instructions': 'Rephrase the query.',
                         'type': 'query', 'source': 'static', 'is_enabled': False},
-                       {'name': 'Similarity Prompt',
+                       {'name': 'Similarity Prompt', "data": "python",
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content',
                         'is_enabled': True}
                    ],
                    'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-                   'collection': 'python',
                    "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                                  {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
                    "dispatch_response": False
@@ -14885,11 +14963,12 @@ class TestMongoProcessor:
     @patch("kairon.shared.cognition.processor.CognitionDataProcessor.get_cognition_data", autospec=True)
     def test_list_cognition_data(self, mock_get_cognition_data, mock_list_cognition_data):
         cognition_data = [{'vector_id': 1,
-                     'row_id': '65266ff16f0190ca4fd09898',
-                     'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
-                     'content_type': 'text',
-                     'collection': 'bot', 'user': 'testUser', 'bot': 'test'}]
+                           'row_id': '65266ff16f0190ca4fd09898',
+                           'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
+                           'content_type': 'text',
+                           'collection': 'bot', 'user': 'testUser', 'bot': 'test'}]
         row_count = 1
+
         def _list_cognition_data(*args, **kwargs):
             return cognition_data
 
@@ -14914,7 +14993,7 @@ class TestMongoProcessor:
         print(data)
         assert data[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
-                                 'software application are tested in isolation to ensure that each unit functions as expected. '
+                              'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['row_id']
         assert data[0]['collection'] == 'bot'
         kwargs = {'collection': 'Bot', 'data': 'Unit testing'}
@@ -15452,12 +15531,12 @@ class TestModelProcessor:
             return None
 
         monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-        mock_agent.side_effect = Exception("Failed to load the model for the bot.")
+        mock_agent.side_effect = Exception("invalid model file")
         start_training("tests", "testUser")
         model_training = ModelTraining.objects(bot="tests", status="Fail")
         assert model_training.__len__() == 2
         print(model_training[1].to_mongo().to_dict())
-        assert model_training[1].exception in str("Failed to load the model for the bot.")
+        assert model_training[1].exception in str("invalid model file")
 
     def test_train_model_for_bot(self):
         model = train_model_for_bot("tests")
@@ -15512,7 +15591,8 @@ class TestModelProcessor:
         assert result.get("method") == "GET"
 
     def test_auditlog_for_chat_client_config(self):
-        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "bot", "value": "test"}], user='testUser', entity='ChatClientConfig').order_by('-timestamp'))
+        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "bot", "value": "test"}], user='testUser',
+                                                  entity='ChatClientConfig').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data[0] is not None
         assert auditlog_data[0].attributes[0]["value"] == "test"
@@ -15520,7 +15600,9 @@ class TestModelProcessor:
         assert auditlog_data[0].entity == "ChatClientConfig"
 
     def test_auditlog_for_intent(self):
-        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='save', entity='Intents').order_by('-timestamp'))
+        auditlog_data = list(
+            AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='save',
+                                 entity='Intents').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
         assert auditlog_data[0].attributes[0]["value"] == "tests"
@@ -15528,9 +15610,10 @@ class TestModelProcessor:
         assert auditlog_data[0].entity == "Intents"
 
         auditlog_data = list(
-            AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='delete', entity='Intents').order_by('-timestamp'))
+            AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='delete',
+                                 entity='Intents').order_by('-timestamp'))
         # No hard delete supported for intents
-        assert len(auditlog_data) == 0
+        assert len(auditlog_data) == 8
 
     def test_get_auditlog_for_invalid_bot(self):
         bot = "invalid"
@@ -15550,7 +15633,7 @@ class TestModelProcessor:
         to_date = datetime.utcnow().date()
         page_size = 100
         auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
-                                                            page_size=page_size)
+                                                                     page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_top_50(self):
@@ -15559,7 +15642,7 @@ class TestModelProcessor:
         to_date = datetime.utcnow().date()
         page_size = 50
         auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
-                                                            page_size=page_size)
+                                                                     page_size=page_size)
         assert len(auditlog_data) == 50
 
     def test_get_auditlog_from_date_to_date_none(self):
@@ -15568,7 +15651,7 @@ class TestModelProcessor:
         to_date = None
         page_size = 50
         auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
-                                                            page_size=page_size)
+                                                                     page_size=page_size)
         assert len(auditlog_data) == 50
 
     def test_edit_training_example_empty_or_blank(self):

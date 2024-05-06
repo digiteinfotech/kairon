@@ -1,5 +1,4 @@
 import datetime
-import json
 import os
 from typing import Text, Dict
 
@@ -7,7 +6,7 @@ from loguru import logger
 from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
 from rasa.core.channels import UserMessage
-from rasa.core.tracker_store import TrackerStore
+from rasa.core.tracker_store import SerializedTrackerAsDict
 
 from .agent_processor import AgentProcessor
 from .. import Utility
@@ -21,14 +20,22 @@ from ..shared.metering.metering_processor import MeteringProcessor
 
 
 class ChatUtils:
-
     @staticmethod
-    async def chat(data: Text, account: int, bot: Text, user: Text, is_integration_user: bool = False, metadata: Dict = None):
+    async def chat(
+        data: Text,
+        account: int,
+        bot: Text,
+        user: Text,
+        is_integration_user: bool = False,
+        metadata: Dict = None,
+    ):
         model = AgentProcessor.get_agent(bot)
         metadata = ChatUtils.__get_metadata(account, bot, is_integration_user, metadata)
         msg = UserMessage(data, sender_id=user, metadata=metadata)
         chat_response = await model.handle_message(msg)
-        ChatUtils.__attach_agent_handoff_metadata(account, bot, user, chat_response, model.tracker_store)
+        await ChatUtils.__attach_agent_handoff_metadata(
+            account, bot, user, chat_response, model.tracker_store
+        )
         return chat_response
 
     @staticmethod
@@ -42,67 +49,123 @@ class ChatUtils:
             exc = str(e)
             status = "Failed"
         finally:
-            UserActivityLogger.add_log(a_type=UserActivityType.model_reload.value,
-                                       email=user, bot=bot,
-                                       data={"username": user, "process_id": os.getpid(), "exception": exc,
-                                             "status": status})
+            UserActivityLogger.add_log(
+                a_type=UserActivityType.model_reload.value,
+                email=user,
+                bot=bot,
+                data={
+                    "username": user,
+                    "process_id": os.getpid(),
+                    "exception": exc,
+                    "status": status,
+                },
+            )
 
     @staticmethod
-    def __attach_agent_handoff_metadata(account: int, bot: Text, sender_id: Text, bot_predictions, tracker):
-        metadata = {'initiate': False, 'type': None, "additional_properties": None}
+    async def __attach_agent_handoff_metadata(
+        account: int, bot: Text, sender_id: Text, bot_predictions, tracker
+    ):
+        metadata = {"initiate": False, "type": None, "additional_properties": None}
         exception = None
         should_initiate_handoff = False
         try:
-            config = LiveAgentsProcessor.get_config(bot, mask_characters=False, raise_error=False)
+            config = LiveAgentsProcessor.get_config(
+                bot, mask_characters=False, raise_error=False
+            )
             if config:
                 metadata["type"] = config["agent_type"]
-                should_initiate_handoff = ChatUtils.__should_initiate_handoff(bot_predictions, config)
+                should_initiate_handoff = ChatUtils.__should_initiate_handoff(
+                    bot_predictions, config
+                )
                 if should_initiate_handoff:
                     metadata["initiate"] = True
-                    live_agent = LiveAgentFactory.get_agent(config["agent_type"], config["config"])
-                    metadata["additional_properties"] = live_agent.initiate_handoff(bot, sender_id)
-                    businessdata = live_agent.getBusinesshours(config, metadata["additional_properties"]["inbox_id"])
-                    if businessdata is not None and businessdata.get("working_hours_enabled"):
-                        is_business_hours_enabled = businessdata.get("working_hours_enabled")
+                    live_agent = LiveAgentFactory.get_agent(
+                        config["agent_type"], config["config"]
+                    )
+                    metadata["additional_properties"] = live_agent.initiate_handoff(
+                        bot, sender_id
+                    )
+                    businessdata = live_agent.getBusinesshours(
+                        config, metadata["additional_properties"]["inbox_id"]
+                    )
+                    if businessdata is not None and businessdata.get(
+                        "working_hours_enabled"
+                    ):
+                        is_business_hours_enabled = businessdata.get(
+                            "working_hours_enabled"
+                        )
                         if is_business_hours_enabled:
                             current_utcnow = datetime.datetime.utcnow()
-                            workingstatus = live_agent.validate_businessworkinghours(businessdata, current_utcnow)
+                            workingstatus = live_agent.validate_businessworkinghours(
+                                businessdata, current_utcnow
+                            )
                             if not workingstatus:
-                                metadata.update({"businessworking":businessdata["out_of_office_message"]})
+                                metadata.update(
+                                    {
+                                        "businessworking": businessdata[
+                                            "out_of_office_message"
+                                        ]
+                                    }
+                                )
                                 metadata["initiate"] = False
                                 bot_predictions["agent_handoff"] = metadata
                                 should_initiate_handoff = False
                                 return metadata
-                    message_trail = ChatUtils.__retrieve_conversation(tracker, sender_id)
-                    live_agent.send_conversation_log(message_trail, metadata["additional_properties"]["destination"])
+                    message_trail = await ChatUtils.__retrieve_conversation(
+                        tracker, sender_id
+                    )
+                    live_agent.send_conversation_log(
+                        message_trail, metadata["additional_properties"]["destination"]
+                    )
         except Exception as e:
             logger.exception(e)
             exception = str(e)
-            metadata['initiate'] = False
+            metadata["initiate"] = False
         finally:
             if not Utility.check_empty_string(exception) or should_initiate_handoff:
                 MeteringProcessor.add_metrics(
-                    bot, account, MetricType.agent_handoff, sender_id=sender_id,
-                    agent_type=metadata.get("type"), bot_predictions=bot_predictions, exception=exception
+                    bot,
+                    account,
+                    MetricType.agent_handoff,
+                    sender_id=sender_id,
+                    agent_type=metadata.get("type"),
+                    bot_predictions=bot_predictions,
+                    exception=exception,
                 )
 
         bot_predictions["agent_handoff"] = metadata
         return metadata
 
     @staticmethod
-    def __retrieve_conversation(tracker, sender_id: Text):
-        events = TrackerStore.serialise_tracker(tracker.retrieve(sender_id))
-        events = json.loads(events)
+    async def __retrieve_conversation(tracker, sender_id: Text):
+        events = SerializedTrackerAsDict.serialise_tracker(
+            await tracker.retrieve(sender_id)
+        )
         _, message_trail = ActionUtility.prepare_message_trail(events.get("events"))
         return message_trail
 
     @staticmethod
     def __should_initiate_handoff(bot_predictions, agent_handoff_config):
         predicted_intent = bot_predictions["nlu"]["intent"]["name"]
-        predicted_action = [action.get("action_name") for action in bot_predictions["action"]]
-        trigger_on_intent = predicted_intent in set(agent_handoff_config.get("trigger_on_intents", []))
-        trigger_on_action = len(set(predicted_action).intersection(set(agent_handoff_config.get("trigger_on_actions", [])))) > 0
-        return agent_handoff_config["override_bot"] or trigger_on_intent or trigger_on_action
+        predicted_action = [
+            action.get("action_name") for action in bot_predictions["action"]
+        ]
+        trigger_on_intent = predicted_intent in set(
+            agent_handoff_config.get("trigger_on_intents", [])
+        )
+        trigger_on_action = (
+            len(
+                set(predicted_action).intersection(
+                    set(agent_handoff_config.get("trigger_on_actions", []))
+                )
+            )
+            > 0
+        )
+        return (
+            agent_handoff_config["override_bot"]
+            or trigger_on_intent
+            or trigger_on_action
+        )
 
     @staticmethod
     def get_last_session_conversation(bot: Text, sender_id: Text):
@@ -119,46 +182,99 @@ class ChatUtils:
         message = None
 
         try:
-            host = Utility.environment['database']['url']
-            db = Utility.environment['database']['test_db']
+            host = Utility.environment["database"]["url"]
+            db = Utility.environment["database"]["test_db"]
             client = Utility.create_mongo_client(host)
             with client as client:
                 db = client.get_database(db)
                 conversations = db.get_collection(bot)
+                logger.debug(
+                    f"Loading db:{db.name}, collection: {bot},env: {Utility.environment['env']}"
+                )
                 last_session = ChatUtils.get_last_session(conversations, sender_id)
+                logger.debug(f"last session: {last_session}")
                 if not last_session:
                     return events, message
-                events = list(conversations.aggregate([
-                    {"$match": {"sender_id": sender_id, "event.timestamp": {"$gt": last_session['event']['timestamp']},
-                                "event.event": {"$in": ["session_started", "user", "bot"]}
-                                }},
-                    {"$project": {"sender_id": 1, "event.event": 1, "event.timestamp": 1, "event.text": 1,
-                                  "event.data": 1, "tabname": "$event.metadata.tabname"}},
-                    {"$sort": {"event.timestamp": 1}},
-                    {"$group": {"_id": {"tabname": "$tabname"}, "events": {"$push": "$event"}}},
-                    {"$project": {"_id": 0, "tabname": "$_id.tabname", "events": "$events"}}
-                ]))
+                events = list(
+                    conversations.aggregate(
+                        [
+                            {
+                                "$match": {
+                                    "sender_id": sender_id,
+                                    "event.timestamp": {
+                                        "$gt": last_session["event"]["timestamp"]
+                                    },
+                                    "event.event": {
+                                        "$in": ["session_started", "user", "bot"]
+                                    },
+                                }
+                            },
+                            {
+                                "$project": {
+                                    "sender_id": 1,
+                                    "event.event": 1,
+                                    "event.timestamp": 1,
+                                    "event.text": 1,
+                                    "event.data": 1,
+                                    "tabname": "$event.metadata.tabname",
+                                }
+                            },
+                            {"$sort": {"event.timestamp": 1}},
+                            {
+                                "$group": {
+                                    "_id": {"tabname": "$tabname"},
+                                    "events": {"$push": "$event"},
+                                }
+                            },
+                            {
+                                "$project": {
+                                    "_id": 0,
+                                    "tabname": "$_id.tabname",
+                                    "events": "$events",
+                                }
+                            },
+                        ]
+                    )
+                )
         except ServerSelectionTimeoutError as e:
-            logger.error(e)
-            message = f'Failed to retrieve conversation: {e}'
+            logger.info(e)
+            message = f"Failed to retrieve conversation: {e}"
         except Exception as e:
-            logger.error(e)
-            message = f'Failed to retrieve conversation: {e}'
+            logger.info(e)
+            message = f"Failed to retrieve conversation: {e}"
         return events, message
 
     @staticmethod
     def get_last_session(conversations: Collection, sender_id: Text):
-        last_session = list(conversations.aggregate([
-            {"$match": {"sender_id": sender_id, "event.event": "session_started"}},
-            {"$sort": {"event.timestamp": 1}},
-            {"$group": {"_id": "$sender_id", "event": {"$last": "$event"}}},
-        ]))
+        last_session = list(
+            conversations.aggregate(
+                [
+                    {
+                        "$match": {
+                            "sender_id": sender_id,
+                            "event.event": "session_started",
+                        }
+                    },
+                    {"$sort": {"event.timestamp": 1}},
+                    {"$group": {"_id": "$sender_id", "event": {"$last": "$event"}}},
+                ]
+            )
+        )
         return last_session[0] if last_session else None
 
     @staticmethod
-    def __get_metadata(account: int, bot: Text, is_integration_user: bool = False, metadata: Dict = None):
-        default_metadata = {"is_integration_user": is_integration_user, "bot": bot, "account": account,
-                            "channel_type": "chat_client"}
+    def __get_metadata(
+        account: int,
+        bot: Text,
+        is_integration_user: bool = False,
+        metadata: Dict = None,
+    ):
+        default_metadata = {
+            "is_integration_user": is_integration_user,
+            "bot": bot,
+            "account": account,
+            "channel_type": "chat_client",
+        }
         if not metadata:
             metadata = {}
         if not metadata.get("tabname"):

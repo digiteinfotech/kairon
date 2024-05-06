@@ -1,3 +1,4 @@
+version: "3.1"
 intents:
 - greet
 - deny
@@ -50,9 +51,6 @@ actions:
 forms:
   job_apply:
     required_slots:
-      name:
-      - type: from_text
-      age:
-      - type: from_text
-      email:
-      - type: from_text
+        - name
+        - age
+        - email

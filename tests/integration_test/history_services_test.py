@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-import json
 import os
 from fastapi.testclient import TestClient
 from mongoengine import connect
@@ -10,6 +9,8 @@ from mongomock import MongoClient
 from kairon.history.processor import HistoryProcessor
 from pymongo.collection import Collection
 import mock
+from urllib.parse import urlencode
+
 
 client = TestClient(app)
 
@@ -374,8 +375,7 @@ def test_successful_conversation(mock_mongo):
 def test_successful_conversation_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/conversation/success",
-        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
+        f"/api/history/{pytest.bot}/metrics/conversation/success?"+urlencode({'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -391,8 +391,7 @@ def test_successful_conversation_with_request_and_static_collection(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     Utility.environment['tracker']['type'] = 'static'
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/conversation/success",
-        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
+        f"/api/history/{pytest.bot}/metrics/conversation/success?"+urlencode({'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -554,8 +553,7 @@ def test_successful_conversation_range(mock_mongo):
 def test_successful_conversation_range_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/trends/conversations/success",
-        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
+        f"/api/history/{pytest.bot}/trends/conversations/success?"+urlencode({'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -585,8 +583,7 @@ def test_user_retention_range(mock_mongo):
 def test_engaged_users_with_value(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/users/engaged",
-        json={'month': 5, 'conversation_step_threshold': 11},
+        f"/api/history/{pytest.bot}/metrics/users/engaged?"+urlencode({'month': 5, 'conversation_step_threshold': 11}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -601,8 +598,7 @@ def test_engaged_users_with_value(mock_mongo):
 def test_engaged_user_range_with_value(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/trends/users/engaged",
-        json={'month': 5, 'conversation_step_threshold': 11},
+        f"/api/history/{pytest.bot}/trends/users/engaged?"+urlencode({'month': 5, 'conversation_step_threshold': 11}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -632,8 +628,7 @@ def test_fallback_count_range(mock_mongo):
 def test_fallback_count_range_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/trends/fallback",
-        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
+        f"/api/history/{pytest.bot}/trends/fallback?"+urlencode({'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -826,8 +821,7 @@ def test_total_conversation_range(mock_mongo):
 def test_total_conversation_range_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/trends/conversations/total",
-        json={'month': 4},
+        f"/api/history/{pytest.bot}/trends/conversations/total?"+urlencode({'month': 4}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -857,8 +851,7 @@ def test_conversation__step_range(mock_mongo):
 def test_conversation__step_range_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/trends/conversations/steps",
-        json={'month': 4},
+        f"/api/history/{pytest.bot}/trends/conversations/steps?"+urlencode({'month': 4}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -888,8 +881,7 @@ def test_wordcloud(mock_mongo):
 def test_wordcloud_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/conversations/wordcloud",
-        json={'month': 4},
+        f"/api/history/{pytest.bot}/conversations/wordcloud?"+urlencode({'month': 4}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -919,8 +911,7 @@ def test_unique_user_inputs(mock_mongo):
 def test_unique_user_inputs_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/users/input",
-        json={'month': 4},
+        f"/api/history/{pytest.bot}/metrics/users/input?"+urlencode({'month': 4}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -950,8 +941,7 @@ def test_user_dropoff(mock_mongo):
 def test_user_dropoff_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/fallback/dropoff",
-        json={'month': 4},
+        f"/api/history/{pytest.bot}/metrics/fallback/dropoff?"+urlencode({'month': 4}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -981,8 +971,7 @@ def test_user_intent_dropoff(mock_mongo):
 def test_user_intent_dropoff_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/intents/dropoff",
-        json={'month': 4},
+        f"/api/history/{pytest.bot}/metrics/intents/dropoff?"+urlencode({'month': 4}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -1012,8 +1001,7 @@ def test_unsuccessful_sessions(mock_mongo):
 def test_unsuccessful_sessions_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/sessions/unsuccessful",
-        json={'month': 4},
+        f"/api/history/{pytest.bot}/metrics/sessions/unsuccessful?"+urlencode({'month': 4}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -1043,8 +1031,7 @@ def test_total_session(mock_mongo):
 def test_total_sessions_with_request(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/metrics/sessions/total",
-        json={'month': 4},
+        f"/api/history/{pytest.bot}/metrics/sessions/total?"+urlencode({'month': 4}),
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 

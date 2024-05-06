@@ -636,8 +636,8 @@ class HistoryProcessor:
                         {"$match":
                             {
                                 "type": "flattened",
-                                "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                    "$lte": Utility.get_timestamp_from_date(to_date)},
+                                "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                              "$lte": Utility.get_timestamp_from_date(to_date)},
                                 "data.intent": fallback_intent
                             }
                         },

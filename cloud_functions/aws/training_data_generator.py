@@ -1,5 +1,5 @@
 import os
-import json
+import ujson as json
 import requests
 from boto3 import client
 from urllib.parse import urljoin

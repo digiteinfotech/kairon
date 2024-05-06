@@ -2,7 +2,6 @@ import os
 from unittest.mock import patch
 
 import pytest
-import responses
 from bson import ObjectId
 from mongoengine import connect, ValidationError
 
@@ -21,7 +20,6 @@ class TestMessageBroadcastProcessor:
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
-        responses.reset()
 
     def test_add_scheduler_task_channel_not_configured(self):
         bot = "test_achedule"

@@ -57,6 +57,11 @@ class ActionPrompt(ActionsBase):
         user_msg = None
         bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         slots_to_fill = {}
+        events = []
+        time_taken_llm_response = 0
+        time_taken_slots = 0
+        final_slots = {"type": "slots_to_fill"}
+        llm_response_log = {"type": "llm_response"}
 
         try:
             k_faq_action_config, bot_settings = self.retrieve_config()
@@ -64,16 +69,20 @@ class ActionPrompt(ActionsBase):
             user_msg = self.__get_user_msg(tracker, user_question)
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             llm = LLMFactory.get_instance("faq")(self.bot, bot_settings["llm_settings"])
-            llm_response = await llm.predict(user_msg, **llm_params)
+            llm_response, time_taken_llm_response = await llm.predict(user_msg, **llm_params)
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")
             bot_response = llm_response['content']
             tracker_data = ActionUtility.build_context(tracker, True)
             response_context = self.__add_user_context_to_http_response(bot_response, tracker_data)
-            slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(k_faq_action_config.get('set_slots', []),
-                                                                                response_context)
+            slot_values, slot_eval_log, time_taken_slots = ActionUtility.fill_slots_from_response(
+                k_faq_action_config.get('set_slots', []), response_context)
             if slot_values:
                 slots_to_fill.update(slot_values)
+
+            final_slots.update({"data": slot_values, "slot_eval_log": slot_eval_log, "time_elapsed": time_taken_slots})
+            llm_response_log.update({"response": bot_response, "llm_response_log": llm_response,
+                                     "time_elapsed": time_taken_llm_response})
         except Exception as e:
             logger.exception(e)
             logger.debug(e)
@@ -81,6 +90,9 @@ class ActionPrompt(ActionsBase):
             status = "FAILURE"
             bot_response = FAQ_DISABLED_ERR if str(e) == FAQ_DISABLED_ERR else k_faq_action_config.get("failure_message") or DEFAULT_NLU_FALLBACK_RESPONSE
         finally:
+            total_time_elapsed = time_taken_llm_response + time_taken_slots
+            events_to_extend = [llm_response_log, final_slots]
+            events.extend(events_to_extend)
             if llm:
                 llm_logs = llm.logs
             ActionServerLogs(
@@ -88,6 +100,7 @@ class ActionPrompt(ActionsBase):
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=self.name,
                 sender=tracker.sender_id,
+                events=events,
                 bot=self.bot,
                 exception=exception,
                 recommendations=recommendations,
@@ -97,6 +110,7 @@ class ActionPrompt(ActionsBase):
                 kairon_faq_action_config=k_faq_action_config,
                 llm_logs=llm_logs,
                 user_msg=user_msg,
+                time_elapsed=total_time_elapsed
             ).save()
         if k_faq_action_config.get('dispatch_response', True):
             dispatcher.utter_message(text=bot_response, buttons=recommendations)
@@ -120,11 +134,9 @@ class ActionPrompt(ActionsBase):
         system_prompt = None
         context_prompt = ''
         query_prompt = ''
+        query_prompt_dict = {}
         history_prompt = None
-        is_query_prompt_enabled = False
-        similarity_prompt_name = None
-        similarity_prompt_instructions = None
-        use_similarity_prompt = False
+        similarity_prompt = []
         params = {}
         num_bot_responses = k_faq_action_config['num_bot_responses']
         for prompt in k_faq_action_config['llm_prompts']:
@@ -133,10 +145,16 @@ class ActionPrompt(ActionsBase):
             elif prompt['type'] == LlmPromptType.user.value and prompt['is_enabled']:
                 if prompt['source'] == LlmPromptSource.history.value:
                     history_prompt = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
-                elif prompt['source'] == LlmPromptSource.bot_content.value:
-                    similarity_prompt_name = prompt['name']
-                    similarity_prompt_instructions = prompt['instructions']
+                elif prompt['source'] == LlmPromptSource.bot_content.value and prompt['is_enabled']:
                     use_similarity_prompt = True
+                    hyperparameters = prompt.get('hyperparameters', {})
+                    similarity_prompt.append({'similarity_prompt_name': prompt['name'],
+                                              'similarity_prompt_instructions': prompt['instructions'],
+                                              'collection': prompt['data'],
+                                              'use_similarity_prompt': use_similarity_prompt,
+                                              'top_results': hyperparameters.get('top_results', 10),
+                                              'similarity_threshold': hyperparameters.get('similarity_threshold',
+                                                                                          0.70)})
                 elif prompt['source'] == LlmPromptSource.slot.value:
                     slot_data = tracker.get_slot(prompt['data'])
                     context_prompt += f"{prompt['name']}:\n{slot_data}\n"
@@ -159,21 +177,15 @@ class ActionPrompt(ActionsBase):
                 if prompt['instructions']:
                     query_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 is_query_prompt_enabled = True
+                query_prompt_dict.update({'query_prompt': query_prompt, 'use_query_prompt': is_query_prompt_enabled})
 
-        params["top_results"] = k_faq_action_config.get('top_results', 10)
-        params["similarity_threshold"] = k_faq_action_config.get('similarity_threshold', 0.70)
         params["hyperparameters"] = k_faq_action_config.get('hyperparameters', Utility.get_llm_hyperparameters())
-        params['enable_response_cache'] = k_faq_action_config.get('enable_response_cache', False)
         params["system_prompt"] = system_prompt
         params["context_prompt"] = context_prompt
-        params["query_prompt"] = query_prompt
-        params["use_query_prompt"] = is_query_prompt_enabled
+        params["query_prompt"] = query_prompt_dict
         params["previous_bot_responses"] = history_prompt
-        params['use_similarity_prompt'] = use_similarity_prompt
-        params['similarity_prompt_name'] = similarity_prompt_name
-        params['similarity_prompt_instructions'] = similarity_prompt_instructions
+        params["similarity_prompt"] = similarity_prompt
         params['instructions'] = k_faq_action_config.get('instructions', [])
-        params['collection'] = k_faq_action_config.get('collection')
         return params
 
     @staticmethod

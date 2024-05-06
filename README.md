@@ -77,7 +77,7 @@ and set google analytics tracking id
 
 ## Installation
 
-1. Kairon requires [python 3.8](https://www.python.org/downloads/) and [mongo 4.0+](https://www.mongodb.com/download-center/community)
+1. Kairon requires [python 3.10](https://www.python.org/downloads/) and [mongo 4.0+](https://www.mongodb.com/download-center/community)
 
 2. Then clone this repo
 

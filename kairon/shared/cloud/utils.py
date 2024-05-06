@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import os
 
 from boto3 import Session
@@ -69,7 +69,7 @@ class CloudUtility:
             Payload=json.dumps(env_data).encode(),
         )
         response['Payload'] = json.loads(response['Payload'].read())
-        logger.debug(response)
+        logger.info(response)
         return response
 
     @staticmethod

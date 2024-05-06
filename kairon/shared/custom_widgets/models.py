@@ -5,8 +5,6 @@ from kairon.shared.custom_widgets.constants import CustomWidgetParameterType
 from typing import List
 import validators
 
-ValidationFailure = validators.ValidationFailure
-
 
 class HttpRequestParametersRequest(BaseModel):
     key: str

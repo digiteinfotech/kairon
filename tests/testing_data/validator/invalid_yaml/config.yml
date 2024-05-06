@@ -1,5 +1,4 @@
-# Configuration for Rasa NLU.
-# https://rasa.com/docs/rasa/nlu/components/
+recipe: default.v1
 language: en
 pipeline:
   name
@@ -17,8 +16,6 @@ pipeline:
   - name: ResponseSelector
     epochs: 5
 
-# Configuration for Rasa Core.
-# https://rasa.com/docs/rasa/core/policies/
 policies:
   - name: MemoizationPolicy
   - name: TEDPolicy
@@ -29,3 +26,4 @@ policies:
     nlu_threshold: 0.75
     core_threshold: 0.3
     fallback_action_name: "action_small_talk"
+

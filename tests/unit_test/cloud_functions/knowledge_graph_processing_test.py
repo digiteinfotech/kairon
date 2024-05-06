@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import os
 
 import moto
@@ -8,8 +8,7 @@ from moto.ec2 import utils as ec2_utils
 from cloud_functions.aws import training_data_generator
 
 
-@moto.mock_ec2
-@moto.mock_ecs
+@moto.mock_aws
 @responses.activate
 def test_knowledge_graph_processing():
     responses.add(

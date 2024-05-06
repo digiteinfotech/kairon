@@ -3,7 +3,7 @@ from datetime import date, datetime
 from typing import List, Optional, Dict, Text
 
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
-from fastapi import File, UploadFile
+from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
 
@@ -81,12 +81,9 @@ async def add_intents(
     return {"message": "Intent added successfully!", "data": {"_id": intent_id}}
 
 
-@router.delete("/intents/{intent}/{delete_dependencies}", response_model=Response)
+@router.delete("/intents/{intent}", response_model=Response)
 async def delete_intent(
-        intent: str = Path(description="intent name", example="greet"),
-        delete_dependencies: bool = Path(
-            description="""if True delete bot data related to this intent otherwise only delete intent""",
-        ),
+        intent: str = Path(description="intent name", examples=["greet"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
@@ -94,7 +91,6 @@ async def delete_intent(
     """
     mongo_processor.delete_intent(
         intent, current_user.get_bot(), current_user.get_user(), current_user.get_integration_status(),
-        delete_dependencies
     )
     return {"message": "Intent deleted!"}
 
@@ -204,9 +200,9 @@ async def edit_training_examples(
     return {"message": "Training Example updated!"}
 
 
-@router.delete("/training_examples", response_model=Response)
+@router.delete("/training_examples/{id}", response_model=Response)
 async def remove_training_examples(
-        request_data: TextData,
+        id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -214,7 +210,7 @@ async def remove_training_examples(
     """
     mongo_processor.remove_document(
         TrainingExamples,
-        request_data.data,
+        id,
         current_user.get_bot(),
         current_user.get_user(),
     )
@@ -321,23 +317,33 @@ async def edit_custom_responses(
     }
 
 
-@router.delete("/response/{delete_utterance}", response_model=Response)
+@router.delete("/response/{response_id}", response_model=Response)
+async def remove_response(
+        response_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes existing utterance example.
+    """
+    mongo_processor.delete_response(
+        response_id, current_user.get_bot()
+    )
+    return {
+        "message": "Response removed!",
+    }
+
+
+@router.delete("/responses/{utterance}", response_model=Response)
 async def remove_responses(
-        request_data: TextData,
-        delete_utterance: bool = Path(description="Deletes utterance if True"),
+        utterance: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Deletes existing utterance completely along with its examples.
     """
-    if delete_utterance:
-        mongo_processor.delete_utterance(
-            request_data.data, current_user.get_bot(), current_user.get_user()
-        )
-    else:
-        mongo_processor.delete_response(
-            request_data.data, current_user.get_bot(), current_user.get_user()
-        )
+    mongo_processor.delete_utterance(
+        utterance, current_user.get_bot()
+    )
     return {
         "message": "Utterance removed!",
     }
@@ -511,7 +517,7 @@ async def train(
 
 @router.post("/abort/{event_type}", response_model=Response)
 async def abort_event(
-        event_type: EventClass = Path(description="Event type", example=[e.value for e in EventClass]),
+        event_type: EventClass = Path(description="Event type", examples=[e.value for e in EventClass]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
@@ -580,14 +586,15 @@ async def deployment_history(
 
 @router.post("/upload", response_model=Response)
 def upload_files(
-        training_files: List[UploadFile] = File(...),
+        training_files: List[UploadFile],
         import_data: bool = True,
         overwrite: bool = True,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Uploads training data nlu.md, domain.yml, stories.md, config.yml, rules.yml and actions.yml files.
+    Uploads training data nlu.yml, domain.yml, stories.yml, config.yml, rules.yml and actions.yml files.
     """
+    print(training_files)
     event = TrainingDataImporterEvent(
         current_user.get_bot(), current_user.get_user(), import_data=import_data, overwrite=overwrite
     )
@@ -600,7 +607,7 @@ def upload_files(
 @router.post("/upload/data_generation/file", response_model=Response)
 async def upload_data_generation_file(
         background_tasks: BackgroundTasks,
-        doc: UploadFile = File(...),
+        doc: UploadFile,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -628,7 +635,7 @@ async def download_data(
         download_multiflow_stories: bool = False
 ):
     """
-    Downloads training data nlu.md, domain.yml, stories.md, config.yml, chat_client_config.yml files
+    Downloads training data nlu.yml, domain.yml, stories.yml, config.yml, chat_client_config.yml files
     """
     file = mongo_processor.download_files(current_user.get_bot(), current_user.get_user(), download_multiflow_stories)
     response = FileResponse(
@@ -731,7 +738,7 @@ async def set_endpoint(
 @router.delete("/endpoint/{endpoint_type}", response_model=Response)
 async def delete_endpoint(
         endpoint_type: ENDPOINT_TYPE = Path(description="One of bot_endpoint, action_endpoint, "
-                                                                      "history_endpoint", example="bot_endpoint"),
+                                                                      "history_endpoint", examples=["bot_endpoint"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
@@ -941,7 +948,7 @@ async def add_slots(
 
 @router.delete("/slots/{slot}", response_model=Response)
 async def delete_slots(
-        slot: str = Path(description="slot name", example="bot"),
+        slot: str = Path(description="slot name", examples=["bot"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -1249,7 +1256,7 @@ async def edit_regex(
 
 @router.delete("/regex/{name}", response_model=Response)
 async def delete_regex(
-        name: str = Path(description="regex name", example="bot"),
+        name: str = Path(description="regex name", examples=["bot"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -1408,28 +1415,43 @@ async def add_slot_mapping(request: SlotMappingRequest,
     """
     Adds slot mapping.
     """
-    mongo_processor.add_or_update_slot_mapping(request.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Slot mapping added')
+    mapping_id = mongo_processor.add_slot_mapping(request.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Slot mapping added', data={"id": mapping_id})
 
 
-@router.put("/slots/mapping", response_model=Response)
+@router.put("/slots/mapping/{mapping_id}", response_model=Response)
 async def update_slot_mapping(request: SlotMappingRequest,
+                              mapping_id: str = Path(description="Slot Mapping id"),
                               current_user: User = Security(Authentication.get_current_user_and_bot,
                                                             scopes=DESIGNER_ACCESS)):
     """
     Updates slot mapping.
     """
-    mongo_processor.add_or_update_slot_mapping(request.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.update_slot_mapping(request.dict(), mapping_id)
     return Response(message='Slot mapping updated')
 
 
 @router.get("/slots/mapping", response_model=Response)
 async def get_slot_mapping(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        form: str = None,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Retrieves slot mapping.
+    If form name is given as `form` query parameter, then slot mappings for that particular form will be retrieved.
     """
-    return Response(data=list(mongo_processor.get_slot_mappings(current_user.get_bot())))
+    return Response(data=list(mongo_processor.get_slot_mappings(current_user.get_bot(), form, True)))
+
+
+@router.delete("/slots/mapping_id/{mapping_id}", response_model=Response)
+async def delete_slot_mapping(mapping_id: str = Path(description="Slot Mapping id"),
+                              current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                            scopes=DESIGNER_ACCESS)):
+    """
+    Deletes a slot mapping.
+    """
+    mongo_processor.delete_single_slot_mapping(mapping_id)
+    return Response(message='Slot mapping deleted')
 
 
 @router.delete("/slots/mapping/{name}", response_model=Response)
@@ -1487,15 +1509,15 @@ async def edit_form(
     return Response(message='Form updated')
 
 
-@router.delete("/forms", response_model=Response)
+@router.delete("/forms/{form_name}", response_model=Response)
 async def delete_form(
-        request: TextData,
+        form_name: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Deletes a form and its associated utterances.
     """
-    mongo_processor.delete_form(request.data, current_user.get_bot(), current_user.get_user())
+    mongo_processor.delete_form(form_name, current_user.get_bot(), current_user.get_user())
     return Response(message='Form deleted')
 
 
@@ -1509,7 +1531,7 @@ async def list_entities(current_user: User = Security(Authentication.get_current
 
 @router.put("/assets/{asset_type}", response_model=Response)
 async def upload_bot_assets(
-        asset_type: str, asset: UploadFile = File(...),
+        asset_type: str, asset: UploadFile,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -1566,8 +1588,8 @@ async def get_auditlog_config(current_user: User = Security(Authentication.get_c
 @router.get("/auditlog/data/{from_date}/{to_date}", response_model=Response)
 async def get_auditlog_for_bot(
         start_idx: int = 0, page_size: int = 10,
-        from_date: date = Path(description="from date in yyyy-mm-dd format", example="1999-01-01"),
-        to_date: date = Path(description="to date in yyyy-mm-dd format", example="1999-01-01"),
+        from_date: date = Path(description="from date in yyyy-mm-dd format", examples=["1999-01-01"]),
+        to_date: date = Path(description="to date in yyyy-mm-dd format", examples=["1999-01-01"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     logs, row_cnt = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date, start_idx, page_size)

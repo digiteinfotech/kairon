@@ -1,6 +1,7 @@
-import json
+import ujson as json
 import random
 from json import JSONDecodeError
+from ujson import JSONDecodeError as UJSONDecodeError
 from typing import Text
 from loguru import logger
 from openai.api_requestor import parse_stream_helper

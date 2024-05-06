@@ -373,4 +373,4 @@ def test_run_pyscript_with_interpreter_error():
     assert not actual['success']
     assert actual['error_code'] == 422
     assert not actual['data']
-    assert actual['message'] == 'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)'
+    assert actual['message'] == 'Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)'

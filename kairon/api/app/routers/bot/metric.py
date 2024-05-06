@@ -17,7 +17,7 @@ mongo_processor = MongoProcessor()
 
 @router.get("/{metric_type}", response_model=Response)
 async def get_metering_data(
-        metric_type: MetricType = Path(description="metric type", example="test_chat, prod_chat"),
+        metric_type: MetricType = Path(description="metric type", examples=["test_chat, prod_chat"]),
         start_date: datetime = None, end_date: datetime = None,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
@@ -31,7 +31,7 @@ async def get_metering_data(
 @router.get("/user/logs/{metric_type}", response_model=Response)
 async def get_end_user_metrics(
         request: Request,
-        metric_type: MetricType = Path(description="metric type", example="test_chat, prod_chat"),
+        metric_type: MetricType = Path(description="metric type", examples=["test_chat, prod_chat"]),
         start_idx: int = 0, page_size: int = 10, start_date: datetime = None, end_date: datetime = None,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -52,7 +52,7 @@ async def get_end_user_metrics(
 @router.post("/user/logs/{metric_type}", response_model=Response)
 async def add_end_user_metrics(
         request_data: DictData, request: Request,
-        metric_type: MetricType = Path(description="metric type", example=MetricType.user_metrics),
+        metric_type: MetricType = Path(description="metric type", examples=[MetricType.user_metrics]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     """
@@ -69,7 +69,7 @@ async def add_end_user_metrics(
 @router.post("/user/logs/{metric_type}", response_model=Response)
 async def add_end_user_metrics(
         request_data: DictData, request: Request,
-        metric_type: MetricType = Path(description="metric type", example=MetricType.user_metrics),
+        metric_type: MetricType = Path(description="metric type", examples=[MetricType.user_metrics]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     """
@@ -88,7 +88,7 @@ async def update_end_user_metrics(
         id: str,
         request_data: DictData,
         metric_type: UpdateMetricType = Path(description="metric type",
-                                               example=MetricType.conversation_feedback),
+                                               examples=[MetricType.conversation_feedback]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     """

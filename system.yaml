@@ -1,9 +1,11 @@
+env: prod
 database:
   url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
 app:
   server_url: ${APP_SERVER_URL:"http://localhost:8000"}
+  frontend_url: ${FRONTEND_URL:"http://localhost:3000"}
   enable_sso_only: ${ENABLE_SSO_ONLY:false}
 
 user:
@@ -74,6 +76,7 @@ model:
       - kairon.shared.nlu.classifier.openai.OpenAIClassifier
       - kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
 
+
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
   request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:1}
@@ -96,12 +99,10 @@ data_generation:
 nudge:
   server_url: ${NUDGE_SERVER_URL}
 
-elasticsearch:
+apm:
   enable: ${ENABLE_APM:false}
-  apm_server_url: ${APM_SERVER_URL}
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
   env_type: ${KAIRON_ENV_TYPE:"development"}
-  secret_token: ${APM_SECRET_TOKEN}
 
 history_server:
   url: ${KAIRON_HISTORY_SERVER_URL:"http://localhost:8083/"}
@@ -112,7 +113,7 @@ history_server:
 
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
-  server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8082/events/"}
+  server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8800/events/"}
 
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}
@@ -224,3 +225,22 @@ support_mail: ${KAIRON_SUPPORT_MAIL:"kairon@digite.com"}
 properties:
   bot:
     enable_onboarding: ${ENABLE_ONBOARDING:true}
+
+
+core:
+  components:
+    - custom.ner.SpacyPatternNER
+    - custom.fallback.FallbackIntentFilter
+    - kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer
+    - kairon.shared.nlu.classifier.openai.OpenAIClassifier
+    - kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
+  policies:
+    - kairon.shared.rule_policy.RulePolicy
+  deprecated-components:
+    - SpacyNLP
+    - SpacyTokenizer
+    - SpacyEntityExtractor
+    - SpacyFeaturizer
+
+
+

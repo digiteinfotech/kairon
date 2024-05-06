@@ -1,21 +1,18 @@
-import logging
-from time import time
-
-from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security.utils import get_authorization_scheme_param
 from loguru import logger
 from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolicy, XContentTypeOptions, Server, \
     CacheControl, Secure, PermissionsPolicy
 
-from kairon.shared.utils import Utility
 from kairon.api.models import Response
 from kairon.evaluator.router import pyscript
+from kairon.shared.utils import Utility
+from kairon.shared.otel import instrument_fastapi
 
-logging.basicConfig(level="DEBUG")
+Utility.load_environment()
+
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (
@@ -55,10 +52,7 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-Utility.load_environment()
-apm_client = Utility.initiate_fastapi_apm_client()
-if apm_client:
-    app.add_middleware(ElasticAPM, client=apm_client)
+instrument_fastapi(app)
 
 
 @app.middleware("http")

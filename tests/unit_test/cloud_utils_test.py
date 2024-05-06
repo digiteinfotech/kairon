@@ -1,5 +1,5 @@
 import io
-import json
+import ujson as json
 import os
 from unittest import mock
 from unittest.mock import patch
@@ -162,7 +162,7 @@ class TestCloudUtils:
 
         def __mock_make_api_call(self, operation_name, kwargs):
             assert kwargs == {'FunctionName': 'train-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
-                              'Payload': b'{"BOT": "test", "USER": "test_user"}'}
+                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
             if operation_name == 'Invoke':
                 return response
 
@@ -186,7 +186,7 @@ class TestCloudUtils:
 
         def __mock_make_api_call(self, operation_name, kwargs):
             assert kwargs == {'FunctionName': 'test-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
-                              'Payload': b'{"BOT": "test", "USER": "test_user"}'}
+                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
             if operation_name == 'Invoke':
                 return response
 
@@ -210,7 +210,7 @@ class TestCloudUtils:
 
         def __mock_make_api_call(self, operation_name, kwargs):
             assert kwargs == {'FunctionName': 'data-importer', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
-                              'Payload': b'{"BOT": "test", "USER": "test_user"}'}
+                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
             if operation_name == 'Invoke':
                 return response
 
@@ -234,7 +234,7 @@ class TestCloudUtils:
 
         def __mock_make_api_call(self, operation_name, kwargs):
             assert kwargs == {'FunctionName': 'public_search', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
-                              'Payload': b'{"text": "demo", "site": "www.google.com", "topn": 3}'}
+                              'Payload': b'{"text":"demo","site":"www.google.com","topn":3}'}
             if operation_name == 'Invoke':
                 return response
 
@@ -259,7 +259,7 @@ class TestCloudUtils:
 
         def __mock_make_api_call(self, operation_name, kwargs):
             assert kwargs == {'FunctionName': 'delete-history', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
-                              'Payload': b'{"BOT": "test", "USER": "test_user"}'}
+                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
             if operation_name == 'Invoke':
                 return response
 

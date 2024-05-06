@@ -73,8 +73,8 @@ class AugmentationUtils:
         embeddings2 = AugmentationUtils.similarity_model.encode(sentences, convert_to_tensor=True)
 
         cosine_scores = util.cos_sim(embeddings1, embeddings2)
-        cosine_scores = np.asarray(cosine_scores[0], dtype=np.float)
-        sentences = np.asarray(sentences, dtype=np.str)
+        cosine_scores = np.asarray(cosine_scores[0], dtype=float)
+        sentences = np.asarray(sentences, dtype=str)
         return sentences[cosine_scores > threshold].tolist()
 
     @staticmethod

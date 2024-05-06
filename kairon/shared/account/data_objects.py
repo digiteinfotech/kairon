@@ -7,11 +7,15 @@ from mongoengine import (
     BooleanField,
     LongField,
     SequenceField,
-    DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument, ListField,
-    DynamicField
+    DictField,
+    FloatField,
+    EmbeddedDocumentField,
+    EmbeddedDocument,
+    ListField,
+    DynamicField,
 )
 from mongoengine.errors import ValidationError
-from validators import email, ValidationFailure
+from validators import email, ValidationError as ValidationFailure
 
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.audit.data_objects import Auditlog
@@ -29,7 +33,9 @@ class BotAccess(Auditlog):
     user = StringField(required=True)
     accept_timestamp = DateTimeField()
     timestamp = DateTimeField(default=datetime.utcnow)
-    status = StringField(required=True, choices=[status.value for status in ACTIVITY_STATUS])
+    status = StringField(
+        required=True, choices=[status.value for status in ACTIVITY_STATUS]
+    )
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "accessor_email", "status")]}]}
 
@@ -49,10 +55,10 @@ class User(Auditlog):
 
     def validate(self, clean=True):
         if (
-                Utility.check_empty_string(self.email)
-                or Utility.check_empty_string(self.first_name)
-                or Utility.check_empty_string(self.last_name)
-                or Utility.check_empty_string(self.password)
+            Utility.check_empty_string(self.email)
+            or Utility.check_empty_string(self.first_name)
+            or Utility.check_empty_string(self.last_name)
+            or Utility.check_empty_string(self.password)
         ):
             raise ValidationError(
                 "Email, FirstName, LastName and password cannot be empty or blank space"
@@ -150,7 +156,9 @@ class SystemProperties(Document):
 
 
 class UserActivityLog(Document):
-    type = StringField(required=True, choices=[a_type.value for a_type in UserActivityType])
+    type = StringField(
+        required=True, choices=[a_type.value for a_type in UserActivityType]
+    )
     user = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
     account = LongField(required=True)

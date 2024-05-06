@@ -1,0 +1,892 @@
+version: "3.1"
+config:
+  store_entities_as_slots: true
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+intents:
+- greet:
+    use_entities: []
+- restart:
+    use_entities: true
+- back:
+    use_entities: true
+- out_of_scope:
+    use_entities: true
+- session_start:
+    use_entities: true
+- nlu_fallback:
+    use_entities: true
+- inbox_query:
+    use_entities: true
+- navigation_query:
+    use_entities: true
+- set_context:
+    use_entities: true
+- goodbye:
+    use_entities: []
+- processes_recommended_0:
+    use_entities: []
+- standard_activities_as_na_1:
+    use_entities: []
+- critical_practice_2:
+    use_entities: []
+- process_critical_practice_tailoring_3:
+    use_entities: []
+- process_selection_limitation_4:
+    use_entities: []
+- process_selection_mapping_multivendor_5:
+    use_entities: []
+- changes_to_critical_practices_after_pm_plan_baseline_6:
+    use_entities: []
+- change_in_process_mapping_7:
+    use_entities: []
+- addition_of_critical_practices_8:
+    use_entities: []
+- process_space_view_9:
+    use_entities: []
+- critical_practices_demarcation_in_process_space_10:
+    use_entities: []
+- view_processes_from_mainspring_11:
+    use_entities: []
+- method_components_against_critical_practices_in_process_space_12:
+    use_entities: []
+- usage_of_org_templates_mandated_or_not_13:
+    use_entities: []
+- process_selection_mandatory_for_release_creation_14:
+    use_entities: []
+- critical_practices_implementation_affirmation_15:
+    use_entities: []
+- impact_of_critical_practice_addition_in_release_16:
+    use_entities: []
+- options_to_affirm_critical_practices_implementation_17:
+    use_entities: []
+- metrics_plan_18:
+    use_entities: []
+- metrics_plan_19:
+    use_entities: []
+- metrics_plan_20:
+    use_entities: []
+- metrics_plan_21:
+    use_entities: []
+- metrics_plan_22:
+    use_entities: []
+- metrics_plan_23:
+    use_entities: []
+- metrics_plan_24:
+    use_entities: []
+- metrics_plan_25:
+    use_entities: []
+- metrics_plan_26:
+    use_entities: []
+- metrics_plan_27:
+    use_entities: []
+- metrics_plan_28:
+    use_entities: []
+- metrics_plan_29:
+    use_entities: []
+- measure_inputs_30:
+    use_entities: []
+- measure_inputs_31:
+    use_entities: []
+- measure_inputs_32:
+    use_entities: []
+- measure_inputs_33:
+    use_entities: []
+- measure_inputs_34:
+    use_entities: []
+- metrics_preview_35:
+    use_entities: []
+- measure_inputs_36:
+    use_entities: []
+- metrics_preview_37:
+    use_entities: []
+- metrics_preview_38:
+    use_entities: []
+- metrics_preview_39:
+    use_entities: []
+- metrics_preview_40:
+    use_entities: []
+- metrics_preview_41:
+    use_entities: []
+- metrics_actuals_42:
+    use_entities: []
+- metrics_report_43:
+    use_entities: []
+- metrics_report_44:
+    use_entities: []
+- spectrum_45:
+    use_entities: []
+- tools_46:
+    use_entities: []
+- tools_47:
+    use_entities: []
+- tools_48:
+    use_entities: []
+- tools_49:
+    use_entities: []
+- tools_50:
+    use_entities: []
+- tools_51:
+    use_entities: []
+- tools_52:
+    use_entities: []
+- tools_53:
+    use_entities: []
+- tools_54:
+    use_entities: []
+- tools_55:
+    use_entities: []
+- accelerator_information_56:
+    use_entities: []
+- accelerator_information_57:
+    use_entities: []
+- accelerator_information_58:
+    use_entities: []
+- accelerator_information_59:
+    use_entities: []
+- accelerator_information_60:
+    use_entities: []
+- accelerator_information_61:
+    use_entities: []
+- accelerator_recommendation_62:
+    use_entities: []
+- accelerator_recommendation_63:
+    use_entities: []
+- accelerator_subscription_64:
+    use_entities: []
+- accelerator_subscription_65:
+    use_entities: []
+- accelerator_subscription_66:
+    use_entities: []
+- accelerator_subscription_67:
+    use_entities: []
+- accelerator_subscription_68:
+    use_entities: []
+- accelerator_usage_69:
+    use_entities: []
+- accelerator_usage_70:
+    use_entities: []
+- accelerator_benefit_reporting_71:
+    use_entities: []
+- support_72:
+    use_entities: []
+- support_73:
+    use_entities: []
+- risk_capture_74:
+    use_entities: []
+- risk_capture_75:
+    use_entities: []
+- risk_capture_76:
+    use_entities: []
+- risk_capture_77:
+    use_entities: []
+- risk_capture_78:
+    use_entities: []
+- risk_capture_79:
+    use_entities: []
+- risk_capture_80:
+    use_entities: []
+- risk_capture_81:
+    use_entities: []
+- risk_capture_82:
+    use_entities: []
+- risk_capture_83:
+    use_entities: []
+- risk_capture_84:
+    use_entities: []
+- risk_capture_85:
+    use_entities: []
+- risk_capture_86:
+    use_entities: []
+- risk_capture_87:
+    use_entities: []
+- risk_capture_88:
+    use_entities: []
+- risk_capture_89:
+    use_entities: []
+- risk_capture_90:
+    use_entities: []
+- risk_capture_91:
+    use_entities: []
+- risk_capture_92:
+    use_entities: []
+- risk_capture_93:
+    use_entities: []
+- risk_capture_94:
+    use_entities: []
+- risk_capture_95:
+    use_entities: []
+- risk_discovery_96:
+    use_entities: []
+- risk_discovery_97:
+    use_entities: []
+- risk_discovery_98:
+    use_entities: []
+- risk_import_from_similar_projects_99:
+    use_entities: []
+- risk_import_from_similar_projects_100:
+    use_entities: []
+- risk_escalation_101:
+    use_entities: []
+- risk_escalation_102:
+    use_entities: []
+- risk_escalation_103:
+    use_entities: []
+- financial_impact_104:
+    use_entities: []
+- financial_impact_105:
+    use_entities: []
+- financial_impact_106:
+    use_entities: []
+- financial_impact_107:
+    use_entities: []
+- risk_re-evaluation_108:
+    use_entities: []
+- risk_re-evaluation_109:
+    use_entities: []
+- risk_migration_110:
+    use_entities: []
+- delivery_governance_111:
+    use_entities: []
+- delivery_governance_112:
+    use_entities: []
+- delivery_governance_113:
+    use_entities: []
+- delivery_governance_114:
+    use_entities: []
+- delivery_governance_115:
+    use_entities: []
+- delivery_governance_116:
+    use_entities: []
+- delivery_governance_117:
+    use_entities: []
+- delivery_governance_118:
+    use_entities: []
+- risk_reports_119:
+    use_entities: []
+- risk_reports_120:
+    use_entities: []
+- project_creation_0:
+    use_entities: []
+- project_creation_1:
+    use_entities: []
+- pm_plan_workflow_2:
+    use_entities: []
+- document_repository_3:
+    use_entities: []
+- access_roles__4:
+    use_entities: []
+- allocation_details_5:
+    use_entities: []
+- tracking_mode_change_6:
+    use_entities: []
+- risk_tracking_7:
+    use_entities: []
+- work_package__8:
+    use_entities: []
+- metric_report_9:
+    use_entities: []
+- metric_actuals_10:
+    use_entities: []
+- release_sprint_11:
+    use_entities: []
+- archeytpe_and_demographics_12:
+    use_entities: []
+- risk_tracking_13:
+    use_entities: []
+- pm_plan_workflow_14:
+    use_entities: []
+- project_creation_15:
+    use_entities: []
+- release_sprint_16:
+    use_entities: []
+- work_package__17:
+    use_entities: []
+- work_package__18:
+    use_entities: []
+- user_story_19:
+    use_entities: []
+- metric_actuals_20:
+    use_entities: []
+- project_merger_21:
+    use_entities: []
+- project_merger_22:
+    use_entities: []
+- metric_report_23:
+    use_entities: []
+- archeytpe_and_demographics_24:
+    use_entities: []
+- archeytpe_and_demographics_25:
+    use_entities: []
+- project_scope_26:
+    use_entities: []
+- risk_tracking_27:
+    use_entities: []
+- release_sprint_28:
+    use_entities: []
+- release_sprint_29:
+    use_entities: []
+- metricreport:
+    use_entities: []
+entities:
+- bot
+- kairon_action_response
+- auth_token
+- item_id
+- menucode
+- projectid
+- userid
+- ownertype
+- ownerid
+- apigee_token
+slots:
+  kairon_action_response:
+    type: any
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+  bot:
+    type: any
+    initial_value: 62c942001826e43d15f2d83a
+    influence_conversation: false
+    mappings: []
+  auth_token:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+  item_id:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+  menucode:
+    type: any
+    initial_value: ''
+    influence_conversation: false
+    mappings: []
+  projectid:
+    type: any
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+  userid:
+    type: any
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+  ownertype:
+    type: any
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+  ownerid:
+    type: any
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+  apigee_token:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+responses:
+  utter_tools_52:
+  - text: If PM cannot find the tool that he/she plans to use in project, then he/she can add the tool by clicking on Add New.
+  utter_support_73:
+  - text: Contact DEKnowhubSupport@cognizant.com for any queries / support for accelerators
+  utter_document_repository_3:
+  - text: The Mainspring Document Repository Icon will be available for PM and the ESA team members who have been given access by the PM. Please ensure to select the Require Document Storage Space as Yes from Home --> Profile details.
+  utter_release_sprint_29:
+  - text: We do not have option to close the open risk in closed project
+  utter_archeytpe_and_demographics_12:
+  - text: |-
+      There is no feasibility to change or update the Approved archetype directly in Mainspring.
+      The project could be deleted and re-ported with a new project request with business justification approved by DE Enable POC for the respective Projects.
+      This involves the data loss of existing risks, risk discovery, risk declaration, Delivery Governance, defects, metrics and the same cannot be restored at any point in time.
+      In case of open OneBCM risks, request the PM to close the risk in mainspring and confirm on the closure update in onebcm before deleting the project as these risk will not flow again and all other instances can be imported before deletion.
+  utter_risk_import_from_similar_projects_100:
+  - text: You will need to launch the ‘import’ multiple times to be able to copy multiple risks.
+  utter_delivery_governance_114:
+  - text: This notification implies that your project satisfies the logic (that is available on Be.Cognizant DRM page – Enablement deck) built-in the system for ERR level of Risk Scores, Impact Scores and Escalations. It is up to you to elevate it to any level you want or let it say where it is.
+  utter_risk_re-evaluation_108:
+  - text: There are a set of project parameters such as Category, Financial Impact Score, Scope, etc. which, if they have changed over the last 30 days, and none of that project’s risks have undergone any change (w.r.t to Mitigation, Target Closure Date, Score, etc.) during the same period, then notifications are sent to the PMs to have a re-look at the risks.
+  utter_process_selection_mandatory_for_release_creation_14:
+  - text: Based on the release scope, process selection is a must while creating a release.
+  utter_risk_re-evaluation_109:
+  - text: There is a provision to go to Monitor  Notifications and then declare for all risks in the project.
+  utter_risk_capture_81:
+  - text: |-
+      There are a list of Causes associated with each Impact Area. So as we select an Impact Area, its corresponding Causes populate. If we select multiple Impact Areas, the Causes corresponding to all the selected Impact Areas progressively populate the Causes dropdown.
+      Please click on ‘Guidelines for Cause Selection and Scoring’ and go through the guidelines for more details.
+  utter_risk_tracking_27:
+  - text: |-
+      The Risk Assessment is renamed as Risk Discovery and it is accessible for the resources who has PM role for the project. To create a Risk Discovery, an existing open assessment should be completed.
+      Once the Assessment is created, PM and the Risk Assessor will have access to edit the risk discovery.
+      Assessment can be completed only if the responses for all the dimensions are filled.
+      Note: If the project is an MSL then risk discovery will be availabe in the execution project
+      Navigation:
+      Mainspring >> select  project >> Monitor >> Risk discovery.
+  utter_risk_discovery_98:
+  - text: Risk Scoring has to be undertaken from the Risk e-form, which will open up for logging each risk discovered as part of this exercise.
+  utter_measure_inputs_36:
+  - text: "Based on the project's tracking mode as Mainspring or Manual, measures will be fetched from respective mainspring source screen or Release/Sprint details screen/ESA respectively in read only mode. PM can navigate to the respective source screen to update the measure values. For Eg: Committed Story point for the sprint is pulled from Sprint Details section."
+  utter_risk_capture_92:
+  - text: This icon on the Monitor -> Risks page provides the feature to look at Risks and Mitigations from similar projects and the ability to import those risks into the current project.
+  utter_work_package__18:
+  - text: Workpackage is applicable only for the waterfall methology and it is applicable for the projects which have selected the Project Management Tool = mainspring in the Methodology Segment of Archetype and Demographics.
+  utter_work_package__17:
+  - text: The option of Task upload or Auto Create in a Release is available only when the 'Project Management Too' is other than mainspring (Tracking mode not equal to mainspring is considered as manual mode of tracking) which can be upated in Methodology Segment of Archetype and Demographics.
+  utter_change_in_process_mapping_7:
+  - text: |-
+      If there is any change in the process mapping  corresponding to the given archetype and work category, the same would be notified in the mainspring release note and also respective DE Enable POC will be made aware.
+      If your project has the same archetype and work category combination, please reopen the PM plan to view the change in process mapping, do necessary process selection and rebaseline the PM plan. The changed set of processes if selected after reopening PM plan, would reflect in all the open and new releases. 
+      However a closed release would not reflect the changed list of processes.
+  utter_metric_report_9:
+  - text: |-
+      Metrics report will be automatically generated on alternate Saturdays.
+      Please be informed that the Metrics report will be generated in Mainspring only if the project has a Approved PM Plan and Open/Closed Release. 
+      If any Release/Sprint is reopened and measures are updated, it will reflect immediately in the existing report (until the report is open)
+      Note:
+      The report will be auto-closed as “Not approved” if no action is taken by the Approver(ESAPM/PO/PPM) before the generation of the next report [14 days from report generation].
+  utter_risk_capture_77:
+  - text: Issue conceptually is a risk which has materialized and/or nothing can be done about it while it is not necessarily an escalation. In such scenarios, we advise them to be logged just as a Risk but mark Target Closure Date as the end-date of the project and Mitigation Status as ‘Not Required – Risk Accepted’.
+  utter_risk_tracking_7:
+  - text: |-
+      Resources with PM role/Risk owner in mainspring will be able to close the risk. Update the mitigation and contigency status to Completed or Not required and then change the satus from Open to Close.
+      Note: Once the risk is closed the same cannot be reopened.
+  utter_user_story_19:
+  - text: User story is applicable only for Agile methodology and it is applicable for the projects which have selected the Project Management Tool = mainspring in the Methodology Segment of Archetype and Demographics.
+  utter_fortnightly:
+  - text: fortnighlty
+  utter_project_creation_0:
+  - text: 'Please be informed that the Project can be created as MSL during project request or can be converted to MSL from Non-MSL in the below navigation Navigation: https://mainspring.cognizant.com --> View my Projects/Programs -->  Select the Project --> Home then click on convert Non-MSL to MSL icon Note:1. It would take 15-20 minutes of time for the MSL project to get created. Post which PM could create an execution project  with the required Archetype details in the below navigation https://mainspring.cognizant.com --> View my Projects/Programs --> Select the Project --> Home --> Create Execution Project NOTE: Please be informed that this is a One-time setup and the above action cannot be reverted.'
+  utter_risk_capture_82:
+  - text: Yes, there is no tight coupling between Impact Areas and the need to select atleast one Cause from each of the chosen Impact Areas.
+  utter_risk_capture_75:
+  - text: No. Risk logging can be completed just by entering values for the mandatory fields on the ‘Details’ tab.
+  utter_accelerator_benefit_reporting_71:
+  - text: Benefits should be reported in the ISPACE platform.  Refer to this help document for guidelines (https://knowhub.cognizant.com/org/DE/Repository/Knowledge%20Management/KM_Accelerators/Knowhub_AssetMarketplace_Tagging_Assets_in-iSpace_V1.1.pdf).  Contact your CII / Innovation champions for more guidance.
+  utter_tools_55:
+  - text: |-
+      Yes you need to share the same in Tools plan for the below fields
+      • “Is it provided by Client?”
+      • “Is the tool mandated to be used as client contract ?”
+  utter_measure_inputs_33:
+  - text: PM is required to update measure value in Measure Input screen where Associated Metrics are provided as reference. Measures updated are used to compute the associated metrics.
+  utter_risk_reports_120:
+  - text: Email alerts are sent out to PMs for such scenarios.
+  utter_delivery_governance_117:
+  - text: |-
+      For some projects we see –
+      ‘Systems recommended to…<Review level> and Auto-elevated to BU Watchlist’ while
+      ‘Systems recommended to…<Review level>’ for others.
+      Reason – some projects are under of the review-levels – SBU Head / BU Head / ERR / EC or already in BU Watchlist; hence those projects are not demoted to ‘BU Watchlist’. Therefore, for those projects which are already under review, we see just the system-recommendation.
+  utter_work_package__8:
+  - text: The workpackage can be closed by the PM only if the all the tasks are in closed status.
+  utter_accelerator_information_60:
+  - text: Every accelerator is taken through a robust validation process by the IPReady team that includes corporate security, legal, branding and marketing teams.  Only certified accelerators are uploaded to Knowhub asset marketplace and recommended to projects in mainspring.
+  utter_accelerator_subscription_66:
+  - text: If none of the accelerators recommended are matching your project needs or if you have any client restrictions in using Cognizant accelerators / code, you can choose the option of 'Not subscribing to accelettors' and mention the right reason.  You can also contact DEKnowhubSupport@cognizant.com team to check if any other accelerators are available for your project scenario.
+  utter_critical_practices_implementation_affirmation_15:
+  - text: |-
+      For each of the processes tracked in a release, you can view a list of critical practices that have been tailored in the latest baselined PM plan. After creating a release, it is mandatory to perform the following activities on a monthly basis:
+      1. You must specify whether the applicable critical practices have been implemented in the release.
+      2. You must provide your remarks for the following scenarios:
+      a. An applicable critical practice is yet to be implemented in the release.
+      b. A critical practice is not applicable for the release.
+
+      If you mark the release as Completed, it is mandatory to confirm that the information provided for the implementation of critical practices is complete, accurate, and is in compliance with Cognizant policies.
+  utter_metric_actuals_10:
+  - text: You can view the actual effort available in the measure input screen for releases and sprints. In addition, if there is any Adhoc effort logged that is not yet distributed to a release or a sprint, that effort can be viewed under execute > metrics actuals. Onl the submitted and approved efforts in ESA timesheet will be displayed in metrics actuals
+  utter_pm_plan_workflow_2:
+  - text: |-
+      Only the resource who has approved RHMS role for the respective account will be listed in the reviewer drop down. Please find the list of roles for reviewer:
+      **Reviewer for Inscope Projects - Account DE Enable Manager; DE Enable Head; DE Account Group Head; Delivery Partner; Engagement Delivery Partner; Engagement Delivery Lead
+      **Reviewer for Out of scope Projects - EDL (out scope and yet to scope) or Skip the queue
+  utter_risk_capture_80:
+  - text: You need not select the Impact Area that you do not think your risk has an impact on.
+  utter_risk_capture_86:
+  - text: The system does not automatically pick up any changes on the Risk description or Mitigation/Contingency Plan descriptions or status’ or values in any other fields. The Risk Score has to be explicitly and manually modified by altering the Impact Scores and the Likelihood Score as appropriate.
+  utter_release_sprint_16:
+  - text: Release can be created only if the PM plan is approved after 10th Jan 2022. Release/workpackage which created before 10th Jan, were made read -only.
+  utter_risk_capture_85:
+  - text: Risk Score is the product of Likelihood score and the Impact Area Score. If there are multiple Impact Areas, it selects the numerically highest Impact Area Score.
+  utter_addition_of_critical_practices_8:
+  - text: |-
+      1. Critical practices are crucial to delivery, thus cannot be deleted. Activities other than critical can be tailored based on the size and scope of project in consultation with DE Enable POC<br/>
+      2. If there are additional critical practices to be recommend or for any improvement opportunities please raise a PIP against the respective process in Process Space DMS
+      https://deliveryexcellence.cognizant.com/apps/processspacedms#/raisePIP<br/>
+      3. If the given critical practice is nearly similar to any of the existing critical practices,  we can capture the same in Justification remarks and keep that very Critical Practice as selected.
+  utter_process_selection_mapping_multivendor_5:
+  - text: |-
+      For  multi vendor / co managed teams, MSL way of tracking in mainspring should be considered.
+      PM needs to select appropriate archetype & work category based on the service line involvement at execution project level and select appropriate processes.
+  utter_metric_report_23:
+  - text: |-
+      Metrics report can be closed by ESA PM/PO/PPM. Critical practises should be completed for the release available in the metrics report.
+      The report will be auto-closed as “Not approved” if no action is taken by the Approver before the generation of the next report [14 days from report generation].
+  utter_critical_practice_2:
+  - text: Critical practices are crucial to delivery, thus cannot be deleted. Activities other than critical can be tailored based on the size and scope of project in consultation with DE Enable POC
+  utter_risk_escalation_102:
+  - text: Yes, multiple risks (both open and closed) can be linked to a single Escalation ID. Once linked, all those risks close in Mainspring.
+  utter_greet:
+  - text: Welcome to SE bot
+  utter_default:
+  - text: Sorry I didn't get that. Can you rephrase?
+  utter_risk_capture_88:
+  - text: For risks, which are residual in nature, please choose Mitigation Status as ‘Not Required – Risk Accepted’. Also you may keep the Target Closure Date of the risk as the date when the project ends.
+  utter_risk_capture_78:
+  - text: |-
+       Login to the mainspring Application. Navigate to your project, go to Monitor Menu and select Risks
+       Select the Open risk you intend to close
+       In details tab change risk status to closed
+       Now click save, and the risk gets closed in the system
+  utter_risk_discovery_97:
+  - text: No, in order to avoid editing the PM Plan multiple times, the same Discovery is available, as before, from the Monitor menu to be leveraged as many times as required by the PM during the project lifecycle.
+  utter_project_merger_22:
+  - text: 1. The metrics data for DHD will be taken from the parent project as all the child projects are ceased to existence.2. Only open risks of child projects will be copied to parent project. Creation of new risks and Risk Assessment can be done only in parent project.3. ESA and RHMS allocations of all child projects will be available in parent project team members and the same will be ported to Delite and QOS.4. The Owning project ESA parameters such as Project Id, Project Name, Practice, Vertical will be shown in all downstream applications.
+  utter_risk_capture_95:
+  - text: New risks are created for your project with just the Risk Description and Mitigation Plan Description copied from the source-risk. They are fully editable and the PM can edit the descriptions based on need.
+  utter_accelerator_information_57:
+  - text: |-
+      1. You can search / view / download the accelerators in the Knowhub Delivery Asset Marketplace (https://knowhub.cognizant.com/bu/Pursuit/Pages/Premium-Asset.aspx).
+      2. An excel report of all the accelerators is available here ().
+      3. You can also view the overview deck of all accelerators in this link (https://knowhub.cognizant.com/org/DE/Repository/Knowledge%20Management/KM_Accelerators).
+  utter_risk_tracking_13:
+  - text: |-
+      The risk should be approved in One BCM and the approved OneBCM risks will be reflected next day in mainspring. PM/Risk owner can edit and update the risk.
+      Once the risk is closed in mainspring, closed status will get updated in OneBCM in the next 24 hours.
+  utter_metrics_preview_41:
+  - text: It is based on the Metrics Type. If the Metrics Type is LTB, negative % deviations will be rated as Green as actual is very much lesser than the Goal and for HTB Metrics Type, negative % deviations will be rated as Red as actual is lesser than the Goal.
+  utter_release_sprint_28:
+  - text: Release can be closed by PM only if the critical practices are completed and updated all the mandated measure inputs.
+  utter_archeytpe_and_demographics_24:
+  - text: Predominant Archetypes which are captured at the Group Project will be auto inherited in the 1st execution project. For the rest of the execution projects, the Archetypes can be updated in the execution project creation screen. The Archetypes which are added at the individual Execution projects will be available for reference at the Group Project.
+  utter_tracking_mode_change_6:
+  - text: You can change the tracking mode under Plan --> Archetype & Demographics --> Methodology  --> update the value in Project Management Tool field and get the archetype approved. The updated tracking mode will be applicable for the new releases.
+  utter_metrics_preview_37:
+  - text: If the Metrics actuals is lesser than the Goal for HTB metric and If the Metrics actuals is greater than the Goal for LTB metric, then 'Goal Met or Not Met' will be reported in Red, otherwise Green. Reason for the deviation of metrics from goal need to be updated mandatorily for all deviated metrics(mandated and custom) along with the improvement action. Add option can be used to add more number of actions.
+  utter_measure_inputs_32:
+  - text: 'Sprint specific measures are required to compute Sprint level metrics similarly release specific measure are required to compute Release level metrics hence these measures are collected under Sprint and Release Measure Input sections seperately. Sprint level measures required for Release Metrics will be automatically derived by mainspring from Sprint data. Eg: Average Velocity.'
+  utter_accelerator_usage_69:
+  - text: The overview deck of the accelerator will find contact details of the asset owners / team that will help you deploy the accelerator in your project.  For any support, write to DEKnowhubSupport@cognizant.com.
+  utter_tools_53:
+  - text: Tools need to be planned in mainspring under PM plan. This is a mandate
+  utter_delivery_governance_115:
+  - text: No. These are recommendations based on logic (that is available on Be.Cognizant DRM page – Enablement deck) built in the system for certain level of Risk Scores, Impact Scores and Escalations. It is up to the leader’s decision to elevate to any level he wants or even to completely ignore the recommendation and let it say at whatever level it was.
+  utter_delivery_governance_112:
+  - text: Yes, just below ‘Overall Status’, there is an expandable section containing guidelines for each Health parameter.
+  utter_financial_impact_106:
+  - text: No, it is optional. Please fill out only when you think there is such an impact. Please note however that for projects that are elevated and discussed in the risk governance forums such as SBU Head Review, BU Head Review, etc.; it is natural that there will be Financial Impact and hence it is recommended that Financial Impact amount is calculated and scored.
+  utter_risk_capture_83:
+  - text: The system will pick the highest Impact Area score. However, in case where are joint-highest scores, it will pick that score as the Impact Area score for the risk.
+  utter_tools_48:
+  - text: |-
+      Tools are displayed in mainspring under PM Plan for planning purpose. Team can select relevant tools that would aid to optimize their work. 
+      It will be shown based on Archetype and Technology in context. Team can further filter it based on Tools Category and use Smart search. A filtered list of tools will be shared based on below params: 
+      • Technology and Archetype (in context)
+      • Tool Category [if selected by user]
+      • License/free (free/ open source gets priority)
+      • Recommended/Reference field (recommended ones from BU/ SMEs gets priority)
+      • G2 Tool Rating [High ranking first]
+      • Usage data [most used tools to be shown first]
+      • rest alphabetically
+      Team will have to provide affirmation also for implemented tools every month.
+  utter_measure_inputs_31:
+  - text: Based on the Project Management tool selected during Archetype baselining as 'mainspring' or any other tools, mode of tracking of the project would be configured as mainspring or manual respectively. For the former, mainspring will be considered as Tool source and measures will be derived by mainspring and for the latter, all the measures except effort related measures can be updated manually . Actual Efforts will flow from ESA and cannot be updated/edited in mainspring.  At any point in time, tracking mode can be changed which needs Archetype rebaselining.
+  utter_usage_of_org_templates_mandated_or_not_13:
+  - text: |-
+      Along with Critical practices, associated method components are also mandatory. It mandates the implementation of each template , guideline checklists at Critical Practice level.
+      Usage of this components will be verified by DE assessment team
+  utter_accelerator_subscription_68:
+  - text: Yes, as a Project Manager, at any phase of your project, you can revisit the list of accelerators and subscribe to new accelerators or unsubscribe existing ones in the mainspring PM Plan > Delivery Assets section.
+  utter_impact_of_critical_practice_addition_in_release_16:
+  - text: |-
+      By default, a new critical practice added will be marked as applicable in the open release. 
+      The status of the new critical practice will be Pending. PM has to give affirmation for the new critical practice implementation and provide Justifications if not implemented. 
+      Overall release level affirmation status will be changed to completed
+  utter_metrics_preview_40:
+  - text: |-
+      Direct Metrics are metrics which consume existing measures, compute the metrics and display in Metrics Preview and Metric Report for monitoring and Org analysis purpose. 
+
+      1.Metrics like Load Factor, Improvement in Velocity, Cost of Quality falls under this category.
+      2.These metrics will not be available in PM Plan as they need not be configured for any goals and tracked against any deviations.
+      3. No action is mandated from PM for these metrics and they are View only metrics.
+  utter_accelerator_subscription_64:
+  - text: Once you are in the PM Plan >> Delivery Assets > Delivery Asset Marketplace section in mainspring, you will see the list of accelerators recommended.  For each accelerator, you will see a 'Subscribe' option (checkbox).  You will also see the 'Contractually committed' option (checkbox) - use that if you have already committed to use any accelerator as part of the MSA / SOW.  Refer to this user guide for more details - https://knowhub.cognizant.com/org/DE/Repository/Knowledge%20Management/KM_Accelerators/Knowhub_AssetMarketplace_Mainspring_iSpace_Guidelines.pdf.
+  utter_accelerator_recommendation_62:
+  - text: You can see it in the PM Plan >> Delivery Assets > Delivery Asset Marketplace section in mainspring
+  utter_please_rephrase:
+  - text: I'm sorry, I didn't quite understand that. Could you rephrase?
+  utter_support_72:
+  - text: For every accelerator, there are designated owners.  You can find the details in the 'Asset Owner' tag in Knowhub or you can find it in the accelerator deck.
+  utter_risk_capture_94:
+  - text: Risks and mitigation actions from projects similar to my current project is listed for reference as well as ‘copy/import’. This feature is available where all risks for a project is listed (as an icon) as well as available as part of Risk Discovery (as a hypelink called ‘Click here to view Risks from similar Projects’ under ‘Discovery Outcome’.
+  utter_processes_recommended_0:
+  - text: |-
+      The Process Selection page lists the organization recommended processes, based on the archetype cluster, archetype, and work category selected for your project. These processes are independent of the methodology followed for executing your project. For your QE&A project, the organization recommended processes that are available in the PM plan, are also based on the scope and mode of testing selected for your project.
+
+      You can select the relevant processes that are within the scope of your project. You can refer to the standard set of practices to be performed for implementing the organization recommended processes, in the Process Space application.
+
+      You can select new processes or remove a selected process during the course of the project. However, you cannot remove a selected process if a release has already been planned for the selected process.
+  utter_accelerator_information_61:
+  - text: For every accelerator, there is an overview deck that will provide all details regarding that accelerator.  Visit this link to access the decks of all accelerators -
+  utter_project_creation_1:
+  - text: |-
+      Solution1:
+       Please be informed that the project once created in the ESA portal, the same will be available in the project request state and will only be visible for ESA PM/PO/PPM.
+      1.Please check if the project is in Project request stage (workspace --> My workspace --> Inbox).
+      2.If yes, then kindly update Archetype and other details in the project request and close it so that the project will be created in mainspring within  15-20 mins and also the allocation will ported from ESA to mainspring within 2 hours.
+
+      Solution2: 
+      1.Project Manager or Default team member allocation will flow from ESA and we request you to check the same in ESA for allocation start and end date with the allocation %.
+      2.Except for ESA allocation, all other allocations flows from RHMS, post the approval from RHMS. Auditor allocation flows from Delite App. (RHMS takes 24 hours to reflect in mainspring).
+  utter_financial_impact_104:
+  - text: Financial Impact is at project-level. It is available under Monitor  Financial Impact Score.
+  utter_risk_capture_90:
+  - text: The Risk ID is placed towards the bottom of the form.
+  utter_risk_capture_91:
+  - text: There is a new field on the Risk e-form which has been introduced – ‘Risk Tagging Unit’. That gets auto-populated with the Unit (MDU/LOS) of the Risk Owner. That unit assumes responsibility of the risk – track, mitigate and close.
+  utter_view_processes_from_mainspring_11:
+  - text: |-
+      For the given processes listed in mainspring, PM has to click on the Standard Activities Link for the given process to view the same in Process Space. It navigates PM directly to the Process Card View in Process Space.
+      They can further drill down and see the detailed process, metrics etc
+  utter_project_merger_21:
+  - text: De-Merger of merged projects is not implemented in Mainspring and hence de-merger of projects is not available in Mainspring currently.
+  utter_critical_practices_demarcation_in_process_space_10:
+  - text: |-
+      Critical practices are differentiated as part of detailed process workflow view in Process Space, also the same has been called out in a separate section in the procedure format.
+      Link to Process Space - https://deliveryexcellence.cognizant.com/apps/processspace
+  utter_accelerator_usage_70:
+  - text: Most of the accelerators are free to use while some have a cost. You can identify it in the 'Cost' tag in the accelerator.  You can find the cost / license details in the respective accelerator overview deck (available in Knowhub).
+  utter_accelerator_recommendation_63:
+  - text: Accelerators are auto-recommended from Knowhub based on these project attributes that is provided for the project in mainspring - archetype cluster, industry / vertical, service line, archetype, process, technology, and methodology.
+  utter_metrics_report_43:
+  - text: Metric Report will be auto-generated every alternate Saturdays. PMs are required to validate the metric report(Closed Releases/Sprints for All Projects and Open Releases for Waterfall projects), make necessary changes in the source section as Metric report is not editable, complete affirmation of critical practices and submit the metric report before next report generation day. Release or Sprint can be reopened for corrections when the respective metric report is in Open status. Metrics Preview holds the same data as in Metric Report. Once Metric Report is submitted within the cut off period by PM, Metric Report status will be marked as "Approved" (No approval workflow) which is the expected status of Metric Report, Otherwise will be marked as "Not Approved" and project score will be reduced in DMI dashboard.
+  utter_spectrum_45:
+  - text: You can refer to the OLBM values, Industry Reference, Metrics Definition with associated attributes, Prediction Model for Response/Resolution Time  in Spectrum. All Cognizant Associates have access to Spectrum.
+  utter_metrics_plan_20:
+  - text: For metrics where Organization Level Benchmark (OLBM) is not available, 'None' will be pre-selected as Goal level by default otherwise you can select Performing Level or BIC Level to auto-populate the OLBM values as goal. In case, there are project specific targets or contractual obligations available for the metric, you may change the goal level appropriately. You can reopen the PM Plan and change the Goal levels/values any number of times provided PM Plan is re-baselined every time.
+  utter_metrics_plan_25:
+  - text: All the mandated productivity metrics are listed under separate section - Size Metrics within PM Plan.
+  utter_metric_actuals_20:
+  - text: Efforts which have been entered against the activity code is adhoc effort which can be distributed in mainspring from metrics actuals page for the open release/sprint by PM
+  utter_accelerator_information_56:
+  - text: Anything that helps project teams reduce effort, save cost, improve service quality / productivity, or earn revenue qualifies as an accelerator.  It can be in the form of tools, utilities, platform, solution, code snippet, component, architecture, framework, automation bot, etc.
+  utter_process_space_view_9:
+  - text: |-
+      In Process Space, processes are tagged to Archetype Cluster/ Archetype/ work category and organized using mega menu feature for easy navigation. 
+      Link to Process Space - https://deliveryexcellence.cognizant.com/apps/processspace
+  utter_process_selection_limitation_4:
+  - text: Based on the scope and nature of the project, any number of processes can be selected from the list of applicable processes in the list in PM plan - Process selection page
+  utter_metrics_preview_39:
+  - text: When any of the measures required to compute the metric is not updated by the user i.e. not updated in the Measure Input screen, then Metrics cannot be computed hence will be marked as 'No Data Available' - NDA. When denominator is Zero for the metric, even then Metrics will be reported as NDA.
+  utter_financial_impact_105:
+  - text: No, please fill out whatever is applicable for your project. All of them are optional. Also please note that the amounts (except Estimated Annual Revenue) are in 1000 US$s. Hence, e.g., enter US$25,340 as 25.34.
+  utter_tools_46:
+  - text: |-
+      A tool is a set of computer programs that developers use to create, maintain, debug, or support other applications and programs. Tools  are third party ones, which can be of Project Management or SDLC engineering type and are leveraged to improve project execution parameters.
+      Accelerators can be in any form – utility, tool, solution, product, platform, code snippet, code library, component, framework, automation bot / script, etc. that can be used by a project in delivery. These  are Cognizant Internal developed and are usually registered IP’s of Cognizant.
+  utter_standard_activities_as_na_1:
+  - text: If there is no direct process for the selected Archetype/ work category/ methodology combination, process available befitting the Archetype - work category chosen is being listed, agnostic of the methodology.
+  utter_risk_capture_87:
+  - text: This large range of possible risk scores allows the leaders to bucket risks according to scores in multiple ways. They can do it individually with all the possible score values or have them in ranges such as risk score of (1-3) or (4-7) and so forth.
+  utter_process_critical_practice_tailoring_3:
+  - text: |-
+      Organization mandated critical practices pertaining to process will be listed under Critical Practices. Provide appropriate justification for removing any critical practices which are not applicable.
+      Customer recommended processes and templates may be used if adequately bridged, and is mutually agreed upon between Cognizant delivery team, Cognizant Delivery Excellence  team, and Customer. The output of bridging task should be reviewed and approved by Enable POC. 
+      Incase Project Team is using the customer recommended templates for a given critical practice, then the same should be mentioned in justification for the selected critical practice.
+      If a critical practice is being followed differently, the same should be selected and in the justifications remarks can be given on how it is being done differently from the given critical practice.
+  utter_risk_capture_79:
+  - text: Although the blue-border appears for the other not-selected Impact Area Scores, they are not available for scoring and will be populated with ‘Not Applicable’. Scoring only for the selected Impact Areas will be available, i.e., their dropdowns will list the possible score values.
+  utter_project_creation_15:
+  - text: Check if the Execution project is “closed” and Closed Execution projects can be reopened any time by checking the reopen option available in the “Execution Project List” from the Group project and saving it. ESA PM should extend the execution project end date in Execution project >>>Project  Details >>>Project End date
+  utter_metrics_report_44:
+  - text: Load Factor is the only Project Level Mandatory metric currently for which the data is fetched from ESA system.
+  utter_metrics_plan_27:
+  - text: Custom Metric Name alone need to be added in the Custom Metrics Masters List outside the PM Plan under Setup > Masters List > CMCM > Click on Detail > Click on Add button and Add the Custom Metric Name. Newly added Custom Metric Name will be available in drop down for user selection under PM Plan > Custom Metrics Section.
+  utter_metrics_plan_29:
+  - text: If the Mandatory Metric listed in Metrics Plan(mainspring) is also one of the contractual Obligation, then the goal as set in contract can be updated in mainspring as well using this option.
+  utter_metrics_plan_19:
+  - text: BIC and Performing level denotes the benchmark value computed as 95th & 85th percentile respectively for HTB and 15th & 5th percentile respectively for LTB metrics based on the data points considered for benchmarking.  Performing level is one level below BIC level. BIC/Performing Goal value will be available for user selection only when the Organization level benchmark value(OLBM) exists for the metrics.
+  utter_options_to_affirm_critical_practices_implementation_17:
+  - text: |-
+      There are 3 options to affirm or confirm on the Critical Practices that have been implemented for the release as mentioned below:
+      1. Plan>>Release>>Release e-form>> Critical Practices Tab 
+
+      2. Monitor >> Method Implementation Status >> Critical Practices Page
+
+      3. Monitor >>Metrics Report>>Open Releases--> Critical Practices Column
+  utter_metrics_preview_38:
+  - text: '%Deviation is computed using the formula - [Actual - Goal)/Goal]*100 and is reported in %. Whenever Metrics Actuals or Goal is not available, %Deviation from Goal will be reported as Not Applicable. For any deviations, PM need to validate the measure inputs. In case, wrong data was reported, need to make corrections otherwise Reason for Deviation and Area of Improvement need to be updated mandatorily for deviated metrics.'
+  utter_risk_reports_119:
+  - text: |-
+      MDU/LOS level risk reports are generated on a daily basis (~ 11 AM) and stored in the following CTS WAN location. This needs VPN credentials to access.
+      \\ctsinpunpando1\Corporate_DAG\Current Folder Structure\DRM-Enable Input\<MDU/LOS name>
+  utter_allocation_details_5:
+  - text: |-
+      As per the functionality, resources having an active Allocation in ESA will be able to view the Projects in mainspring.
+
+      If the user does not have an active allocation request, get in touch with the ESA PM to provide them allocation in ESA.
+  utter_delivery_governance_111:
+  - text: Comments are mandated for Red and Amber Status.
+  utter_archeytpe_and_demographics_25:
+  - text: Archetypes will be reviewed by Practice Delivery Excellence Lead/Market Delivery Excellence Lead for In-scope and Yet to Scope projects.
+  utter_risk_escalation_101:
+  - text: |-
+       Please navigate to the Customer Experience Manager (CEM) app from OneCognizant.
+       Once you create a valid escalation or if there is an already-existing escalation, navigate via Manage Escalations to the exact Escalation.
+       Under ‘Correlated Risks Details’, say Yes to Risks Raised.
+       All the risks for that project that are logged in mainspring will be displayed (open as well as closed).
+       Select the appropriate risk by checking the box against it. Save.
+       Once that is done, that particular risk will be closed in mainspring. A tab called ‘Escalation Details’ will be visible for the risk. The details entered in the CEM app for that risk will flow into this tab for the risk.
+  utter_risk_capture_76:
+  - text: Mitigation becomes mandatory when Mitigation Status is chosen as either WIP or Completed.
+  utter_accelerator_subscription_65:
+  - text: Yes, you can subscribe to one or many accelerators from the recommended list based on your project needs.
+  utter_tools_54:
+  - text: |-
+      Yes you can plan for the tools under PM Plan and get your PM plan baselined.
+      IF you have already planned and there is some change in plan, then update tools plan accordingly under PM plan and resubmit PM plan for approval / baselining
+  utter_metrics_actuals_42:
+  - text: Actual efforts logged in ESA will flow to mainspring and can be viewed in Metrics Actuals screen. Actual efforts without any planned tasks against Releases/Sprints are called as undistributed effort. Such efforts would be available against activity codes/resources and need to be distributed to respective Release or Sprint which is called as Effort Distribution/Apportioning.
+  utter_metrics_preview_35:
+  - text: Preview of the computed metrics can be viewed in Metrics Preview screen and previewed metrics in auto-generated Metrics Report. Metrics Formula displayed against every metric in Metrics Preview screen and the measures updated for these metrics in Measure Input screen can be referred to validate the computed metric.
+  utter_delivery_governance_116:
+  - text: That notification is appearing following a logic (that is available on Be.Cognizant DRM page – Enablement deck) built in the system for certain level of Risk Scores, Impact Scores and Escalations. It is up to the leader’s decision to elevate to any level he wants or even to completely ignore the recommendation and let it say at whatever level it was.
+  utter_method_components_against_critical_practices_in_process_space_12:
+  - text: |-
+      A click on Standard activities link in mainspring - PM plan>> Process Selection redirects user to process space to view the process.
+      Critical practices of a process has been differentiated in process space ; click on the critical practices to view the critical practices and  view or download associated method components
+  utter_tools_47:
+  - text: |-
+      Tool Category helps to identify the high level function of the particular tool i.e. for what type of work is it used for. There are 14 major Tool Categories viz. 
+      • Requirements
+      • Architecture and Design
+      • Coding and Development
+      • Configuration Management
+      • CI-CD
+      • Testing and Defect Management
+      • Test Planning and Design
+      • Migration
+      • Knowledge Management
+      • Collaboration
+      • Project or Service Management
+      • Automation
+      • Service Delivery and execution
+      • Service Desk and monitoring
+  utter_tools_49:
+  - text: Tools are displayed in mainspring under PM Plan for planning purpose. Team can select relevant tools that would aid to optimize their work. Team will have to provide affirmation also for implemented tools every month.
+  utter_metrics_plan_26:
+  - text: It's the responsibility of the Project Manager to ensure right goal is updated based on the project nature and customer commitment.
+  utter_risk_escalation_103:
+  - text: Yes. That information is available on the CEM portal. Plus if we know the Risk ID here in Mainspring, it’ll appear as a closed risk with the ‘Escalation Details’ tab visible and details of the escalation captured in the CEM portal flown in to Mainspring.
+  utter_project_scope_26:
+  - text: The value for DE scope will be flown from 2DO application which can be changed or updated by DE Enable POC.
+  utter_financial_impact_107:
+  - text: |-
+      Financial Impact score is based on either the exact $ amount or the % of it when compared to the Estimated Annual Revenue – please see below table. So when going by the actual $ amount, say the score is 2 while when going by the % the score yielded is 3; the score that will be given to the project is 2 because the numerically lower score will be chosen.
+      E.g., when the $ impact is 200k [yielding score of 2 because 200k is between 100k and 500k – 2nd row of the table] while
+      This 200k happens to be 8% of the EAR (say EAR = 2.5M) [yielding score of 3 because 8% is between 5% and 10% – 3rd row of the table];
+      Then system will assign this project a Financial Impact Score of 2.
+  utter_measure_inputs_30:
+  - text: 'Measure is the basic information required to compute/represent a Metric. For Eg: Effort, Size, Number of Defects, etc'
+  utter_delivery_governance_118:
+  - text: PM, Proxy PM, Project Owner & DE Enable PoC.
+  utter_risk_capture_93:
+  - text: Yes, there is an icon on the Monitor -> Risks page where all risks for the project are listed. That provides this feature to look at Risks and Mitigations from similar projects and the ability to import those risks into the current project.
+  utter_risk_import_from_similar_projects_99:
+  - text: Yes. The entire risk description and the mitigation plan which have been imported will open up in edit-mode.
+  utter_pm_plan_workflow_14:
+  - text: |-
+      PM Plan can be routed or approved by the following roles.
+      WORKFLOW FOR PM PLAN:
+      *Submitter – Project Manager/Project Lead
+      **Reviewer for Inscope Projects - Account DE Enable Manager; DE Enable Head; DE Account Group Head; Delivery Partner; Engagement Delivery Partner; Engagement Delivery Lead;
+      **Reviewer for Out of scope Projects - EDL (out scope and yet to scope) or Skip the queue
+      **Approver: Engagement Delivery Lead; Delivery Partner; Engagement Delivery Partner;
+  utter_measure_inputs_34:
+  - text: PM is allowed to save any values or blanks even for mandatory measures as an intermediate save only. PM need to update the correct value pertaining to the Measure. Error Data Quality rules displayed against every measure needs to be adhered to while updating measures actuals before release/sprint closure. Non-Numeric, Negative Values and in some case decimal values are not allowed for Mandatory Measures. Custom Metrics can be updated in Negative format with decimals also.
+  utter_metrics_plan_23:
+  - text: PM can configure additional metrics which are tracked at project level but are not part of the pre-populated mandatory metrics as Custom Metrics. Custom Metrics are optional and can be defined at Project/Release/Sprint level.
+  utter_changes_to_critical_practices_after_pm_plan_baseline_6:
+  - text: If change is made to critical practice selection/tailoring on reopening the PM plan and rebaselining, the same would reflect in the open releases.
+  utter_accelerator_information_59:
+  - text: All MDUs and Service Lines have contributed accelerators and every accelerator is tagged to archetype, process, technology, and methodology scenarios where the accelerator can be used.  Some accelerators can be used across service lines whereas some can be used only for specific scenarios.  It is possible that there are scenarios where the technology area is new and there are no accelerators mapped.
+  utter_access_roles__4:
+  - text: Kindly be informed that the data porting time is 24 hours where if the role is approved in RHMS post 24 hours the data will flow to mainspring.
+  utter_metrics_plan_21:
+  - text: Prescribed Order of goal level is Contractual Obligation -> Project Specific -> BIC -> Performing. If Project Specific target is lenient compared to BIC & Performing, the order would be Contractual Obligation -> BIC -> Performing -> Project Specific
+  utter_risk_migration_110:
+  - text: No. Risks will be migrated from the previous layout to the newer layout using a mapping. All fields will be taken care of, in the migration logic.
+  utter_risk_capture_74:
+  - text: |-
+      1. Login to the mainspring application and get to the project you need to raise a risk for.
+      2.  Go to Monitor > Risks
+      3.  Click on Add risk
+      4.  Provide Risk Name and Risk description, select appropriate owner for the risk
+      5.  Now Select the Impact Areas for the risk. Select Causes. Both are multi-select fields.
+      6.  For each Impact Area selected, provide respective Impact Area Score.
+      7.  Provide Likelihood Score for the risk.
+      8.  Risk Score will be auto-computed as a product of Likelihood score and the highest Impact Area Score
+      9.  Select Risk Stage and Risk Source
+      10.  Enter Target Closure Date for the risk
+      11.  For any clarifications on how to choose the right values for Causes and Scores, you can refer to the guidelines.
+      12.  Now click save, and the risk for the project is created with entered details.
+  utter_risk_capture_89:
+  - text: |-
+       For Mitigation status = “Not required – Mitigation Costly”
+      AND
+      Impact Area Score >= 3
+      AND
+      Likelihood Score = 4 or 5
+      All ‘Cost Benefit Analysis’ fields become mandatory.
+       For Mitigation Status = “Not required – Risk Accepted”
+      Mitigation and Contingency details are optional.
+       For Mitigation and Contingency Status = “Not yet Identified”
+      Mitigation as well as Contingency plans are optional.
+       For Mitigation and contingency status = “WIP or Completed”
+      Mitigation as well as Contingency plans details are mandated.
+  utter_accelerator_subscription_67:
+  - text: If you have any account-specific accelerators that can be used only by the projects within your account, get in touch with DEKnowhubSupport@cognizant.com team to onboard the catalog of those accelerators to Knowhub so that it can be recommended to the projects of that account alone in mainspring and also made available in ISPACE for benefit tagging.
+  utter_delivery_governance_113:
+  - text: This email signifies that your project satisfies the logic (that is available on Be.Cognizant DRM page – Enablement deck) built-in the system for certain level of Risk Scores, Impact Scores and Escalations. It is up to you to elevate it to any level you want or let it say where it is.
+  utter_goodbye:
+  - text: Bye
+  - text: It has monthly project data
+  utter_release_sprint_11:
+  - text: '"Re-open" button will be enabled for the PM and it can be re-opened only if the metric report is open. Once the metric report is closed, the reopen option will be disabled for the releases or sprints'
+  utter_tools_51:
+  - text: Benefits for Tool usage will be tracked in i-space
+  utter_risk_capture_84:
+  - text: Guidelines for Cause-Selection and Scoring is available as a hyperlink on the Risk e-form.
+  utter_tools_50:
+  - text: |-
+      Tools to be used across project lifecycle needs to be planned in PM Plan. 
+      And monthly PM needs to affirm usage of tools planned as applicable for the current scope of work.
+      • All tools planned will be listed down and there will be checkbox beside each tool planned to choose if it is applicable for the tenure. 
+      • If applicable, then PM needs to select if it is implemented in the project by ticking the checkbox for implementation.  
+      • Implementation checkbox will be disabled if ‘applicable check’ is unchecked
+  utter_risk_discovery_96:
+  - text: Yes, Risk Discovery is an exercise that has to be undertaken by the PM during project on-boarding / setup.
+  utter_metrics_plan_18:
+  - text: PM need not define metrics specific to their projects as the pre-defined metrics from Spectrum Metbook will be auto-assigned to the project based on Archetype/Work-Category/Methodology/Process combination selected. None of these metrics can be deselected or marked as Optional. You can select the Goal value as 'None' for the metrics which may not be applicable for the project. PM need to update the relevant goal values for the mandatory metrics in Metrics Plan which is part of the PM Plan.
+  utter_metrics_plan_28:
+  - text: As the term denotes, Goals which are specific to the project can be updated under this option hence there will not be any reference. Project specific goals can be updated based on the project's historical performance or similar projects.
+  utter_metrics_plan_22:
+  - text: Reporting Level refers to the level at which the Metrics will be computed, tracked, and reported in Metrics Report. Available Reporting Levels are Release, Sprint, and Project.
+  utter_accelerator_information_58:
+  - text: Some accelerators are created by CoEs (Centers of Excellence) - all these become IP (intellectual property) of Cognizant and can be used by all project teams.  Some accelerators are created by project / account teams as part of their delivery - of these only accelerators that are Cognizant IP are uploaded to Knowhub Asset Marketplace for reuse by other projects.
+  utter_metrics_plan_24:
+  - text: This is required to understand the metric nature against the available standard metrics list which would be used for future metrics analysis and benchmarking.
+actions:
+- getsolrhelpdata
+- navigation_action
+- action_inbox_query
+- apigee
+- reset_slot_navig
+- kairon_two_stage_fallback
+forms: {}
+e2e_actions: []

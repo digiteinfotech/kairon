@@ -54,8 +54,7 @@ class Authentication:
             Authentication.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:
                 raise credentials_exception
-            token_data = TokenData(username=username)
-            user = AccountProcessor.get_user_details(token_data.username)
+            user = AccountProcessor.get_user_details(username)
             if user is None:
                 raise credentials_exception
             user_model = User(**user)
@@ -112,6 +111,7 @@ class Authentication:
     @staticmethod
     async def authenticate_token_in_path_param(security_scopes: SecurityScopes, request: Request):
         from kairon.chat.handlers.channels.msteams import MSTeamsHandler
+        from kairon.chat.handlers.channels.line import LineHandler
 
         token = request.path_params.get("token")
         if request.path_params.get("channel") == ChannelTypes.MSTEAMS.value:
@@ -120,6 +120,13 @@ class Authentication:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Webhook url is not updated, please check. Url on msteams still refer old hashtoken",
+                )
+        if request.path_params.get("channel") == ChannelTypes.LINE.value:
+            is_valid_hash, token = LineHandler.is_validate_hash(request)
+            if not is_valid_hash:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Webhook url is not updated, please check. Url on line still refer old hashtoken",
                 )
         user = await Authentication.get_current_user_and_bot(security_scopes, request, token)
         return user

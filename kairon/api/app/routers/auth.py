@@ -142,7 +142,7 @@ async def get_integrations(
 
 
 @router.get('/login/sso/{sso_type}')
-async def sso_login(sso_type: str = Path(description="social media type", example="google")):
+async def sso_login(sso_type: str = Path(description="social media type", examples=["google"])):
     """
     Generate redirect url based on social media type.
     """
@@ -153,7 +153,7 @@ async def sso_login(sso_type: str = Path(description="social media type", exampl
 async def sso_callback(
         request: Request,
         background_tasks: BackgroundTasks,
-        sso_type: str = Path(description="social media type", example="google")
+        sso_type: str = Path(description="social media type", examples=["google"])
 ):
     """
     Generate login token after successful social media login.
@@ -173,7 +173,7 @@ async def sso_callback(
 
 @router.get('/login/idp/{realm_name}')
 async def idp_login(
-        realm_name: str = Path(description="Domain name for your company", example="KAIRON")):
+        realm_name: str = Path(description="Domain name for your company", examples=["KAIRON"])):
     """
     Fetch redirect url for idp realm.
     """
@@ -183,7 +183,7 @@ async def idp_login(
 @router.get('/login/idp/callback/{realm_name}', response_model=Response)
 async def idp_callback(session_state: str, code: str,
                        realm_name: str = Path(description="Realm name",
-                                              example="KAIRON"),
+                                              examples=["KAIRON"]),
                        ):
     """
     Identify user and create access token for user

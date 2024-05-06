@@ -33,7 +33,7 @@ async def add_http_action(
 
 
 @router.get("/httpaction/{action}", response_model=Response)
-async def get_http_action(action: str = Path(description="action name", example="http_action"),
+async def get_http_action(action: str = Path(description="action name", examples=["http_action"]),
                           current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns configuration set for the HTTP action
@@ -116,7 +116,7 @@ async def add_db_action(
 
 
 @router.get("/db/{action}", response_model=Response)
-async def get_vector_db_action(action: str = Path(description="name", example="database_action"),
+async def get_vector_db_action(action: str = Path(description="name", examples=["database_action"]),
                                current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns configuration set for the VectorDb action
@@ -430,7 +430,7 @@ async def edit_hubspot_forms_action(
 
 @router.delete("/{action}", response_model=Response)
 async def delete_action(
-        action: str = Path(description="action name", example="action_pipedrive"),
+        action: str = Path(description="action name", examples=["action_pipedrive"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
