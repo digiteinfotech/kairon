@@ -18105,6 +18105,7 @@ def test_add_bot_with_template_name(monkeypatch):
             "database_action": [],
             "actions": [],
             "pyscript_action": [],
+            "live_agent_action": [],
         },
         ignore_order=True,
     )

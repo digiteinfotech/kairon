@@ -243,6 +243,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             filter_query["event.timestamp"] = {
                 "$gte": last_session[0]["event"]["timestamp"]
             }
+            filter_query["event.metadata.type"] = {"$ne": "live_agent"}
 
         stored = list(
             self.conversations.aggregate(

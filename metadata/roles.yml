@@ -20,6 +20,7 @@ roles:
       manageQnaStories: true
       broadcast: true
       customAnalytics: true
+      liveAgent: true
     pages:
       chatbots:
         renameBot: true
@@ -108,6 +109,8 @@ roles:
         list: true
         delete: true
         viewLogs: true
+      liveAgent:
+        chatView: true
 
   admin:
     menu:
@@ -130,6 +133,7 @@ roles:
       manageQnaStories: true
       broadcast: true
       customAnalytics: true
+      liveAgent: true
     pages:
       chatbots:
         renameBot: false
@@ -218,6 +222,8 @@ roles:
         list: true
         delete: true
         viewLogs: true
+      liveAgent:
+        chatView: true
 
   designer:
     menu:
@@ -240,6 +246,7 @@ roles:
       manageQnaStories: true
       broadcast: true
       customAnalytics: true
+      liveAgent: false
     pages:
       chatbots:
         renameBot: false
@@ -328,6 +335,8 @@ roles:
         list: true
         delete: true
         viewLogs: true
+      liveAgent:
+        chatView: false
 
   tester:
     menu:
@@ -350,6 +359,7 @@ roles:
       manageQnaStories: true
       broadcast: false
       customAnalytics: true
+      liveAgent: false
     pages:
       chatbots:
         renameBot: false
@@ -438,6 +448,8 @@ roles:
         list: false
         delete: false
         viewLogs: true
+      liveAgent:
+        chatView: false
 
   agent:
     menu:
@@ -575,6 +587,7 @@ roles:
       manageQnaStories: false
       broadcast: false
       customAnalytics: true
+      liveAgent: false
     pages:
       chatbots:
         renameBot: false
@@ -663,3 +676,5 @@ roles:
         list: false
         delete: false
         viewLogs: false
+      liveAgent:
+        chatView: false

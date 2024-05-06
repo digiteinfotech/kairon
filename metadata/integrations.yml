@@ -53,6 +53,7 @@ channels:
       - app_secret
       - access_token
       - verify_token
+      - phone_number
     business_providers:
       360dialog:
         required_fields:
