@@ -937,11 +937,12 @@ class MongoProcessor:
             slot_mapping = items["mappings"]
             if slot_mapping and slot_name in slots_name_list:
                 if slot_name not in existing_slot_mappings:
-                    mapping_to_save.append(
-                        SlotMapping(
-                            slot=slot_name, mapping=slot_mapping, bot=bot, user=user
+                    for mapping in slot_mapping:
+                        mapping_to_save.append(
+                            SlotMapping(
+                                slot=slot_name, mapping=mapping, bot=bot, user=user
+                            )
                         )
-                    )
         if mapping_to_save:
             SlotMapping.objects.insert(mapping_to_save)
 
@@ -1253,8 +1254,8 @@ class MongoProcessor:
         new_mappings = mappings.copy()
         for mapping in new_mappings:
             if (
-                mapping.get(MAPPING_TYPE) == SlotMappingType.FROM_ENTITY.value
-                and mapping.get("entity") == slot_name
+                    mapping.get(MAPPING_TYPE) == SlotMappingType.FROM_ENTITY.value
+                    and mapping.get("entity") == slot_name
             ):
                 auto_fill = True
                 break
