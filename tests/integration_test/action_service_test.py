@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 from urllib.parse import urlencode, urljoin
 
@@ -3122,8 +3121,170 @@ def test_http_action_doesnotexist():
 
 
 @responses.activate
+def test_vectordb_action_execution_payload_search_from_user_message():
+    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    action_name = "test_vectordb_action_execution_payload_search_from_user_message"
+    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
+            user="user").save()
+    payload_body = json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})
+    DatabaseAction(
+        name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_user_message',
+        query_type=DbActionOperationType.payload_search.value,
+        payload=DbQuery(type=DbQueryValueType.from_user_message.value),
+        response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+        set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+        bot="5f50md0a56b698ca10d35d2e",
+        user="user"
+    ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2e", user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50md0a56b698ca10d35d2e", user="user").save()
+
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_user_message_faq_embd/points/scroll'
+    resp_msg = json.dumps(
+        [{"id": 2, "city": "London", "color": "red"}]
+    )
+    json_params_matcher = {'text': json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})}
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        body=resp_msg,
+        status=200,
+        match=[responses.matchers.json_params_matcher(json_params_matcher)],
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "latest_message": {'text': payload_body, 'intent_ranking': [{'name': 'user_story'}],
+                               "entities": [{"value": payload_body, "entity": KAIRON_USER_MSG_ENTITY}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'The value of London with color red is 2'}]
+    assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
+    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+
+
+@responses.activate
+def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
+    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    action_name = "test_vectordb_action_execution_payload_search_from_user_message_in_slot"
+    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2f",
+            user="user").save()
+    payload_body = json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})
+    user_msg = '/user_story{"kairon_user_msg": {"filter": {"should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}}'
+    DatabaseAction(
+        name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_user_message_in_slot',
+        query_type=DbActionOperationType.payload_search.value,
+        payload=DbQuery(type=DbQueryValueType.from_user_message.value),
+        response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+        set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+        bot="5f50md0a56b698ca10d35d2f",
+        user="user"
+    ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2f", user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50md0a56b698ca10d35d2f", user="user").save()
+
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2f_test_vectordb_action_execution_payload_search_from_user_message_in_slot_faq_embd/points/scroll'
+    resp_msg = json.dumps(
+        [{"id": 2, "city": "London", "color": "red"}]
+    )
+    json_params_matcher = {"text": json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})}
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        body=resp_msg,
+        status=200,
+        match=[responses.matchers.json_params_matcher(json_params_matcher)],
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50md0a56b698ca10d35d2f"},
+            "latest_message": {'text': user_msg, 'intent_ranking': [{'name': 'user_story'}],
+                               "entities": [{"value": payload_body, "entity": KAIRON_USER_MSG_ENTITY}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50md0a56b698ca10d35d2f"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'The value of London with color red is 2'}]
+    assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
+    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2f').get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+
+
+@responses.activate
 @mock.patch.object(Qdrant, "_Qdrant__get_embedding", autospec=True)
 def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
+    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56b698ca10d75d2e",
             user="user").save()
@@ -3212,6 +3373,7 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
 
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_value():
+    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2z",
             user="user").save()
@@ -3290,6 +3452,7 @@ def test_vectordb_action_execution_payload_search_from_value():
 
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_value_json_decode_error():
+    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution_payload_search_from_value_json_decode_error"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
             user="user").save()
@@ -3335,20 +3498,21 @@ def test_vectordb_action_execution_payload_search_from_value_json_decode_error()
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response.status_code == 200
     assert len(response_json['events']) == 1
-    assert len(response_json['responses']) == 0
+    assert len(response_json['responses']) == 1
     assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                                         'value': 'I have failed to process your request.'}]
+    assert response_json['responses'][0]['text'] == 'I have failed to process your request.'
     log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
-    assert log['exception'] == "Faq feature is disabled for the bot! Please contact support."
+    assert log['exception'] == "Error converting payload to JSON: {'filter'}"
     log.pop('_id')
     log.pop('timestamp')
 
 
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_slot():
+    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fx0a56b698ca10d35d2e",
             user="user").save()
@@ -3437,6 +3601,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
 
 @responses.activate
 def test_vectordb_action_execution_no_response_dispatch():
+    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution_no_response_dispatch"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56v098ca10d75d2e",
             user="user").save()
@@ -4166,7 +4331,7 @@ def test_form_validation_action_with_form_slot_type_slot():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
                                'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {'EMAIL': 'uditpandey@digite.com','FIRSTNAME': 'udit'},
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
                       'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
@@ -4403,7 +4568,8 @@ def test_form_validation_action_invalid_slot_value():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
                                'requested_slot': 'current_location'},
-                      'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                      'intent': 'test_run', 'chat_log': [],
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
                       'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
@@ -4472,7 +4638,7 @@ def test_form_validation_action_invalid_slot_value_with_utterance():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'profession': 'computer programmer',
                                'requested_slot': 'profession'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {'EMAIL': 'uditpandey@digite.com','FIRSTNAME': 'udit'},
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
                       'latest_message': {'intent_ranking': [{'name': 'test_run'}], 'text': 'get intents'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
@@ -4982,7 +5148,6 @@ def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config,
     assert args[1] == ["test@test.com"]
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
-
 
 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")
@@ -6564,7 +6729,8 @@ def test_process_web_search_action():
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
                     'attachment': None}]}
     log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status="SUCCESS").get()
-    assert log['bot_response'] == 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>'
+    assert log[
+               'bot_response'] == 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>'
 
 
 @responses.activate
@@ -6581,13 +6747,14 @@ def test_process_web_search_action_with_search_engine_url():
     responses.add(
         method=responses.POST,
         url=search_engine_url,
-        json={"success": True, "data": [{"title": 'Data Science: Definition, Lifecycle, Skills and Tools | IBM', "description": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
-                        "url": "https://www.ibm.com/topics/data-science"}], "error_code": 0},
+        json={"success": True, "data": [{"title": 'Data Science: Definition, Lifecycle, Skills and Tools | IBM',
+                                         "description": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
+                                         "url": "https://www.ibm.com/topics/data-science"}], "error_code": 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher({
-            "text": 'What is data science?', "site": '', "topn": 1
-        })],
+                "text": 'What is data science?', "site": '', "topn": 1
+            })],
     )
 
     request_object = {
@@ -6673,11 +6840,15 @@ def test_process_web_search_action_with_search_engine_url():
         response_json = response.json()
         assert response.status_code == 200
         assert response_json == {'events': [
-            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>"},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>"}],
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
+             'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>"},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>"}],
             'responses': [
-                {'text': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>",
-                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+                {
+                    'text': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>",
+                    'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
+                    'attachment': None}]}
 
 
 def test_process_web_search_action_with_kairon_user_msg_entity():
@@ -6789,11 +6960,15 @@ def test_process_web_search_action_with_kairon_user_msg_entity():
         response_json = response.json()
         assert response.status_code == 200
         assert response_json == {'events': [
-            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'}],
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
+             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'}],
             'responses': [
-                {'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>',
-                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+                {
+                    'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>',
+                    'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
+                    'attachment': None}]}
 
 
 def test_process_web_search_action_without_kairon_user_msg_entity():
@@ -6813,7 +6988,7 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
              'link': 'https://www.ibm.com/topics/data-science'},
             {'title': 'What Is Data Science? Definition, Examples, Jobs, and More',
              'text': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
-             'link': 'https://www.coursera.org/articles/what-is-data-science',}]
+             'link': 'https://www.coursera.org/articles/what-is-data-science', }]
 
     request_object = {
         "next_action": action_name,
@@ -6904,10 +7079,14 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
         response_json = response.json()
         assert response.status_code == 200
         assert response_json == {'events': [
-            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'}],
-            'responses': [{'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>',
-                           'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
+             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'}],
+            'responses': [{
+                              'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>',
+                              'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+                              'image': None, 'attachment': None}]}
     log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status="SUCCESS").get()
     assert log['user_msg'] == '/action_public_search'
 
@@ -7044,12 +7223,12 @@ def test_process_web_search_action_failure():
         response_json = response.json()
         assert response.status_code == 200
         assert response_json == {'events': [{'event': 'slot', 'timestamp': None,
-                                                     'name': 'kairon_action_response',
-                                                     'value': 'I have failed to process your request.'}],
-                                         'responses': [{'text': 'I have failed to process your request.',
-                                                        'buttons': [], 'elements': [], 'custom': {},
-                                                        'template': None,
-                                                        'response': None, 'image': None, 'attachment': None}]}
+                                             'name': 'kairon_action_response',
+                                             'value': 'I have failed to process your request.'}],
+                                 'responses': [{'text': 'I have failed to process your request.',
+                                                'buttons': [], 'elements': [], 'custom': {},
+                                                'template': None,
+                                                'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_process_web_search_action_no_results():
@@ -7148,13 +7327,13 @@ def test_process_web_search_action_no_results():
         response_json = response.json()
         assert response.status_code == 200
         assert response_json == {'events': [{'event': 'slot', 'timestamp': None,
-                                                     'name': 'kairon_action_response',
-                                                     'value': 'I have failed to process your request.'}],
-                                         'responses': [
-                                             {'text': 'I have failed to process your request.', 'buttons': [],
-                                              'elements': [],
-                                              'custom': {}, 'template': None, 'response': None,
-                                              'image': None, 'attachment': None}]}
+                                             'name': 'kairon_action_response',
+                                             'value': 'I have failed to process your request.'}],
+                                 'responses': [
+                                     {'text': 'I have failed to process your request.', 'buttons': [],
+                                      'elements': [],
+                                      'custom': {}, 'template': None, 'response': None,
+                                      'image': None, 'attachment': None}]}
 
 
 def test_process_jira_action():
@@ -7995,23 +8174,23 @@ def test_process_razorpay_action_invalid_amount():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json == {'events': [{'event': 'slot', 'name': 'kairon_action_response',
-                                                 'timestamp': None,
-                                                 'value': "I have failed to process your request"}],
-                                     'responses': [{'attachment': None, 'buttons': [], 'custom': {},
-                                                    'elements': [], 'image': None, 'response': None,
-                                                    'template': None,
-                                                    'text': "I have failed to process your request"}]}
+                                         'timestamp': None,
+                                         'value': "I have failed to process your request"}],
+                             'responses': [{'attachment': None, 'buttons': [], 'custom': {},
+                                            'elements': [], 'image': None, 'response': None,
+                                            'template': None,
+                                            'text': "I have failed to process your request"}]}
 
     request_object["tracker"]["slots"]["amount"] = 'NA'
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json == {'events': [{'event': 'slot', 'name': 'kairon_action_response',
-                                                 'timestamp': None,
-                                                 'value': "I have failed to process your request"}],
-                                     'responses': [{'attachment': None, 'buttons': [], 'custom': {},
-                                                    'elements': [], 'image': None, 'response': None,
-                                                    'template': None,
-                                                    'text': "I have failed to process your request"}]}
+                                         'timestamp': None,
+                                         'value': "I have failed to process your request"}],
+                             'responses': [{'attachment': None, 'buttons': [], 'custom': {},
+                                            'elements': [], 'image': None, 'response': None,
+                                            'template': None,
+                                            'text': "I have failed to process your request"}]}
 
     logs = list(ActionServerLogs.objects(bot=bot, action=action_name))
     assert len(logs) == 2
@@ -9004,10 +9183,10 @@ def test_bot_response_action():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
@@ -9031,7 +9210,7 @@ def test_bot_response_action():
     assert response_json['responses'] == [
         {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
          'response': 'utter_greet', 'image': None, 'attachment': None}
-        ]
+    ]
 
 
 def test_bot_response_action_empty_response_in_domain():
@@ -9123,10 +9302,10 @@ def test_bot_response_action_empty_response_in_domain():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
@@ -9150,7 +9329,7 @@ def test_bot_response_action_empty_response_in_domain():
     assert response_json['responses'] == [
         {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
          'response': 'utter_greet', 'image': None, 'attachment': None}
-        ]
+    ]
 
 
 @responses.activate
@@ -9262,10 +9441,10 @@ def test_bot_response_action_rephrase_enabled():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
@@ -9290,7 +9469,7 @@ def test_bot_response_action_rephrase_enabled():
         {'text': "Greetings and welcome to kairon!!", 'buttons': [], 'elements': [], 'custom': {},
          'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
+    ]
 
     request_object["domain"]["responses"]["utter_greet"] = [{"custom": {"type": "button", "text": "Greet"}}]
     response = client.post("/webhook", json=request_object)
@@ -9301,7 +9480,7 @@ def test_bot_response_action_rephrase_enabled():
     assert response_json['responses'] == [
         {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
          'response': 'utter_greet', 'image': None, 'attachment': None}
-        ]
+    ]
 
 
 @responses.activate
@@ -9411,10 +9590,10 @@ def test_bot_response_action_rephrase_failure():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
@@ -9438,7 +9617,7 @@ def test_bot_response_action_rephrase_failure():
     assert response_json['responses'] == [
         {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
          'response': 'utter_greet', 'image': None, 'attachment': None}
-        ]
+    ]
     assert len(responses.calls._calls) == 1
 
     secret.value = ""
@@ -9451,7 +9630,7 @@ def test_bot_response_action_rephrase_failure():
     assert response_json['responses'] == [
         {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
          'response': 'utter_greet', 'image': None, 'attachment': None}
-        ]
+    ]
     assert len(responses.calls._calls) == 1
 
 
@@ -9550,10 +9729,10 @@ def test_bot_response_action_failure():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
@@ -9580,7 +9759,7 @@ def test_bot_response_action_failure():
     assert response_json['responses'] == [
         {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
          'response': 'utter_greet', 'image': None, 'attachment': None}
-        ]
+    ]
 
 
 def test_action_handler_none():
@@ -10011,6 +10190,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
              'collection': 'python', 'use_similarity_prompt': True, 'top_results': 10, 'similarity_threshold': 0.7}],
         'instructions': ['Answer in a short way.', 'Keep it simple.']}
 
+
 @mock.patch.object(GPT3Resources, "invoke", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
 @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
@@ -10032,7 +10212,8 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
          'type': 'system', 'source': 'static', 'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+         'data': 'python', 'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
         {'name': 'Query Prompt',
          'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
@@ -10078,7 +10259,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
+    ]
     print(mock_completion.call_args.kwargs['messages'])
     assert mock_completion.call_args.kwargs['messages'] == [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -10088,8 +10269,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_response_action(mock_search, mock_embedding, mock_completion):
+def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from uuid6 import uuid7
 
@@ -10100,17 +10280,37 @@ def test_prompt_response_action(mock_search, mock_embedding, mock_completion):
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    bot_content_two = "Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data."
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
+         'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': True
+         },
+        {'name': 'Data science prompt',
+         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
+         'data': 'data_science'}
     ]
+    aioresponses.add(
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/5f50fd0a56b698ca10d35d2e_python_faq_embd/points/search"),
+        method="POST",
+        status=200,
+        payload={
+            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]})
+    aioresponses.add(
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/5f50fd0a56b698ca10d35d2e_data_science_faq_embd/points/search"),
+        method="POST",
+        status=200,
+        payload={
+            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content_two}}]})
     embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
     mock_embedding.return_value = embedding
     mock_completion.return_value = generated_text
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -10129,7 +10329,7 @@ def test_prompt_response_action(mock_search, mock_embedding, mock_completion):
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
+    ]
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -10151,7 +10351,11 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
+         'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': True
+         }
     ]
     embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
     mock_embedding.return_value = embedding
@@ -10176,7 +10380,7 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
+    ]
 
 
 @mock.patch.object(GPT3Resources, "invoke", autospec=True)
@@ -10197,8 +10401,17 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
+         'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': True
+         }
     ]
+    hyperparameters = {'temperature': 0.0, 'max_tokens': 300,
+                       'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                       'stream': True, 'stop': None,
+                       'presence_penalty': 0.0,
+                       'frequency_penalty': 0.0, 'logit_bias': {}}
 
     embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
     mock_embedding.return_value = embedding
@@ -10207,10 +10420,7 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    hyperparameters = Utility.get_llm_hyperparameters().copy()
-    hyperparameters['stream'] = True
-    PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters,
-                 llm_prompts=llm_prompts).save()
+    PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -10226,7 +10436,7 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
+    ]
     print(mock_completion.call_args.kwargs)
     assert mock_completion.call_args.kwargs == {
         'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
@@ -10274,7 +10484,7 @@ def test_prompt_response_action_failure(mock_search, mock_embedding, mock_comple
     assert response_json['responses'] == [
         {'text': DEFAULT_NLU_FALLBACK_RESPONSE, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
+    ]
 
 
 def test_prompt_response_action_disabled():
@@ -10300,7 +10510,7 @@ def test_prompt_response_action_disabled():
         {'text': 'Faq feature is disabled for the bot! Please contact support.', 'buttons': [], 'elements': [],
          'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
+    ]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
     assert log['bot_response'] == 'Faq feature is disabled for the bot! Please contact support.'
     assert log['exception'] == 'Faq feature is disabled for the bot! Please contact support.'
@@ -10347,7 +10557,8 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
          'type': 'system', 'source': 'static', 'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'is_enabled': True, 'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
         {'name': 'Python Prompt',
          'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
          'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
@@ -10401,7 +10612,7 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
+    ]
 
 
 @responses.activate
@@ -10450,9 +10661,10 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     resp_msg = "Python is a scripting language because it uses an interpreter to translate and run its code."
     aioresponses.add(
         method=responses.GET,
-        url=f"{http_url}?bot=5u08kd0a56b698ca10d98e6s&user=1011&tag=from_bot&name=nupur&contact=9876543219",
+        url=http_url + "?" + urlencode({"bot": "5u08kd0a56b698ca10d98e6s", "user": "1011", "tag": "from_bot",
+                                        "name": "nupur", "contact": "9876543219"}),
         payload=resp_msg,
-        status=200
+        status=200,
     )
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -10460,7 +10672,8 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
          'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True,
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
         {'name': 'Python Prompt',
          'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
          'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
@@ -10531,7 +10744,6 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     from openai.util import convert_to_openai_object
     from openai.openai_response import OpenAIResponse
 
-    responses.reset()
     action_name = "kairon_faq_action"
     google_action_name = "custom_search_action"
     bot = "5u08kd0a56b698ca10hgjgjkhgjks"
@@ -10575,10 +10787,9 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
         return convert_to_openai_object(
             OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
 
-    mock_completion.return_value = mock_completion_for_answer()
+    mock_completion.return_value = generated_text
     embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
     mock_embedding.return_value = embedding
-    mock_completion.return_value = generated_text
     mock_google_search.side_effect = _run_action
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -10654,7 +10865,7 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
          'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
         {'name': 'Language Prompt',
          'data': 'type',
          'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
@@ -10696,7 +10907,24 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
     assert response_json['responses'] == []
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
+                                   status="SUCCESS").get().to_mongo().to_dict()
+    assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log["time_elapsed"]
+    log.pop('time_elapsed')
+    events = log.pop('events')
+    for event in events:
+        if event.get('time_elapsed') is not None:
+            del event['time_elapsed']
+    assert events == [
+        {'type': 'llm_response',
+         'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+         'llm_response_log':
+             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}
+         }, {'type': 'slots_to_fill', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}
+    ]
     assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
@@ -10824,7 +11052,7 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
          'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
         {'name': 'Language Prompt',
          'data': 'type',
          'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
@@ -10868,8 +11096,25 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
+    ]
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
+                                   status="SUCCESS").get().to_mongo().to_dict()
+    assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log["time_elapsed"]
+    log.pop('time_elapsed')
+    events = log.pop('events')
+    for event in events:
+        if event.get('time_elapsed') is not None:
+            del event['time_elapsed']
+    assert events == [
+        {'type': 'llm_response',
+         'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+         'llm_response_log':
+             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}
+         }, {'type': 'slots_to_fill', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}
+    ]
     assert log['llm_logs'] == []
     assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
     assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
@@ -10901,7 +11146,7 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
          'is_enabled': True},
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
     ]
 
     def mock_completion_for_answer(*args, **kwargs):
@@ -10938,7 +11183,7 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
-        ]
+    ]
     assert mock_completion.call_args[0][1] == 'Kanban And Scrum Together?'
     assert mock_completion.call_args[0][2] == 'You are a personal assistant.\n'
     print(mock_completion.call_args[0][3])
@@ -10947,3 +11192,151 @@ Instructions on how to use Similarity Prompt:
 ['Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.']
 Answer question based on the context above, if answer is not in the context go check previous logs.
 """
+
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
+def test_prompt_action_response_action_when_similarity_is_empty(mock_search, mock_embedding, mock_completion):
+    from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+    from uuid6 import uuid7
+
+    action_name = "test_prompt_action_response_action_when_similarity_is_empty"
+    bot = "5f50fd0a56b698ca10d35d2C"
+    user = "udit.pandey"
+    value = "keyvalue"
+    user_msg = "What kind of language is python?"
+    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+    generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    llm_prompts = [
+        {'name': 'System Prompt',
+         'data': 'You are a personal assistant. Answer question based on the context below.',
+         'type': 'system', 'source': 'static', 'is_enabled': True},
+        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+         'type': 'query', 'source': 'static', 'is_enabled': False},
+        {'name': 'Similarity Prompt',
+         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+         'type': 'user', 'source': 'bot_content', 'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': True}
+    ]
+
+    embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+    mock_embedding.return_value = embedding
+    mock_completion.return_value = generated_text
+    mock_search.return_value = {'result': []}
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+    request_object["tracker"]["slots"]["bot"] = bot
+    request_object["next_action"] = action_name
+    request_object["tracker"]["sender_id"] = user
+    request_object["tracker"]["latest_message"]['text'] = user_msg
+    request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}},
+                                           {'event': 'bot', "text": "how are you",
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}}]
+
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [
+        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+         'response': None, 'image': None, 'attachment': None}
+    ]
+
+    assert mock_completion.call_args.args[1] == 'What kind of language is python?'
+    assert mock_completion.call_args.args[
+               2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
+    assert not mock_completion.call_args.args[3]
+    print(mock_completion.call_args.kwargs)
+    assert mock_completion.call_args.kwargs == {
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}}, 'query_prompt': {},
+        'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
+                                   {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [
+            {'similarity_prompt_name': 'Similarity Prompt',
+             'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'collection': 'python', 'use_similarity_prompt': True, 'top_results': 10, 'similarity_threshold': 0.7}],
+        'instructions': []}
+
+
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+@mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
+def test_prompt_action_response_action_when_similarity_disabled(mock_search, mock_embedding, mock_completion):
+    from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+    from uuid6 import uuid7
+
+    action_name = "test_prompt_action_response_action_when_similarity_disabled"
+    bot = "5f50fd0a56b698ca10d35d2Z"
+    user = "udit.pandey"
+    value = "keyvalue"
+    user_msg = "What kind of language is python?"
+    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+    generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    llm_prompts = [
+        {'name': 'System Prompt',
+         'data': 'You are a personal assistant. Answer question based on the context below.',
+         'type': 'system', 'source': 'static', 'is_enabled': True},
+        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+         'type': 'query', 'source': 'static', 'is_enabled': False},
+        {'name': 'Similarity Prompt',
+         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+         'type': 'user', 'source': 'bot_content', 'data': 'python',
+         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'is_enabled': False}
+    ]
+
+    embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+    mock_embedding.return_value = embedding
+    mock_completion.return_value = generated_text
+    mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+    request_object["tracker"]["slots"]["bot"] = bot
+    request_object["next_action"] = action_name
+    request_object["tracker"]["sender_id"] = user
+    request_object["tracker"]["latest_message"]['text'] = user_msg
+    request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}},
+                                           {'event': 'bot', "text": "how are you",
+                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                     "attachment": '', "image": '', "custom": ''}}]
+
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [
+        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+         'response': None, 'image': None, 'attachment': None}
+    ]
+
+    assert mock_completion.call_args.args[1] == 'What kind of language is python?'
+    assert mock_completion.call_args.args[
+               2] == """You are a personal assistant. Answer question based on the context below.\n"""
+    print(mock_completion.call_args.args[3])
+    assert not mock_completion.call_args.args[3]
+    print(mock_completion.call_args.kwargs)
+    assert mock_completion.call_args.kwargs == {
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'logit_bias': {}}, 'query_prompt': {},
+        'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
+                                   {'role': 'assistant', 'content': 'how are you'}], 'similarity_prompt': [],
+        'instructions': []}
