@@ -4,7 +4,6 @@ from typing import Text
 from loguru import logger as logging
 from rasa.core.agent import Agent
 from rasa.core.channels import UserMessage
-from rasa.core.lock_store import LockStore
 from kairon.shared.otel import record_custom_attributes
 
 from kairon.shared.chat.cache.in_memory_agent import AgentCache

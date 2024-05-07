@@ -1,10 +1,8 @@
-import aiohttp
 import logging
 from kairon.shared.actions.utils import ActionUtility
 from rasa.core.channels import UserMessage
 
 from kairon import Utility
-from kairon.shared.chat.processor import ChatDataProcessor
 
 logger = logging.getLogger(__name__)
 

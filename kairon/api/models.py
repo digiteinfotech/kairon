@@ -24,7 +24,7 @@ from ..shared.actions.models import (
     DbQueryValueType,
     DbActionOperationType, UserMessageType
 )
-from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE, ChannelTypes
+from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
 from ..shared.models import (

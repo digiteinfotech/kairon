@@ -26,7 +26,6 @@ from kairon.chat.agent_processor import AgentProcessor
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
-from kairon.shared.live_agent.live_agent import LiveAgentHandler
 import json
 
 logger = logging.getLogger(__name__)
