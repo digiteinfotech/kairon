@@ -3,10 +3,9 @@ database:
   url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
-
-
 app:
   server_url: ${APP_SERVER_URL:"http://localhost:8000"}
+  frontend_url: ${FRONTEND_URL:"http://localhost:3000"}
   enable_sso_only: ${ENABLE_SSO_ONLY:false}
 
 user:
@@ -77,6 +76,7 @@ model:
       - kairon.shared.nlu.classifier.openai.OpenAIClassifier
       - kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
 
+
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
   request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:1}
@@ -99,16 +99,10 @@ data_generation:
 nudge:
   server_url: ${NUDGE_SERVER_URL}
 
-live_agent:
-  url: ${LIVE_AGENT_SERVER_URL:"http://localhost:8000/api/v1"}
-  auth_token: ${LIVE_AGENT_AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoia2Fpcm9uIn0.EJXuG2n8dy72h9J-8SoIBToVmnB4gpXDGKg_Smcz-C8"}
-
 apm:
   enable: ${ENABLE_APM:false}
-  apm_server_url: ${APM_SERVER_URL}
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
   env_type: ${KAIRON_ENV_TYPE:"development"}
-  secret_token: ${APM_SECRET_TOKEN}
 
 history_server:
   url: ${KAIRON_HISTORY_SERVER_URL:"http://localhost:8083/"}
@@ -119,7 +113,7 @@ history_server:
 
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
-  server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8082/events/"}
+  server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8800/events/"}
 
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}
@@ -248,5 +242,6 @@ core:
     - SpacyEntityExtractor
     - SpacyFeaturizer
 
-
-
+live_agent:
+  url: ${LIVE_AGENT_SERVER_URL:"http://localhost:8000/api/v1"}
+  auth_token: ${LIVE_AGENT_AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoia2Fpcm9uIn0.EJXuG2n8dy72h9J-8SoIBToVmnB4gpXDGKg_Smcz-C8"}
