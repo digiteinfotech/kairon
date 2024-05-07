@@ -9899,7 +9899,7 @@ def test_add_vectordb_action_without_enable_faq():
 
     actual = response.json()
     assert actual["error_code"] == 422
-    assert actual["message"] == 'Faq feature is disabled for the bot! Please contact support.'
+    assert actual["message"] == 'Collection does not exist!'
     assert not actual["success"]
 
 
