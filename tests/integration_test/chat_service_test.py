@@ -5,6 +5,8 @@ import time
 from datetime import datetime, timedelta
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
+
+from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -1784,66 +1786,73 @@ def test_whatsapp_invalid_hub_signature():
     actual = response.json()
     assert actual == "not validated"
 
+@pytest.mark.asyncio
+async def _mock_check_live_agent_active(*args, **kwargs):
+    return False
+
 
 @responses.activate
 def test_whatsapp_valid_text_message_request():
-    def _mock_validate_hub_signature(*args, **kwargs):
+    async def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
     responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
 
-    with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        response = client.post(
-            f"/api/bot/whatsapp/{bot}/{token}",
-            headers={"hub.verify_token": "valid"},
-            json={
-                "object": "whatsapp_business_account",
-                "entry": [
-                    {
-                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                        "changes": [
-                            {
-                                "value": {
-                                    "messaging_product": "whatsapp",
-                                    "metadata": {
-                                        "display_phone_number": "910123456789",
-                                        "phone_number_id": "12345678",
-                                    },
-                                    "contacts": [
-                                        {
-                                            "profile": {"name": "udit"},
-                                            "wa_id": "wa-123456789",
-                                        }
-                                    ],
-                                    "messages": [
-                                        {
-                                            "from": "910123456789",
-                                            "id": "wappmsg.ID",
-                                            "timestamp": "21-09-2022 12:05:00",
-                                            "text": {"body": "hi"},
-                                            "type": "text",
-                                        }
-                                    ],
-                                },
-                                "field": "messages",
-                            }
-                        ],
-                    }
-                ],
-            },
-        )
-    time.sleep(10)
 
-    actual = response.json()
-    assert actual == "success"
-    assert (
-        MeteringProcessor.get_metric_count(
-            user["account"], metric_type=MetricType.prod_chat, channel_type="whatsapp"
+    with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
+
+        with patch.object(
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+        ):
+            response = client.post(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "910123456789",
+                                            "phone_number_id": "12345678",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "udit"},
+                                                "wa_id": "wa-123456789",
+                                            }
+                                        ],
+                                        "messages": [
+                                            {
+                                                "from": "910123456789",
+                                                "id": "wappmsg.ID",
+                                                "timestamp": "21-09-2022 12:05:00",
+                                                "text": {"body": "hi"},
+                                                "type": "text",
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+        time.sleep(10)
+
+        actual = response.json()
+        assert actual == "success"
+        assert (
+            MeteringProcessor.get_metric_count(
+                user["account"], metric_type=MetricType.prod_chat, channel_type="whatsapp"
+            )
+            > 0
         )
-        > 0
-    )
 
 
 @responses.activate
@@ -3611,43 +3620,45 @@ def test_instagram_comment():
         "POST", f"https://graph.facebook.com/v2.12/me/messages?access_token={access_token}", json={}
     )
 
-    with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
-        response = client.post(
-            f"/api/bot/instagram/{bot}/{token}",
-            headers={"hub.verify_token": "valid"},
-            json={
-                "entry": [
-                    {
-                        "id": "17841456706109718",
-                        "time": 1707144192,
-                        "changes": [
-                            {
-                                "value": {
-                                    "from": {
-                                        "id": "6489091794524304",
-                                        "username": "kairon_user_123"
-                                    },
-                                    "media": {
-                                        "id": "18013303267972611",
-                                        "media_product_type": "REELS"
-                                    },
-                                    "id": "18009764417219041",
-                                    "text": "Hi"
-                                },
-                                "field": "comments"
-                            }
-                        ]
-                    }
-                ],
-                "object": "instagram"
-            })
-        time.sleep(5)
 
-        actual = response.json()
-        print(f"Actual response for instagram is {actual}")
-        assert actual == 'success'
-        assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
-                                                  channel_type="instagram") > 0
+    with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
+        with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = client.post(
+                f"/api/bot/instagram/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "entry": [
+                        {
+                            "id": "17841456706109718",
+                            "time": 1707144192,
+                            "changes": [
+                                {
+                                    "value": {
+                                        "from": {
+                                            "id": "6489091794524304",
+                                            "username": "kairon_user_123"
+                                        },
+                                        "media": {
+                                            "id": "18013303267972611",
+                                            "media_product_type": "REELS"
+                                        },
+                                        "id": "18009764417219041",
+                                        "text": "Hi"
+                                    },
+                                    "field": "comments"
+                                }
+                            ]
+                        }
+                    ],
+                    "object": "instagram"
+                })
+            time.sleep(5)
+
+            actual = response.json()
+            print(f"Actual response for instagram is {actual}")
+            assert actual == 'success'
+            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                                      channel_type="instagram") > 0
 
 
 @responses.activate
@@ -3655,43 +3666,53 @@ def test_instagram_comment_with_parent_comment():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
-        response = client.post(
-            f"/api/bot/instagram/{bot}/{token}",
-            headers={"hub.verify_token": "valid"},
-            json={
-                "entry": [
-                    {
-                        "id": "17841456706109718",
-                        "time": 1707144192,
-                        "changes": [
-                            {
-                                "value": {
-                                    "from": {
-                                        "id": "6489091794524304",
-                                        "username": "_hdg_photography"
-                                    },
-                                    "media": {
-                                        "id": "18013303267972611",
-                                        "media_product_type": "REELS"
-                                    },
-                                    "id": "18009764417219042",
-                                    "parent_id": "18009764417219041",
-                                    "text": "Hi"
-                                },
-                                "field": "comments"
-                            }
-                        ]
-                    }
-                ],
-                "object": "instagram"
-            })
 
-        actual = response.json()
-        print(f"Actual response for instagram is {actual}")
-        assert actual == 'success'
-        assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
-                                                  channel_type="instagram") > 0
+    with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
+        with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            responses.add(
+                "GET",
+                json={"data": {"status": False}},
+                url=f"{Utility.environment['live_agent']['url']}/conversation/status/*"
+
+            )
+
+            response = client.post(
+                f"/api/bot/instagram/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "entry": [
+                        {
+                            "id": "17841456706109718",
+                            "time": 1707144192,
+                            "changes": [
+                                {
+                                    "value": {
+                                        "from": {
+                                            "id": "6489091794524304",
+                                            "username": "_hdg_photography"
+                                        },
+                                        "media": {
+                                            "id": "18013303267972611",
+                                            "media_product_type": "REELS"
+                                        },
+                                        "id": "18009764417219042",
+                                        "parent_id": "18009764417219041",
+                                        "text": "Hi"
+                                    },
+                                    "field": "comments"
+                                }
+                            ]
+                        }
+                    ],
+                    "object": "instagram"
+                })
+
+
+            actual = response.json()
+            print(f"Actual response for instagram is {actual}")
+            assert actual == 'success'
+            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                                      channel_type="instagram") > 0
 
 
 def test_chat_when_botownerchanged():
