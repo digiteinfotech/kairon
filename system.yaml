@@ -1,6 +1,9 @@
+env: test
 database:
   url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
+
+
 
 app:
   server_url: ${APP_SERVER_URL:"http://localhost:8000"}
