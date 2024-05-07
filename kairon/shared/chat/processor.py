@@ -31,7 +31,8 @@ class ChatDataProcessor:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
             channel.config = configuration['config']
-            primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get('is_primary') else False
+            primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get(
+                'is_primary') else False
         except DoesNotExist:
             channel = Channels(**configuration)
         channel.bot = bot
