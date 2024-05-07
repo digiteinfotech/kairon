@@ -1,11 +1,9 @@
-env: prod
 database:
   url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
 app:
   server_url: ${APP_SERVER_URL:"http://localhost:8000"}
-  frontend_url: ${FRONTEND_URL:"http://localhost:3000"}
   enable_sso_only: ${ENABLE_SSO_ONLY:false}
 
 user:
@@ -76,7 +74,6 @@ model:
       - kairon.shared.nlu.classifier.openai.OpenAIClassifier
       - kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
 
-
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
   request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:1}
@@ -105,8 +102,10 @@ live_agent:
 
 apm:
   enable: ${ENABLE_APM:false}
+  apm_server_url: ${APM_SERVER_URL}
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
   env_type: ${KAIRON_ENV_TYPE:"development"}
+  secret_token: ${APM_SECRET_TOKEN}
 
 history_server:
   url: ${KAIRON_HISTORY_SERVER_URL:"http://localhost:8083/"}
@@ -117,12 +116,12 @@ history_server:
 
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
-  server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8800/events/"}
+  server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8082/events/"}
 
 events:
-  server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5056"}
+  server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}
   executor:
-    type: ${EVENTS_EXECUTOR_TYPE:dramatiq}
+    type: ${EVENTS_EXECUTOR_TYPE}
     region: ${EVENTS_EXECUTOR_REGION}
     timeout: ${EVENTS_EXECUTOR_TIMEOUT_MINUTES:60}
   queue:

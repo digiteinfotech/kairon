@@ -1,12 +1,10 @@
-env: test
 database:
-  url: ${DATABASE_URL:"mongodb://localhost/test"}
+  url: ${DATABASE_URL:"mongomock://localhost/test"}
   test_db: ${TEST_DB:"test_conversations"}
-  load_test: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
+  load_test: ${DATABASE_URL:"mongomock://localhost:27017/conversations"}
 
 app:
   server_url: ${APP_SERVER_URL:"http://testserver"}
-  frontend_url: ${FRONTEND_URL:"http://localhost:3000"}
   enable_sso_only: ${ENABLE_SSO_ONLY:false}
 
 user:
@@ -103,8 +101,10 @@ live_agent:
 
 apm:
   enable: ${ENABLE_APM:false}
+  apm_server_url: ${APM_SERVER_URL}
   service_name: ${APM_APPLICATION_NAME:"Kairon"}
   env_type: ${KAIRON_ENV_TYPE:"development"}
+  secret_token: ${APM_SECRET_TOKEN}
 
 history_server:
   url: ${KAIRON_HISTORY_SERVER_URL:"http://localhost:8083"}

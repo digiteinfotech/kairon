@@ -3,8 +3,7 @@ from typing import Text
 
 from loguru import logger as logging
 from rasa.core.agent import Agent
-from rasa.core.channels import UserMessage
-from kairon.shared.otel import record_custom_attributes
+from rasa.core.lock_store import LockStore
 
 from kairon.shared.chat.cache.in_memory_agent import AgentCache
 from kairon.exceptions import AppException
@@ -13,6 +12,8 @@ from .agent.agent import KaironAgent
 from kairon.shared.chat.cache.in_memory_agent import InMemoryAgentCache
 from ..shared.live_agent.live_agent import LiveAgentHandler
 from ..shared.utils import Utility
+from kairon.shared.otel import record_custom_attributes
+
 
 
 class AgentProcessor:
