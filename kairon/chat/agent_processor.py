@@ -3,7 +3,7 @@ from typing import Text
 
 from loguru import logger as logging
 from rasa.core.agent import Agent
-from rasa.core.lock_store import LockStore
+from rasa.core.channels import UserMessage
 
 from kairon.shared.chat.cache.in_memory_agent import AgentCache
 from kairon.exceptions import AppException
