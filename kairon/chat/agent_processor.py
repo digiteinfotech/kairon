@@ -74,7 +74,7 @@ class AgentProcessor:
     @staticmethod
     async def handle_channel_message(bot: Text, userdata: UserMessage):
         is_live_agent_enabled = await LiveAgentHandler.check_live_agent_active(bot, userdata)
-        logging.debug(f"Live agent enabled:{is_live_agent_enabled}")
+        print(is_live_agent_enabled)
         if not is_live_agent_enabled:
             return await AgentProcessor.get_agent(bot).handle_message(userdata)
         return await LiveAgentHandler.process_live_agent(bot, userdata)
