@@ -125,7 +125,7 @@ class Whatsapp:
 
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):
-        await AgentProcessor.get_agent(bot).handle_message(user_message)
+        await AgentProcessor.handle_channel_message(bot, user_message)
 
     def __get_access_token(self):
         provider = self.config.get("bsp_type", "meta")

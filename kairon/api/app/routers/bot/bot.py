@@ -26,7 +26,7 @@ from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
-    VIEW_ACCESS, EventClass
+    VIEW_ACCESS, EventClass, AGENT_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
@@ -41,6 +41,8 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import User, TemplateType
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
+from kairon.shared.live_agent.live_agent import LiveAgentHandler
+
 
 router = APIRouter()
 v2 = APIRouter()
@@ -1655,3 +1657,13 @@ async def update_bot_settings(
     """Updates bot settings"""
     MongoProcessor.edit_bot_settings(bot_settings.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Bot Settings updated')
+
+
+@router.get("/live_agent_token", response_model=Response)
+async def get_live_agent_token(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=AGENT_ACCESS)):
+    """
+    Fetches existing list of stories (conversation flows)
+    """
+    data = await LiveAgentHandler.authenticate_agent(current_user.get_user(), current_user.get_bot())
+    return Response(data=data)
+

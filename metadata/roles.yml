@@ -20,6 +20,7 @@ roles:
       manageQnaStories: true
       broadcast: true
       customAnalytics: true
+      liveAgent: true
     pages:
       chatbots:
         renameBot: true
@@ -108,6 +109,8 @@ roles:
         list: true
         delete: true
         viewLogs: true
+      liveAgent:
+        chatView: true
 
   admin:
     menu:
@@ -130,6 +133,7 @@ roles:
       manageQnaStories: true
       broadcast: true
       customAnalytics: true
+      liveAgent: true
     pages:
       chatbots:
         renameBot: false
@@ -218,6 +222,8 @@ roles:
         list: true
         delete: true
         viewLogs: true
+      liveAgent:
+        chatView: true
 
   designer:
     menu:
@@ -240,6 +246,7 @@ roles:
       manageQnaStories: true
       broadcast: true
       customAnalytics: true
+      liveAgent: false
     pages:
       chatbots:
         renameBot: false
@@ -328,6 +335,8 @@ roles:
         list: true
         delete: true
         viewLogs: true
+      liveAgent:
+        chatView: false
 
   tester:
     menu:
@@ -350,6 +359,7 @@ roles:
       manageQnaStories: true
       broadcast: false
       customAnalytics: true
+      liveAgent: false
     pages:
       chatbots:
         renameBot: false
@@ -438,6 +448,123 @@ roles:
         list: false
         delete: false
         viewLogs: true
+      liveAgent:
+        chatView: false
+
+  agent:
+    menu:
+      chatbots: true
+      common: false
+      conversations: true
+      components: true
+      advancedConfigurations: false
+      trainingHistory: true
+      modelConfiguration: true
+      configureClient: true
+      configureTelemetry: false
+      configureNudge: false
+      integrations: false
+      administration: false
+      chatHistory: true
+      analytics: true
+      logs: true
+      generateStories: false
+      manageQnaStories: true
+      broadcast: false
+      customAnalytics: true
+      liveAgent: true
+    pages:
+      chatbots:
+        renameBot: false
+        deleteBot: false
+      common:
+        trainBot: false
+        testBot: true
+      conversations:
+        add: false
+        update: false
+        view: true
+        delete: false
+      components:
+        add: false
+        update: false
+        view: true
+        delete: false
+      advancedConfigurations:
+        uploadFiles: false
+        fileDownload: false
+        modelDownload: false
+        dataValidationLogs: true
+      trainingHistory:
+        reloadModel: true
+        testModel: false
+        viewModelTrainingLogs: true
+        viewModelTestingLogs: true
+        modelTestingResults: true
+      modelConfiguration:
+        applyTemplate: false
+      configureClient:
+        save: false
+        get: true
+        generate: false
+      configureTelemetry:
+        save: false
+        get: true
+      configureNudge:
+        save: false
+        get: true
+      integrations:
+        get: false
+        save: false
+        getEndpoint: false
+      administration:
+        addIntegrationToken: false
+        updateIntegrationToken: false
+        revokeIntegrationToken: false
+        getIntegrationToken: false
+        addActionServerUrl: false
+        updateActionServerUrl: false
+        addHistoryServerUrl: false
+        updateHistoryServerUrl: false
+        addMember: false
+        updateMember: false
+        getMember: true
+        deleteMember: false
+        transferOwnership: false
+        addSecret: false
+        updateSecret: false
+        getSecret: false
+        deleteSecret: false
+        addCustomWidget: false
+        deleteCustomWidget: false
+        updateCustomWidget: false
+      chatHistory:
+        viewHistory: true
+        deleteHistory: false
+        downloadHistory: false
+        viewDeletionLogs: false
+      dataValidationLogs:
+        viewLogs: true
+        validateExistingData: false
+      modelTestingLogs:
+        viewLogs: true
+        testModel: false
+      manageQnaStories:
+        add: false
+        edit: false
+        delete: false
+        augment: false
+        download: false
+      broadcast:
+        add: false
+        edit: false
+        list: false
+        delete: false
+        viewLogs: true
+      liveAgent:
+        chatView: true
+
+
 
   view:
     menu:
@@ -460,6 +587,7 @@ roles:
       manageQnaStories: false
       broadcast: false
       customAnalytics: true
+      liveAgent: false
     pages:
       chatbots:
         renameBot: false
@@ -548,3 +676,5 @@ roles:
         list: false
         delete: false
         viewLogs: false
+      liveAgent:
+        chatView: false

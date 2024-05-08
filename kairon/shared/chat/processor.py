@@ -31,7 +31,8 @@ class ChatDataProcessor:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
             channel.config = configuration['config']
-            primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get('is_primary') else False
+            primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get(
+                'is_primary') else False
         except DoesNotExist:
             channel = Channels(**configuration)
         channel.bot = bot
@@ -54,6 +55,9 @@ class ChatDataProcessor:
                 configuration['config']['team'] = Utility.get_slack_team_info(auth_token)
             filter_args["config__team__id"] = configuration['config']['team']['id']
         return filter_args
+
+    def __getattribute__(self, __name):
+        return super().__getattribute__(__name)
 
     @staticmethod
     def delete_channel_config(bot: Text, **kwargs):

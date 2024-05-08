@@ -79,7 +79,7 @@ from kairon.shared.actions.data_objects import (
     DbQuery,
     PyscriptActionConfig,
     WebSearchAction,
-    UserQuestion,
+    UserQuestion, LiveAgentActionConfig,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -158,6 +158,7 @@ from ..cognition.data_objects import CognitionSchema
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
+from ..live_agent.live_agent import LiveAgentHandler
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 
@@ -1253,8 +1254,8 @@ class MongoProcessor:
         new_mappings = mappings.copy()
         for mapping in new_mappings:
             if (
-                mapping.get(MAPPING_TYPE) == SlotMappingType.FROM_ENTITY.value
-                and mapping.get("entity") == slot_name
+                    mapping.get(MAPPING_TYPE) == SlotMappingType.FROM_ENTITY.value
+                    and mapping.get("entity") == slot_name
             ):
                 auto_fill = True
                 break
@@ -1439,6 +1440,11 @@ class MongoProcessor:
             ),
             StoryStepType.web_search_action.value: dict(
                 WebSearchAction.objects(bot=bot, status=True).values_list("name", "id")
+            ),
+            StoryStepType.two_stage_fallback_action.value: dict(
+                LiveAgentActionConfig.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
             ),
         }
         return component_dict
@@ -3842,9 +3848,6 @@ class MongoProcessor:
         :param bot: bot id
         :return: VectorDb configuration id for updated VectorDb action config
         """
-        bot_settings = MongoProcessor.get_bot_settings(bot=bot, user=user)
-        if not bot_settings['llm_settings']["enable_faq"]:
-            raise AppException("Faq feature is disabled for the bot! Please contact support.")
 
         if not Utility.is_exist(
             DatabaseAction,
@@ -3884,9 +3887,6 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
-        bot_settings = MongoProcessor.get_bot_settings(bot=bot, user=user)
-        if not bot_settings['llm_settings']["enable_faq"]:
-            raise AppException("Faq feature is disabled for the bot! Please contact support.")
         self.__validate_payload(vector_db_action_config.get("payload"), bot)
         Utility.is_valid_action_name(
             vector_db_action_config.get("name"), bot, DatabaseAction
@@ -3901,7 +3901,7 @@ class MongoProcessor:
         action_id = (
             DatabaseAction(
                 name=vector_db_action_config["name"],
-                collection=vector_db_action_config['collection'],
+            collection=vector_db_action_config['collection'],
                 query_type=vector_db_action_config.get("query_type"),
                 payload=DbQuery(**vector_db_action_config.get("payload")),
                 response=HttpActionResponse(
@@ -6008,7 +6008,7 @@ class MongoProcessor:
         """
         try:
             if not Utility.is_exist(
-                Slots, raise_error=False, name=mapping["slot"], bot=bot, status=True
+                    Slots, raise_error=False, name=mapping["slot"], bot=bot, status=True
             ):
                 raise AppException(f'Slot with name \'{mapping["slot"]}\' not found')
             slot_mapping = SlotMapping.objects(
@@ -6033,7 +6033,7 @@ class MongoProcessor:
         :return: document id of the mapping
         """
         if not Utility.is_exist(
-            Slots, raise_error=False, name=mapping["slot"], bot=bot, status=True
+                Slots, raise_error=False, name=mapping["slot"], bot=bot, status=True
         ):
             raise AppException(f'Slot with name "{mapping["slot"]}" not found')
         form_name = None
@@ -6051,7 +6051,7 @@ class MongoProcessor:
             mapping=mapping["mapping"],
             bot=bot,
             user=user,
-            form_name= form_name,
+            form_name=form_name,
         )
 
         return slot_mapping.save().id.__str__()
@@ -6073,8 +6073,6 @@ class MongoProcessor:
         except Exception as e:
             raise AppException(e)
 
-
-
     def delete_single_slot_mapping(self, slot_mapping_id: str):
         """
         Delete slot mapping.
@@ -6087,10 +6085,6 @@ class MongoProcessor:
         except Exception as e:
             raise AppException(e)
 
-
-
-
-
     def __prepare_slot_mappings(self, bot: Text):
         """
         Fetches existing slot mappings.
@@ -6102,7 +6096,7 @@ class MongoProcessor:
         for mapping in mappings:
             yield {mapping["slot"]: mapping["mapping"]}
 
-    def get_slot_mappings(self, bot: Text, form: Text = None, include_id = False):
+    def get_slot_mappings(self, bot: Text, form: Text = None, include_id=False):
         """
         Fetches existing slot mappings.
 
@@ -7580,3 +7574,56 @@ class MongoProcessor:
             action.pop("user")
 
             yield action
+
+    def get_live_agent(self, bot: Text):
+        try:
+            live_agent = LiveAgentActionConfig.objects(bot=bot, status=True).get()
+            live_agent = live_agent.to_mongo().to_dict()
+            live_agent.pop("_id")
+            live_agent.pop("bot")
+            live_agent.pop("user")
+            live_agent.pop("status")
+            live_agent.pop("timestamp")
+            return live_agent
+        except:
+            return []
+
+    def enable_live_agent(self, request_data: dict, bot: Text, user: Text):
+        action_name = "live_agent_action"
+        enabled = False
+        if not Utility.is_exist(
+            Actions,
+            name__iexact=action_name,
+            type=ActionType.live_agent_action.value,
+            bot=bot,
+            status=True,
+            raise_error=False
+        ):
+            self.add_action(
+                action_name,
+                bot,
+                user,
+                raise_exception=False,
+                action_type=ActionType.live_agent_action.value,
+            )
+            enabled = True
+        if not Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, user=user):
+            live_agent = LiveAgentActionConfig(**request_data, bot=bot, user=user, status=True)
+            live_agent.save()
+
+        return enabled
+
+    def edit_live_agent(self, request_data: dict, bot: Text, user: Text):
+        live_agent = LiveAgentActionConfig.objects(bot=bot, user=user).update(
+            set__bot_response=request_data.get('bot_response'),
+            set__dispatch_bot_response=request_data.get('dispatch_bot_response')
+        )
+        if not live_agent:
+            raise AppException("Live agent not enabled for the bot")
+
+    def disable_live_agent(self, bot: Text):
+        Utility.hard_delete_document([Actions], bot, name__iexact="live_agent_action")
+        Utility.hard_delete_document([LiveAgentActionConfig], bot=bot)
+
+    def is_live_agent_enabled(self, bot: Text):
+        return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)

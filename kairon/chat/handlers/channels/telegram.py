@@ -260,7 +260,7 @@ class TelegramHandler(InputChannel, ChannelHandlerBase):
 
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):
-        await AgentProcessor.get_agent(bot).handle_message(user_message)
+        await AgentProcessor.handle_channel_message(bot, user_message)
 
     @staticmethod
     def get_output_channel(access_token, webhook_url) -> TelegramOutput:

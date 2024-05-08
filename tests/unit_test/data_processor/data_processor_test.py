@@ -982,6 +982,85 @@ class TestMongoProcessor:
         user = 'test_user'
         with pytest.raises(AppException, match=f'Action with name "non_existent_kairon_faq_action" not found'):
             processor.delete_action('non_existent_kairon_faq_action', bot, user)
+    
+    def test_get_live_agent(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        live_agent = processor.get_live_agent(bot=bot)
+        assert live_agent == []
+    
+    def test_enable_live_agent(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request_data = {
+            "bot_response": "connecting to live agent",
+            "dispatch_bot_response": False,
+        }
+        result = processor.enable_live_agent(request_data=request_data, bot=bot, user=user)
+        assert result is True
+
+    def test_get_live_agent_after_enabled(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        live_agent = processor.get_live_agent(bot=bot)
+        print(live_agent)
+        assert live_agent == {'name': 'live_agent_action',
+                              'bot_response': 'connecting to live agent',
+                              'dispatch_bot_response': False}
+
+    def test_enable_live_agent_already_exist(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request_data = {
+            "bot_response": "connecting to live agent",
+            "dispatch_bot_response": False,
+        }
+        result = processor.enable_live_agent(request_data=request_data, bot=bot, user=user)
+        assert result is False
+    
+    def test_edit_live_agent(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request_data = {
+            "bot_response": "connecting to different live agent...",
+            "dispatch_bot_response": True,
+        }
+        result = processor.edit_live_agent(request_data=request_data, bot=bot, user=user)
+
+        live_agent = processor.get_live_agent(bot=bot)
+        print(live_agent)
+        assert live_agent == {'name': 'live_agent_action',
+                              'bot_response': 'connecting to different live agent...',
+                              'dispatch_bot_response': True}
+
+    def test_disable_live_agent(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request_data = {
+            "bot_response": "connecting to different live agent...",
+            "dispatch_bot_response": True,
+        }
+        result = processor.disable_live_agent(bot=bot)
+
+        live_agent = processor.get_live_agent(bot=bot)
+        assert live_agent == []
+
+    def test_edit_live_agent_does_not_exist(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request_data = {
+            "bot_response": "connecting to different live agent...",
+            "dispatch_bot_response": True,
+        }
+        with pytest.raises(AppException, match=f'Live agent not enabled for the bot'):
+            result = processor.edit_live_agent(request_data=request_data, bot=bot, user=user)
 
     def test_auditlog_event_config_does_not_exist(self):
         result = MongoProcessor.get_auditlog_event_config("nobot")
@@ -10837,7 +10916,7 @@ class TestMongoProcessor:
             'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
-            'database_action': [], 'pyscript_action': [], 'web_search_action': []
+            'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -10860,7 +10939,7 @@ class TestMongoProcessor:
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
-            'pyscript_action': [], 'web_search_action': []
+            'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []
         }
 
     def test_add_complex_story(self):
@@ -10885,7 +10964,7 @@ class TestMongoProcessor:
                                       'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                                       'kairon_bot_response': [],
                                       'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
-                                      'database_action': [], 'pyscript_action': [], 'web_search_action': [],
+                                      'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
                                       'utterances': ['utter_greet',
                                                      'utter_cheer_up',
                                                      'utter_did_that_help',
@@ -12658,7 +12737,7 @@ class TestMongoProcessor:
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
-            'pyscript_action': [], 'web_search_action': [],
+            'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
             'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
                            'utter_please_rephrase'], 'web_search_action': []}, ignore_order=True)
 
@@ -12767,7 +12846,7 @@ class TestMongoProcessor:
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
-            'database_action': [], 'pyscript_action': [], 'web_search_action': [],
+            'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',

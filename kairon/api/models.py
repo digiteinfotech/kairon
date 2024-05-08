@@ -472,6 +472,11 @@ class DatabaseActionRequest(BaseModel):
         return v
 
 
+class LiveAgentActionRequest(BaseModel):
+    bot_response: str = "connecting to live agent"
+    dispatch_bot_response: bool = True
+
+
 class TrainingData(BaseModel):
     intent: constr(to_lower=True, strip_whitespace=True)
     training_examples: List[str]

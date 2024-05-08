@@ -282,6 +282,12 @@ class ChatUtils:
         metadata.update(default_metadata)
         return metadata
 
+
+
+
+
+
+
     @staticmethod
     def add_telemetry_metadata(x_telemetry_uid: Text, x_telemetry_sid: Text, metadata: Dict = None):
         if not metadata:

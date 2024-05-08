@@ -19,7 +19,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
+    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
@@ -55,6 +55,227 @@ def test_index():
     assert result["message"] == "Kairon Action Server Up and Running"
 
 
+def test_live_agent_action_execution(aioresponses):
+    action_name = "live_agent_action"
+    Actions(name=action_name, type=ActionType.live_agent_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    LiveAgentActionConfig(
+        name="live_agent_action",
+        bot_response="Connecting to live agent",
+        dispatch_bot_response=True,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    aioresponses.add(
+        method="POST",
+        url=f"{Utility.environment['live_agent']['url']}/conversation/request",
+        payload={"success": True, "data": "live agent connected", "message": None, "error_code": 0},
+        body={'bot_id': '5f50fd0a56b698ca10d35d2z', 'sender_id': 'default', 'channel': 'messenger'},
+        status=200
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'live_agent_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": "facebook",
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": "facebook", "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json['responses']) == 1
+    assert response_json['responses'][0]['text'] == 'Connecting to live agent'
+    log = ActionServerLogs.objects(action="live_agent_action").get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    print(log)
+    assert log == {'type': 'live_agent_action', 'intent': 'live_agent_action', 'action': 'live_agent_action',
+                   'sender': 'default', 'headers': {}, 'bot_response': 'Connecting to live agent', 'messages': [],
+                   'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+
+
+def test_live_agent_action_execution_with_exception(aioresponses):
+    action_name = "test_live_agent_action_execution_with_exception"
+    Actions(name=action_name, type=ActionType.live_agent_action.value,
+            bot="5f50fd0a56b698ca10d35d21", user="user").save()
+    LiveAgentActionConfig(
+        name="live_agent_action",
+        bot_response="Connecting to live agent",
+        dispatch_bot_response=True,
+        bot="5f50fd0a56b698ca10d35d21",
+        user="user"
+    ).save()
+
+    aioresponses.add(
+        method="POST",
+        url=f"{Utility.environment['live_agent']['url']}/conversation/request",
+        payload={"success": False, "data": None, "message": "invalid request body", "error_code": 422},
+        body={'bot_id': '5f50fd0a56b698ca10d35d2z', 'sender_id': 'default', 'channel': 'invalid'},
+        status=400
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d21", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'live_agent_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": "facebook",
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": "facebook", "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d21"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json['responses']) == 1
+    assert response_json['responses'][0]['text'] == 'Connecting to live agent'
+    assert response_json == {'events': [], 'responses': [{'text': 'Connecting to live agent', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+
+
+
 @responses.activate
 def test_pyscript_action_execution():
     import textwrap
@@ -82,22 +303,14 @@ def test_pyscript_action_execution():
         json={"success": True, "data": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
               "message": None, "error_code": 0},
-        match=[responses.matchers.json_params_matcher({'source_code': script,
-                                                       'predefined_objects': {'chat_log': [],
-                                                                              'intent': 'pyscript_action',
-                                                                              'kairon_user_msg': None, 'key_vault': {},
-                                                                              'latest_message': {'intent_ranking': [
-                                                                                  {'name': 'pyscript_action'}],
-                                                                                                 'text': 'get intents'},
-                                                                              'sender_id': 'default',
-                                                                              'session_started': None,
-                                                                              'slot': {
-                                                                                  'bot': '5f50fd0a56b698ca10d35d2z',
-                                                                                  'langauge': 'Kannada',
-                                                                                  'location': 'Bangalore'},
-                                                                              'user_message': 'get intents'}
+        match=[responses.matchers.json_params_matcher( {'source_code': script,
+                                                        'predefined_objects': {'chat_log': [], 'intent': 'pyscript_action',
+                                                        'kairon_user_msg': None, 'key_vault': {}, 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
+                                                        'sender_id': 'default', 'session_started': None,
+                                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'langauge': 'Kannada', 'location': 'Bangalore'},
+                                                           'user_message': 'get intents'}
 
-                                                       })]
+                                                        })]
     )
 
     request_object = {
@@ -223,7 +436,6 @@ def test_pyscript_action_execution_with_multiple_utterances():
     assert response_json['responses'][0]['custom'] == {'text': 'Hello!'}
     assert response_json['responses'][1]['text'] == 'How can I help you?'
 
-
 @responses.activate
 def test_pyscript_action_execution_with_multiple_integer_utterances():
     import textwrap
@@ -337,9 +549,7 @@ def test_pyscript_action_execution_with_bot_response_none():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                    'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                       'text': 'get intents'},
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -414,9 +624,7 @@ def test_pyscript_action_execution_with_type_json_bot_response_none():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                    'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                       'text': 'get intents'},
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -491,9 +699,7 @@ def test_pyscript_action_execution_with_type_json_bot_response_str():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                    'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                       'text': 'get intents'},
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -570,9 +776,7 @@ def test_pyscript_action_execution_with_other_type():
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                    'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                       'text': 'get intents'},
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -647,9 +851,7 @@ def test_pyscript_action_execution_with_slots_not_dict_type():
                                         "slots": "invalid slots values"}, "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                    'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                       'text': 'get intents'},
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -754,17 +956,15 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url(mock_trigger_l
         assert len(response_json['events']) == 3
         assert len(response_json['responses']) == 1
         assert response_json['events'] == [
-            {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
-            {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': "Successfully Evaluated the pyscript"}]
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': "Successfully Evaluated the pyscript"}]
         assert response_json['responses'][0]['text'] == "Successfully Evaluated the pyscript"
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == \
                {'source_code': script,
-                'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                       'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                          'text': 'get intents'},
+                'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                        'slot': {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore",
                                                 "langauge": "Kannada"},
                                        'intent': 'pyscript_action', 'chat_log': [], 'key_vault': {},
@@ -831,8 +1031,8 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exceptio
         assert len(response_json['events']) == 1
         assert len(response_json['responses']) == 1
         assert response_json['events'] == [
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': "I have failed to process your request"}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': "I have failed to process your request"}]
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         assert log['exception'] == "Failed to evaluated the pyscript"
 
@@ -867,9 +1067,7 @@ def test_pyscript_action_execution_with_error():
         "POST", Utility.environment['evaluator']['pyscript']['url'], callback=raise_custom_exception,
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                    'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                       'text': 'get intents'},
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -880,7 +1078,7 @@ def test_pyscript_action_execution_with_error():
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore",  "langauge": "Kannada"},
             "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
@@ -940,9 +1138,7 @@ def test_pyscript_action_execution_with_invalid_response():
               "error_code": 422},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
-             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                    'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                       'text': 'get intents'},
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents', 'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
                                     'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
                                              'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
                                     'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
@@ -984,8 +1180,7 @@ def test_pyscript_action_execution_with_invalid_response():
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': 'I have failed to process your request'}]
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-    assert log[
-               'exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
+    assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
 
 
 def test_http_action_execution(aioresponses):
@@ -2713,7 +2908,7 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2(aiorespo
     })
     aioresponses.add(
         method=responses.GET,
-        url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot",
         body=resp_msg,
         status=200
     )
@@ -2774,7 +2969,7 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2(aiorespo
     assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
          "value": "I have failed to process your request"},
-        {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200}, ]
+    {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200},]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
 
 

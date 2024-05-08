@@ -598,7 +598,8 @@ class TestChat:
             channel_url = ChatDataProcessor.save_channel_config({
                 "connector_type": "whatsapp", "config": {
                     "app_secret": "app123",
-                    "access_token": "appsecret123", "verify_token": "integrate_1"
+                    "access_token": "appsecret123", "verify_token": "integrate_1",
+                    "phone_number": "01234567890"
                 }}, bot, "test@chat.com")
             channel = Channels.objects(bot=bot, connector_type="whatsapp").get()
             response = DataUtility.get_channel_endpoint(channel)

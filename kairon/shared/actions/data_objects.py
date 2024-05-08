@@ -854,3 +854,30 @@ from mongoengine import signals
 signals.pre_save_post_validation.connect(
     HttpActionConfig.pre_save_post_validation, sender=HttpActionConfig
 )
+
+
+@auditlogger.log
+@push_notification.apply
+class LiveAgentActionConfig(Auditlog):
+    name = StringField(default='live_agent_action')
+    bot_response = StringField(default='Connecting to live agent')
+    dispatch_bot_response = BooleanField(default=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "action_name", "status")]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Action name cannot be empty or blank spaces")
+        if self.name.startswith("utter_"):
+            raise ValidationError("Action name cannot start with utter_")
+
+
