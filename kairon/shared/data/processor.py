@@ -3194,6 +3194,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.database_action.value
                     elif event['name'] in web_search_actions:
                         step["type"] = StoryStepType.web_search_action.value
+                    elif event['name'] == 'live_agent_action':
+                        step["type"] = StoryStepType.live_agent_action.value
                     elif str(event["name"]).startswith("utter_"):
                         step["type"] = StoryStepType.bot.value
                     else:

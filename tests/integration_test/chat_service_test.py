@@ -3736,3 +3736,57 @@ def test_chat_when_botownerchanged():
     assert not actual["error_code"]
     assert actual["data"]
     assert not actual["message"]
+
+
+
+@pytest.mark.asyncio
+async def _mock_check_live_agent_active_true(*args, **kwargs):
+    return True
+
+
+
+@responses.activate
+def test_channel_chat_when_live_agent_disabled():
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+    Utility.environment['live_agent']['enable'] = False
+    with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active_true):
+        with mock.patch('kairon.shared.live_agent.live_agent.LiveAgentHandler.process_live_agent') as mock_process_live_agent:
+            with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
+
+
+                response = client.post(
+                    f"/api/bot/instagram/{bot}/{token}",
+                    headers={"hub.verify_token": "valid"},
+                    json={
+                        "entry": [
+                            {
+                                "id": "17841456706109718",
+                                "time": 1707144192,
+                                "changes": [
+                                    {
+                                        "value": {
+                                            "from": {
+                                                "id": "6489091794524304",
+                                                "username": "_hdg_photography"
+                                            },
+                                            "media": {
+                                                "id": "18013303267972611",
+                                                "media_product_type": "REELS"
+                                            },
+                                            "id": "18009764417219042",
+                                            "parent_id": "18009764417219041",
+                                            "text": "Hi"
+                                        },
+                                        "field": "comments"
+                                    }
+                                ]
+                            }
+                        ],
+                        "object": "instagram"
+                    })
+
+
+                actual = response.json()
+
+                mock_process_live_agent.assert_not_called()

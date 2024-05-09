@@ -10,7 +10,14 @@ logger = logging.getLogger(__name__)
 class LiveAgentHandler:
 
     @staticmethod
+    def is_live_agent_service_enabled():
+        v = Utility.environment.get('live_agent', {}).get('enable', False)
+        print(f"live agent {v}")
+        return v
+    @staticmethod
     async def request_live_agent(bot_id: str, sender_id: str, channel: str):
+        if not LiveAgentHandler.is_live_agent_service_enabled():
+            return None
         url = f"{Utility.environment['live_agent']['url']}/conversation/request"
         auth_token = Utility.environment['live_agent']['auth_token']
 
@@ -28,20 +35,24 @@ class LiveAgentHandler:
             raise Exception(res.get('message', "Failed to process request"))
         return res.get('data')
 
-
-    @staticmethod
-    async def close_conversation(identifier):
-        url = f"{Utility.environment['live_agent']['url']}/conversation/close/{identifier}"
-        headers = {
-            'Content-Type': 'application/json'
-        }
-        res, status, _ = await ActionUtility.execute_request_async(url, 'GET', None, headers)
-        if status != 200:
-            raise Exception(res.get('message', "Failed to process request"))
-        return res.get('data')
+    #
+    # @staticmethod
+    # async def close_conversation(identifier):
+    #     if not LiveAgentHandler.is_live_agent_service_enabled():
+    #         raise Exception("Live agent service is not enabled")
+    #     url = f"{Utility.environment['live_agent']['url']}/conversation/close/{identifier}"
+    #     headers = {
+    #         'Content-Type': 'application/json'
+    #     }
+    #     res, status, _ = await ActionUtility.execute_request_async(url, 'GET', None, headers)
+    #     if status != 200:
+    #         raise Exception(res.get('message', "Failed to process request"))
+    #     return res.get('data')
 
     @staticmethod
     async def process_live_agent(bot_id, userdata: UserMessage):
+        if not LiveAgentHandler.is_live_agent_service_enabled():
+            raise Exception("Live agent service is not enabled")
         text = userdata.text
         if text is None or text.strip() == "":
             return False
@@ -64,6 +75,8 @@ class LiveAgentHandler:
 
     @staticmethod
     async def check_live_agent_active(bot_id, userdata: UserMessage):
+        if not LiveAgentHandler.is_live_agent_service_enabled():
+            return False
         channel = userdata.output_channel.name()
         sender_id = userdata.sender_id
         url = f"{Utility.environment['live_agent']['url']}/conversation/status/{bot_id}/{channel}/{sender_id}"
