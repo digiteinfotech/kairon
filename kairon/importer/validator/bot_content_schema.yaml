@@ -1,0 +1,15 @@
+type: seq
+sequence:
+  - type: map
+    mapping:
+      collection:
+        required: true
+        type: str
+      data:
+        type: any
+      metadata:
+        required: true
+        type: any
+      type:
+        required: true
+        type: str
