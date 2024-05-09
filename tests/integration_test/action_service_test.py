@@ -3005,6 +3005,90 @@ def test_vectordb_action_execution_payload_search_from_user_message():
 
 
 @responses.activate
+@mock.patch.object(Qdrant, "_Qdrant__get_embedding", autospec=True)
+def test_vectordb_action_execution_payload_search_and_keyword_search_from_user_message(mock_embedding):
+    action_name = "test_vectordb_action_execution_payload_search_and_keyword_search_from_user_message"
+    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2a",
+            user="user").save()
+    payload_body = json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})
+    DatabaseAction(
+        name=action_name,
+        collection='test_vectordb_action_execution_payload_search_and_keyword_search_from_user_message',
+        query_type=DbActionOperationType.payload_and_keyword_search.value,
+        payload=DbQuery(type=DbQueryValueType.from_user_message.value, value=payload_body),
+        response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+        set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+        bot="5f50md0a56b698ca10d35d2a",
+        user="user"
+    ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2a", user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot="5f50md0a56b698ca10d35d2a", user="user").save()
+
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2a_test_vectordb_action_execution_payload_search_and_keyword_search_from_user_message_faq_embd/points/search'
+    resp_msg = json.dumps(
+        [{"id": 2, "city": "London", "color": "red"}]
+    )
+    json_params_matcher = {'text': json.dumps({"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})}
+    embedding = list(np.random.random(Qdrant.__embedding__))
+    mock_embedding.return_value = embedding
+    output = [{'id': 2, 'payload': {'city': 'London', 'color': 'Red'}, 'score': 1.0, 'vector': None, 'version': 0}]
+
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        body=resp_msg,
+        status=200,
+        # match=[responses.matchers.json_params_matcher(json_params_matcher)],
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50md0a56b698ca10d35d2a"},
+            "latest_message": {'text': payload_body, 'intent_ranking': [{'name': 'user_story'}],
+                               "entities": [{"value": payload_body, "entity": KAIRON_USER_MSG_ENTITY}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50md0a56b698ca10d35d2a"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'The value of London with color red is 2'}]
+    assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
+    log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2a').get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+
+
+@responses.activate
 def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
     action_name = "test_vectordb_action_execution_payload_search_from_user_message_in_slot"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2f",

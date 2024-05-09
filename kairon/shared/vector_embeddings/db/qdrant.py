@@ -63,3 +63,15 @@ class Qdrant(VectorEmbeddingsDbBase, ABC):
                                                                    request_method='POST',
                                                                    request_body=request_body)
         return payload_filter_result
+
+    async def payload_and_keyword_search(self, request_body: Dict):
+        url = urljoin(self.db_url, f"/collections/{self.collection_name}/points/search")
+        user_msg = request_body.pop("text")
+        vector = await self.__get_embedding(user_msg)
+        request_body.update({'vector': vector, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})
+
+        search_result = ActionUtility.execute_http_request(http_url=url,
+                                                           request_method='POST',
+                                                           headers=self.headers,
+                                                           request_body=request_body)
+        return search_result

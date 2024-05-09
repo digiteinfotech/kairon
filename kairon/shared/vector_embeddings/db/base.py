@@ -15,9 +15,14 @@ class VectorEmbeddingsDbBase(ABC):
     async def payload_search(self, request_body: Dict):
         raise NotImplementedError("Provider not implemented")
 
+    @abstractmethod
+    async def payload_and_keyword_search(self, request_body: Dict):
+        raise NotImplementedError("Provider not implemented")
+
     async def perform_operation(self, op_type: Text, request_body: Dict):
         supported_ops = {DbActionOperationType.payload_search.value: self.payload_search,
-                         DbActionOperationType.embedding_search.value: self.embedding_search}
+                         DbActionOperationType.embedding_search.value: self.embedding_search,
+                         DbActionOperationType.payload_and_keyword_search.value: self.payload_and_keyword_search}
         if op_type not in supported_ops.keys():
             raise AppException("Operation type not supported")
         return await supported_ops[op_type](request_body)
