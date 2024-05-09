@@ -1,7 +1,7 @@
 import os
 from typing import Text
 
-from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_BOT_CONTENT_PATH
+from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH
 from kairon.shared.data.constant import REQUIREMENTS
 from kairon.shared.data.processor import MongoProcessor
 from .validator.file_validator import TrainingDataValidator

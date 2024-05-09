@@ -1073,6 +1073,9 @@ class TrainingDataValidator(Validator):
                                     bot_content_errors.append("Invalid bot_content.yml. Collection with same name and "
                                                               "different metadata cannot be uploaded")
                                     break
+                        else:
+                            bot_content_errors.append("Invalid bot_content.yml. Collection with same name and "
+                                                      "different metadata cannot be uploaded")
 
         return bot_content_errors
 
