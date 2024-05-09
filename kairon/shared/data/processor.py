@@ -6,7 +6,7 @@ from collections import ChainMap
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Text, Dict, List
+from typing import Text, Dict, List, Any
 from urllib.parse import urljoin
 
 import networkx as nx
@@ -154,7 +154,7 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
-from ..cognition.data_objects import CognitionSchema
+from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
@@ -169,17 +169,18 @@ class MongoProcessor:
     """
 
     async def upload_and_save(
-        self,
-        nlu: File,
-        domain: File,
-        stories: File,
-        config: File,
-        rules: File,
-        http_action: File,
-        multiflow_stories: File,
-        bot: Text,
-        user: Text,
-        overwrite: bool = True,
+            self,
+            nlu: File,
+            domain: File,
+            stories: File,
+            config: File,
+            rules: File,
+            http_action: File,
+            multiflow_stories: File,
+            bot_content: File,
+            bot: Text,
+            user: Text,
+            overwrite: bool = True,
     ):
         """
         loads the training data into database
@@ -191,13 +192,14 @@ class MongoProcessor:
         :param http_action: http_actions data
         :param config: config data
         :param multiflow_stories: multiflow_stories data
+        :param bot_content: bot_content data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
         training_file_loc = await DataUtility.save_training_files(
-            nlu, domain, config, stories, rules, http_action, multiflow_stories
+            nlu, domain, config, stories, rules, http_action, multiflow_stories, bot_content
         )
         await self.save_from_path(training_file_loc["root"], bot, overwrite, user)
         Utility.delete_directory(training_file_loc["root"])
@@ -223,6 +225,7 @@ class MongoProcessor:
             rules = rules.merge(multiflow_stories[1])
         multiflow_stories = self.load_multiflow_stories_yaml(bot)
         actions = self.load_action_configurations(bot)
+        bot_content = self.load_bot_content(bot)
         return Utility.create_zip_file(
             nlu,
             domain,
@@ -233,6 +236,7 @@ class MongoProcessor:
             actions,
             multiflow_stories,
             chat_client_config,
+            bot_content
         )
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
@@ -272,6 +276,7 @@ class MongoProcessor:
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             actions_yml = os.path.join(path, "actions.yml")
             multiflow_stories_yml = os.path.join(path, "multiflow_stories.yml")
+            bot_content_yml = os.path.join(path, "bot_content.yml")
             importer = RasaFileImporter.load_from_config(
                 config_path=config_path,
                 domain_path=domain_path,
@@ -287,6 +292,11 @@ class MongoProcessor:
                 if multiflow_stories_yml
                 else None
             )
+            bot_content = (
+                Utility.read_yaml(bot_content_yml)
+                if bot_content_yml
+                else None
+            )
             TrainingDataValidator.validate_custom_actions(actions)
 
             self.save_training_data(
@@ -298,6 +308,7 @@ class MongoProcessor:
                 nlu,
                 actions,
                 multiflow_stories,
+                bot_content,
                 overwrite=overwrite,
                 what=REQUIREMENTS.copy() - {"chat_client_config"},
             )
@@ -306,18 +317,19 @@ class MongoProcessor:
             raise AppException(e)
 
     def save_training_data(
-        self,
-        bot: Text,
-        user: Text,
-        config: dict = None,
-        domain: Domain = None,
-        story_graph: StoryGraph = None,
-        nlu: TrainingData = None,
-        actions: dict = None,
-        multiflow_stories: dict = None,
-        chat_client_config: dict = None,
-        overwrite: bool = False,
-        what: set = REQUIREMENTS.copy(),
+            self,
+            bot: Text,
+            user: Text,
+            config: dict = None,
+            domain: Domain = None,
+            story_graph: StoryGraph = None,
+            nlu: TrainingData = None,
+            actions: dict = None,
+            multiflow_stories: dict = None,
+            bot_content: list = None,
+            chat_client_config: dict = None,
+            overwrite: bool = False,
+            what: set = REQUIREMENTS.copy(),
     ):
         if overwrite:
             self.delete_bot_data(bot, user, what)
@@ -338,6 +350,8 @@ class MongoProcessor:
             self.save_chat_client_config(chat_client_config, bot, user)
         if "multiflow_stories" in what:
             self.save_multiflow_stories(multiflow_stories, bot, user)
+        if "bot_content" in what:
+            self.save_bot_content(bot_content, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -365,6 +379,67 @@ class MongoProcessor:
         )
         multiflow = json.loads(multiflow)
         return {"multiflow_story": multiflow}
+
+    def load_bot_content(self, bot: Text):
+        doc = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
+        bot_content = []
+        if doc['llm_settings'].get('enable_faq'):
+            bot_content = self.__prepare_cognition_data_for_bot(bot)
+        return bot_content
+
+    def __prepare_cognition_data_for_bot(self, bot: Text) -> List[Dict[str, Any]]:
+        """
+        Aggregate cognition data for a specific bot.
+        This function queries the cognition schema database to get collections and metadata
+        for a particular bot, and then queries the cognition data database to fetch content_type
+        and data field values for each collection. It returns the aggregated data in the form
+        of a list of dictionaries, where each dictionary contains collection, type, metadata,
+        and data fields.
+        :param bot: The ID of the bot for which to aggregate data.
+        :return: A list of dictionaries containing aggregated data for the bot.
+        """
+        schema_results = CognitionSchema.objects(bot=bot).only("collection_name", "metadata")
+
+        formatted_result = []
+        for schema_result in schema_results:
+            collection_name = schema_result.collection_name
+            metadata = [{"column_name": meta.column_name,
+                         "data_type": meta.data_type,
+                         "enable_search": meta.enable_search,
+                         "create_embeddings": meta.create_embeddings}
+                        for meta in schema_result.metadata]
+
+            if not metadata:
+                type_value = "text"
+            else:
+                type_value = "json"
+
+            collection_data = {
+                "collection": collection_name,
+                "type": type_value,
+                "metadata": metadata,
+                "data": []
+            }
+
+            data_results = CognitionData.objects(bot=bot, collection=collection_name).only("content_type", "data")
+            for data_result in data_results:
+                collection_data["data"].append(data_result.data)
+
+            formatted_result.append(collection_data)
+
+        data_results_no_collection = CognitionData.objects(bot=bot, collection=None).only("content_type", "data")
+        default_collection_data = {
+            "collection": "Default",
+            "type": "text",
+            "metadata": [],
+            "data": []
+        }
+        for data_result in data_results_no_collection:
+            default_collection_data["data"].append(data_result.data)
+
+        formatted_result.append(default_collection_data)
+
+        return formatted_result
 
     def get_config_templates(self):
         """
@@ -401,6 +476,8 @@ class MongoProcessor:
             self.delete_bot_actions(bot, user)
         if "multiflow_stories" in what:
             self.delete_multiflow_stories(bot, user)
+        if "bot_content" in what:
+            self.delete_bot_content(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -553,6 +630,16 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([MultiflowStories], bot=bot)
 
+    def delete_bot_content(self, bot: Text, user: Text):
+        """
+        soft deletes stories
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.hard_delete_document([CognitionSchema], bot=bot)
+        Utility.hard_delete_document([CognitionData], bot=bot)
+
     def save_multiflow_stories(self, multiflow_stories: dict, bot: Text, user: Text):
         """
         saves multiflow stories data
@@ -565,6 +652,60 @@ class MongoProcessor:
             self.__save_multiflow_stories(
                 multiflow_stories["multiflow_story"], bot, user
             )
+
+    def __save_cognition_schema(self, bot_content: list, bot: Text, user: Text):
+        for data_item in bot_content:
+            if data_item['collection'] != 'Default':
+                existing_schema = CognitionSchema.objects(bot=bot, collection_name=data_item['collection']).first()
+                if not existing_schema:
+                    cognition_schema = CognitionSchema(
+                        metadata=[ColumnMetadata(**md) for md in data_item['metadata']],
+                        collection_name=data_item['collection'],
+                        user=user,
+                        bot=bot,
+                        timestamp=datetime.utcnow()
+                    )
+                    cognition_schema.save()
+
+    def __save_cognition_data(self, bot_content: list, bot: Text, user: Text):
+        for data_item in bot_content:
+
+            collection_name = data_item['collection']
+            if collection_name == 'Default':
+                collection_name = None
+
+            if data_item['type'] == 'text':
+                for text_data in data_item['data']:
+                    cognition_data = CognitionData(
+                        data=text_data,
+                        content_type='text',
+                        collection=collection_name,
+                        user=user,
+                        bot=bot
+                    )
+                    cognition_data.save()
+            elif data_item['type'] == 'json':
+                for json_data in data_item['data']:
+                    cognition_data = CognitionData(
+                        data=json_data,
+                        content_type='json',
+                        collection=collection_name,
+                        user=user,
+                        bot=bot
+                    )
+                    cognition_data.save()
+
+    def save_bot_content(self, bot_content: list, bot: Text, user: Text):
+        """
+        saves bot content data
+        :param bot_content: bot content data
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if bot_content:
+            self.__save_cognition_schema(bot_content, bot, user)
+            self.__save_cognition_data(bot_content, bot, user)
 
     def load_linear_flows_from_multiflow_stories(
         self, bot: Text

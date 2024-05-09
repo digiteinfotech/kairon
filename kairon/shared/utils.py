@@ -1108,14 +1108,15 @@ class Utility:
 
     @staticmethod
     def write_training_data(
-        nlu,
-        domain,
-        config: dict,
-        stories,
-        rules=None,
-        actions: dict = None,
-        chat_client_config: dict = None,
-        multiflow_stories: dict = None,
+            nlu,
+            domain,
+            config: dict,
+            stories,
+            rules=None,
+            actions: dict = None,
+            chat_client_config: dict = None,
+            multiflow_stories: dict = None,
+            bot_content: list = None,
     ):
         """
         convert mongo data  to individual files
@@ -1128,6 +1129,7 @@ class Utility:
         :param rules: rules data
         :param actions: action configuration data
         :param multiflow_stories: multiflow_stories configurations
+        :param bot_content: bot content
         :return: files path
         """
         from rasa.shared.core.training_data.story_writer.yaml_story_writer import (
@@ -1151,7 +1153,7 @@ class Utility:
         actions_path = os.path.join(temp_path, "actions.yml")
         chat_client_config_path = os.path.join(temp_path, "chat_client_config.yml")
         multiflow_stories_config_path = os.path.join(temp_path, "multiflow_stories.yml")
-
+        bot_content_path = os.path.join(temp_path, "bot_content.yml")
         nlu_as_str = nlu.nlu_as_yaml().encode()
         config_as_str = yaml.dump(config).encode()
 
@@ -1176,19 +1178,24 @@ class Utility:
             Utility.write_to_file(
                 multiflow_stories_config_path, multiflow_stories_as_str
             )
+        bot_content_as_str = yaml.dump(bot_content).encode()
+        Utility.write_to_file(
+            bot_content_path, bot_content_as_str
+        )
         return temp_path
 
     @staticmethod
     def create_zip_file(
-        nlu,
-        domain,
-        stories,
-        config: Dict,
-        bot: Text,
-        rules=None,
-        actions: Dict = None,
-        multiflow_stories: Dict = None,
-        chat_client_config: Dict = None,
+            nlu,
+            domain,
+            stories,
+            config: Dict,
+            bot: Text,
+            rules=None,
+            actions: Dict = None,
+            multiflow_stories: Dict = None,
+            chat_client_config: Dict = None,
+            bot_content: List = None,
     ):
         """
         adds training files to zip
@@ -1202,6 +1209,7 @@ class Utility:
         :param rules: rules data
         :param actions: action configurations
         :param multiflow_stories: multiflow_stories configurations
+        :param bot_content: bot_content
         :return: None
         """
         directory = Utility.write_training_data(
@@ -1213,6 +1221,7 @@ class Utility:
             actions,
             chat_client_config,
             multiflow_stories,
+            bot_content,
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)
