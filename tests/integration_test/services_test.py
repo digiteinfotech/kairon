@@ -9689,9 +9689,9 @@ def test_add_vectordb_action_empty_operation_value():
 
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'query_type'],
-                                  'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search'",
+                                  'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search', 'payload_and_keyword_search'",
                                   'type': 'type_error.enum',
-                                  'ctx': {'enum_values': ['payload_search', 'embedding_search']}}]
+                                  'ctx': {'enum_values': ['payload_search', 'embedding_search', 'payload_and_keyword_search']}}]
     assert not actual["success"]
 
 

@@ -91,6 +91,7 @@ class DispatchType(str, Enum):
 class DbActionOperationType(str, Enum):
     payload_search = "payload_search"
     embedding_search = "embedding_search"
+    payload_and_keyword_search = "payload_and_keyword_search"
 
 
 class DbQueryValueType(str, Enum):

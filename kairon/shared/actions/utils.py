@@ -622,6 +622,8 @@ class ActionUtility:
                     rqst_payload = {"text": msg}
             else:
                 rqst_payload = {"text": rqst_payload}
+            if payload.get('value') and isinstance(payload.get('value'), str):
+                rqst_payload.update(json.loads(payload.get('value')))
         else:
             rqst_payload = payload.get('value')
 
