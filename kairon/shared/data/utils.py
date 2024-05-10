@@ -159,7 +159,6 @@ class DataUtility:
         domain_path = os.path.join(tmp_dir, domain.filename)
         stories_path = os.path.join(data_path, stories.filename)
         config_path = os.path.join(tmp_dir, config.filename)
-        bot_content_path = os.path.join(tmp_dir, bot_content.filename)
 
         Utility.write_to_file(nlu_path, await nlu.read())
         Utility.write_to_file(domain_path, await domain.read())
@@ -229,7 +228,7 @@ class DataUtility:
         :return: bot_content file path
         """
         if bot_content and bot_content.filename:
-            bot_content_path = os.path.join(temp_path, bot_content.filename)
+            bot_content_path: str = os.path.join(temp_path, bot_content.filename)
             Utility.write_to_file(bot_content_path, await bot_content.read())
             return bot_content_path
 

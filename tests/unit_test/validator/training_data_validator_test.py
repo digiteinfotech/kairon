@@ -1,4 +1,3 @@
-from unittest.mock import patch
 
 import ujson as json
 import re
