@@ -158,7 +158,6 @@ from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetad
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
-from ..live_agent.live_agent import LiveAgentHandler
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 

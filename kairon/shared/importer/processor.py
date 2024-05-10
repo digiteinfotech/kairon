@@ -7,7 +7,6 @@ from kairon.shared.actions.models import ActionType
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import BotSettings
-from kairon.shared.utils import Utility
 from kairon.shared.importer.data_objects import ValidationLogs, TrainingComponentLog, DomainLog
 
 

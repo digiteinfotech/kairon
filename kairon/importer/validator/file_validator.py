@@ -2,7 +2,6 @@ import os
 from collections import defaultdict
 from typing import Optional, Dict, Text, List
 
-
 from loguru import logger
 from rasa.core.training.story_conflict import find_story_conflicts
 from rasa.shared.constants import UTTER_PREFIX
@@ -273,14 +272,16 @@ class TrainingDataValidator(Validator):
         multiflow_utterance = set()
         multiflow_actions = set()
         if self.multiflow_stories:
-            multiflow_utterance, multiflow_actions = self.verify_utterance_and_actions_in_multiflow_stories(raise_exception)
+            multiflow_utterance, multiflow_actions = self.verify_utterance_and_actions_in_multiflow_stories(
+                raise_exception)
 
         for story in self.story_graph.story_steps:
             for event in story.events:
                 if not isinstance(event, ActionExecuted):
                     continue
                 if not event.action_name.startswith(UTTER_PREFIX):
-                    if event.action_name != 'action_restart' and event.action_name != '...' and not event.action_name.startswith('intent'):
+                    if event.action_name != 'action_restart' and event.action_name != '...' and not event.action_name.startswith(
+                            'intent'):
                         story_actions.add(event.action_name)
                     continue
 
@@ -311,14 +312,17 @@ class TrainingDataValidator(Validator):
             for slot in form_data.get('required_slots', {}):
                 form_utterances.add(f"utter_ask_{form}_{slot}")
 
-        unused_utterances = set(utterance_in_domain) - form_utterances.union(set(self.domain.form_names)) - stories_utterances - multiflow_utterance - system_triggered_actions.union(fallback_action)
+        unused_utterances = set(utterance_in_domain) - form_utterances.union(
+            set(self.domain.form_names)) - stories_utterances - multiflow_utterance - system_triggered_actions.union(
+            fallback_action)
         for utterance in unused_utterances:
             msg = f"The utterance '{utterance}' is not used in any story."
             if raise_exception:
                 raise AppException(msg)
             utterance_mismatch_summary.append(msg)
 
-        unused_actions = user_actions - utterance_in_domain - set(story_actions) - set(multiflow_actions) - {f'validate_{name}' for name in self.domain.form_names}
+        unused_actions = user_actions - utterance_in_domain - set(story_actions) - set(multiflow_actions) - {
+            f'validate_{name}' for name in self.domain.form_names}
         for action in unused_actions:
             if action not in system_triggered_actions.union(fallback_action):
                 msg = f"The action '{action}' is not used in any story."
@@ -363,9 +367,9 @@ class TrainingDataValidator(Validator):
         for utterance in utterances:
             if utterance not in user_actions:
                 msg = f"The action '{utterance}' is used in the multiflow_stories, " \
-                          f"but is not a valid utterance action. Please make sure " \
-                          f"the action is listed in your domain and there is a " \
-                          f"template defined with its name."
+                      f"but is not a valid utterance action. Please make sure " \
+                      f"the action is listed in your domain and there is a " \
+                      f"template defined with its name."
                 if raise_exception:
                     raise AppException(msg)
                 utterance_mismatch_summary.append(msg)
@@ -460,7 +464,8 @@ class TrainingDataValidator(Validator):
         for story in multiflow_story:
             if isinstance(story, dict):
                 if len(required_fields.difference(set(story.keys()))) > 0:
-                    story_error.append(f'Required fields {required_fields} not found in story: {story.get("block_name")}')
+                    story_error.append(
+                        f'Required fields {required_fields} not found in story: {story.get("block_name")}')
                     continue
                 if story.get('events'):
                     errors = StoryValidator.validate_multiflow_story_steps_file_validator(story.get('events'),
@@ -605,7 +610,8 @@ class TrainingDataValidator(Validator):
         data_error = []
         actions_present = set()
 
-        required_fields = {k for k, v in SlotSetAction._fields.items() if v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        required_fields = {k for k, v in SlotSetAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
         for action in slot_set_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
@@ -636,7 +642,8 @@ class TrainingDataValidator(Validator):
         data_error = []
         actions_present = set()
 
-        required_fields = {k for k, v in FormValidationAction._fields.items() if v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        required_fields = {k for k, v in FormValidationAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
         for action in form_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
@@ -647,16 +654,19 @@ class TrainingDataValidator(Validator):
                 if action.get('slot_set'):
                     if Utility.check_empty_string(action['slot_set'].get('type')):
                         data_error.append('slot_set should have type current as default!')
-                    if action['slot_set'].get('type') == 'current' and not Utility.check_empty_string(action['slot_set'].get('value')):
+                    if action['slot_set'].get('type') == 'current' and not Utility.check_empty_string(
+                            action['slot_set'].get('value')):
                         data_error.append('slot_set with type current should not have any value!')
-                    if action['slot_set'].get('type') == 'slot' and Utility.check_empty_string(action['slot_set'].get('value')):
+                    if action['slot_set'].get('type') == 'slot' and Utility.check_empty_string(
+                            action['slot_set'].get('value')):
                         data_error.append('slot_set with type slot should have a valid slot value!')
                     if action['slot_set'].get('type') not in ['current', 'custom', 'slot']:
                         data_error.append('Invalid slot_set type!')
                 else:
                     data_error.append('slot_set must be present')
                 if f"{action['name']}_{action['slot']}" in actions_present:
-                    data_error.append(f"Duplicate form validation action found for slot {action['slot']}: {action['name']}")
+                    data_error.append(
+                        f"Duplicate form validation action found for slot {action['slot']}: {action['name']}")
                 actions_present.add(f"{action['name']}_{action['slot']}")
             else:
                 data_error.append('Invalid action configuration format. Dictionary expected.')
@@ -677,13 +687,17 @@ class TrainingDataValidator(Validator):
         for action in prompt_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
-                    data_error.append(f'Required fields {sorted(required_fields)} not found in action: {action.get("name")}')
+                    data_error.append(
+                        f'Required fields {sorted(required_fields)} not found in action: {action.get("name")}')
                     continue
-                if action.get('num_bot_responses') and (action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int)):
-                    data_error.append(f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
+                if action.get('num_bot_responses') and (
+                        action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int)):
+                    data_error.append(
+                        f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
                 llm_prompts_errors = TrainingDataValidator.__validate_llm_prompts(action['llm_prompts'])
                 if action.get('hyperparameters') is not None:
-                    llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(action.get('hyperparameters'))
+                    llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(
+                        action.get('hyperparameters'))
                     data_error.extend(llm_hyperparameters_errors)
                 data_error.extend(llm_prompts_errors)
                 if action['name'] in actions_present:
@@ -790,7 +804,8 @@ class TrainingDataValidator(Validator):
                 error_list.append("logit_bias must be a dictionary!")
             elif key == 'stop':
                 if value and (not isinstance(value, (str, int, list)) or (isinstance(value, list) and len(value) > 4)):
-                    error_list.append("Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
+                    error_list.append(
+                        "Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
         return error_list
 
     @staticmethod
@@ -1049,9 +1064,9 @@ class TrainingDataValidator(Validator):
         schema_validator = Core(source_data=bot_content, schema_files=[bot_content_schema_file_path])
         try:
             schema_validator.validate(raise_exception=True)
-            print("Validation successful!")
+            logger.info("Validation successful!")
         except Exception as e:
-            print(f"Validation failed: {e}")
+            logger.info(f"Validation failed: {e}")
             bot_content_errors.append(f"Invalid bot_content.yml. Content does not match required schema: {e}")
 
         if save_data and not overwrite:
