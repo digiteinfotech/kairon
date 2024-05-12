@@ -4984,7 +4984,7 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
-                                                                'actions', 'chat_client_config', 'multiflow_stories'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories', 'bot_content'}
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
@@ -5016,7 +5016,7 @@ def test_get_data_importer_logs():
                                                     ]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
-                                                                'actions', 'chat_client_config', 'multiflow_stories'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories','bot_content'}
 
 
 @responses.activate

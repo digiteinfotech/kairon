@@ -18,10 +18,8 @@ from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAUL
 from rasa.shared.importers.rasa import RasaFileImporter
 from responses import matchers
 
-from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.shared.channels.broadcast.whatsapp import WhatsappBroadcast
 from kairon.shared.chat.data_objects import ChannelLogs
-from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -265,6 +263,10 @@ class TestEventExecution:
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         shutil.copytree('tests/testing_data/validator/append', test_data_path)
+
+        bot_content_path = os.path.join(test_data_path, 'bot_content.yml')
+        if os.path.exists(bot_content_path):
+            os.remove(bot_content_path)
 
         def _path(*args, **kwargs):
             return test_data_path
