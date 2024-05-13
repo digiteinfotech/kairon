@@ -1,6 +1,6 @@
 import os
 from collections import defaultdict
-from typing import Optional, Dict, Text
+from typing import Optional, Dict, Text, List
 
 from loguru import logger
 from rasa.core.training.story_conflict import find_story_conflicts
@@ -15,15 +15,18 @@ from rasa.shared.importers.rasa import RasaFileImporter
 from rasa.shared.nlu import constants
 from rasa.shared.utils.validation import YamlValidationException
 from rasa.validator import Validator
+from pykwalify.core import Core
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, \
     ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction, PromptAction, RazorpayAction, \
     PyscriptActionConfig, DatabaseAction
 from kairon.shared.actions.models import ActionType, ActionParameterType, DbActionOperationType
+from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import MultiflowStories
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import StoryStepType
 from kairon.shared.utils import Utility, StoryValidator
@@ -79,6 +82,8 @@ class TrainingDataValidator(Validator):
             multiflow_stories = Utility.read_yaml(os.path.join(root_dir, 'multiflow_stories.yml'))
             cls.multiflow_stories = multiflow_stories if multiflow_stories else {}
             cls.multiflow_stories_graph = StoryValidator.create_multiflow_story_graphs(multiflow_stories)
+            bot_content = Utility.read_yaml(os.path.join(root_dir, 'bot_content.yml'))
+            cls.bot_content = bot_content if bot_content else {}
 
             return await TrainingDataValidator.from_importer(file_importer)
         except YamlValidationException as e:
@@ -267,14 +272,16 @@ class TrainingDataValidator(Validator):
         multiflow_utterance = set()
         multiflow_actions = set()
         if self.multiflow_stories:
-            multiflow_utterance, multiflow_actions = self.verify_utterance_and_actions_in_multiflow_stories(raise_exception)
+            multiflow_utterance, multiflow_actions = self.verify_utterance_and_actions_in_multiflow_stories(
+                raise_exception)
 
         for story in self.story_graph.story_steps:
             for event in story.events:
                 if not isinstance(event, ActionExecuted):
                     continue
                 if not event.action_name.startswith(UTTER_PREFIX):
-                    if event.action_name != 'action_restart' and event.action_name != '...' and not event.action_name.startswith('intent'):
+                    if event.action_name != 'action_restart' and event.action_name != '...' and not event.action_name.startswith(
+                            'intent'):
                         story_actions.add(event.action_name)
                     continue
 
@@ -305,14 +312,17 @@ class TrainingDataValidator(Validator):
             for slot in form_data.get('required_slots', {}):
                 form_utterances.add(f"utter_ask_{form}_{slot}")
 
-        unused_utterances = set(utterance_in_domain) - form_utterances.union(set(self.domain.form_names)) - stories_utterances - multiflow_utterance - system_triggered_actions.union(fallback_action)
+        unused_utterances = set(utterance_in_domain) - form_utterances.union(
+            set(self.domain.form_names)) - stories_utterances - multiflow_utterance - system_triggered_actions.union(
+            fallback_action)
         for utterance in unused_utterances:
             msg = f"The utterance '{utterance}' is not used in any story."
             if raise_exception:
                 raise AppException(msg)
             utterance_mismatch_summary.append(msg)
 
-        unused_actions = user_actions - utterance_in_domain - set(story_actions) - set(multiflow_actions) - {f'validate_{name}' for name in self.domain.form_names}
+        unused_actions = user_actions - utterance_in_domain - set(story_actions) - set(multiflow_actions) - {
+            f'validate_{name}' for name in self.domain.form_names}
         for action in unused_actions:
             if action not in system_triggered_actions.union(fallback_action):
                 msg = f"The action '{action}' is not used in any story."
@@ -357,9 +367,9 @@ class TrainingDataValidator(Validator):
         for utterance in utterances:
             if utterance not in user_actions:
                 msg = f"The action '{utterance}' is used in the multiflow_stories, " \
-                          f"but is not a valid utterance action. Please make sure " \
-                          f"the action is listed in your domain and there is a " \
-                          f"template defined with its name."
+                      f"but is not a valid utterance action. Please make sure " \
+                      f"the action is listed in your domain and there is a " \
+                      f"template defined with its name."
                 if raise_exception:
                     raise AppException(msg)
                 utterance_mismatch_summary.append(msg)
@@ -454,7 +464,8 @@ class TrainingDataValidator(Validator):
         for story in multiflow_story:
             if isinstance(story, dict):
                 if len(required_fields.difference(set(story.keys()))) > 0:
-                    story_error.append(f'Required fields {required_fields} not found in story: {story.get("block_name")}')
+                    story_error.append(
+                        f'Required fields {required_fields} not found in story: {story.get("block_name")}')
                     continue
                 if story.get('events'):
                     errors = StoryValidator.validate_multiflow_story_steps_file_validator(story.get('events'),
@@ -599,7 +610,8 @@ class TrainingDataValidator(Validator):
         data_error = []
         actions_present = set()
 
-        required_fields = {k for k, v in SlotSetAction._fields.items() if v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        required_fields = {k for k, v in SlotSetAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
         for action in slot_set_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
@@ -630,7 +642,8 @@ class TrainingDataValidator(Validator):
         data_error = []
         actions_present = set()
 
-        required_fields = {k for k, v in FormValidationAction._fields.items() if v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        required_fields = {k for k, v in FormValidationAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
         for action in form_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
@@ -641,16 +654,19 @@ class TrainingDataValidator(Validator):
                 if action.get('slot_set'):
                     if Utility.check_empty_string(action['slot_set'].get('type')):
                         data_error.append('slot_set should have type current as default!')
-                    if action['slot_set'].get('type') == 'current' and not Utility.check_empty_string(action['slot_set'].get('value')):
+                    if action['slot_set'].get('type') == 'current' and not Utility.check_empty_string(
+                            action['slot_set'].get('value')):
                         data_error.append('slot_set with type current should not have any value!')
-                    if action['slot_set'].get('type') == 'slot' and Utility.check_empty_string(action['slot_set'].get('value')):
+                    if action['slot_set'].get('type') == 'slot' and Utility.check_empty_string(
+                            action['slot_set'].get('value')):
                         data_error.append('slot_set with type slot should have a valid slot value!')
                     if action['slot_set'].get('type') not in ['current', 'custom', 'slot']:
                         data_error.append('Invalid slot_set type!')
                 else:
                     data_error.append('slot_set must be present')
                 if f"{action['name']}_{action['slot']}" in actions_present:
-                    data_error.append(f"Duplicate form validation action found for slot {action['slot']}: {action['name']}")
+                    data_error.append(
+                        f"Duplicate form validation action found for slot {action['slot']}: {action['name']}")
                 actions_present.add(f"{action['name']}_{action['slot']}")
             else:
                 data_error.append('Invalid action configuration format. Dictionary expected.')
@@ -671,13 +687,17 @@ class TrainingDataValidator(Validator):
         for action in prompt_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
-                    data_error.append(f'Required fields {sorted(required_fields)} not found in action: {action.get("name")}')
+                    data_error.append(
+                        f'Required fields {sorted(required_fields)} not found in action: {action.get("name")}')
                     continue
-                if action.get('num_bot_responses') and (action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int)):
-                    data_error.append(f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
+                if action.get('num_bot_responses') and (
+                        action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int)):
+                    data_error.append(
+                        f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
                 llm_prompts_errors = TrainingDataValidator.__validate_llm_prompts(action['llm_prompts'])
                 if action.get('hyperparameters') is not None:
-                    llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(action.get('hyperparameters'))
+                    llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(
+                        action.get('hyperparameters'))
                     data_error.extend(llm_hyperparameters_errors)
                 data_error.extend(llm_prompts_errors)
                 if action['name'] in actions_present:
@@ -784,7 +804,8 @@ class TrainingDataValidator(Validator):
                 error_list.append("logit_bias must be a dictionary!")
             elif key == 'stop':
                 if value and (not isinstance(value, (str, int, list)) or (isinstance(value, list) and len(value) > 4)):
-                    error_list.append("Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
+                    error_list.append(
+                        "Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
         return error_list
 
     @staticmethod
@@ -1028,11 +1049,77 @@ class TrainingDataValidator(Validator):
         if not is_data_invalid and raise_exception:
             raise AppException("Invalid actions.yml. Check logs!")
 
-    def validate_training_data(self, raise_exception: bool = True):
+    @staticmethod
+    def validate_content(bot: Text, user: Text, bot_content: List, save_data: bool = False,
+                         overwrite: bool = True):
+
+        bot_content_errors = []
+
+        settings = MongoProcessor.get_bot_settings(bot, user)
+        if not settings.to_mongo().to_dict()['llm_settings'].get('enable_faq'):
+            bot_content_errors.append("Please enable GPT on bot before uploading")
+
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        bot_content_schema_file_path = os.path.join(current_dir, "bot_content_schema.yaml")
+        schema_validator = Core(source_data=bot_content, schema_files=[bot_content_schema_file_path])
+        try:
+            schema_validator.validate(raise_exception=True)
+            logger.info("Validation successful!")
+        except Exception as e:
+            logger.info(f"Validation failed: {e}")
+            bot_content_errors.append(f"Invalid bot_content.yml. Content does not match required schema: {e}")
+
+        if save_data and not overwrite:
+            for item in bot_content:
+                if item.get('type') == 'json':
+                    collection_name = item.get('collection')
+                    existing_schema = CognitionSchema.objects(bot=bot, collection_name=collection_name).first()
+                    if existing_schema:
+                        existing_metadata = existing_schema.metadata
+                        uploaded_metadata = item.get('metadata')
+                        if len(existing_metadata) == len(uploaded_metadata):
+                            for existing_meta, uploaded_meta in zip(existing_metadata, uploaded_metadata):
+                                if existing_meta.column_name != uploaded_meta['column_name'] or \
+                                        existing_meta.create_embeddings != uploaded_meta['create_embeddings'] or \
+                                        existing_meta.data_type != uploaded_meta['data_type'] or \
+                                        existing_meta.enable_search != uploaded_meta['enable_search']:
+                                    bot_content_errors.append("Invalid bot_content.yml. Collection with same name and "
+                                                              "different metadata cannot be uploaded")
+                                    break
+                        else:
+                            bot_content_errors.append("Invalid bot_content.yml. Collection with same name and "
+                                                      "different metadata cannot be uploaded")
+
+        return bot_content_errors
+
+    def validate_bot_content(self, bot: Text, user: Text, save_data: bool = True,
+                             overwrite: bool = True, raise_exception: bool = True):
+        """
+        Validates bot_content.yml.
+        :param bot: bot id
+        :param user: user id
+        :param save_data: flag to save data
+        :param overwrite: flag to overwrite data
+        :param raise_exception: Set this flag to false to prevent raising exceptions.
+        :return:
+        """
+        if self.bot_content:
+            errors = TrainingDataValidator.validate_content(bot, user, self.bot_content, save_data, overwrite)
+            self.summary['bot_content'] = errors
+            if errors and raise_exception:
+                raise AppException("Invalid bot_content.yml. Check logs!")
+
+    def validate_training_data(self, raise_exception: bool = True, bot: Text = None, user: Text = None,
+                               save_data: bool = True,
+                               overwrite: bool = True):
         """
         Validate training data.
-        @param raise_exception: Set this flag to false to prevent raising exceptions.
-        @return:
+        :param raise_exception: Set this flag to false to prevent raising exceptions.
+        :param bot: bot id
+        :param user: user id
+        :param save_data: flag to save data
+        :param overwrite: flag to overwrite data
+        :return:
         """
         try:
             self.verify_story_structure(raise_exception)
@@ -1041,6 +1128,8 @@ class TrainingDataValidator(Validator):
             self.validate_actions(raise_exception)
             self.validate_config(raise_exception)
             self.validate_multiflow(raise_exception)
+            self.validate_bot_content(bot, user, save_data, overwrite, raise_exception)
+
         except Exception as e:
             logger.error(str(e))
             raise AppException(e)

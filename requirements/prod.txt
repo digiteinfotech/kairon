@@ -62,4 +62,5 @@ opentelemetry-instrumentation-system-metrics==0.45b0
 opentelemetry-instrumentation-starlette==0.45b0
 opentelemetry-instrumentation-grpc==0.45b0
 
+pykwalify==1.8.0
 

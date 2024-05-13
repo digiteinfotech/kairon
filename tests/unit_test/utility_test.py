@@ -505,6 +505,7 @@ class TestUtility:
             "domain",
             "chat_client_config",
             "multiflow_stories",
+            "bot_content",
         } == requirements
 
     def test_validate_only_http_actions(self, resource_validate_only_http_actions):
@@ -519,6 +520,7 @@ class TestUtility:
             "nlu",
             "chat_client_config",
             "multiflow_stories",
+            "bot_content",
         } == requirements
 
     def test_validate_only_multiflow_stories(
@@ -535,6 +537,7 @@ class TestUtility:
             "nlu",
             "rules",
             "domain",
+            "bot_content",
         } == requirements
 
     def test_validate_only_domain(self, resource_validate_only_domain):
@@ -549,6 +552,7 @@ class TestUtility:
             "nlu",
             "chat_client_config",
             "multiflow_stories",
+            "bot_content",
         } == requirements
 
     def test_validate_only_config(self, resource_validate_only_config):
@@ -563,6 +567,7 @@ class TestUtility:
             "nlu",
             "chat_client_config",
             "multiflow_stories",
+            "bot_content",
         } == requirements
 
     @pytest.mark.asyncio

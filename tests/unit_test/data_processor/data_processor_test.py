@@ -106,6 +106,7 @@ class TestMongoProcessor:
             chat_client_config_path = os.path.join(path, "chat_client_config.yml")
             http_actions_path = os.path.join(path, 'actions.yml')
             multiflow_story_path = os.path.join(path, 'multiflow_stories.yml')
+            bot_content_path = os.path.join(path, 'bot_content.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -115,8 +116,9 @@ class TestMongoProcessor:
             nlu = importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
             multiflow_stories = Utility.read_yaml(multiflow_story_path)
+            bot_content = Utility.read_yaml(bot_content_path)
             chat_client_config = Utility.read_yaml(chat_client_config_path)
-            return nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config
+            return nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config
 
         return _read_and_get_data
 
@@ -982,14 +984,14 @@ class TestMongoProcessor:
         user = 'test_user'
         with pytest.raises(AppException, match=f'Action with name "non_existent_kairon_faq_action" not found'):
             processor.delete_action('non_existent_kairon_faq_action', bot, user)
-    
+
     def test_get_live_agent(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
         live_agent = processor.get_live_agent(bot=bot)
         assert live_agent == []
-    
+
     def test_enable_live_agent(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -1021,7 +1023,7 @@ class TestMongoProcessor:
         }
         result = processor.enable_live_agent(request_data=request_data, bot=bot, user=user)
         assert result is False
-    
+
     def test_edit_live_agent(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -3053,7 +3055,7 @@ class TestMongoProcessor:
         file = processor.download_files("tests_download_empty_data", "user@integration.com")
         assert file.endswith(".zip")
         zip_file = ZipFile(file, mode='r')
-        assert zip_file.filelist.__len__() == 9
+        assert zip_file.filelist.__len__() == 10
         assert zip_file.getinfo('data/stories.yml')
         assert zip_file.getinfo('data/rules.yml')
         file_info_stories = zip_file.getinfo('data/stories.yml')
@@ -3142,12 +3144,13 @@ class TestMongoProcessor:
         file_path = processor.download_files("tests", "user@integration.com")
         assert file_path.endswith(".zip")
         zip_file = ZipFile(file_path, mode='r')
-        assert zip_file.filelist.__len__() == 9
+        assert zip_file.filelist.__len__() == 10
         assert zip_file.getinfo('chat_client_config.yml')
         assert zip_file.getinfo('config.yml')
         assert zip_file.getinfo('domain.yml')
         assert zip_file.getinfo('actions.yml')
         assert zip_file.getinfo('multiflow_stories.yml')
+        assert zip_file.getinfo('bot_content.yml')
         assert zip_file.getinfo('data/stories.yml')
         assert zip_file.getinfo('data/rules.yml')
         assert zip_file.getinfo('data/nlu.yml')
@@ -4443,7 +4446,7 @@ class TestMongoProcessor:
         stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, None, None, "test_upload_and_save",
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, None, None, "test_upload_and_save",
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
@@ -4464,7 +4467,7 @@ class TestMongoProcessor:
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
-        await processor.upload_and_save(nlu, domain, stories, config, rules, None, None, "test_upload_and_save",
+        await processor.upload_and_save(nlu, domain, stories, config, rules, None, None, None, "test_upload_and_save",
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
@@ -4487,7 +4490,7 @@ class TestMongoProcessor:
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, None, "test_upload_and_save",
+        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, None, None, "test_upload_and_save",
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
@@ -4512,7 +4515,7 @@ class TestMongoProcessor:
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
         multiflow_story = UploadFile(filename="multiflow_stories.yml", file=BytesIO(multiflow_stories_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, multiflow_story,
+        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, multiflow_story, None,
                                         "test_upload_and_save",
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
@@ -4538,7 +4541,7 @@ class TestMongoProcessor:
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
         multiflow_story = UploadFile(filename="multiflow_stories.yml", file=BytesIO(multiflow_stories_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, multiflow_story,
+        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, multiflow_story, None,
                                         "test_upload_and_save",
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
@@ -4564,7 +4567,7 @@ class TestMongoProcessor:
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
         multiflow_story = UploadFile(filename="multiflow_stories.yml", file=BytesIO(multiflow_stories_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, multiflow_story,
+        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, multiflow_story, None,
                                         "test_upload_and_save",
                                         "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 9
@@ -4766,11 +4769,11 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+        nlu, story_graph, domain, config, http_actions, multiflow_stories,  bot_content, chat_client_config = await get_training_data(
             path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
                                            chat_client_config, True)
 
         training_data = mongo_processor.load_nlu(bot)
@@ -4820,6 +4823,8 @@ class TestMongoProcessor:
         assert len(Actions.objects(type='http_action', bot=bot)) == 5
         multiflow_stories = mongo_processor.load_multiflow_stories_yaml(bot)
         assert isinstance(multiflow_stories, dict) is True
+        bot_content = mongo_processor.load_bot_content(bot)
+        assert isinstance(bot_content, list) is True
 
     @pytest.mark.asyncio
     async def test_save_training_data_no_rules_and_http_actions(self, get_training_data, monkeypatch):
@@ -4833,11 +4838,11 @@ class TestMongoProcessor:
         path = 'tests/testing_data/all'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config = await get_training_data(
             path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
                                            chat_client_config, True)
 
         training_data = mongo_processor.load_nlu(bot)
@@ -4886,11 +4891,11 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config = await get_training_data(
             path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
                                            chat_client_config, True)
 
         training_data = mongo_processor.load_nlu(bot)
@@ -4950,11 +4955,11 @@ class TestMongoProcessor:
         path = 'tests/testing_data/validator/append'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config = await get_training_data(
             path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories,
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
                                            chat_client_config, False, REQUIREMENTS.copy() - {"chat_client_config"})
 
         training_data = mongo_processor.load_nlu(bot)
@@ -5057,7 +5062,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config = await get_training_data(
             path)
 
         mongo_processor = MongoProcessor()
@@ -5150,7 +5155,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config = await get_training_data(
             path)
 
         mongo_processor = MongoProcessor()
@@ -5205,7 +5210,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config = await get_training_data(
             path)
         config['language'] = 'fr'
 
@@ -5253,7 +5258,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config = await get_training_data(
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config = await get_training_data(
             path)
 
         mongo_processor = MongoProcessor()
@@ -5463,7 +5468,7 @@ class TestMongoProcessor:
         file_path = processor.download_files(pytest.bot, "user@integration.com")
         assert file_path.endswith(".zip")
         zip_file = ZipFile(file_path, mode='r')
-        assert zip_file.filelist.__len__() == 9
+        assert zip_file.filelist.__len__() == 10
         assert zip_file.getinfo('chat_client_config.yml')
 
     @pytest.fixture()
@@ -5488,7 +5493,7 @@ class TestMongoProcessor:
                          pytest.chat_client_config]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
-        assert REQUIREMENTS - {'multiflow_stories'} == files_received
+        assert REQUIREMENTS - {'multiflow_stories','bot_content'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
@@ -14643,6 +14648,7 @@ class TestMongoProcessor:
         user = 'testUser'
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
+        settings.cognition_collections_limit = 5
         settings.save()
         schema = {
             "metadata": [
@@ -14709,6 +14715,25 @@ class TestMongoProcessor:
         }
         with pytest.raises(AppException, match="Collection already exists!"):
             processor.save_cognition_schema(schema, user, bot)
+
+        data = list(processor.list_cognition_schema(bot))
+
+        # Fetch all schema IDs
+        schema_ids = [schema['_id'] for schema in processor.list_cognition_schema(bot)]
+
+        # Fetch all collection names
+        collection_names = [schema['collection_name'] for schema in processor.list_cognition_schema(bot)]
+
+        # Delete all collection except the last one
+        for collection_name in collection_names[:-1]:
+            for data in CognitionData.objects(bot=bot, collection=collection_name):
+                data.delete()
+
+        # Delete all schema except the last one
+        for schema_id in schema_ids[:-1]:
+            processor.delete_cognition_schema(schema_id, bot)
+
+        data = list(processor.list_cognition_schema(bot))
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=False)
         settings.save()
