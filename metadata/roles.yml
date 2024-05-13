@@ -455,21 +455,21 @@ roles:
     menu:
       chatbots: true
       common: false
-      conversations: true
-      components: true
+      conversations: false
+      components: false
       advancedConfigurations: false
-      trainingHistory: true
-      modelConfiguration: true
-      configureClient: true
+      trainingHistory: false
+      modelConfiguration: false
+      configureClient: false
       configureTelemetry: false
       configureNudge: false
       integrations: false
       administration: false
-      chatHistory: true
-      analytics: true
-      logs: true
+      chatHistory: false
+      analytics: false
+      logs: false
       generateStories: false
-      manageQnaStories: true
+      manageQnaStories: false
       broadcast: false
       customAnalytics: true
       liveAgent: true
@@ -479,40 +479,40 @@ roles:
         deleteBot: false
       common:
         trainBot: false
-        testBot: true
+        testBot: false
       conversations:
         add: false
         update: false
-        view: true
+        view: false
         delete: false
       components:
         add: false
         update: false
-        view: true
+        view: false
         delete: false
       advancedConfigurations:
         uploadFiles: false
         fileDownload: false
         modelDownload: false
-        dataValidationLogs: true
+        dataValidationLogs: false
       trainingHistory:
-        reloadModel: true
+        reloadModel: false
         testModel: false
-        viewModelTrainingLogs: true
-        viewModelTestingLogs: true
-        modelTestingResults: true
+        viewModelTrainingLogs: false
+        viewModelTestingLogs: false
+        modelTestingResults: false
       modelConfiguration:
         applyTemplate: false
       configureClient:
         save: false
-        get: true
+        get: false
         generate: false
       configureTelemetry:
         save: false
-        get: true
+        get: false
       configureNudge:
         save: false
-        get: true
+        get: false
       integrations:
         get: false
         save: false
@@ -539,15 +539,15 @@ roles:
         deleteCustomWidget: false
         updateCustomWidget: false
       chatHistory:
-        viewHistory: true
+        viewHistory: false
         deleteHistory: false
         downloadHistory: false
         viewDeletionLogs: false
       dataValidationLogs:
-        viewLogs: true
+        viewLogs: false
         validateExistingData: false
       modelTestingLogs:
-        viewLogs: true
+        viewLogs: false
         testModel: false
       manageQnaStories:
         add: false
@@ -560,7 +560,7 @@ roles:
         edit: false
         list: false
         delete: false
-        viewLogs: true
+        viewLogs: false
       liveAgent:
         chatView: true
 
