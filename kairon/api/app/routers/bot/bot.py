@@ -666,6 +666,7 @@ async def download_model(
             model_path,
             filename=os.path.basename(model_path),
             background=background_tasks,
+            media_type='application/octet-stream'
         )
         AuditDataProcessor.log("Model", current_user.account, current_user.get_bot(), current_user.get_user(),
                                action=AuditlogActions.DOWNLOAD.value)
