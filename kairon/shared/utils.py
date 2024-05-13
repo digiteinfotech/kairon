@@ -82,6 +82,7 @@ from .data.constant import (
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
 from ..exceptions import AppException
+from werkzeug.utils import secure_filename
 
 
 class Utility:
@@ -826,6 +827,7 @@ class Utility:
         output_path = f"models/{bot}"
         tempdir = tempfile.mkdtemp()
         try:
+            template_name = secure_filename(template_name)
             model_path = f"template/use-cases/{template_name}/models"
             if os.path.exists(model_path):
                 model_file = Utility.get_latest_file(

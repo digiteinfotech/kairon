@@ -5355,7 +5355,7 @@ class MongoProcessor:
             ).save()
 
     def get_utterances(self, bot: Text):
-        utterances = Utterances.objects(bot=bot, status=True)
+        utterances = Utterances.objects(bot=bot, status=True).order_by("-timestamp")
         for utterance in utterances:
             utterance = utterance.to_mongo().to_dict()
             utterance["_id"] = utterance["_id"].__str__()
