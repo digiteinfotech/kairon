@@ -1,12 +1,16 @@
 import ujson as json
 import re
 import pytest
+import yaml
+from mongoengine import connect
 
 from kairon.exceptions import AppException
 from kairon.importer.validator.file_validator import TrainingDataValidator
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 import os
 from deepdiff import DeepDiff
+from kairon.shared.data.data_objects import BotSettings, LLMSettings
 
 
 class TestTrainingDataValidator:
@@ -14,6 +18,7 @@ class TestTrainingDataValidator:
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     def test_config_validation(self):
         config = Utility.load_yaml("./tests/testing_data/yml_training_files/config.yml")
@@ -862,3 +867,57 @@ class TestTrainingDataValidator:
         assert TrainingDataValidator.validate_multiflow_stories([{}])
         test = {None}
         assert TrainingDataValidator.validate_multiflow_stories(test)
+
+    def test_validate_content_disabled_gpt(self, monkeypatch):
+        def _mock_get_bot_settings(*args, **kwargs):
+            return BotSettings(
+                bot="your_bot_name",
+                user="integration@demo.ai",
+                llm_settings=LLMSettings(enable_faq=False),
+            )
+
+        monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+        yaml_file_path = "tests/testing_data/bot_content/bot_content.yml"
+        with open(yaml_file_path, "r") as file:
+            bot_content = yaml.safe_load(file)
+
+        errors = TrainingDataValidator.validate_content("your_bot_name", "integration@demo.ai", bot_content)
+
+        assert errors == ["Please enable GPT on bot before uploading"]
+
+    def test_validate_content_valid_content(self, monkeypatch):
+        def _mock_get_bot_settings(*args, **kwargs):
+            return BotSettings(
+                bot="your_bot_name",
+                user="integration@demo.ai",
+                llm_settings=LLMSettings(enable_faq=True),
+            )
+
+        monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+        yaml_file_path = "tests/testing_data/bot_content/bot_content.yml"
+        with open(yaml_file_path, "r") as file:
+            bot_content = yaml.safe_load(file)
+
+        errors = TrainingDataValidator.validate_content("your_bot_name", "integration@demo.ai", bot_content)
+
+        assert not errors
+
+    def test_validate_content_invalid_content(self, monkeypatch):
+        def _mock_get_bot_settings(*args, **kwargs):
+            return BotSettings(
+                bot="your_bot_name",
+                user="integration@demo.ai",
+                llm_settings=LLMSettings(enable_faq=True),
+            )
+
+        monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+        yaml_file_path = "tests/testing_data/bot_content/invalid_bot_content.yml"
+        with open(yaml_file_path, "r") as file:
+            bot_content = yaml.safe_load(file)
+
+        errors = TrainingDataValidator.validate_content("your_bot_name", "integration@demo.ai", bot_content)
+
+        assert errors

@@ -33,6 +33,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData
 from kairon.shared.constants import EventClass, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import (
@@ -106,8 +107,9 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
     from kairon.events.definitions.model_testing import ModelTestingEvent
     from kairon.events.definitions.history_delete import DeleteHistoryEvent
 
+    overwrite = kwargs.get('overwrite', True)
     if event_class == EventClass.data_importer:
-        TrainingDataImporterEvent(bot, user, import_data=True, overwrite=True).execute()
+        TrainingDataImporterEvent(bot, user, import_data=True, overwrite=overwrite).execute()
     elif event_class == EventClass.model_training:
         ModelTrainingEvent(bot, user).execute()
     elif event_class == EventClass.model_testing:
@@ -497,6 +499,7 @@ def test_account_registation_invalid_email():
             }
         ]
 
+
 @responses.activate
 def test_account_registation_invalid_email_quick_email_valid():
     email = "test@temporay.com"
@@ -645,7 +648,7 @@ def test_api_wrong_password():
     assert not actual["success"]
     assert actual["message"] == "Incorrect username or password"
     value = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login'))
-    
+
     assert value[0]["entity"] == "invalid_login"
     assert value[0]["timestamp"]
     assert len(value) == 1
@@ -1123,6 +1126,428 @@ def test_list_bots():
     assert response["data"]["account_owned"][1]["_id"]
     assert response["data"]["shared"] == []
 
+
+def test_get_client_config_with_nudge_server_url():
+    expected_app_server_url = Utility.environment['app']['server_url']
+    expected_nudge_server_url = Utility.environment['nudge']['server_url']
+    expected_chat_server_url = Utility.environment['model']['agent']['url']
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["data"]["welcomeMessage"] == 'Hello! How are you?'
+    assert actual["data"]["name"] == 'kairon'
+    assert actual["data"]["buttonType"] == 'button'
+    assert actual["data"]["whitelist"] == ["*"]
+    assert actual["data"]["nudge_server_url"] == expected_nudge_server_url
+    assert actual["data"]["api_server_host_url"] == expected_app_server_url
+    assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
+
+
+@responses.activate
+def test_upload_with_bot_content_only_validate_content_data():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert set(actual["data"]["logs"][0]["files_received"]) == {"bot_content"}
+    assert actual["data"]["logs"][0]["is_data_uploaded"]
+    assert actual["data"]["logs"][0]["start_timestamp"]
+    assert actual["data"]["logs"][0]["end_timestamp"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/cognition",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "data" in actual
+    assert "rows" in actual["data"]
+    assert len(actual["data"]["rows"]) == 3
+    assert all(row["content_type"] == "text" for row in actual["data"]["rows"])
+    assert actual["data"]["rows"][0]["data"] == "I am testing upload download bot content in Default Collection 3"
+    assert all(row["collection"] is None for row in actual["data"]["rows"])
+
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+
+@responses.activate
+def test_upload_with_bot_content_valifdate_payload_data():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("template/use-cases/Hi-Hello/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("template/use-cases/Hi-Hello/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("template/use-cases/Hi-Hello/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("template/use-cases/Hi-Hello/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/all/chat_client_config.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert actual["data"]["logs"][0]["is_data_uploaded"]
+    assert actual["data"]["logs"][0]["start_timestamp"]
+    assert actual["data"]["logs"][0]["end_timestamp"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/cognition",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        params={"collection": "test_payload_collection"}
+
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "data" in actual
+    assert "rows" in actual["data"]
+    assert len(actual["data"]["rows"]) == 3
+    assert all(row["content_type"] == "json" for row in actual["data"]["rows"])
+    assert actual["data"]["rows"][0]["data"]["city"] == "City 3"
+    assert actual["data"]["rows"][1]["data"]["population"] == "200"
+    assert all(row["collection"] == "test_payload_collection" for row in actual["data"]["rows"])
+
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+
+@responses.activate
+def test_upload_with_bot_content_using_event_append_validate_content_data():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("template/use-cases/Hi-Hello/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("template/use-cases/Hi-Hello/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("template/use-cases/Hi-Hello/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("template/use-cases/Hi-Hello/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/all/chat_client_config.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer, overwrite=False
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert actual["data"]["logs"][0]["is_data_uploaded"]
+    assert actual["data"]["logs"][0]["start_timestamp"]
+    assert actual["data"]["logs"][0]["end_timestamp"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/cognition",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        params={"collection": "test_content_collection"}
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "data" in actual
+    assert "rows" in actual["data"]
+    assert len(actual["data"]["rows"]) == 4
+    assert all(row["content_type"] == "text" for row in actual["data"]["rows"])
+    assert actual["data"]["rows"][2]["data"] == "I am testing upload download bot content in Content Collection 2"
+    assert all(row["collection"] == "test_content_collection" for row in actual["data"]["rows"])
+
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+
+@responses.activate
+def test_upload_with_bot_content_event_append_validate_payload_data():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("template/use-cases/Hi-Hello/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("template/use-cases/Hi-Hello/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("template/use-cases/Hi-Hello/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("template/use-cases/Hi-Hello/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/all/chat_client_config.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer, overwrite=False
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert actual["data"]["logs"][0]["is_data_uploaded"]
+    assert actual["data"]["logs"][0]["start_timestamp"]
+    assert actual["data"]["logs"][0]["end_timestamp"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/cognition",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        params={"collection": "test_payload_collection"}
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "data" in actual
+    assert "rows" in actual["data"]
+    assert len(actual["data"]["rows"]) == 6
+    assert all(row["content_type"] == "json" for row in actual["data"]["rows"])
+    assert actual["data"]["rows"][4]["data"]["city"] == "City 2"
+    assert actual["data"]["rows"][1]["data"]["population"] == "200"
+    assert all(row["collection"] == "test_payload_collection" for row in actual["data"]["rows"])
+
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+
 def test_get_live_agent_with_no_live_agent():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/action/live_agent",
@@ -1204,6 +1629,7 @@ def test_update_live_agent():
     assert actual["error_code"] == 0
     assert actual["message"] == 'Action updated!'
     assert actual["success"]
+
 
 def test_get_live_agent_after_updated():
     response = client.get(
@@ -1521,26 +1947,6 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual["data"][0]["name"] == "test_add_pyscript_action_case_insensitivity"
     assert actual["data"][0]["source_code"] == script2
     assert actual["data"][0]["dispatch_response"]
-
-
-def test_get_client_config_with_nudge_server_url():
-    expected_app_server_url = Utility.environment['app']['server_url']
-    expected_nudge_server_url = Utility.environment['nudge']['server_url']
-    expected_chat_server_url = Utility.environment['model']['agent']['url']
-
-    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
-                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]
-    assert actual["data"]["welcomeMessage"] == 'Hello! How are you?'
-    assert actual["data"]["name"] == 'kairon'
-    assert actual["data"]["buttonType"] == 'button'
-    assert actual["data"]["whitelist"] == ["*"]
-    assert actual["data"]["nudge_server_url"] == expected_nudge_server_url
-    assert actual["data"]["api_server_host_url"] == expected_app_server_url
-    assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
 
 def test_get_client_config_url_with_ip_info(monkeypatch):
@@ -3751,10 +4157,12 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                         {'name': 'Similarity Prompt', 'data': 'default',
                          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                          'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                        {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                        {'name': 'Query Prompt',
+                         'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True},
-                        {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                        {'name': 'Query Prompt',
+                         'data': 'If there is no specific query, assume that user is aking about java programming.',
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True}],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
@@ -3837,10 +4245,12 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                         {'name': 'Similarity Prompt', 'data': 'states',
                          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                          'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                        {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                        {'name': 'Query Prompt',
+                         'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True},
-                        {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                        {'name': 'Query Prompt',
+                         'data': 'If there is no specific query, assume that user is aking about java programming.',
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
         'set_slots': [], 'dispatch_response': True, 'status': True}
@@ -3850,7 +4260,6 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
 
 
 def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
-
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True),
                            cognition_collections_limit=5)
@@ -3927,10 +4336,12 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                         {'name': 'Similarity Prompt', 'data': 'python',
                          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                          'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                        {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                        {'name': 'Query Prompt',
+                         'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True},
-                        {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                        {'name': 'Query Prompt',
+                         'data': 'If there is no specific query, assume that user is aking about java programming.',
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True}],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
@@ -4081,6 +4492,13 @@ def test_upload():
                 open("tests/testing_data/all/chat_client_config.yml", "rb"),
             ),
         ),
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
     )
     response = client.post(
         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
@@ -4227,7 +4645,7 @@ def test_upload_limit_exceeded(monkeypatch):
 @responses.activate
 def test_upload_using_event_failure(monkeypatch):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.data_importer_limit_per_day = 5
+    bot_settings.data_importer_limit_per_day = 15
     bot_settings.save()
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -4292,6 +4710,10 @@ def test_upload_using_event_failure(monkeypatch):
 
 @responses.activate
 def test_upload_using_event_append(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 15
+    bot_settings.save()
+
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
         f"/api/events/execute/{EventClass.data_importer}",
@@ -4504,8 +4926,8 @@ def test_get_data_importer_logs():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]["logs"]) == 4
-    assert actual["data"]["total"] == 4
+    assert len(actual["data"]["logs"]) == 10
+    assert actual["data"]["total"] == 10
     assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
     assert set(actual["data"]["logs"][0]["files_received"]) == {
         "stories",
@@ -4546,6 +4968,7 @@ def test_get_data_importer_logs():
                                                      {'type': 'razorpay_actions', 'count': 0, 'data': []},
                                                      {'type': 'pyscript_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
+                                         'bot_content': {'count': 0, 'data': []},
                                          'user_actions': {'count': 7, 'data': []},
                                          'exception': '',
                                          'is_data_uploaded': True,
@@ -4553,7 +4976,7 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][2]['status'] == 'Failure'
     assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
-                                                                'chat_client_config'}
+                                                                'chat_client_config', 'bot_content'}
     assert actual['data']["logs"][2]['is_data_uploaded']
     assert actual['data']["logs"][2]['start_timestamp']
     assert actual['data']["logs"][2]['end_timestamp']
@@ -4561,7 +4984,7 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
-                                                                'actions', 'chat_client_config', 'multiflow_stories'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories', 'bot_content'}
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
@@ -4593,7 +5016,7 @@ def test_get_data_importer_logs():
                                                     ]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
-                                                                'actions', 'chat_client_config', 'multiflow_stories'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories','bot_content'}
 
 
 @responses.activate
@@ -4760,11 +5183,12 @@ def test_download_data_with_chat_client_config():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode="r")
-    assert zip_file.filelist.__len__() == 9
+    assert zip_file.filelist.__len__() == 10
     assert zip_file.getinfo("chat_client_config.yml")
     assert zip_file.getinfo("config.yml")
     assert zip_file.getinfo("domain.yml")
     assert zip_file.getinfo("actions.yml")
+    assert zip_file.getinfo("bot_content.yml")
     assert zip_file.getinfo("multiflow_stories.yml")
     assert zip_file.getinfo("data/stories.yml")
     assert zip_file.getinfo("data/rules.yml")
@@ -7903,7 +8327,7 @@ def test_download_data():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode="r")
-    assert zip_file.filelist.__len__() == 9
+    assert zip_file.filelist.__len__() == 10
     zip_file.close()
     file_bytes.close()
 
@@ -8422,7 +8846,8 @@ def test_account_registration_with_confirmation(monkeypatch):
 
     response = client.post(
         "/api/account/bot",
-        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token, 'Content-Type': 'application/json'},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token,
+                 'Content-Type': 'application/json'},
         json={"name": "Hi-Hello", "from_template": "Hi-Hello"},
     ).json()
     assert response['message'] == "Bot created"
@@ -14501,7 +14926,6 @@ def test_add_form():
     assert actual["message"] == "Slot mapping added"
     assert actual["success"]
 
-
     response = client.post(
         f"/api/bot/{pytest.bot}/slots",
         json={"name": "preferences", "type": "text"},
@@ -14611,9 +15035,9 @@ def test_add_form_with_any_slot():
         json={
             "slot": "user_feedback",
             "mapping":
-            {"type": "from_entity", "entity": "user_feedback"},
-    },
-    headers = {"Authorization": pytest.token_type + " " + pytest.access_token},
+                {"type": "from_entity", "entity": "user_feedback"},
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["message"] == "Slot mapping added"
@@ -15602,9 +16026,9 @@ def test_edit_form_with_any_slot():
         json={
             "slot": "account_required",
             "mapping":
-            {"type": "from_intent", "intent": ["deny"], "value": False},
-    },
-    headers = {"Authorization": pytest.token_type + " " + pytest.access_token},
+                {"type": "from_intent", "intent": ["deny"], "value": False},
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["message"] == "Slot mapping added"
@@ -15680,8 +16104,6 @@ def test_edit_form_with_any_slot():
 
 
 def test_edit_slot_mapping():
-
-
     response = client.post(
         f"/api/bot/{pytest.bot}/slots/mapping",
         json={
@@ -15713,7 +16135,6 @@ def test_edit_slot_mapping():
     assert actual["error_code"] == 0
 
 
-
 def test_get_slot_mapping():
     response = client.get(
         f"/api/bot/{pytest.bot}/slots/mapping",
@@ -15725,7 +16146,6 @@ def test_get_slot_mapping():
         for m in obj['mapping']:
             m.pop('_id')
 
-
     assert not DeepDiff(
         actual["data"],
         [{'slot': 'ac_required',
@@ -15733,7 +16153,7 @@ def test_get_slot_mapping():
                       {'type': 'from_intent', 'value': False, 'intent': ['deny']}]},
          {'slot': 'account_required',
           'mapping': [{'type': 'from_intent', 'value': True, 'intent': ['affirm']},
-                      {'type': 'from_intent', 'value': False, 'intent': ['deny'] }]},
+                      {'type': 'from_intent', 'value': False, 'intent': ['deny']}]},
          {'slot': 'age', 'mapping': [
              {'type': 'from_intent', 'value': '18', 'intent': ['get_age'], }]},
          {'slot': 'cuisine',
@@ -15741,11 +16161,11 @@ def test_get_slot_mapping():
                       {'type': 'from_intent', 'value': 'cuisine', 'intent': ['order', 'menu'],
                        }]},
          {'slot': 'feedback', 'mapping': [
-            {'type': 'from_entity', 'entity': 'feedback'}]}, {'slot': 'location',
-                                             'mapping': [{
-                                                             'type': 'from_entity',
-                                                             'entity': 'location',
-                                                        }]},
+             {'type': 'from_entity', 'entity': 'feedback'}]}, {'slot': 'location',
+                                                               'mapping': [{
+                                                                   'type': 'from_entity',
+                                                                   'entity': 'location',
+                                                               }]},
          {'slot': 'name', 'mapping': [{'type': 'from_text', 'value': 'user'}]},
          {'slot': 'num_people', 'mapping': [
              {'type': 'from_entity', 'entity': 'number', 'intent': ['inform', 'request_restaurant'],
@@ -15757,14 +16177,14 @@ def test_get_slot_mapping():
             {'type': 'from_trigger_intent', 'value': 'tester', 'intent': ['get_business', 'is_engineer', 'is_tester'],
              'not_intent': ['get_age', 'get_name']}]},
          {'slot': 'outdoor_seating',
-               'mapping': [
-                       {'type': 'from_text',
-                        'not_intent': [
-                            'affirm'],
-                        'conditions': [{
-                                           'active_loop': 'booking',
-                                           'requested_slot': 'outdoor_seating'}],
-          }]},
+          'mapping': [
+              {'type': 'from_text',
+               'not_intent': [
+                   'affirm'],
+               'conditions': [{
+                   'active_loop': 'booking',
+                   'requested_slot': 'outdoor_seating'}],
+               }]},
          {'slot': 'preferences', 'mapping': [{'type': 'from_text', 'not_intent': ['affirm'], 'conditions': [
              {'active_loop': 'booking', 'requested_slot': 'preferences'}]}]},
          {'slot': 'user_feedback', 'mapping': [{'type': 'from_text'},
@@ -15783,7 +16203,12 @@ def test_get_slot_mapping():
         for m in obj['mapping']:
             m.pop('_id')
     assert actual["success"]
-    assert actual["data"] ==[{'slot': 'outdoor_seating', 'mapping': [{'type': 'from_text', 'not_intent': ['affirm'], 'conditions': [{'active_loop': 'booking', 'requested_slot': 'outdoor_seating'}]}]}, {'slot': 'preferences', 'mapping': [{'type': 'from_text', 'not_intent': ['affirm'], 'conditions': [{'active_loop': 'booking', 'requested_slot': 'preferences'}]}]}]
+    assert actual["data"] == [{'slot': 'outdoor_seating', 'mapping': [{'type': 'from_text', 'not_intent': ['affirm'],
+                                                                       'conditions': [{'active_loop': 'booking',
+                                                                                       'requested_slot': 'outdoor_seating'}]}]},
+                              {'slot': 'preferences', 'mapping': [{'type': 'from_text', 'not_intent': ['affirm'],
+                                                                   'conditions': [{'active_loop': 'booking',
+                                                                                   'requested_slot': 'preferences'}]}]}]
 
     assert actual["error_code"] == 0
 
@@ -22135,9 +22560,9 @@ def test_get_auditlog_for_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    
+
     audit_log_data = actual["data"]["logs"]
-    
+
     assert audit_log_data is not None
     actions = [d["action"] for d in audit_log_data]
     from collections import Counter
@@ -22179,7 +22604,6 @@ def test_get_auditlog_for_user_2(mock_password_reset):
     assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 1
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
-    
     assert audit_log_data[0]["action"] == AuditlogActions.ACTIVITY.value
     assert audit_log_data[0]["entity"] == "login"
     assert audit_log_data[0]["user"] == email
