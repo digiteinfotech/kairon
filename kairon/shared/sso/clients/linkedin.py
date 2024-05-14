@@ -1,4 +1,4 @@
-import json
+import ujson as json
 from typing import Optional, Dict, Any
 
 import httpx
@@ -19,7 +19,7 @@ class LinkedinSSO(KaironSSO):
     discovery_url = "https://www.linkedin.com/oauth/v2"
     profile_url = "https://api.linkedin.com/v2"
     grant_type = "authorization_code"
-    scope = 'r_liteprofile r_emailaddress'
+    scope = 'profile email openid'
 
     @property
     async def useremail_endpoint(self) -> Optional[str]:
@@ -34,15 +34,15 @@ class LinkedinSSO(KaironSSO):
         """
         Returns user details.
         """
-        if response.get("emailAddress"):
+        if response.get("email"):
             return OpenID(
-                    email=response.get("emailAddress"),
+                    email=response.get("email"),
                     provider=cls.provider,
-                    id=response.get("id"),
-                    first_name=response.get("localizedFirstName"),
-                    last_name=response.get("localizedLastName"),
-                    display_name=response.get("localizedFirstName"),
-                    picture=response.get("profilePicture", {}).get("displayImage"),
+                    id=response.get("sub"),
+                    first_name=response.get("given_name"),
+                    last_name=response.get("family_name"),
+                    display_name=response.get("name"),
+                    picture=response.get("picture"),
                 )
 
         raise AppException("User was not verified with linkedin")
@@ -55,8 +55,7 @@ class LinkedinSSO(KaironSSO):
         return {
             "authorization_endpoint": f"{cls.discovery_url}/authorization",
             "token_endpoint": f"{cls.discovery_url}/accessToken",
-            "userinfo_endpoint": f"{cls.profile_url}/me",
-            "useremail_endpoint": f"{cls.profile_url}/emailAddress?q=members&projection=(elements*(handle~))"
+            "userinfo_endpoint": f"{cls.profile_url}/userinfo"
         }
 
     async def process_login(
@@ -85,20 +84,13 @@ class LinkedinSSO(KaironSSO):
         auth = httpx.BasicAuth(self.client_id, self.client_secret)
         async with httpx.AsyncClient() as session:
             body = body + f"&client_secret={self.client_secret}"
-            logging.debug(f'redirect_uri: {current_path}')
-            logging.debug(f'request_body: {body}')
             response = await session.post(token_url, headers=headers, content=body, auth=auth)
             content = response.json()
-            logging.debug(f'response: {content}')
+            logging.info(f'response: {content}')
             self.oauth_client.parse_request_body_response(json.dumps(content))
 
             uri, headers, _ = self.oauth_client.add_token(await self.userinfo_endpoint)
             response = await session.get(uri, headers=headers)
             profile_details = response.json()
 
-            uri, headers, _ = self.oauth_client.add_token(await self.useremail_endpoint)
-            response = await session.get(uri, headers=headers)
-            content = response.json()
-            profile_details['emailAddress'] = content.get('elements', [{}])[0].get('handle~', {}).get('emailAddress')
-
-        return await self.openid_from_response(profile_details)
+            return await self.openid_from_response(profile_details)

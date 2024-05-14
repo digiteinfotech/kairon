@@ -22,6 +22,9 @@ CHAT_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.
 
 VIEW_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.DESIGNER.value, ACCESS_ROLES.TESTER.value, ACCESS_ROLES.CHAT.value, ACCESS_ROLES.VIEW.value]
 
+AGENT_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.DESIGNER.value, ACCESS_ROLES.TESTER.value, ACCESS_ROLES.CHAT.value, ACCESS_ROLES.VIEW.value, ACCESS_ROLES.AGENT.value]
+
+
 KAIRON_USER_MSG_ENTITY = "kairon_user_msg"
 
 FAQ_DISABLED_ERR = "Faq feature is disabled for the bot! Please contact support."
@@ -111,6 +114,7 @@ class ChannelTypes(str, Enum):
     TELEGRAM = "telegram"
     INSTAGRAM = "instagram"
     BUSINESS_MESSAGES = "business_messages"
+    LINE = "line"
 
 
 class ElementTypes(str, Enum):

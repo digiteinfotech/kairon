@@ -1,4 +1,6 @@
-import json
+import time
+
+import ujson as json
 import logging
 import re
 from datetime import datetime
@@ -99,7 +101,11 @@ class ActionUtility:
         })
 
         try:
-            if request_method.lower() in {'get', 'post', 'put', 'delete'}:
+            if request_method.lower() == 'get':
+                response = requests.request(
+                    request_method.upper(), http_url, headers=headers, timeout=timeout, params=request_body
+                )
+            elif request_method.lower() in {'post', 'put', 'delete'}:
                 response = requests.request(
                     request_method.upper(), http_url, headers=headers, timeout=timeout, **{content_type: request_body}
                 )
@@ -590,9 +596,9 @@ class ActionUtility:
         try:
             bot_response = json.loads(bot_response) if isinstance(bot_response, str) else bot_response
             ActionUtility.set_dispatcher_response(dispatcher, bot_response, DispatchType.json.value)
-        except JSONDecodeError as e:
+        except json.JSONDecodeError as e:
             message = f'Failed to convert http response to json: {str(e)}'
-            logger.exception(e)
+            logger.error(e)
             ActionUtility.set_dispatcher_response(dispatcher, bot_response, DispatchType.text.value)
         return message, bot_response
 
@@ -608,6 +614,14 @@ class ActionUtility:
     def get_payload(payload: Dict, tracker: Tracker):
         if payload.get('type') == DbQueryValueType.from_slot.value:
             rqst_payload = tracker.get_slot(payload.get('value'))
+        elif payload.get('type') == DbQueryValueType.from_user_message.value:
+            rqst_payload = tracker.latest_message.get('text')
+            if not ActionUtility.is_empty(rqst_payload) and rqst_payload.startswith("/"):
+                msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
+                if not ActionUtility.is_empty(msg):
+                    rqst_payload = {"text": msg}
+            else:
+                rqst_payload = {"text": rqst_payload}
         else:
             rqst_payload = payload.get('value')
 
@@ -641,6 +655,7 @@ class ActionUtility:
     @staticmethod
     def compose_response(response_config: dict, http_response: Any):
         log = []
+        time_taken = 0
         response = response_config.get('value')
         evaluation_type = response_config.get('evaluation_type', EvaluationType.expression.value)
         if Utility.check_empty_string(response):
@@ -650,22 +665,23 @@ class ActionUtility:
                 f"Skipping evaluation as value is empty"
             ])
         elif evaluation_type == EvaluationType.script.value:
-            result, log, _ = ActionUtility.evaluate_pyscript(response, http_response)
+            result, log, _, time_taken = ActionUtility.evaluate_pyscript(response, http_response)
         else:
             ActionUtility.validate_http_response_status(http_response, http_response.get("http_status_code"), True)
             result = ActionUtility.prepare_response(response, http_response)
             log.extend([f"evaluation_type: {evaluation_type}", f"expression: {response}", f"data: {http_response}",
                         f"response: {result}"])
-        return result, log
+        return result, log, time_taken
 
     @staticmethod
     def fill_slots_from_response(set_slots: list, http_response: Any):
         evaluated_slot_values = {}
         response_log = ["initiating slot evaluation"]
+        time_taken = 0
         for slot in set_slots:
             try:
                 response_log.append(f"Slot: {slot['name']}")
-                value, log = ActionUtility.compose_response(slot, http_response)
+                value, log, time_taken = ActionUtility.compose_response(slot, http_response)
                 response_log.extend(log)
             except Exception as e:
                 logger.exception(e)
@@ -673,7 +689,7 @@ class ActionUtility:
                 response_log.append(f"Evaluation error for {slot['name']}: {str(e)}")
                 response_log.append(f"Slot {slot['name']} eventually set to None.")
             evaluated_slot_values[slot['name']] = value
-        return evaluated_slot_values, response_log
+        return evaluated_slot_values, response_log, time_taken
 
     @staticmethod
     def prepare_email_body(tracker_events, subject: str, user_email: str = None):
@@ -937,6 +953,7 @@ class ActionUtility:
 
     @staticmethod
     def evaluate_pyscript(script: Text, data: Any, raise_err_on_failure: bool = True):
+        start_time = time.time()
         log = [f"evaluation_type: script", f"script: {script}", f"data: {data}", f"raise_err_on_failure: {raise_err_on_failure}"]
         if data.get('context'):
             context = data['context']
@@ -952,7 +969,9 @@ class ActionUtility:
             output = result['body']
         else:
             output = {}
-        return output, log, slot_values
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        return output, log, slot_values, elapsed_time
 
     @staticmethod
     def trigger_rephrase(bot: Text, text_response: Text):

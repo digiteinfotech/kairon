@@ -23,3 +23,4 @@ policies:
 - core_fallback_action_name: action_default_fallback
   core_fallback_threshold: 0.3
   name: RulePolicy
+assistant_id: 20240131-142622-stable-museum

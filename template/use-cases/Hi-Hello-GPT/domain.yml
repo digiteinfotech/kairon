@@ -1,4 +1,4 @@
-version: '2.0'
+version: "3.1"
 config:
   store_entities_as_slots: true
 session_config:
@@ -23,43 +23,43 @@ slots:
   doc_url:
     type: rasa.shared.core.slots.TextSlot
     initial_value: null
-    auto_fill: true
     influence_conversation: true
+    mappings: []
   document:
     type: rasa.shared.core.slots.TextSlot
     initial_value: null
-    auto_fill: true
     influence_conversation: true
+    mappings: []
   video:
     type: rasa.shared.core.slots.TextSlot
     initial_value: null
-    auto_fill: true
     influence_conversation: true
+    mappings: []
   audio:
     type: rasa.shared.core.slots.TextSlot
     initial_value: null
-    auto_fill: true
     influence_conversation: true
+    mappings: []
   image:
     type: rasa.shared.core.slots.TextSlot
     initial_value: null
-    auto_fill: true
     influence_conversation: true
+    mappings: []
   kairon_action_response:
-    type: rasa.shared.core.slots.AnySlot
+    type: any
     initial_value: null
-    auto_fill: false
     influence_conversation: false
+    mappings: []
   google_search_result:
     type: rasa.shared.core.slots.TextSlot
     initial_value: null
-    auto_fill: false
     influence_conversation: false
+    mappings: []
   bot:
-    type: rasa.shared.core.slots.AnySlot
+    type: any
     initial_value: 64bdf3ff0a2ff4923faa83ee
-    auto_fill: true
     influence_conversation: false
+    mappings: []
 responses: {}
 actions:
 - kairon_faq_action

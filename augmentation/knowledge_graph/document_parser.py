@@ -20,7 +20,7 @@ class DocumentParser:
         font_counts = {}
 
         for page in doc:
-            blocks = page.getText("dict")["blocks"]
+            blocks = page.get_text("dict")["blocks"]
 
             for b in blocks:  # iterate through the text blocks
                 if b['type'] == 0:  # block contains text
@@ -89,7 +89,7 @@ class DocumentParser:
         first = True  # boolean operator for first header
         previous_s = {}  # previous span
         for page in doc:
-            blocks = page.getText("dict")["blocks"]
+            blocks = page.get_text("dict")["blocks"]
             for b in blocks:  # iterate through the text blocks
                 if b['type'] == 0:  # this block contains text
 

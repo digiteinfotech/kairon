@@ -1,7 +1,5 @@
-import logging
 from time import time
 
-from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,15 +25,15 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.models import Response
 from kairon.exceptions import AppException
-from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
+from contextlib import asynccontextmanager
 
 Utility.load_environment()
 
 
 from kairon.chat.routers import web_client, channels
+from kairon.shared.otel import instrument_fastapi
 
-logging.basicConfig(level="DEBUG")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (
@@ -67,7 +65,16 @@ secure_headers = Secure(
     content=content
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """ MongoDB is connected on the bot trainer startup """
+    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
+    connect(**config)
+    yield
+    disconnect()
+
+app = FastAPI(lifespan=lifespan)
 allowed_origins = Utility.environment['cors']['origin']
 app.add_middleware(
     CORSMiddleware,
@@ -78,9 +85,7 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-apm_client = Utility.initiate_fastapi_apm_client()
-if apm_client:
-    app.add_middleware(ElasticAPM, client=apm_client)
+instrument_fastapi(app)
 
 
 @app.middleware("http")
@@ -105,26 +110,11 @@ async def add_secure_headers(request: Request, call_next):
     return response
 
 
-@app.on_event("startup")
-async def startup():
-    """ MongoDB is connected on the bot trainer startup """
-    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
-    connect(**config)
-    await AccountProcessor.default_account_setup()
-    AccountProcessor.load_system_properties()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """ MongoDB is disconnected when bot trainer is shut down """
-    disconnect()
-
-
 @app.exception_handler(StarletteHTTPException)
 async def startlette_exception_handler(request, exc):
     """ This function logs the Starlette HTTP error detected and returns the
         appropriate message and details of the error """
-    logger.exception(exc)
+    logger.info(exc)
 
     return JSONResponse(
         Response(
@@ -270,3 +260,7 @@ def index():
 
 app.include_router(web_client.router, prefix="/api/bot/{bot}", tags=["Web client"])
 app.include_router(channels.router, prefix="/api/bot", tags=["Channels"])
+
+
+async def main(scope, receive, send):
+    await app.__call__(scope=scope, receive=receive, send=send)

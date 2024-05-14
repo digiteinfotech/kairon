@@ -1,1 +1,0 @@
-Trained Model Directory

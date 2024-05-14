@@ -1,5 +1,5 @@
 import datetime
-import json
+import ujson as json
 import re
 from http import HTTPStatus
 from typing import Text, Dict, Any, List, Iterable, Optional
@@ -22,6 +22,7 @@ from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.models import User
+from kairon.exceptions import AppException
 
 
 class MSTeamBot(OutputChannel):
@@ -119,7 +120,7 @@ class MSTeamBot(OutputChannel):
                 "Error trying to send botframework messge. Response: %s",
                 send_response.text,
             )
-            raise Exception(f"Exception while responding to MSTeams:: {send_response.text} and status::{send_response.status_code}")
+            raise AppException(f"Exception while responding to MSTeams:: {send_response.text} and status::{send_response.status_code}")
 
 
     async def send_text_message(
@@ -297,7 +298,7 @@ class MSTeamsHandler(InputChannel, ChannelHandlerBase):
         jwt_token = Utility.decrypt_message(secrettoken)
         return secrethash == token, jwt_token
 
-    async def validate(self) :
+    async def validate(self):
         return {"status": "ok"}
 
     async def handle_message(self):

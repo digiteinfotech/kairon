@@ -1,6 +1,5 @@
 language: en
 pipeline:
-#- name: kairon.shared.nlu.classifier.openai.OpenAIClassifier
 - name: WhitespaceTokenizer
 - name: CountVectorsFeaturizer
   min_ngram: 1

@@ -3,13 +3,13 @@ from enum import Enum
 from rasa.shared.core.slots import (
     CategoricalSlot,
     FloatSlot,
-    UnfeaturizedSlot,
     ListSlot,
     TextSlot,
-    BooleanSlot, AnySlot,
+    BooleanSlot,
+    AnySlot,
 )
 
-TRAINING_DATA_GENERATOR_DIR = 'data_generator'
+TRAINING_DATA_GENERATOR_DIR = "data_generator"
 
 
 class RESPONSE(str, Enum):
@@ -61,7 +61,6 @@ class SESSION_CONFIG(str, Enum):
 class SLOTS(str, Enum):
     INITIAL_VALUE = "initial_value"
     VALUE_RESET_DELAY = "value_reset_delay"
-    AUTO_FILL = "auto_fill"
     MIN_VALUE = "min_value"
     MAX_VALUE = "max_value"
     VALUES = "values"
@@ -108,7 +107,9 @@ class ModelTestingLogType(str, Enum):
     stories = "stories"
     nlu = "nlu"
     entity_evaluation_with_diet_classifier = "entity_evaluation_with_diet_classifier"
-    entity_evaluation_with_regex_entity_extractor = "entity_evaluation_with_regex_entity_extractor"
+    entity_evaluation_with_regex_entity_extractor = (
+        "entity_evaluation_with_regex_entity_extractor"
+    )
     response_selection_evaluation = "response_selection_evaluation"
 
 
@@ -119,12 +120,11 @@ class ENDPOINT_TYPE(str, Enum):
 
 
 class SLOT_TYPE(str, Enum):
-    FLOAT = FloatSlot.type_name,
-    CATEGORICAL = CategoricalSlot.type_name,
-    UNFEATURIZED = UnfeaturizedSlot.type_name,
-    LIST = ListSlot.type_name,
-    TEXT = TextSlot.type_name,
-    BOOLEAN = BooleanSlot.type_name,
+    FLOAT = FloatSlot.type_name
+    CATEGORICAL = CategoricalSlot.type_name
+    LIST = ListSlot.type_name
+    TEXT = TextSlot.type_name
+    BOOLEAN = BooleanSlot.type_name
     ANY = AnySlot.type_name
 
 
@@ -142,6 +142,7 @@ class ACCESS_ROLES(str, Enum):
     TESTER = "tester"
     CHAT = "chat"
     VIEW = "view"
+    AGENT = "agent"
 
 
 class ACTIVITY_STATUS(str, Enum):
@@ -171,32 +172,42 @@ class ModelTestType(str, Enum):
     common = "common"
 
 
-ALLOWED_NLU_FORMATS = {'nlu.yml', 'nlu.md', 'nlu.yaml'}
-ALLOWED_STORIES_FORMATS = {'stories.yml', 'stories.md', 'stories.yaml'}
+ALLOWED_NLU_FORMATS = {'nlu.yml', 'nlu.yaml'}
+ALLOWED_STORIES_FORMATS = {'stories.yml', 'stories.yaml'}
 ALLOWED_DOMAIN_FORMATS = {'domain.yml', 'domain.yaml'}
 ALLOWED_CONFIG_FORMATS = {'config.yaml', 'config.yml'}
 ALLOWED_RULES_FORMATS = {'rules.yaml', 'rules.yml'}
 ALLOWED_ACTIONS_FORMATS = {'actions.yaml', 'actions.yml'}
 ALLOWED_CHAT_CLIENT_CONFIG_FORMATS = {'chat_client_config.yml', 'chat_client_config.yaml'}
 ALLOWED_MULTIFLOW_STORIES_FORMATS = {'multiflow_stories.yaml', 'multiflow_stories.yml'}
-REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions', 'chat_client_config', 'multiflow_stories'}
+ALLOWED_BOT_CONTENT_FORMATS = {'bot_content.yaml', 'bot_content.yml'}
+REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions', 'chat_client_config', 'multiflow_stories',
+                'bot_content'}
 COMPONENT_COUNT = {'intents': 0, 'utterances': 0, 'stories': 0, 'training_examples': 0,
                    'http_actions': 0, 'jira_actions': 0, 'google_search_actions': 0, 'zendesk_actions': 0,
                    'email_actions': 0, 'slot_set_actions': 0, 'form_validation_actions': 0, 'rules': 0,
                    'domain': {'intents': 0, 'actions': 0, 'slots': 0, 'utterances': 0, 'forms': 0, 'entities': 0}}
 
-DEFAULT_NLU_FALLBACK_RULE = 'Ask the user to rephrase whenever they send a message with low NLU confidence'
-DEFAULT_NLU_FALLBACK_RESPONSE = "I'm sorry, I didn't quite understand that. Could you rephrase?"
-DEFAULT_NLU_FALLBACK_UTTERANCE_NAME = 'utter_default'
+DEFAULT_NLU_FALLBACK_RULE = (
+    "Ask the user to rephrase whenever they send a message with low NLU confidence"
+)
+DEFAULT_NLU_FALLBACK_RESPONSE = (
+    "I'm sorry, I didn't quite understand that. Could you rephrase?"
+)
+DEFAULT_NLU_FALLBACK_UTTERANCE_NAME = "utter_default"
 DEFAULT_ACTION_FALLBACK_RESPONSE = "Sorry I didn't get that. Can you rephrase?"
 REQUEST_TIMESTAMP_HEADER = "X-TimeStamp"
 KAIRON_TWO_STAGE_FALLBACK = "kairon_two_stage_fallback"
 GPT_LLM_FAQ = "gpt_llm_faq"
-DEFAULT_LLM_FALLBACK_RULE = 'search answer in faq'
-FALLBACK_MESSAGE = "I could not understand you! Did you mean any of the suggestions below?" \
-                   " Or else please rephrase your question."
+DEFAULT_LLM_FALLBACK_RULE = "search answer in faq"
+FALLBACK_MESSAGE = (
+    "I could not understand you! Did you mean any of the suggestions below?"
+    " Or else please rephrase your question."
+)
 DEFAULT_CONTEXT_PROMPT = "Answer question based on the context below, if answer is not in the context go check previous logs."
-DEFAULT_SYSTEM_PROMPT = "You are a personal assistant. Answer question based on the context below"
+DEFAULT_SYSTEM_PROMPT = (
+    "You are a personal assistant. Answer question based on the context below"
+)
 
 
 class AuditlogActions(str, Enum):
@@ -234,5 +245,5 @@ class FeatureMappings(str, Enum):
 
 ORG_SETTINGS_MESSAGES = {
     "create_user": "User creation is blocked by your OrgAdmin from SSO",
-    "only_sso_login": "Login with your org SSO url, Login with username/password not allowed"
+    "only_sso_login": "Login with your org SSO url, Login with username/password not allowed",
 }

@@ -1,4 +1,4 @@
-import json
+import ujson as json
 
 from kairon.events.executors.base import ExecutorBase
 from kairon.shared.constants import EventClass

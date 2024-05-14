@@ -10,7 +10,7 @@ from kairon.shared.account.data_objects import Bot
 from kairon.shared.live_agent.data_objects import LiveAgents
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
 from kairon.live_agent.live_agent import LiveAgent
-import json
+import ujson as json
 from kairon.live_agent.factory import LiveAgentFactory
 from datetime import datetime, timezone
 
@@ -607,7 +607,7 @@ class TestLiveAgentProcessor:
 
     @responses.activate
     def test_chatwoot_getBusinesshours_working_disabled(selfs):
-        import json
+        import ujson as json
         from kairon.live_agent.factory import LiveAgentFactory
         config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
                   "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],

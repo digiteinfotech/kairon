@@ -1,10 +1,10 @@
-import json
 import os
 from urllib.parse import urljoin
 
 import mock
 import numpy as np
 import pytest
+import ujson as json
 from aiohttp import ClientConnectionError
 from mongoengine import connect
 
@@ -105,7 +105,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix,
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": test_content.data}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
 
@@ -211,14 +211,14 @@ class TestLLM:
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'name': f"{gpt3.bot}_country_details{gpt3.suffix}",
                                                                                  'vectors': gpt3.vector_config}
 
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": '{"country": "Spain", "lang": "spanish"}'}
+            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {"model": "text-embedding-3-small",
+                                                                                 "input": '{"country":"Spain","lang":"spanish"}'}
             assert list(aioresponses.requests.values())[3][0].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": '{"lang": "spanish", "role": "ds"}'}
+            assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {"model": "text-embedding-3-small",
+                                                                                 'input': '{"lang":"spanish","role":"ds"}'}
             assert list(aioresponses.requests.values())[3][1].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[3][2].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": '{"name": "Nupur", "city": "Pune"}'}
+            assert list(aioresponses.requests.values())[3][2].kwargs['json'] == {"model": "text-embedding-3-small",
+                                                                                 "input": '{"name":"Nupur","city":"Pune"}'}
             assert list(aioresponses.requests.values())[3][2].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {'points': [{'id': test_content_two.vector_id,
                                                                                              'vector': embedding,
@@ -287,7 +287,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'test_embed_faq_json_payload_with_int_faq_embd',
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": json.dumps(input)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
@@ -359,7 +359,7 @@ class TestLLM:
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'test_int_embd_int_faq_embd',
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": json.dumps(input)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             expected_payload = test_content.data
@@ -426,7 +426,7 @@ class TestLLM:
                 await gpt3.train()
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": test_content.data}
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": test_content.data}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
                                                                   'vector': embedding, 'payload': {'collection_name': f"{bot}{gpt3.suffix}",'content': test_content.data}}]}
@@ -492,7 +492,7 @@ class TestLLM:
                 await gpt3.train()
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'payload_upsert_error_error_json_faq_embd', 'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": json.dumps(test_content.data)}
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": json.dumps(test_content.data)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             expected_payload = test_content.data
             expected_payload['collection_name'] = 'payload_upsert_error_error_json_faq_embd'
@@ -508,9 +508,10 @@ class TestLLM:
         bot = "test_embed_faq_predict"
         user = "test"
         value = "knupur"
+        collection = 'python'
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot=bot, user=user).save()
+            collection=collection, bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
@@ -519,81 +520,17 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.'}
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  'collection': 'python'}]}
         hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {'messages': [{'role': 'system',
-                                                 'content': 'You are a personal assistant. Answer the question according to the below context'},
-                                                {'role': 'user',
-                                                 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}]}
-        mock_completion_request.update(hyperparameters)
-        request_header = {"Authorization": "Bearer knupur"}
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-        )
-
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
-
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
-                method="POST",
-                payload={'result': [
-                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
-            )
-
-            response = await gpt3.predict(query, **k_faq_action_config)
-            assert response['content'] == generated_text
-
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": query}
-            assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
-
-            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
-                                                                                 'with_payload': True,
-                                                                                 'score_threshold': 0.70}
-            print(list(aioresponses.requests.values())[2][0].kwargs['json'])
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
-
-    @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_predict_with_payload(self, aioresponses):
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-
-        bot = "test_embed_faq_predict_with_payload"
-        user = "testone"
-        value = "knupur"
-        test_content = CognitionData(
-            data={'city': 'Delhi', 'emp': 'one'},
-            content_type="json",
-            collection='city',
-            bot=bot, user=user).save()
-        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
-
-        generated_text = "The city of one is Delhi."
-        query = "What is the city of one?"
-
-        k_faq_action_config = {
-            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
-            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.',
-            'collection': 'city'}
-        hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n[{'city': 'delhi', 'emp': 'one'}, {'city': 'mumbai', 'emp': 'two'}]\nAnswer according to this context.\n \nQ: What is the city of one? \nA:"}], 'temperature': 0.0, 'max_tokens': 300, 'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}, 'model': 'gpt-3.5-turbo'}
+        mock_completion_request = {"messages": [
+            {'role': 'system',
+             'content': 'You are a personal assistant. Answer the question according to the below context'},
+            {'role': 'user',
+             'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
+        ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
 
@@ -618,29 +555,96 @@ class TestLLM:
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
                 payload={'result': [
-                    {'id': test_content.vector_id,
-                     'score': 0.80, "payload": {'city': 'delhi', 'collection_name': '65cf5452b7fd22267aefa901_test_two_faq_embd', 'emp': 'one'}},
-                    {'id': test_content.vector_id,
-                     'score': 0.80,
-                     "payload": {'city': 'mumbai', 'collection_name': '65cf5452b7fd22267aefa901_test_two_faq_embd',
-                                 'emp': 'two'}}
-                ]
-                }
+                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                                  "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                                  'with_payload': True,
                                                                                  'score_threshold': 0.70}
-            print(list(aioresponses.requests.values())[2][0].kwargs['json'])
+
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+    @pytest.mark.asyncio
+    async def test_gpt3_faq_embedding_predict_with_default_collection(self, aioresponses):
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        bot = "test_embed_faq_predict_with_default_collection"
+        user = "test"
+        value = "knupur"
+        collection = 'default'
+        test_content = CognitionData(
+            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
+            collection=collection, bot=bot, user=user).save()
+        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        query = "What kind of language is python?"
+
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                   'similarity_prompt_name': 'Similarity Prompt',
+                                   'similarity_prompt_instructions': 'Answer according to this context.',
+                                   'collection': 'default'}]}
+        hyperparameters = Utility.get_llm_hyperparameters()
+        mock_completion_request = {"messages": [
+            {'role': 'system',
+             'content': 'You are a personal assistant. Answer the question according to the below context'},
+            {'role': 'user',
+             'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
+        ]}
+        mock_completion_request.update(hyperparameters)
+        request_header = {"Authorization": "Bearer knupur"}
+
+        aioresponses.add(
+            url="https://api.openai.com/v1/embeddings",
+            method="POST",
+            status=200,
+            payload={'data': [{'embedding': embedding}]}
+        )
+
+        aioresponses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=200,
+            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        )
+
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                method="POST",
+                payload={'result': [
+                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+            )
+
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
+            assert response['content'] == generated_text
+
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
+                                                                                 "input": query}
+            assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
+            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                                 'with_payload': True,
+                                                                                 'score_threshold': 0.70}
+
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
+            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_values(self, aioresponses):
@@ -648,22 +652,25 @@ class TestLLM:
 
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot="test_embed_faq_predict", user="test").save()
+            collection='python', bot="test_embed_faq_predict", user="test").save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.'}
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  'collection': 'python'}]}
 
         hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {'messages': [{'role': 'system',
-                                                 'content': 'You are a personal assistant. Answer the question according to the below context'},
-                                                {'role': 'user',
-                                                 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}]}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": "You are a personal assistant. Answer the question according to the below context"},
+            {'role': 'user',
+             'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
+        ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
 
@@ -685,33 +692,36 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
                 payload={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [{'messages': [{'role': 'system',
-                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
-                                               {'role': 'user',
-                                                'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
-                                  'raw_completion_response': {'choices': [{'message': {
-                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                                      'role': 'assistant'}}]}, 'type': 'answer_query',
-                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
-                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                                      'logit_bias': {}}}]
+            assert gpt3.logs == [
+                {'messages': [{'role': 'system',
+                               'content': 'You are a personal assistant. Answer the question according to the below context'},
+                              {'role': 'user',
+                               'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
+                 'raw_completion_response': {'choices': [{
+                     'message': {
+                         'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                         'role': 'assistant'}}]},
+                 'type': 'answer_query',
+                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
-            print(list(aioresponses.requests.values())[2][0].kwargs['json'])
+
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_values_with_instructions(self, aioresponses):
@@ -719,23 +729,26 @@ class TestLLM:
 
         test_content = CognitionData(
             data="Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ",
-            bot="test_embed_faq_predict", user="test").save()
+            collection='java', bot="test_embed_faq_predict", user="test").save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.',
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  "collection": "java"}],
             'instructions': ['Answer in a short way.', 'Keep it simple.']}
 
         hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {'messages': [{'role': 'system',
-                                                 'content': 'You are a personal assistant. Answer the question according to the below context'},
-                                                {'role': 'user',
-                                                 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}]}
+        mock_completion_request = {"messages": [
+            {'role': 'system',
+             'content': 'You are a personal assistant. Answer the question according to the below context'},
+            {'role': 'user',
+             'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}
+        ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
 
@@ -757,32 +770,37 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
                 payload={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [{'messages': [{'role': 'system',
-                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
-                                               {'role': 'user',
-                                                'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
-                                  'raw_completion_response': {'choices': [{'message': {
-                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                                      'role': 'assistant'}}]}, 'type': 'answer_query',
-                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
-                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                                      'logit_bias': {}}}]
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
+            assert gpt3.logs == [
+                {'messages': [{'role': 'system',
+                               'content': 'You are a personal assistant. Answer the question according to the below context'},
+                              {'role': 'user',
+                               'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
+                 'raw_completion_response': {
+                     'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, '
+                                                         'high level, general purpose programming.',
+                                              'role': 'assistant'}}]},
+                 'type': 'answer_query',
+                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                     'n': 1,
+                                     'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                     'logit_bias': {}}}]
+
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": query}
             assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
-            print(list(aioresponses.requests.values())[2][0].kwargs['json'])
+
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -792,16 +810,17 @@ class TestLLM:
 
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot="test_embed_faq_predict", user="test").save()
+            collection='python', bot="test_embed_faq_predict", user="test").save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.', "enable_response_cache": True}
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  "collection": 'python'}]}
 
         def __mock_connection_error(*args, **kwargs):
             import openai
@@ -815,13 +834,14 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
                 payload={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
+            print(mock_completion.call_args.args[3])
 
             assert response == {'exception': "Connection reset by peer!", 'is_failure': True, "content": None}
 
@@ -830,19 +850,15 @@ class TestLLM:
             assert mock_completion.call_args.args[1] == 'What kind of language is python?'
             assert mock_completion.call_args.args[
                        2] == 'You are a personal assistant. Answer the question according to the below context'
-            print(mock_completion.call_args.args[3])
-            assert mock_completion.call_args.args[3] == """Based on below context answer question, if answer not in context check previous logs.
-Instructions on how to use Similarity Prompt:
-['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']
-Answer according to this context.
-"""
-            assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
-                                                        'use_similarity_prompt': True, 'enable_response_cache': True,
-                                                        'similarity_prompt_name': 'Similarity Prompt',
-                                                        'similarity_prompt_instructions': 'Answer according to this context.'}
+            assert mock_completion.call_args.args[3] == """Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n"""
+            assert mock_completion.call_args.kwargs == {'similarity_prompt': [
+                {'top_results': 10, 'similarity_threshold': 0.7, 'use_similarity_prompt': True,
+                 'similarity_prompt_name': 'Similarity Prompt',
+                 'similarity_prompt_instructions': 'Answer according to this context.', 'collection': 'python'}]}
             assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger", autospec=True)
@@ -852,15 +868,16 @@ Answer according to this context.
 
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot="test_embed_faq_predict", user="test").save()
+            collection='python', bot="test_embed_faq_predict", user="test").save()
 
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-            'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.', "enable_response_cache": True}
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  "collection": 'python'}]}
 
         mock_embedding.return_value = embedding
         mock_llm_request.side_effect = ClientConnectionError()
@@ -868,11 +885,12 @@ Answer according to this context.
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response == {'exception': 'Failed to connect to service: localhost', 'is_failure': True, "content": None}
 
             assert mock_embedding.call_args.args[1] == query
             assert gpt3.logs == []
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
@@ -889,19 +907,19 @@ Answer according to this context.
         query = "What kind of language is python?"
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
-            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, "enable_response_cache": True}
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs."}
 
         mock_embedding.side_effect = [openai.error.APIConnectionError("Connection reset by peer!"), embedding]
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
-            response = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
             assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
 
             assert mock_embedding.call_args.args[1] == query
             assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
+            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_previous_bot_responses(self, aioresponses):
@@ -911,7 +929,7 @@ Answer according to this context.
         user = "test"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot=bot, user=user).save()
+            collection='python', bot=bot, user=user).save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
@@ -919,13 +937,19 @@ Answer according to this context.
             "previous_bot_responses": [
                 {'role': 'user', 'content': 'hello'},
                 {'role': 'assistant', 'content': 'how are you'},
-            ], 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.'}
+            ],
+            "similarity_prompt": [{'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+                                   'similarity_prompt_instructions': 'Answer according to this context.',
+                                   "collection": 'python'}]
+        }
         hyperparameters = Utility.get_llm_hyperparameters()
-        mock_completion_request = {'messages': [
+        mock_completion_request = {"messages": [
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
-            {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
-                                                                                                    'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}]}
+            {'role': 'user', 'content': 'hello'},
+            {'role': 'assistant', 'content': 'how are you'},
+            {'role': 'user',
+             'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
+        ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
 
@@ -946,25 +970,27 @@ Answer according to this context.
         gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
         aioresponses.add(
-            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
             method="POST",
             payload={'result': [
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response = await gpt3.predict(query, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
+        print(list(aioresponses.requests.values())[2][0].kwargs['json'])
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                              "input": query}
         assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
         assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                              'with_payload': True,
                                                                              'score_threshold': 0.70}
-        print(list(aioresponses.requests.values())[2][0].kwargs['json'])
+
         assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
         assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+        assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_predict_with_query_prompt(self, aioresponses):
@@ -974,28 +1000,33 @@ Answer according to this context.
         user = "test"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot=bot, user=user).save()
+            collection='python', bot=bot, user=user).save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         rephrased_query = "Explain python is called high level programming language in laymen terms?"
-        k_faq_action_config = {
+        k_faq_action_config = {"query_prompt": {
             "query_prompt": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-            "use_query_prompt": True, 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.'
-        }
+            "use_query_prompt": True},
+                               "similarity_prompt": [
+                                   {'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+                                    'similarity_prompt_instructions': 'Answer according to this context.',
+                                    "collection": 'python'}]
+                               }
         hyperparameters = Utility.get_llm_hyperparameters()
         mock_rephrase_request = {"messages": [
             {"role": "system",
              "content": DEFAULT_SYSTEM_PROMPT},
             {"role": "user",
-             "content": f"{k_faq_action_config['query_prompt']}\n\n Q: {query}\n A:"}
+             "content": f"{k_faq_action_config.get('query_prompt')['query_prompt']}\n\n Q: {query}\n A:"}
         ]}
 
-        mock_completion_request = {'messages': [
-            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
             {'role': 'user',
-             'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:"}]}
+             'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:"}
+        ]}
         mock_rephrase_request.update(hyperparameters)
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
@@ -1025,16 +1056,17 @@ Answer according to this context.
         gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
         aioresponses.add(
-            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
             method="POST",
             payload={'result': [
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response = await gpt3.predict(query, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
+        print(list(aioresponses.requests.values())[2][1].kwargs['json'])
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
                                                                              "input": query}
         assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
         assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
@@ -1042,6 +1074,6 @@ Answer according to this context.
                                                                              'score_threshold': 0.70}
         assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_rephrase_request
         assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
-        print(list(aioresponses.requests.values())[2][1].kwargs['json'])
         assert list(aioresponses.requests.values())[2][1].kwargs['json'] == mock_completion_request
         assert list(aioresponses.requests.values())[2][1].kwargs['headers'] == request_header
+        assert isinstance(time_elapsed, float) and time_elapsed > 0.0

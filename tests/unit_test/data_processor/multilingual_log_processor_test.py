@@ -7,6 +7,7 @@ from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.data_objects import BotReplicationLogs
 from kairon.exceptions import AppException
+from mongomock import MongoClient
 
 
 class TestMultilingualLogProcessor:

@@ -81,8 +81,8 @@ class AioRestClient(RestClientBase):
                                 request_body: Union[dict, list] = None, headers: dict = None,
                                 content_type: str = HttpRequestContentType.json.value,
                                 timeout: ClientTimeout = None, is_streaming_resp: bool = False) -> ClientResponse:
+        client = RetryClient(self.session, raise_for_status=True, retry_options=retry_options)
         try:
-            client = RetryClient(self.session, raise_for_status=True, retry_options=retry_options)
             logger.info(f"Event started: {http_url}")
             if request_method.lower() in ['get', 'delete']:
                 request_body.update({k: '' for k, v in request_body.items() if not v})
@@ -111,7 +111,7 @@ class AioRestClient(RestClientBase):
             raise AppException(f"Failed to execute the url: {str(e)}")
         finally:
             if self.close_session_with_rqst_completion:
-                await self.cleanup()
+                await client.close()
 
     async def __trigger(self, client, *args, **kwargs) -> ClientResponse:
         """

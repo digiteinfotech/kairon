@@ -8,6 +8,7 @@ import requests
 from google.oauth2 import id_token
 from rasa.core.channels.channel import InputChannel, OutputChannel, UserMessage
 from starlette.requests import Request
+from ujson import dumps
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.handlers.channels.base import ChannelHandlerBase

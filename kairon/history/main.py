@@ -1,13 +1,8 @@
-import logging
-from time import time
-
-from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security.utils import get_authorization_scheme_param
 from loguru import logger
 from mongoengine.errors import (
     DoesNotExist,
@@ -24,12 +19,12 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
     CacheControl, Secure, PermissionsPolicy
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from kairon.shared.utils import Utility
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.history.router import metrics, conversations, trends
+from kairon.shared.utils import Utility
+from kairon.shared.otel import instrument_fastapi
 
-logging.basicConfig(level="DEBUG")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (
@@ -70,9 +65,7 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware)
 Utility.load_environment()
-apm_client = Utility.initiate_fastapi_apm_client()
-if apm_client:
-    app.add_middleware(ElasticAPM, client=apm_client)
+instrument_fastapi(app)
 
 
 @app.middleware("http")
@@ -80,24 +73,6 @@ async def add_secure_headers(request: Request, call_next):
     """Add security headers."""
     response = await call_next(request)
     secure_headers.framework.fastapi(response)
-    return response
-
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """Logging request calls."""
-    authorization: str = request.headers.get("Authorization")
-    _, param = get_authorization_scheme_param(authorization)
-    start_time = time()
-
-    response = await call_next(request)
-
-    process_time = (time() - start_time) * 1000
-    formatted_process_time = "{0:.2f}".format(process_time)
-    logger.info(
-        f"rid={param} request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}"
-    )
-
     return response
 
 

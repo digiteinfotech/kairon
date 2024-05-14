@@ -1,0 +1,2545 @@
+version: "3.1"
+nlu:
+- intent: risk_discovery_97
+  examples: |
+    - risk discovery
+    - Is Risk Discovery available to be done from the PM Plan?
+    - Risk Discovery can only be done from the PM Plan.
+- intent: greet
+  examples: |
+    - Hi
+    - Hello
+    - Hey
+- intent: navigation_query
+  examples: |
+    - navigate to [Inbox](menucode)
+    - give me navigation for [Inbox](menucode)
+    - Take me to [Inbox](menucode)
+    - view [spr34](item_id)
+- intent: set_context
+  examples: |
+    - /set_context
+- intent: inbox_query
+  examples: |
+    - What are my work-items?
+    - get inbox items
+    - performer queue work-items
+    - my workitems
+    - Can you highlight my critical items
+    - Which are the items nearing pastdue
+    - Are there any blocked items?
+    - get my blocked todo
+    - blocked items which are currently in my queue
+    - get my inprogress items
+    - show me in progress todo
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you around
+    - see you later
+- intent: processes_recommended_0
+  examples: |
+    - How can I find relevant processes for my project?
+    - How are processes recommended for a project?
+    - I don't know what processes should be included in my project.
+    - How can I get relevant processes for my project?
+    - The processes that should be displayed are listed below.
+- intent: standard_activities_as_na_1
+  examples: |
+    - I see the standard activities as NA, though processes are recommended.
+    - Though processes are recommended for my project, I see the standard activities as NA.
+    - Standard Activities are marked as NA but critical practices are available for implementation.
+    - Though processes are recommended for my project , I see the standard activities as NA
+- intent: critical_practice_2
+  examples: |
+    - What do critical practices do?
+    - Critical practices are what they are.
+    - Critical practices?
+- intent: process_critical_practice_tailoring_3
+  examples: |
+    - What is process tailoring?
+    - The critical practice tailoring is what it is.
+    - What is the critical practice in tailoring?
+    - What is the process?
+    - The critical practice is tailoring.
+- intent: process_selection_limitation_4
+  examples: |
+    - We don't have any limitation on the selection of the processes.
+    - Is there any limitation on the selection of processes?
+    - We don't have any limitation on the selection of processes.
+    - Can multiple processes be chosen?
+- intent: process_selection_mapping_multivendor_5
+  examples: |
+    - How will process selection be applied to a multi vendor team
+    - How will mapping be applied to a multi vendor team?
+    - What is the process mapping done for the project?
+    - How is the mapping done for the project?
+- intent: changes_to_critical_practices_after_pm_plan_baseline_6
+  examples: |
+    - Will critical practices in my PM plan reflect in my open releases if I change them?
+    - Will the changes in my PM plan reflect in my open releases?
+    - Will critical practices in my PM plan change if I change them?
+    - Will my open releases reflect changes in my PM plan and rebaseline?
+- intent: change_in_process_mapping_7
+  examples: |
+    - Will a change in process mapping reflect in the releases if it is related to the work category?
+    - How will I know if there is a new process available in the PM plan after I baseline it?
+    - I don't know if there is a new process available in the PM plan after I baseline it.
+    - If there is a new process for the project, how can it be selected?
+    - How do I  select the new process available for my open release.
+- intent: addition_of_critical_practices_8
+  examples: |
+    - If our project doesn't follow Critical Practices, can we add it?
+    - If our project doesn't follow Critical Practices, can we add Critical practices?
+    - How to capture a critical practice which is not exactly similar to the existing critical practice is something that needs to be added or mandated by the client.
+    - How to capture a critical practice which is not exactly similar to the existing critical practice is to be added/or has been mandated by client
+- intent: process_space_view_9
+  examples: |
+    - Process space is in alignment with the Archetype work category view.
+    - The Cluster - Archetype - Work Category view has Process Space in it too.
+    - Is Process Space in alignment with the work category view?
+    - Is Process Space in line with the work category view.
+    - The Cluster - Archetype - Work Category view has Process Space in it.
+    - Is Process Space in alignment with the work category view.
+    - Process space is in alignment with the work category view.
+    - The Cluster - Archetype - Work Category view has Process Space in it as well.
+    - The Cluster - Archetype - Work Category view has Process Space in it's alignment.
+    - Process space is in alignment with the Archetype view.
+    - Is Process Space in alignment too with the Cluster - Archetype - Work Category view
+- intent: critical_practices_demarcation_in_process_space_10
+  examples: |
+    - The critical practices and standard activities are separated.
+    - The critical practices and standard activities are not demarcated.
+    - Is it possible to distinguish the critical practices listed in mainspring?
+    - The critical practices and standard activities should be separated.
+    - Is there a way to distinguish the critical practices listed in mainspring?
+    - Standard activities and critical practices are separated.
+    - What are the critical practices for a process?
+    - Is there a way to distinguish the critical practices listed in mainspring in the process space?
+    - What are the critical practices depicted in the process space?
+    - Can we tell the difference between critical practices listed in mainspring and the process space?
+    - The critical practices and standard activities are different.
+    - Is it possible to distinguish the critical practices listed in mainspring in the process space.
+    - How are critical practices depicted for a process?
+    - How are critical practices depicted?
+    - Can we distinguish the critical practices listed in mainspring?
+    - What are the critical practices depicted for a process?
+    - What are the critical practices depicted in the process?
+    - The critical practices are demarcated.
+    - What are critical practices for a process?
+    - How are critical practices for a process depicted?
+    - Is the critical practices and standard activities separated?
+    - There are critical practices and standard activities that are not demarcated.
+    - The process space has critical practices listed in mainspring.
+    - How are critical practices depicted in the process?
+    - The critical practices and standard activities are not defined.
+    - There are critical practices and standard activities.
+    - How are critical practices depicted in a process?
+    - Is it possible to distinguish the critical practices listed in mainspring in the process space?
+    - Is there a way to distinguish the critical practices listed in mainspring from the process space?
+    - There are critical practices listed in the process space.
+    - How are critical practices depicted for a process in Process Space?
+    - Can we distinguish the critical practices listed in mainspring in the process space too
+    - Are the critical practices and standard activities demarcated
+- intent: view_processes_from_mainspring_11
+  examples: |
+    - How can we check the processes listed in the mainspring?
+    - How can we see the mainspring listed processes?
+    - What can we do to check the processes listed in Process Space?
+    - How do we check the mainspring listed processes?
+    - What can we do to check the mainspring listed processes?
+    - How can we check the mainspring listed processes?
+    - What can we do to check the listed processes?
+    - How can we check the processes listed in Process Space?
+    - Can we check the mainspring listed processes?
+    - How can we check the listed processes?
+    - How can we check the mainspring listed processes in Process Space?
+- intent: method_components_against_critical_practices_in_process_space_12
+  examples: |
+    - Where to find the method components, templates, guidelines, and checklists?
+    - The method components are mapped against practices.
+    - Where can I find the method or process components?
+    - Where do I get the components of the method?
+    - How are the method components mapped against the practices?
+    - The method components are mapped against the practices.
+    - How are the methods mapped against the practices?
+    - I don't know where to get the method or process components.
+    - Where to find the method components or templates?
+    - Where to find the method components and guidelines?
+    - Where am I able to find the method or process components?
+    - The critical practices are mapped against method components.
+    - Where to find the components of a method?
+    - Where to find the method components, guidelines, and checklists?
+    - Where do I find the components of the process?
+    - Where to find the components of the method?
+    - Where can I find the method components, guidelines, and checklists?
+    - The method components are mapped against certain practices.
+    - The critical practices are mapped against the method components.
+    - Where to find the method components and templates?
+    - How are the method components mapped?
+    - Where to find the method components?
+    - Where do I find the process components?
+    - The method components are mapped against the critical practices.
+    - Where should I find the method or process components?
+    - The method components are mapped against critical practices.
+    - Where do I find the components of the method?
+    - Where do I find the method or process components?
+    - Where do I get the process components?
+    - Where can I find the method components or templates?
+    - Where to find the method components or templates, guidelines, checklists associated to critical practices?
+    - how are the method components mapped against the critical practices
+    - where do I get hold of the method or process components
+- intent: usage_of_org_templates_mandated_or_not_13
+  examples: |
+    - There isn't a checkpoint where the team can confirm the use of method components.
+    - The team will not be able to confirm the usage of method components.
+    - Critical Practices does not require the use of an org template or a checklist.
+    - Is the understanding that Critical Practices does not require usage of org template or checklist correct?
+    - There isn't a checkpoint where the team can confirm the usage of method components.
+    - Is the understanding that Critical Practices does not mandate usage of org template or checklist correct?
+    - There isn't a checkpoint where the team will confirm method components.
+    - The team won't confirm the usage of method components at a checkpoint.
+    - There isn't a checkpoint where the team will confirm the usage of method components.
+    - Critical Practices does not require the use of an org template or checklist.
+    - Is the understanding correct that Critical Practices doesn't mandate usage of org template or checklist?
+    - There is no way to confirm the usage of method components.
+    - The team will not be able to confirm the usage of method components at a checkpoint.
+    - There isn't a checkpoint where the team can confirm method components.
+    - Is the understanding that Critical Practices doesn't mandate usage of org template or checklist correct?
+    - Is the understanding correct that Critical Practices does not mandate usage of org template or checklist?
+    - Is the understanding correct that Critical Practices doesn't mandate the use of org template or checklist?
+    - There isn't a checkpoint where the team will confirm the use of method components.
+    - Is the understanding that Critical Practices doesn't require usage of org template or checklist correct?
+    - Critical Practices does not require the use of an org template.
+    - Critical Practices does not mandate usage of org template or checklist - Is this the correct understanding?
+    - There is no checkpoint where team will confirm the usage of method components
+- intent: process_selection_mandatory_for_release_creation_14
+  examples: |
+    - Is it a requirement to select the process when creating a release?
+    - Is process selection required for release creation?
+    - Is it compulsory to select process while creating a release?
+    - Is it possible to create a release without selecting a process?
+    - The process selection is mandatory for release creation.
+    - Is process selection mandatory for release creation?
+    - Is it mandatory to select the process when creating a release?
+    - Is it a requirement to select process while creating a release?
+    - Is it required to select the process while creating a release?
+    - Process selection is mandatory for release creation.
+    - For release creation, process selection is mandatory.
+    - Is it a requirement to select the process while creating a release?
+    - Is it possible to create a release without choosing a process?
+    - Process selection must be mandatory for release creation.
+    - Is it possible to create a release without selecting a process.
+    - Process selection is required for release creation.
+    - Process selection is mandatory for release creation?
+    - It's mandatory for process selection for release creation.
+    - Is there a way to create a release without selecting a process.
+    - Should process selection be mandatory for release creation?
+    - Can I make a release without selecting a process?
+    - Is it possible to create a release without selecting the process?
+    - Is it mandatory for the process to be selected when creating a release?
+    - Is it possible to create a release without a process?
+    - Can I create a release without selecting a process?
+    - Is there a way to create a release without selecting a process?
+    - Is it mandatory for the process to be selected while creating a release?
+    - Is it mandatory to select the process?
+    - Is it required to select process while creating a release?
+    - I want to create a release without selecting a process.
+    - Is it mandatory to select process while creating a release?
+    - Process selection mandatory for release creation?
+- intent: critical_practices_implementation_affirmation_15
+  examples: |
+    - Is there a place where I can say that Critical Practices have been implemented?
+    - I want to know if critical practices have been implemented in a release.
+    - Is it a requirement to affirm critical practices monthly?
+    - Is there a place where I can affirm that critical practices have been implemented?
+    - I want to know if critical practices have been implemented in the release.
+    - Where do I state that critical practices have been implemented?
+    - I need to confirm that the critical practices have been implemented.
+    - Where do I find out that critical practices have been implemented in the project?
+    - Where do I find out that the critical practices have been implemented?
+    - Is it compulsory to affirm critical practices on a monthly basis?
+    - I need to confirm that the critical practices have been implemented in the project.
+    - Where do I find out that critical practices have been implemented?
+    - I would like to know where critical practices have been implemented in a release.
+    - Is it required to affirm critical practices on a monthly basis?
+    - Where do I affirm that critical practices have been implemented?
+    - Is it mandatory to affirm critical practices monthly?
+    - I need to confirm that critical practices have been implemented.
+    - Where should I state that critical practices have been implemented?
+    - I would like to know where critical practices have been implemented in the project.
+    - Is it mandatory for critical practices to be affirmed on a monthly basis?
+    - The critical practices have been implemented in the project.
+    - I need to confirm that critical practices have been implemented in the project.
+    - I would like to know where critical practices have been implemented.
+    - Is it a requirement to affirm critical practices on a monthly basis?
+    - Where do I find out that the critical practices have been implemented in the project?
+    - Where can I affirm that critical practices have been implemented?
+    - Is it necessary to affirm critical practices on a monthly basis?
+    - Is it mandatory to affirm critical practices on a monthly basis?
+    - Is it a requirement for critical practices to be affirmed on a monthly basis?
+    - Where do I say Critical Practices have been implemented?
+    - Where do I tell people that critical practices have been implemented?
+    - Is it a requirement to affirm critical practices on a monthly basis.
+    - Where do I say critical practices have been implemented in a release?
+    - Where should I say critical practices have been implemented?
+    - I want to know where critical practices have been implemented in a release.
+    - Where do I affirm that critical practices have been implemented in a release ?
+    - Where do I declare that Critical Practices have been implemented?
+    - As a PM , where do I confirm that the critical practices selected has been implemented in the project
+    - Is it mandatory to perform  affirmation of critical practices on a monthly basis?
+- intent: impact_of_critical_practice_addition_in_release_16
+  examples: |
+    - What is the impact of any changes to critical practices?
+    - What is the impact of changes in critical practices on the open and closed releases?
+    - How will changes in Critical Practices be accommodated in the project lifecycle?
+    - How will I find out if a critical practice is changed?
+    - How will Critical Practices changes be accommodated in the project lifecycle?
+    - Changes in Critical practices are handled.
+    - How are critical practices changed?
+    - How will I be notified if a critical practice is changed?
+    - How are the changes handled?
+    - What impact does any addition have on critical practices?
+    - How will I know when a critical practice is changed?
+    - How will changes to Critical Practices be accommodated in the project lifecycle?
+    - What is the impact of critical practices changes on the open and closed releases?
+    - What is the impact on the open and closed releases if there are changes in critical practices?
+    - How do Critical practices change?
+    - How will I know if a critical practice has been changed?
+    - What is the impact on the open and closed releases if there are changes to critical practices?
+    - How will Critical Practices be accommodated in the project lifecycle?
+    - What is the impact on critical practices when there is an addition?
+    - The changes in Critical practices are handled.
+    - What is the impact on the open and closed releases when critical practices are changed?
+    - What is the impact on critical practices when there is an addition or modification?
+    - How are Critical Practices going to be accommodated in the project lifecycle?
+    - What is the impact on the open and closed releases if there is a change to critical practices?
+    - What is the impact on critical practices when there is an addition/modification?
+    - What is the impact on the open and closed releases if there is a change in critical practices?
+    - How will I be notified if a critical practice is modified?
+    - How will I know if a practice is changed?
+    - What is the impact on critical practices if there is an addition or modification?
+    - The changes in critical practices are being handled.
+    - What is the impact of any changes in critical practices?
+    - What changes will be accommodated in the project lifecycle?
+    - How will changes in Critical Practices be accommodated in the project?
+    - How will I be informed if a critical practice is changed?
+    - How will I be notified if a critical practice is altered?
+    - What is the impact on critical practices?
+    - What is the impact of critical practices changes on open and closed releases?
+    - Changes in Critical Practices are going to be accommodated in the project lifecycle.
+    - What is the impact on critical practices of an addition/modification?
+    - I don't know how to be notified if a critical practice is changed.
+    - What is the impact on the open and closed releases if critical practices are changed?
+    - How will I know if a critical practice is changed?
+    - What is the impact of changes in critical practices?
+    - What is the impact of changes in critical practices on open and closed releases?
+    - Changes in Critical Practices will be accommodated in the project lifecycle.
+    - If there are changes in critical practices at any given point of time, what is the impact in the open and closed releases.
+    - What is the impact of any addition/modification/deletion in critical practices?
+    - How any changes in CPs or Critical Practices are going to be accommodated in the project lifecycle?
+    - How are the changes in Critical practices handled?
+    - If a critical practice is modified, how will I get notified?
+    - Why am I seeing some critical practices as Pending in the open release even though I have completed process selection and tailoring?
+    - What should be done to implement or tailor the new critical practice added in an open release
+    - Why my release level affirmation status is not showing Completed even though I have affirmed and implemented all critical practices
+- intent: options_to_affirm_critical_practices_implementation_17
+  examples: |
+    - Can we confirm the practices?
+    - Where can we find out if the critical practices have been implemented?
+    - Can we confirm the Critical Practices?
+    - Which of the three options can we affirm the practices implemented?
+    - We can affirm the Critical Practices implemented with 3 options.
+    - We can affirm the Critical Practices if we choose one of the 3 options.
+    - Which of the three options can we affirm the critical practices implemented?
+    - We can affirm the Critical Practices if we choose 3 options.
+    - We need to confirm the critical practices implemented.
+    - Which of the 3 options can we affirm the Critical Practices implemented?
+    - Can we confirm critical practices?
+    - Where can we find out if the critical practices are implemented?
+    - We can affirm the Critical Practices if we choose one of the three options.
+    - We can affirm the Critical Practices if we choose one of three options.
+    - Which of the 3 options can we affirm the practices implemented?
+    - Can we confirm the critical practices that have been implemented?
+    - We need to confirm the critical practices.
+    - Can we confirm the critical practices implemented?
+    - Which are the 3 options by which we can affirm the Critical Practices implemented
+    - where can we confirm the Critical Practices implemented
+    - critical practice affirmation
+    - where to affirm
+    - critical practice affirm
+    - where to affirm Critical Practices
+    - where should i perform critical practices affirmation
+    - hi - where can i affirm the critical practices
+- intent: metrics_plan_18
+  examples: |
+    - How do I define metrics in a plan?
+    - What can I do to create a plan?
+    - I want to know how to define metrics in a metrics plan.
+    - Is it possible for the PM to unselect any optional metrics in the metrics plan?
+    - Will I be able to mark metrics that are not Applicable for my project?
+    - PM can unselect optional metrics in the metrics plan.
+    - How do I define metrics in the PM plan?
+    - Is it possible to mark any metrics as not applicable for my project?
+    - How can I create a plan?
+    - Is there any optional metrics that can be unselected by the PM?
+    - Is there a way to define metrics in a plan?
+    - Is it possible to define metrics in the PM plan.
+    - There are some optional metrics that can be unselected by the PM.
+    - I want to know how to define metrics in a plan.
+    - Is there any optional metrics which can be unselected by the PM?
+    - How can I make a plan?
+    - Is it possible to define metrics in the PM plan?
+    - I want to know how to define metrics in the PM plan.
+    - What can I do to make a metrics plan?
+    - How can I put together a plan?
+    - Is it possible to mark metrics as Not Applicable for my project?
+    - Is it possible for the PM to unselect optional metrics in the metrics plan?
+    - How can I make a plan about metrics?
+    - How can I define metrics?
+    - Is it possible to define metrics in a PM plan?
+    - How do I create a plan?
+    - What can I do to make a plan?
+    - How do I make a plan?
+    - Is it possible to define metrics in the plan?
+    - Will I be able to mark metrics not applicable for my project?
+    - Will I be able to mark metrics as not applicable for my project?
+    - Will I be able to mark any metrics as not applicable for my project?
+    - Will the metrics be marked as Not Applicable for my project?
+    - What can I do to create a metrics plan?
+    - Is it possible to define metrics in a plan?
+    - Is there a way to define metrics in the PM Plan?
+    - Is it possible to mark metrics as Not Applicable for my project in the Metrics Plan?
+    - There are optional metrics that can be unselected by the PM.
+    - Is it possible to define metrics in a metrics plan?
+    - Is it possible to create a metrics plan?
+    - How can I make a metrics plan?
+    - How can I define Metrics in Metrics Plan?
+    - How can I define Metrics in PM Plan?
+    - How can I create Metrics Plan?
+    - Will I be able to mark any metrics as Not Applicable for my project in Metrics Plan?
+    - Are there any optional metrics which can be unselected by PM in Metrics Plan?
+    - Why am I not able to remove any of the pre-selected metrics in PM Plan/Metrics Plan?
+- intent: metrics_plan_19
+  examples: |
+    - What does the BIC mean?
+    - What is the relationship between performing and BIC level?
+    - What do you mean by performing level?
+    - What does the performing level mean?
+    - What does it mean by performing level?
+    - What does it mean by BIC level?
+    - What does BIC level tell you?
+    - What does the BIC level say?
+    - What is the relationship between the two levels?
+    - What does level mean?
+    - What does the BIC level signify?
+    - Is there a relationship between performing and bic level?
+    - What is the relationship between performing and BIC?
+    - What does it mean to perform at a level?
+    - What does the level mean?
+    - What does BIC level mean?
+    - What does performing level mean?
+    - What does BIC mean?
+    - What does it mean to perform at the level?
+    - What does it mean to perform level?
+    - What is the relationship between the two?
+    - What does the BIC level tell you?
+    - What does the BIC level mean?
+    - What is the relation between the two levels?
+    - What is the performing level?
+    - What does Performing level denote?
+    - What is the relation between Performing and BIC level?
+    - What does BIC level denote?
+    - BIC
+- intent: metrics_plan_20
+  examples: |
+    - Is it possible to change goal levels after the PM Plan?
+    - When the goal level is 'None', how can I change the goal value?
+    - Can I change the goal value after baselining the PM plan?
+    - When the goal level is 'None', how can I change the value of the goal?
+    - Is it possible to change goal levels after the PM plan is implemented?
+    - There aren't OLBM values present for a few metrics.
+    - Is it possible to change goal levels after the PM plan is baselined?
+    - Why don't OLBM values show up for a few metrics?
+    - How can I change the goal value when the goal level is zero?
+    - Is it possible to change the goal value after the PM Plan is baselined?
+    - When the goal level is 'None', how can I change the goal value.
+    - Why isn't the goal value edited?
+    - Is it possible to change goal levels after baselining the PM Plan?
+    - Why don't OLBM values exist for a few metrics?
+    - Is it possible to change the goal value after baselining the plan?
+    - Am not able to change the goal value.
+    - Can I change the goal value?
+    - Can I change the goal value after baselining the plan?
+    - There are few metrics with OLBM values present.
+    - Why can't I modify the goal value?
+    - Why aren't OLBM values present for a few metrics?
+    - Is it possible to change goal levels after baselining PM plan?
+    - Is it possible to change the goal value after baselining the PM Plan?
+    - Is it possible to change the goal value after baselining PM Plan?
+    - How can I change the goal value when the goal level is not specified?
+    - When goal level is 'None', how can I change the goal value?
+    - Why is it not possible to edit the goal value?
+    - Why can't I change the goal value?
+    - Is it possible to change the goal value?
+    - Can I change goal levels?
+    - Why isn't it possible to change the goal value?
+    - Why aren't OLBM values present for some metrics?
+    - There are no OLBM values for a few metrics.
+    - Why don't OLBM values show up in a few metrics?
+    - There are no OLBM values present for a few metrics.
+    - Why are there no OLBM values for a few metrics?
+    - When the goal level is 'None', how can I update the goal value?
+    - Why is it not possible to modify the goal value?
+    - When goal level is 'None', how can I change goal value?
+    - Why is it not possible to change the goal value?
+    - When goal level is 'None', how can I update the goal value?
+    - Can I change the goal levels?
+    - How can I change the goal value when the goal level is 'None'?
+    - Why is the goal value not being edited?
+    - Am not able to edit the goal value, Why?
+    - Can I change the goal value after baselining PM Plan?
+    - Can I change goal levels after baselining PM Plan?
+    - How can I update the goal value when goal level is defaulted to 'None'?
+    - Why there are no OLBM values present for few metrics?
+- intent: metrics_plan_21
+  examples: |
+    - Which goal level is best to go for?
+    - Which goal level is the best for you?
+    - Which goal level is preferred?
+    - Which goal level is best?
+    - What is the best goal level to pick?
+    - Which level is preferred?
+    - Which goal level is best for you?
+    - Which goal level is the best to choose?
+    - Which goal level is the best?
+    - Which is the best goal level?
+    - Which goal level is recommended?
+    - Which level is recommended?
+    - Which level is best for the goal?
+    - Which goal level is best to aim for?
+    - What is the best goal level to choose?
+    - Which level is best to aim for?
+    - Which goal level is best to reach?
+    - Which goal level is best to select?
+    - Which goal level is preferred or recommended?
+- intent: metrics_plan_22
+  examples: |
+    - What is the reporting level in the plan?
+    - What does the reporting level mean?
+    - What is the level of reporting in the plan?
+    - What does the reporting level tell you?
+    - The metrics plan has a reporting level.
+    - What does the reporting level mean in the plan?
+    - What does the reporting level indicate?
+    - What does the reporting level tell you about the plan?
+    - What does the Reporting Level indicate in Metrics Plan?
+- intent: metrics_plan_23
+  examples: |
+    - Is there a difference between prepopulated metrics and custom metrics?
+    - How to add more metrics in a plan?
+    - How to add more metrics in the plan.
+    - What is the difference between prepopulated metrics and custom metrics?
+    - How can I update my metrics?
+    - How to add more metrics in the Metrics plan.
+    - What's the difference between prepopulated metrics and custom metrics?
+    - Why add custom metrics?
+    - There is a difference between prepopulated metrics and custom metrics.
+    - What is the difference between prepopulated metrics and custom ones?
+    - How can I add more metrics in the Metrics plan?
+    - Why should we have custom metrics?
+    - How do I update custom metrics?
+    - Why should we add more metrics?
+    - How to update Custom Metrics?
+    - What are the differences between prepopulated metrics and custom metrics?
+    - How to change Custom Metrics?
+    - How to change the metrics?
+    - How to make the metrics better?
+    - How to add more metrics in a metrics plan.
+    - Why do we need to add custom metrics?
+    - How to add more metrics in the plan?
+    - What is the difference between a prepopulated metric and a custom metric?
+    - Why do we need to add metrics?
+    - Why should we add metrics?
+    - How to update the metrics?
+    - Why should we add custom metrics?
+    - Is there a difference between prepopulated metrics and custom metrics.
+    - Why should we use custom metrics?
+    - Why should we include custom metrics?
+    - How to add more metrics in a plan.
+    - What is the difference between prepopulated and custom metrics?
+    - How to add more metrics in a metrics plan?
+    - How to add more metrics in the Metrics plan?
+    - Prepopulated metrics and custom metrics are different.
+    - How to add additional metrics in Metrics plan ?
+    - What is difference between prepopulated metrics and custom metrics?
+- intent: metrics_plan_24
+  examples: |
+    - What is the purpose of updating the level mapping?
+    - What is the reason for updating level mapping?
+    - What is the purpose of updating the org level map?
+    - What is the purpose of the level mapping?
+    - What is the purpose of updating level mapping?
+    - What is the purpose of changing the level of mapping?
+    - What is the purpose of updating org level mapping?
+    - What is the purpose of updating the level of mapping?
+    - What is the purpose of updating the org level mapping?
+    - What is the purpose of updating the levels?
+    - What is the purpose of updating Org Level Mapping for Custom Metrics?
+- intent: metrics_plan_25
+  examples: |
+    - Why do we have a section called Size Metrics?
+    - Productivity metrics are not included in the mandatory metrics section.
+    - Productivity metrics are not available in the mandatory metrics section.
+    - Productivity metrics aren't available under the mandatory metrics section.
+    - We have a section called Size Metrics.
+    - Why aren't productivity metrics available under the mandatory metrics section?
+    - There's a section called Size Metrics.
+    - There is a separate section called Size Metrics.
+    - There's a separate section called Size Metrics.
+    - Why are productivity metrics not available?
+    - There is a section called Size Metrics.
+    - We have a separate section called Size Metrics.
+    - Why is there a separate section called Size Metrics?
+    - Size Metrics is a separate section.
+    - Why do we have a separate section?
+    - Productivity metrics are not available under the mandatory metrics section.
+    - Why aren't productivity metrics available in the mandatory metrics section?
+    - Why aren't productivity metrics available under the section?
+    - Why Productivity Metrics are not available under Mandatory Metrics section?
+    - Why do we have a separate section called Size Metrics?
+- intent: metrics_plan_26
+  examples: |
+    - Why am I required to acknowledge the updated goal value?
+    - We need to acknowledge the Metrics plan.
+    - Why am I told to acknowledge the updated goal value?
+    - Why do I have to acknowledge the updated goal value in the plan?
+    - Why do we have to acknowledge the Metrics plan?
+    - Why is it necessary to acknowledge the Metrics plan?
+    - Why do we have to acknowledge the plan?
+    - Why does the Metrics plan need to be acknowledged?
+    - Why do I have to acknowledge the goal value in the Metrics Plan?
+    - Why do I have to acknowledge the updated goal value?
+    - There is a reason why we need to acknowledge the plan.
+    - I have to acknowledge the updated goal value in the Metrics Plan.
+    - The Metrics plan needs to be acknowledged.
+    - Why do I have to acknowledge the updated goal value in the Metrics Plan?
+    - Why does the plan need to be acknowledged?
+    - Why do I have to acknowledge the goal value in the plan?
+    - The goal value has been updated in the Metrics Plan.
+    - The goal value is updated in the Metrics Plan.
+    - Why do we need to acknowledge the plan?
+    - There is a reason why we need to acknowledge the Metrics plan.
+    - Why am I mandated to acknowledge the goal value updated in Metrics Plan?
+    - Why do we need to acknowledge Metrics plan?
+- intent: metrics_plan_27
+  examples: |
+    - Is it possible to add name for Custom Metrics?
+    - Is it possible to add name to Custom Metrics?
+    - Is it possible to add a name to Custom Metrics?
+    - There is no way to add a new metric name to the PM Plan.
+    - There isn't an option to add a new metric name in the PM Plan.
+    - There is no option to add a new metric name in the PM Plan.
+    - There is no option to add a custom metric name in the PM Plan.
+    - Is it possible to add a name for Custom Metrics?
+    - There is no option to add a custom metric name.
+    - Is it possible to add a name to Custom Metrics.
+    - There is no way to add a new metric name in the PM plan.
+    - There is no option to add a new metric in the PM Plan.
+    - There is no option to add a new metric name.
+    - Is it possible to add a name for Custom Metrics.
+    - Is it possible to add the name for Custom Metrics?
+    - Am not able to add name for Custom Metrics?
+    - Why is there no option to add new custom metric name in PM Plan
+- intent: metrics_plan_28
+  examples: |
+    - There is no reference to set specific goals.
+    - Do we have a reference to set specific goals?
+    - What can we do to set project specific goals?
+    - Is there any reference to set specific goals?
+    - Guidance to set project specific goals?
+    - What are the project specific goals that need to be set?
+    - What is the guidance for the project?
+    - Is there a reference to set Project Specific Goals?
+    - How can we set project specific goals?
+    - What are the project specific goals that can be set?
+    - What can we do to set project goals?
+    - What are the project specific goals?
+    - Does anyone have a reference to set specific goals?
+    - What can we do to set specific goals?
+    - Is there a reference to set specific goals?
+    - What is the project specific guidance?
+    - Do we have a reference to set the goals?
+    - Do we have a plan to set specific goals?
+    - Is there a reference to set the specific goals?
+    - Do we have any reference to set Project Specific Goals?
+    - What is the guidance to set project specific goals?
+- intent: metrics_plan_29
+  examples: |
+    - What is Contractual Obligation goal level in the mainspring metrics plan?
+    - What is the Contractual Obligation goal level?
+    - What is the contractual obligation goal level in the mainspring metrics plan?
+    - Contractual Obligations are defined in QOS.
+    - What is the goal level for contractual obligations in the mainspring metrics plan?
+    - What is the contractual obligation goal level in the mainspring plan?
+    - What is the level of Contractual Obligation goal in the mainspring metrics plan?
+    - Contractual Obligations are defined in QOS. What does Contractual Obligation goal level in mainspring Metrics Plan?
+- intent: measure_inputs_30
+  examples: |
+    - What is a percentage?
+    - A base measure is what I want to know.
+    - A measure is what it sounds like.
+    - What is a measure?
+    - A base measure is what that is.
+    - A base measure is what it is.
+    - A base measure is something.
+    - What is a base measure?
+    - A measure is what it is.
+    - What is a measurement?
+    - There is a base measure.
+    - A base measure is something to ask about.
+    - A measure is something.
+    - Base measure, what is it?
+    - A measure is a question.
+    - What is the base measure?
+    - Measure, what is it?
+    - There is a measure.
+- intent: measure_inputs_31
+  examples: |
+    - Why can't I change Actual effort in mainspring for a manual tracking mode project?
+    - Is it possible to update the measures manually for my project?
+    - Can I keep track of my measures in mainspring?
+    - Can I manually update the measures for my project?
+    - Is it possible to change the measure update from Manual to mainspring.
+    - Can I change the measure update from Manual to mainspring?
+    - Is it possible to manually update the measures for my project?
+    - Is it possible to track all my measures in the mainspring?
+    - Why is it not possible to change Actual effort in mainspring for a manual tracking mode project?
+    - Why can't I modify Actual effort in mainspring for a Manual tracking mode project?
+    - I want to know if I can track my measures in mainspring.
+    - Can I change the measures manually for my project?
+    - Why isn't it possible to edit Actual effort in mainspring for a manual tracking mode project?
+    - Why is it not possible to edit Actual effort in mainspring for a manual tracking mode project?
+    - Is it possible to change the measure update from Manual to mainspring?
+    - Is it possible to track all my measures in mainspring?
+    - Is it possible to update the measures manually?
+    - Can I keep track of all my measures?
+    - Can I keep track of all my measures in mainspring?
+    - Why can't I edit Actual effort in mainspring for a manual tracking mode project?
+    - Can the measures be updated manually for my project?
+    - Is it possible to update the measures for my project manually?
+    - Can I manually change the measures for my project?
+    - Can I change the measures manually?
+    - Is it possible to track my measures in mainspring?
+    - Is it possible to update the measures manually for my project.
+    - Is it possible to track all of my measures in mainspring?
+    - Can the measure update be changed from Manual to mainspring?
+    - All my measures can be tracked in mainspring.
+    - The measure update can be changed from Manual to mainspring.
+    - Can I update the measures manually for my project?
+    - Can I track all my measures in mainspring?
+    - Can I change the measure update from Manual to mainspring or vice versa?
+    - Am not able to edit Actual effort in mainspring for a Manual tracking mode project, why?
+- intent: measure_inputs_32
+  examples: |
+    - Is it required to update measures for both Release and sprint?
+    - Is it required to update the measures for both releases?
+    - There is a measure input screen available for both sprint and release.
+    - The Measure Input screen is available for both releases.
+    - Is it necessary to update the measures for both releases?
+    - The Measure Input screen is available for both sprint and release.
+    - There is a measure input screen available for both releases.
+    - Is it required to update measures for both releases?
+    - Is it necessary to update measures for both releases?
+    - Measure Input screen is available for both sprint and release.
+    - Is it required to update measures for both sprint and release.
+    - There is a measure input screen for both sprint and release.
+    - Measure Input screen is available for both releases.
+    - Is it required to update the measures for both sprint and release?
+    - Is it required to update the measures for Release and Sprint?
+    - Is it required to update measures for both sprint and release?
+    - Measure Input screen is available for both Sprint and Release, Why?
+    - Is it mandated to update measures for both Sprint and Release?
+- intent: measure_inputs_33
+  examples: |
+    - Can I see the Associated Metrics for which the measure is collected?
+    - Is it possible to see the Associated Metrics for which the measure is collected?
+    - Does the Measure Input screen collect metrics or measures?
+    - The Measure Input screen might collect metrics or measures.
+    - I would like to know the Associated Metrics for which the measure is collected.
+    - What is the difference between Measures and Associated metrics?
+    - Is there a difference between Measures and Associated metrics?
+    - Does the Measure Input screen collect metrics?
+    - Is the measure input screen collecting metrics or measures?
+    - There is a difference between measures and metrics.
+    - Is the measure input screen collecting metrics?
+    - What is the difference between the measures and metrics?
+    - The Associated Metrics for which the measure is collected are not visible to me.
+    - I want to see the Associated Metrics for which the measure is collected.
+    - Is there a difference between measures and metrics?
+    - What's the difference between Measures and Associated metrics?
+    - What is the difference between measures and metrics?
+    - I would like to see the Associated Metrics for which the measure is collected.
+    - What's the difference between measures and metrics?
+    - Can I see the Associated Metrics for the measure?
+    - Is it possible to see the Associated Metrics for which the measure is collected.
+    - Measures and Associated metrics are different.
+    - Is it possible to see the Associated Metrics for the measure?
+    - Does the screen collect metrics or measures?
+    - meaures vs associated metrics
+- intent: measure_inputs_34
+  examples: |
+    - Why are you not able to close the Release?
+    - Why is it not possible to close the release or sprints?
+    - What will the impact be if the errors are not corrected?
+    - What will happen if the errors are not corrected?
+    - Why are you not able to close the release or sprint?
+    - Why isn't it possible to close the release or sprint?
+    - Why do some of the measures get highlighted?
+    - Some of the measures are highlighted, why?
+    - Do you know what the rules are?
+    - Why isn't it possible to close the release or sprints?
+    - Why is it not possible to close the release or sprint?
+    - What are the dg rules?
+    - Do you know what the rules are for?
+    - What are the DQ rules?
+    - Why can't I close the release or sprint?
+    - There is an impact if the errors are not corrected.
+    - What is the impact if the errors are not corrected?
+    - Why is some of the measures highlighted?
+    - Why are some of the measures highlighted.
+    - What are the rules for the game?
+    - What are the rules of the game?
+    - Some of the measures are highlighted because of that.
+    - Why am I not able to close the release?
+    - Do you know what the impact is if the errors are not corrected?
+    - Why are you not able to close the release or sprints?
+    - What are the rules?
+    - The measures are highlighted.
+    - Do you know what the rules are about?
+    - What is the impact if the errors aren't fixed?
+    - What is the impact if the errors are not fixed?
+    - What are the rules of the game.
+    - Do you know what the impact would be if the errors are not corrected?
+    - What will the impact be if the errors are not fixed?
+    - Why are the measures highlighted?
+    - What are the rules for disqualification?
+    - Why are some of the measures highlighted?
+    - Why are some measures highlighted?
+    - What is the impact if the errors aren't corrected?
+    - Some of the measures are highlighted.
+    - What are DQ Rules?
+    - What is the impact if DQ errors are not corrected?
+    - Am not able to close the Release or Sprints, Why?
+- intent: metrics_preview_35
+  examples: |
+    - Where can I find the metrics for my project?
+    - There is a reference to validate metrics calculation.
+    - How can I check the metrics?
+    - How can I make sure the metrics are accurate?
+    - How can I make sure the metrics are valid?
+    - What is the name of the calculation?
+    - Where can I find the metrics for the project?
+    - Where do I find the metrics for my project?
+    - How can I make sure the metrics are true?
+    - What is the reference to calculate metrics?
+    - How can I make sure the metrics are correct?
+    - There is a reference to the Metrics calculation.
+    - What can I do to verify the metrics?
+    - What is the reason for the calculation?
+    - Where can I see my project's metrics?
+    - What is the reference to the calculation?
+    - There is a reference to Metrics calculation.
+    - Where can I see the metrics for my project?
+    - What is the reference to the Metrics calculation?
+    - There is a reference to validate metrics.
+    - Where can I see my project metrics?
+    - I want to see the metrics for my project.
+    - How can I verify the metrics?
+    - How can I make sure that the metrics are accurate?
+    - What is the purpose of the calculation?
+    - Where can I find the project metrics?
+    - Where can I see the project metrics?
+    - How can I verify the computed metrics?
+    - How can I confirm the metrics?
+    - How can I validate the computed metrics?
+    - What is the reference to validate Metrics calculation?
+    - validate metrics
+- intent: measure_inputs_36
+  examples: |
+    - Measures are only read in the Measures Input section.
+    - What is the reason that some measures are only read in the Measures Input section?
+    - How to modify measures in read only mode?
+    - How to change measures in read only mode.
+    - In read only mode how to update measures?
+    - In read only mode, how to update measures?
+    - Some measures are only read in the Measures Input section, why?
+    - The measures are only read in the Measures Input section.
+    - Some measures are only read in the Measures Input section.
+    - How to change the measures in read only mode.
+    - How to change measures in read only mode
+    - How to change measures in read only mode?
+    - How to change measures when they are read only?
+    - How to update measures in read only mode?
+    - Some measures are read only in the Measures Input section.
+    - How to change the measures in read only mode?
+    - Why some measures are not editable or read only in Measures Input section?
+    - update measures
+- intent: metrics_preview_37
+  examples: |
+    - How to improve actions?
+    - If the goal is not met what is the action required?
+    - What needs to be updated in order to cause deviation?
+    - What can be done if the goal is not met?
+    - How do you know if the metrics have met the goal?
+    - How do I know if the metrics have met the goal?
+    - How do you arrive at an area of improvement?
+    - If the metrics have met the goal, how should they be checked?
+    - What should be done if Goal is Not Met?
+    - What can be done if Goal is Not Met?
+    - Is it possible to check if the metrics have met the goal?
+    - What action is required if the goal is not met?
+    - How can I know if the metrics have met the goal?
+    - The area of improvement can be arrived at.
+    - The reason for deviation needs to be updated.
+    - How to improve the actions of improvement?
+    - Is there a way to update more actions of improvement?
+    - How do I arrive at an improvement area?
+    - How do you arrive at an improvement?
+    - If Goal is Not Met, what is the action required?
+    - How do you arrive at the area of improvement?
+    - What should be updated as a reason for deviation?
+    - What needs to be updated for deviation?
+    - What needs to be changed in order for it to be deviation?
+    - If the goal is not met, what action is required?
+    - What needs to be changed in order to cause deviation?
+    - If the goal is not met, what is the action required?
+    - How to find the area of improvement?
+    - How to make the actions of improvement better?
+    - How can we make the actions of improvement better?
+    - What should be done if the goal is not met?
+    - How to make more improvements?
+    - How can we improve the actions of improvement?
+    - As a reason for deviation, what needs to be changed?
+    - How to make the actions of improvement even better?
+    - If the metrics have met the goal, what should we do?
+    - How do we arrive at the improvement area?
+    - How do we know if the metrics have met the goal?
+    - If the metrics have met the goal, how do you check?
+    - How to improve the actions?
+    - As a reason for deviation, what needs to be updated?
+    - How do we arrive at an improvement area?
+    - How do you determine if the metrics have met the goal?
+    - As a reason for deviation, what should be updated?
+    - How do you arrive at an improvement area?
+    - Updating more actions of improvement is something that needs to be done.
+    - If Goal is Not Met, what action is required?
+    - How do you arrive at the improvement area?
+    - There needs to be an updated reason for deviation.
+    - If the metrics have met the goal, how do you check them?
+    - How do check if the metrics actuals have met the goal or not?
+    - What is the action required if Goal is Not Met?
+    - What needs to be updated as reason for deviation?
+    - How to arrive at area of improvement?
+    - How to update more actions of improvement?
+    - How to change archetype
+- intent: metrics_preview_38
+  examples: |
+    - Do I need to take action when there is a % Deviation?
+    - The % Deviation from Goal is reported as NA, why?
+    - Why is the % Deviation from the goal reported as NA?
+    - The % Deviation from Goal is reported as NA.
+    - The % Deviation from the Goal is reported as NA.
+    - The % Deviation from the goal is computed.
+    - What is the % Deviation from the goal computed?
+    - What is the % Deviation from the goal?
+    - The % Deviation from goal is computed.
+    - Do I need to take any action when there is a % Deviation from the goal?
+    - Do I need to take action when there is a deviation from the goal?
+    - Why is the % Deviation from Goal reported as NA?
+    - How is the % Deviation computed?
+    - Do I need to take any action when there is a % Deviation?
+    - Do I need to take action when there is a % Deviation from the goal?
+    - Why is the deviation reported as NA?
+    - Do I need to take any action if there is a % Deviation from the goal?
+    - Do I need to take action if there is a % Deviation from the goal?
+    - Why is the % Deviation reported as NA?
+    - The % Deviation is computed.
+    - How is the % Deviation calculated?
+    - The % Deviation is reported as NA.
+    - How is the deviation from the goal computed?
+    - Do I need to take any action when there is a % Deviation from Goal?
+    - Do I need to take any action when there is a deviation from the goal?
+    - Do I have to take any action when there is a % Deviation from the goal?
+    - How is the % Deviation from Goal computed?
+    - Why is the % Deviation from Goal is reported as NA?
+    - When there is a % Deviation from Goal, Do I need to take any action?
+- intent: metrics_preview_39
+  examples: |
+    - Why is the metric displayed?
+    - What is the reason for the metrics to be displayed?
+    - What is the reason for the metrics to be displayed in this way?
+    - Why is the Metrics displayed?
+    - The metrics are displayed as a result of a question.
+    - What is the reason for the metrics to be displayed as NDA?
+    - The metrics are displayed as a result.
+    - The metrics are displayed as a NDA.
+    - Why is the Metrics displayed as NDA?
+- intent: metrics_preview_40
+  examples: |
+    - Direct Metrics, what are they?
+    - The metrics are not defined in the plan.
+    - Some metrics are not configured in the plan.
+    - What are direct metrics?
+    - There are metrics that are not configured in the plan that are shown in the preview.
+    - There are metrics not configured in the plan that are displayed in the preview.
+    - Direct metrics are something.
+    - There are metrics that are not configured in the plan that are displayed in the preview.
+    - The metrics that are displayed are not defined in the plan.
+    - Direct metrics are what they say they are.
+    - Direct metrics are questions about metrics.
+    - The metrics that I am displayed with are not defined in the plan.
+    - The metrics that are displayed are not defined in the Metric Plan.
+    - The metrics that are not configured in the plan are displayed in the preview.
+    - Direct metrics are what they are.
+    - Why are metrics not defined in the plan?
+    - Why are metrics not defined in the Metric Plan?
+    - The metrics not configured in the plan are shown in the preview.
+    - The metrics are not defined in the Metric Plan.
+    - The metrics that are not configured in the plan are shown in the preview.
+    - Direct Metrics?
+    - There are metrics that are not defined in the Metric Plan.
+    - The metrics that I am displayed with are not defined in the Metric Plan.
+    - There are metrics that are not configured in the plan.
+    - There are metrics not configured in the plan that are shown in the preview.
+    - Direct metrics are questions.
+    - Direct metrics are what they are?
+    - The metrics which are displayed are not defined in the plan.
+    - There are some metrics that are not configured in the plan.
+    - Why am I displayed with metrics which are not defined in the Metric Plan?
+    - Some metrics not configured in Metrics Plan are displayed in Metrics Preview, Why?
+- intent: metrics_preview_41
+  examples: |
+    - % Deviation from Goal is rated as Red for some metrics and Green for others, why?
+    - % Deviation from Goal is rated Red for some metrics and Green for others.
+    - % Deviation from Goal is rated as Red for some metrics and Green for other metrics, why?
+    - % Deviation from Goal is rated as Red and Green for some metrics.
+    - % Deviation from Goal is rated as Red for some metrics and Green for others.
+    - % Deviation from Goal is rated as Red for some metrics and Green for other metrics.
+    - % Deviation from Goal is rated as Red for some metrics and Green for some metrics.
+    - % Deviation from Goal is rated as Red for some metrics and Green for others in the Negative.
+    - The % Deviation from Goal is rated as Red for some metrics and Green for others.
+    - Why is % Deviation from Goal displayed in Negative is rated as Red for some metrics and Green for some metrics?
+- intent: metrics_actuals_42
+  examples: |
+    - Is it possible to see the actual efforts in the mainspring of the ESA?
+    - Do I have to take action?
+    - Why do I see ad hoc efforts?
+    - Do I need to take action?
+    - Do I have to take any action?
+    - Why do I see ad hoc efforts in the screen?
+    - Where can I see the actual work done by the people from the European Space Agency?
+    - I don't understand why I see ad hoc efforts in the actual screen.
+    - Why do I see ad hoc efforts on the actual screen?
+    - What is the difference between effort and distribution?
+    - What is the definition of effort apportioning?
+    - Is effort apportioning/distribution?
+    - Will I be able to see the efforts apportioned?
+    - Is it possible to see the apportioned efforts at the release and sprint levels?
+    - Is it possible to see the apportioned efforts at Release and Sprint Level?
+    - Is it possible to see the apportioned efforts at release and sprint levels?
+    - Is it possible to see the actual efforts in mainspring from the ESA?
+    - What does effort apportioning/distribution mean?
+    - I don't know if I need to take action on the Adhoc Efforts.
+    - Where can I see the actual work done by the ESA?
+    - Is there any action I need to take?
+    - Will I be able to see the apportioned efforts?
+    - What is the difference between effort apportioning and distribution?
+    - What is the relationship between effort apportioning and distribution?
+    - Do I need to take any action?
+    - Is it possible to see the apportioned efforts at release and sprint level.
+    - I don't know if I need to take action on the ad hoc efforts.
+    - I don't know if I need to take any action on the ad hoc efforts.
+    - Is it possible to see the actual efforts in mainspring?
+    - Where can I see the actual work done by the people?
+    - Where can I see the work done by the ESA?
+    - Is effort apportioning/distribution a thing?
+    - I don't know if I need to take any action.
+    - Why do I see adhoc efforts?
+    - Why do I see ad hoc efforts in the actual screen?
+    - Will I be able to see how the efforts are apportioned?
+    - What is the relationship between effort and distribution?
+    - Why do I see a lot of ad hoc efforts?
+    - Is it possible to see the actual efforts in the mainspring?
+    - Where can I see the results of the work done by the ESA?
+    - I don't understand why I see adhoc efforts in the actual screen.
+    - I wonder why I see adhoc efforts in the actual screen.
+    - I don't know if I need to take any action on the Adhoc Efforts.
+    - What's the difference between effort apportioning and distribution?
+    - How is effort apportioning/distribution?
+    - Is it possible to see the apportioned efforts at the release and sprint level?
+    - I wonder why I see ad hoc efforts in the actual screen.
+    - Is it possible to see the actual efforts in mainspring.
+    - Where can I see the actual efforts logged from ESA in mainspring?
+    - What is effort apportioning/distribution?
+    - Why do I see Adhoc Efforts in Metrics Actual screen?
+    - Do I need to take any action on the Adhoc Efforts?
+    - Will I be able to see the apportioned efforts at Release and Sprint Level?
+    - How do I know the Activity code pertaining to the Adhoc effort?
+    - Can I know how much effort is logged by the resource against Adhoc effort?
+- intent: metrics_report_43
+  examples: |
+    - Do we have Metric Reports generated on a weekly basis?
+    - What is the Frequency of Metric Report Generation?
+    - What is the rate of report generation?
+    - What is the difference between the two?
+    - Is there a difference between Metrics Preview and Metrics Report?
+    - What is the number of reports that are generated?
+    - Is it possible to create a Metric Report on my own?
+    - What is the difference between a preview and a report?
+    - Is there any Metric Report generated on weekly basis?
+    - On a monthly basis, do we have any Metric Reports generated?
+    - Is there a Metric Report generated on a weekly basis?
+    - Do we have any Metric Reports on a weekly basis?
+    - What's the difference between Metrics Preview and Metrics Report?
+    - Do we have any Metric Reports generated on a weekly basis?
+    - Do we have a Metric Report on a weekly basis?
+    - What is the difference between a report and a preview?
+    - What is the difference between Metrics Preview and Metrics Report?
+    - What is the Frequency of Report Generation?
+    - Do we have a weekly Metric Report?
+    - We do not have any Metric Reports on a monthly basis.
+    - Can I make my own report?
+    - On a monthly basis, do we have any Metric Reports?
+    - There is a question about the Frequency of Metric Report Generation.
+    - Is there any Metric Report generated monthly?
+    - Is it possible for me to generate a report on my own?
+    - What is the number of Metric Report Generation?
+    - What is the difference between a report and preview?
+    - Do we have a monthly report?
+    - What is the number of reports produced?
+    - Is it possible to generate Metric Report on my own?
+    - Is there any Metric Report generated on a weekly basis?
+    - We have a Metric Report on a monthly basis.
+    - Do we have a monthly Metric Report?
+    - What are the differences between Metrics Preview and Metrics Report?
+    - Is it possible for me to generate a Metric Report on my own?
+    - Is it possible to generate a report on my own?
+    - Can I make my own Metric Report?
+    - Is it possible to generate a Metric Report on my own?
+    - What is the regularity of report generation?
+    - Is there any Metric Report generated on a Monthly basis?
+    - There is a difference between Metrics Preview and Metrics Report.
+    - What is the number of reports generated?
+    - Is there any Metric Report generated weekly?
+    - Do we have a weekly report?
+    - Is it possible to make a Metric Report on my own?
+    - What is the average number of reports generated?
+    - On a monthly basis, do we have a metric report?
+    - What is the difference between two reports?
+    - Can I generate Metric Report on my own?
+    - Do we have any Metric Report generated on Weekly basis?
+    - Do we have any Metric Report generated on Monthly basis?
+    - Based on different process templates selected, will there be any change in the Metrics Report section?
+    - What is the purpose of having both Metrics Preview and Metrics Report?
+    - Can I make change to the actuals displayed in the Metrics Report?
+    - Why am I not displayed with metrics for agile Open Releases?
+    - Can I reopen the closed release or sprint to make corrections in the measures?
+    - Why am I not able to see the reopened Release or Sprint in Metrics Report for Agile projects?
+    - What is the action required to be taken on Metric Report Generation?
+    - Is there any cut off for Metric Report Submission?
+    - What is the expected status of Metric Report?
+    - What will happen if I missed to submit the metric report within the cut off timeline?
+    - Is there any approval workflow required for Metric Report?
+- intent: metrics_report_44
+  examples: |
+    - Where do we find new measures for project level metrics?
+    - Where do we make changes to project level metrics?
+    - Do we have any metrics for the project?
+    - Do we have any metrics for the project level?
+    - Do we have any project level metrics?
+    - There are any project level metrics?
+    - Where can we update project level metrics?
+    - Where do we find updated measures for project level metrics?
+    - Where do we get new measures for the project level metrics?
+    - Do we have any metrics for project level?
+    - Do we have project level metrics?
+    - Where do we update the project level metrics?
+    - Where can we find new measures for project level metrics?
+    - Where do we get the latest measures for project level metrics?
+    - Where do we update project level metrics?
+    - Are there any project level metrics?
+    - Do we have any project metrics?
+    - Where do we get new measures for project level metrics?
+    - Is there any project level metrics?
+    - We don't have any project level metrics.
+    - Where do we update measures for project level metrics?
+- intent: spectrum_45
+  examples: |
+    - Where can I find Industry benchmark values for metrics?
+    - Where can I find the Industry benchmark values for metrics?
+    - Where can I refer to Operational Definition?
+    - Where can I find benchmark values for the metrics?
+    - Where can I find Organization benchmark values?
+    - Where can I find the benchmark values for metrics?
+    - Is it possible to search for metrics specific to my Archetype in Spectrum?
+    - I want to refer to Operational Definition, UOM for Metrics.
+    - Will I be able to find metrics specific to my Archetype in Spectrum?
+    - Where can I find the benchmark values for the metrics?
+    - Is it possible for anyone in my team to access metrics?
+    - Is anyone in my team able to access metrics in process space?
+    - Will I be able to find metrics specific to my Archetype?
+    - Can anyone in my team access the metrics?
+    - Is anyone in my team able to access Metrics?
+    - Will I be able to find metrics that correspond to my Archetype in Spectrum?
+    - Will I be able to find metrics that correspond to my Archetype?
+    - Can anyone in my team access metrics?
+    - Where can I find the Organization benchmark values?
+    - Where can I find the definition of operational definition for metrics?
+    - Where can I find a definition of metrics?
+    - Is it possible to find metrics specific to my Archetype in Spectrum?
+    - Is it possible for my team to access metrics in the process space?
+    - Where can I find the definition of UOM?
+    - I need to refer to Operational Definition, UOM for Metrics.
+    - Where can I find the Organization benchmark values for metrics?
+    - Where can I find values for the metrics?
+    - Where can I find Organization benchmark values for metrics?
+    - Where can I find the definition of Operational Definition?
+    - Will I be able to find metrics that are specific to my Archetype?
+    - Where can I find Organization benchmark values for the metrics?
+    - Where can I find benchmark values for metrics?
+    - Is it possible to search metrics specific to my Archetype in Spectrum?
+    - Can anyone on my team access metrics?
+    - Is anyone in my team able to access the metrics?
+    - Where can I find the Industry benchmark values for the metrics?
+    - Will I be able to find metrics that are specific to my Archetype in Spectrum?
+    - Is it possible for my team to access metrics in process space?
+    - Where can I find a definition of operational definition?
+    - Where can I find the Organization benchmark values for the metrics?
+    - Where can I find Industry benchmark values?
+    - Where can I refer to Organization benchmark values for the metrics?
+    - Where can I refer to Industry benchmark values for the metrics?
+    - Will I be able to search Metrics specific to my Archetype in Spectrum?
+    - Where can I refer to Operational Definition, UOM for Metrics?
+    - Can anybody in my team access Metrics in Spectrum/Process Space?
+- intent: tools_46
+  examples: |
+    - What is it about Tools that is different from Accelerators?
+    - What is it about tools that is different?
+    - What is the difference between Tools and Accelerators.
+    - How do you define tools?
+    - What is it about tools that makes it different from Accelerators?
+    - What is it about Tools that makes it different from the others?
+    - What is the difference between Tools and Accelerators?
+    - What is the difference between tools and a program?
+    - How do you define Tools ? How is it different from Accelerators
+    - tools
+- intent: tools_47
+  examples: |
+    - What does the tool category do?
+    - What is the tool category and how does it help?
+    - How does tool category help?
+    - What is the purpose of the tool category?
+    - What is the tool category and how do it help?
+    - What is the tool category and what does it do?
+    - How does the tool category help?
+    - How can the tool category help?
+    - What is the tool category and how can it help?
+    - What is the tool category?
+    - What is Tool Category and how does it help?
+- intent: tools_48
+  examples: |
+    - Where are the tools shown?
+    - Where are tools located?
+    - Where are the tools displayed?
+    - Where are the tools located?
+    - Where are tools shown?
+    - Where are tools displayed?
+    - There are tools displayed.
+    - Where are the tools displayed.
+    - Where are the displayed tools?
+    - Where are the tools on display?
+    - Where are tools displayed ?
+- intent: tools_49
+  examples: |
+    - I want to plan for tools in mainspring.
+    - Is there a place where I can plan for the tools?
+    - Is it possible to plan for tools in mainspring?
+    - Is there a place to plan for tools in mainspring?
+    - Is there a place where I can plan for tools?
+    - Is there a place where I can plan for the tools in mainspring?
+    - Is there a place where I can plan for Tools in mainspring?
+    - How can I plan for the tools in mainspring?
+    - Where can I plan for Tools in mainspring?
+- intent: tools_50
+  examples: |
+    - How do you keep a record of Tools usage?
+    - How do you keep track of Tools usage?
+    - How do you keep track of the tools?
+    - How do you track the use of tools?
+    - How do you keep track of Tools usage over time?
+    - How do you keep track of tools?
+    - Is it possible to track Tools usage across the lifecycle?
+    - How do you keep track of Tools throughout the life cycle?
+    - How do you keep track of the tools you use?
+    - How do you track Tools usage across lifecycle?
+    - track tool usage
+    - track tools usage
+- intent: tools_51
+  examples: |
+    - Where are the benefits tracked for Tools?
+    - Benefits for Tools are tracked.
+    - Where are benefits tracked for tools?
+    - Benefits are tracked for tools.
+    - There are benefits tracked for Tools.
+    - Where are the benefits for tools tracked?
+    - Where are the benefits tracked?
+    - Where are benefits tracked for Tools ?
+- intent: tools_52
+  examples: |
+    - If I don't find the tool in my project, can I add it?
+    - If I don't find the tool I use in my project, can I add it?
+    - Can I change the tool I use in my project if I don't find it?
+    - If I don't find the tool I need in my project, can I add it?
+    - Can I add it to my project if I don't find the tool I use?
+    - If I don't find the tool I use, can I add it to my project?
+    - If I don't find the tool I use, can I add it?
+    - Can I change the tool in my project if I don't find it?
+    - Can I add a tool to my project if I don't find it?
+    - Is it possible that I don't find the tool I use in my project?
+    - What if I do not find the tool I use in my project ? Can I add it ?
+- intent: tools_53
+  examples: |
+    - How do I plan for tools when I don't track my project in mainSpring?
+    - How do I plan for tools when I do not track my project in mainspring?
+    - How do I plan for my tools when I don't track my project in mainspring?
+    - How do I plan for tools when I don't track my project?
+    - I don't know how to plan for tools when I don't track my project in mainspring.
+    - How do I plan for tools when I don't have a project in mainspring?
+    - How do I plan for the tools when I don't track my project in mainspring?
+    - I don't know how to plan for tools if I don't track my project in mainspring.
+    - How do I plan for tools if I don't track my project in mainspring?
+    - I do not track my project in mainspring, how do I plan for tools then ?
+- intent: tools_54
+  examples: |
+    - How do I include a new tool in my plan if I haven't planned for it?
+    - How do I include a new tool in my plan if I haven't planned it yet?
+    - How do I include a new tool in my plan if I have not yet planned for it?
+    - I don't have a plan for Tools yet, how do I include it in my plan?
+    - How do I include a new tool in my plan when I have not yet planned it?
+    - Can I include a new tool in my plan now that I have started using it?
+    - I don't have a plan for Tools yet, how do I include it in the plan?
+    - I don't have a plan for Tools yet, how do I include it in my project?
+    - How do I include a new tool in my plan if I haven't planned for it yet?
+    - Can I include a new tool in my plan now that I have begun using it?
+    - I have not yet planned for Tools, can I do it now?Or I have started using a new tool in my project, how do I include it in plan
+- intent: tools_55
+  examples: |
+    - Do I need to show the tools in the plan?
+    - Is it necessary for me to show the tools in the plan?
+    - Do I need to show the tools in a plan?
+    - I don't know if I need to show them in plan.
+    - I don't know if I need to show the tools in plan.
+    - Is it necessary to show the tools in the plan?
+    - Do I need to show the tools in plan?
+    - Do I need to show them in the plan?
+    - I don't know if I need to show the tools in the plan.
+    - Do I need to show the tools to the plan?
+    - I am using client provided tools, do I need to show them in plan?
+- intent: accelerator_information_56
+  examples: |
+    - What is the purpose of an accelerator?
+    - What is the purpose of an experiment?
+    - What is the purpose of an scuplture?
+    - What is the purpose of an?
+    - What is the purpose of an accelerated program?
+    - What is the purpose of an accelerated vehicle?
+    - What is the purpose of an accelerators?
+    - What is the purpose of an.accelerator?
+    - What is the purpose of an acceleration?
+    - What is the purpose of an engine?
+    - What is an accelerator?
+    - accelerators
+    - accelerator
+- intent: accelerator_information_57
+  examples: |
+    - Where can I find the complete list of all the accelerators?
+    - There is a complete list of accelerators.
+    - Where can I find the complete list of the accelerators?
+    - Where can I find the complete list?
+    - Where can I find the complete list of programs?
+    - Where can I see the complete list?
+    - Where can I find the complete list of accelerators?
+    - Where do I find the complete list of accelerators?
+    - Where can I find the complete list of accelerator?
+    - Where can I see the complete list of accelerators?
+    - list of accelerators
+    - locate list of accelerators
+- intent: accelerator_information_58
+  examples: |
+    - Who is the owner of the accelerators?
+    - Who is the owner of an accelerators?
+    - Who are the people who created the accelerators?
+    - How are they created?
+    - Who is the owner of a accelerators?
+    - Who are the owners of the accelerators?
+    - What are the owners of the accelerators?
+    - Who created the accelerators?
+    - Who are the owners?
+    - Who is the owner of the accelerator?
+    - How are accelerators created?  Who are the owners?
+    - create accelerators
+    - who will create accelerators
+    - subscribing to accelerators
+    - subscribing to acceleraters
+- intent: accelerator_information_59
+  examples: |
+    - Is it possible that we have all service lines and project scenarios here?
+    - Is it possible that we have all service lines and project scenarios in the same place?
+    - Is it possible that we have all service lines and project scenarios covered?
+    - Is it possible that we have all service lines and project scenarios at the same time?
+    - Is it possible that we have all service lines and project scenarios in one location?
+    - Is it possible that we have a project scenario for all service lines?
+    - Is it possible that we have all service lines and project scenarios?
+    - Is it possible that we have all service lines and scenarios?
+    - Is it possible that we have all service lines and project scenarios in one place?
+    - Is it possible that we have all service lines and project scenarios.
+    - Do we have accelerators for all service lines and project scenarios?
+- intent: accelerator_information_60
+  examples: |
+    - What do you think about the security aspects of the accelerators?
+    - What about the security of the facility?
+    - What about the security of the program?
+    - What are the security aspects of the program?
+    - What do you think about security aspects of the program?
+    - What are the security aspects of the accelerators?
+    - What about the security aspects of the program?
+    - What do you think about the security aspects of the program?
+    - What about the security of the accelerators?
+    - What are the security aspects of accelerators?
+    - What about security aspects of accelerators?
+- intent: accelerator_information_61
+  examples: |
+    - I don't know where to get more information about a specific accelerator.
+    - I want to know more about a specific accelerator.
+    - Where can I find more information about a particular accelerator?
+    - Where can I find more information about a specific accelerators?
+    - Where can I find more information on a specific accelerator?
+    - I don't know where to get more information about a specific program.
+    - I don't know where to get more details about a specific accelerator.
+    - Where can I find more information about a specific accelerator?
+    - Where can I find more information about a specific program?
+    - Where can I get more information about a specific program?
+    - Where do I get more details about a specific accelerator?
+    - details about accelerators
+    - get accelerators details
+    - accelerators details
+- intent: accelerator_recommendation_62
+  examples: |
+    - Where can I find the recommendations for my project?
+    - Is there a place where I can see the recommendations for my project?
+    - Where do I find the recommended accelerators for my project?
+    - Where can I find the recommended accelerators for my project?
+    - Where can I find the recommended accelerators?
+    - Where can I find the recommendations for the project?
+    - Where can I find information about the accelerators recommended for my project?
+    - I want to know where to find the recommended accelerators for my project.
+    - Where can I find the advice for my project?
+    - Is there a place where I can see the recommended accelerators for my project?
+    - Where can I see the accelerators recommended for my project?
+- intent: accelerator_recommendation_63
+  examples: |
+    - What is the basis for the recommendation of an accelerators for a project?
+    - What is the basis for the recommended accelerators for a project?
+    - What is the basis for the recommendation of a project's accelerators?
+    - What is the basis for the recommended accelerators for the project?
+    - What is the basis for the recommendation of a accelerators for a project?
+    - What is the basis on which the project should be supported?
+    - What is the basis for a project?
+    - What is the basis for the recommended accelerators?
+    - What is the recommended basis for a project?
+    - What is the best basis for a project?
+    - On what basis are accelerators recommended for a project?
+- intent: accelerator_subscription_64
+  examples: |
+    - Is it possible to subscribe to the accelerators for my project?
+    - How do I get involved with the project?
+    - How can I subscribe to the project?
+    - How do I get involved in my project?
+    - How can I subscribe to the program?
+    - I don't know how to subscribe to the accelerators for my project.
+    - How do I get involved in the project?
+    - How do I subscribe to the program?
+    - I don't know how to subscribe to accelerators for my project.
+    - How do I get involved with my project?
+    - How do I subscribe to accelerators for my project?
+- intent: accelerator_subscription_65
+  examples: |
+    - Is it possible for me to subdivide to multiple accelerators?
+    - Is it possible to subdivide to more than one accelerators?
+    - Can I use more than one accelerators?
+    - Can I switch to more than one accelerators?
+    - Is it possible to subdivide to multiple accelerators?
+    - Is it possible to subdivide to more than one accelerator?
+    - Is it possible for me to subrer to more than one accelerators?
+    - Is it possible for me to subrer to multiple accelerators?
+    - Is it possible for me to subsrcibe to more than one accelerators?
+    - Is it possible for me to subdivide to more than one accelerators?
+    - Can I subsrcibe to multiple accelerators?
+- intent: accelerator_subscription_66
+  examples: |
+    - What should I do if none of the accelerators are fulfilling my requirements?
+    - If none of the accelerators are satisfying my project requirements, what to do?
+    - If none of the accelerators are satisfying my requirements, what to do?
+    - What should I do if none of the accelerators are satisfying my project requirements?
+    - If none of the accelerators are satisfying my requirements, what should I do?
+    - What should I do if none of the accelerators are meeting my requirements?
+    - What should I do if none of the accelerators are satisfying my requirements?
+    - If none of the accelerators are satisfying my project requirements, what should I do?
+    - If none of the accelerators are satisfying my project requirements what should I do?
+    - What to do if none of the accelerators are satisfying my requirements?
+    - What to do if none of the accelerators recommended are satisfying my project requirements?
+- intent: accelerator_subscription_67
+  examples: |
+    - I don't know why I don't see my account specific accelerators.
+    - I don't see my account-specific accelerators in the recommendation list.
+    - I'm not sure why I don't see my account specific accelerators.
+    - I don't see my account specific accelerators in the recommendation list.
+    - I don't see my account-specific accelerators in the recomendation list.
+    - I'm not sure why I don't see my account-specific accelerators.
+    - I don't see my account-specific accelerators in the recommended list.
+    - I don't see my account specific accelerators in the recommended list.
+    - I don't know why I don't see my account-specific accelerators.
+    - I don't see my account specific accelerators in the recomendation list.
+    - Why do I don't see my account-specific accelerators in the recomendation list?
+- intent: accelerator_subscription_68
+  examples: |
+    - Is it possible to add or modify the list of the accelerators that I subscribed to?
+    - Is it possible to add or modify the list of accelerators I subscribe to?
+    - Is it possible to add or modify the list of accelerators that I subscribe to?
+    - Is it possible to modify the list of the accelerators that I subscribed to?
+    - Is it possible to add or change the list of accelerators that I subscribe to?
+    - Is it possible to add or modify the list of the accelerators I subscribe to?
+    - Is it possible to add or modify the list of the accelerators that I subscribe to?
+    - Is it possible to add or modify the list of accelerators that I subscribed to?
+    - Is it possible to add or modify the list of accelerators I subscribed to?
+    - Is it possible to add or change the list of accelerators that I subscribed to?
+    - Can I add or modify the list of accelerators that I subscribed?
+    - add to list of accelerators
+- intent: accelerator_usage_69
+  examples: |
+    - How can I get started using the accelerator?
+    - How can I use the accelerator that I subscribe to?
+    - How can I use the accelerator that I subscribed to?
+    - How can I use the accelerator that I have subscribed to?
+    - How can I use the accelerator that I've subscribed to?
+    - How can I start using the accelerator?
+    - How can I use the accelerator I have subscribed to?
+    - How can I use the accelerator?
+    - How can I start using it?
+    - How can I start using the program?
+    - How can I start using the accelerator that I have subscribed?
+- intent: accelerator_usage_70
+  examples: |
+    - Is there a cost associated with using the recommended accelerators?
+    - Is there any cost for using the recommended accelerators?
+    - Is there a cost associated with using recommended accelerators?
+    - Are there any costs associated with using the recommended accelerators?
+    - There is a cost associated with using the recommended accelerators.
+    - Is there any cost associated with using the recommended accelerators?
+    - Is it a cost to use the recommended accelerators?
+    - Is there a cost for using the recommended accelerators?
+    - Is it cost to use the recommended accelerators?
+    - There is no cost associated with using the recommended accelerators.
+- intent: accelerator_benefit_reporting_71
+  examples: |
+    - Is there a way to report the benefits achieved from using accelerators?
+    - How do I report the benefits achieved?
+    - I don't know how to report the benefits achieved from using accelerators.
+    - Is it possible to report the benefits achieved from use of accelerators?
+    - Is it possible to report the benefits achieved from using accelerators?
+    - How do I report on the benefits achieved?
+    - How do I report the benefits of using a accelerators?
+    - Is it possible to report the benefits achieved from the use of accelerators?
+    - How do I report the benefits?
+    - I don't know how to report the benefits achieved.
+    - How do I report the benefits achieved from use of accelerators?
+- intent: support_72
+  examples: |
+    - Who can I contact if I have questions about a specific accelerator?
+    - If I have a question about a specific accelerator, who can I contact?
+    - If I have a question about a specific accelerator, who should I contact?
+    - If I have questions about a specific accelerator, who should I contact?
+    - If I have a question about a specific accelerator, who can I call?
+    - If I have questions about a specific accelerator, who can I contact?
+    - Who can I contact if I have a question about a specific accelerator?
+    - If I have any questions about a specific accelerator, who can I contact?
+    - If I have a query on a specific accelerator, who can I contact?
+    - If I have a question on a specific accelerator, who can I contact?
+    - Whom can I contact if I have any queries on a specific accelerator?
+- intent: support_73
+  examples: |
+    - Is there anyone I can reach for any queries on accelerators?
+    - Is there anyone I can reach for any questions on the accelerators?
+    - Is there anyone who can help me with any queries on the accelerators?
+    - Is there anyone who can help me with any queries on accelerators?
+    - Is there anyone I can contact for any questions on accelerators?
+    - Is there anyone I can reach for any questions on accelerators?
+    - Who can I contact if I have a question about accelerators?
+    - Is there anyone I can contact for queries on accelerators?
+    - Is there anyone I can contact for questions on accelerators?
+    - Who can I contact for questions about accelerators?
+    - Whom can I contact for any queries on accelerators?
+    - queries on accelerators
+    - query regarding accelerator
+    - query about accelerator
+- intent: risk_capture_74
+  examples: |
+    - How do I track my risk?
+    - How do I record my risk?
+    - How do I keep track of the risk?
+    - Is it possible to log a risk?
+    - How do I record a risk?
+    - I don't know how to log a Risk.
+    - How do I keep a record of risk?
+    - How do I keep track of my risk?
+    - How do I keep a record of my risk?
+    - How do I log a Risk?
+    - risk ?
+- intent: risk_capture_75
+  examples: |
+    - Are the tabs mandatory when I start Risk logging?
+    - Are these mandatory tabs?
+    - I see two tabs when I start Risk logging.
+    - Are these mandatory tabs when I start Risk logging?
+    - Are the tabs mandatory when I begin Risk logging?
+    - Are these mandatory tabs when I begin Risk logging?
+    - Are these mandatory tabs when I start logging?
+    - When I begin Risk logging, I see ‘Mitigation and Contingency’ as well as ‘Cost Benefit Analysis’ tabs. Are these mandatory tabs?
+- intent: risk_capture_76
+  examples: |
+    - Is it compulsory for me to enter'mitigation and contingency'?
+    - Is it compulsory for me to enterigation and contingency?
+    - Is this mandatory?
+    - Is it mandatory for me to enter this?
+    - Is it compulsory for me to enter this?
+    - Is it mandatory for me to enter 'Mitigation and Contingency'?
+    - Is this compulsory?
+    - Is it compulsory for me to enter 'Mitigation and Contingency'?
+    - Is it mandatory for me to enter'mitigation and contingency'?
+    - Is it mandatory for me to enterigation and contingency?
+    - I am being prompted to mandatorily enter ‘Mitigation and Contingency’. Is this mandatory?
+- intent: risk_capture_77
+  examples: |
+    - Is there a way to log a risk as an issue?
+    - How do I keep track of a risk?
+    - How do I log a risk as an issue?
+    - Is it possible to log a risk as an issue?
+    - How should I record a risk as an issue?
+    - Is it possible to log a risk as an issue.
+    - I don't know how to log a risk as an issue.
+    - How do I record a risk as an issue?
+    - How do I log a risk as an ‘issue’?
+- intent: risk_capture_78
+  examples: |
+    - How do I get rid of the risk in mainspring?
+    - How do I get rid of a risk in mainspring?
+    - What do I do to close a risk in mainspring?
+    - How do I close a risk in mainspring?
+    - How do I get rid of a risk?
+    - How do I close the risk in mainspring?
+    - How can I close a risk in mainspring?
+    - Is there a way to close a risk in mainspring?
+    - How do I close the risk?
+    - How do I close a risk?
+- intent: risk_capture_79
+  examples: |
+    - Why are all the Impact Area Score boxes available for selection, and the blue bottom-border for mandatory fields, when I only have two Impact Areas?
+    - The blue bottom-border for mandatory fields is not available for the four Impact Area Score boxes that are available for selection.
+    - Why are all four Impact Area Score boxes available for selection, and the blue bottom-border for mandatory fields, when my risk has only two Impact Areas?
+    - Why are all the Impact Area Score boxes available for selection, and the blue bottom-border for mandatory fields, when my risk only has two Impact Areas?
+    - Why are all four Impact Area Score boxes available for selection, and the blue bottom-border for mandatory fields, when I only have two Impact Areas?
+    - Why are all the Impact Area Score boxes available for selection, and the blue bottom-border for mandatory fields, when I have only two Impact Areas?
+    - Why are all four Impact Area Score boxes available for selection, and the blue bottom-border for mandatory fields, when my risk only has two Impact Areas?
+    - Why are all the Impact Area Score boxes available for selection, and the blue bottom-border for mandatory fields, when my risk has only two Impact Areas?
+    - Why are all four Impact Area Score boxes available for selection, and the blue bottom-border for mandatory fields, when I have only two Impact Areas?
+    - Why are all the Impact Area Score boxes available for selection and have a blue bottom-border for mandatory fields when I only have two Impact Areas?
+    - My risk has only two Impact Areas – why are all the four Impact Area Score boxes available for selection and have that blue bottom-border for mandatory fields?
+- intent: risk_capture_80
+  examples: |
+    - I don't have a technology, infrastructure and data security impact, so how do I designate zero or no impact for this area?
+    - I don't have a technology, infrastructure and data security impact, so how do I designate a zero or no impact for this area?
+    - I do not have a technology, infrastructure and data security impact.
+    - I don't have a technology, infrastructure and data security impact, so how do I describe it?
+    - I don't have a technology, infrastructure and data security impact, so how do I designate a zero or no impact for this impact area?
+    - How do I tell if my risk has a technology, infrastructure and data security impact?
+    - I don't have a technology, infrastructure and data security impact, so how do I designate zero or no impact for this impact area?
+    - I don't have a technology, infrastructure and data security impact.
+    - I do not have a technology, infrastructure or data security impact.
+    - I don't have a technology, infrastructure and data security impact, so how do I designate a zero or no impact?
+    - My risk does not have a ‘Technology, Infrastructure and Data Security Impact’ – how do I denote zero or no impact for this Impact Area?
+- intent: risk_capture_81
+  examples: |
+    - As I select more impact areas, why does the values in the cause's dropdown increase?
+    - As I select more impact areas, why do the values in the causes dropdown increase?
+    - As I select more impact areas, why do the values in the cause's dropdown increase?
+    - Why do the values increase when I select more impact areas?
+    - As I select more impact areas, why do the values increase?
+    - As I select more impact areas, why does the values increase in the cause's dropdown?
+    - As I select more impact areas, why do the values increase in the causes dropdown?
+    - As I select more impact areas, why do the values increase in the cause's dropdown?
+    - As I select more impact areas, why does the values in the cause's drop down increase?
+    - As I select more impact areas, why does the values increase in the causes dropdown?
+    - Why do the values in the ‘Causes’ dropdown increase as I select more Impact Areas?
+- intent: risk_capture_82
+  examples: |
+    - Can I select only the causes that correspond to one of the impact areas?
+    - I would like to only select causes related to one of the Impact Areas, but can I do that?
+    - I have selected multiple impact areas and their corresponding causes, but I would like to only select causes related to one of the impact areas.
+    - I would like to only select causes related to one of the impact areas, but can I?
+    - Can I select only causes related to one of the impact areas?
+    - I have selected multiple Impact Areas and their corresponding causes have listed, but I would like to only select causes related to one of the Impact Areas.
+    - I have selected multiple impact areas and their corresponding causes, but I would like to only look at causes related to one of the impact areas.
+    - Although I have selected multiple Impact Areas and their corresponding Causes have listed, I would like to select only Causes corresponding to one of the Impact Areas. Can I do that?
+- intent: risk_capture_83
+  examples: |
+    - All of the Impact Areas have been scored the same way, so which one will the system pick?
+    - All of the Impact Areas have been scored the same, so which one will the system pick?
+    - Each Impact Area score is the same as the other ones, so which one will the system choose?
+    - All of the Impact Areas have been scored the same, so which one will the system choose?
+    - Each Impact Area score is the same, so which one will the system pick?
+    - All of the Impact Areas have been scored the same way, so which one will the system choose?
+    - Each Impact Area score is the same as the other ones, so which one will the system pick?
+    - Each Impact Area score is the same, so which one will the system choose?
+    - All of the Impact Areas have been scored the same way.
+    - All of the Impact Areas have the same number, but they have been scored differently.
+    - I have selected multiple Impact Areas and scored each of them. However, all of them have been scored identically, i.e., each Impact Area score is the same number. Which one will the system pick?
+- intent: risk_capture_84
+  examples: |
+    - How should I make sure that I pick the right values?
+    - What should I do to make sure that I am selecting the right values?
+    - How should I make sure that I pick the right values for impact areas?
+    - How should I make sure that I am selecting the right values?
+    - What should I do to make sure that I am selecting the correct values?
+    - How should I make sure I pick the right values?
+    - How should I make sure that I choose the right values?
+    - What should I do to make sure I am selecting the right values?
+    - How should I make sure I am selecting the right values?
+    - What should I do to ensure that I am selecting the right values?
+    - How should I ensure that I am selecting the right values for Impact Areas, Causes, etc.?
+- intent: risk_capture_85
+  examples: |
+    - The Risk Score is calculated.
+    - How does the risk score be calculated?
+    - How is the risk calculated?
+    - What is the risk score?
+    - How is the Risk Score calculated?
+    - How is the score calculated?
+    - What is the risk score calculated?
+    - How is the Risk Score computed?
+- intent: risk_capture_86
+  examples: |
+    - Does the risk score change as the ground situation changes?
+    - As the ground situation changes, does the risk score change?
+    - Does the ground situation affect the Risk Score?
+    - Does the ground situation change the risk score?
+    - Does the risk score change when the ground situation changes?
+    - As the ground situation changes, does the Risk Score change automatically?
+    - Does the Risk Score automatically change as the ground situation changes?
+    - will risk score change automatically
+- intent: risk_capture_87
+  examples: |
+    - How is a large range or scale of risk scores helpful?
+    - How does a large scale of risk scores help?
+    - How is a large range or scale of risk scores helping?
+    - How is the large range of risk scores helping?
+    - How is a scale of risk scores helping?
+    - How is a large scale of risk scores helping?
+    - How does a large range of risk scores help?
+    - How is a large range of risk scores helping?
+    - How is the scale of risk scores helping?
+    - How is such a large range of risk scores helping?
+    - How is such a large range or scale of risk scores (1 thru to 25) helping?
+- intent: risk_capture_88
+  examples: |
+    - How do I keep track of nature risks?
+    - I don't know how to record risks that are residual in nature.
+    - Is it possible to log risks that are residual in nature?
+    - I don't know how to log risks that are residual in nature.
+    - I don't know how to log residual risks in nature.
+    - How do I keep track of residual risks?
+    - I don't know how to log risks that are in nature.
+    - How do I keep track of residual risks in nature?
+    - I don't know how to log risks in nature.
+    - How do I record residual risks in nature?
+    - How do I log risks that are residual in nature?
+    - How to change DE Scope
+- intent: risk_capture_89
+  examples: |
+    - I try to close the risk, but the system asks if I want to do a cost benefit analysis.
+    - The system asks me to enter the cost benefit analysis.
+    - I tried to close the risk, but the system asked if I wanted to enter a cost benefit analysis.
+    - When I try to close a risk, the system asks if I want to enter a cost benefit analysis.
+    - I try to close the risk, but the system asks if I want to enter a cost benefit analysis.
+    - What is expected when I enter the cost benefit analysis?
+    - The system asks if I want to enter a cost benefit analysis.
+    - When I try to close the risk, the system asks if I want to enter a cost benefit analysis.
+    - The system asks me to enter a cost benefit analysis.
+    - I tried to close the risk, but the system asked me to enter a cost benefit analysis.
+    - While I try to close a risk, system prompts to enter ‘Cost Benefit Analysis’. What details are expected?
+- intent: risk_capture_90
+  examples: |
+    - The Risk ID is not visible on the form.
+    - The Risk e-form does not display the Risk ID.
+    - The Risk e-form does not show the Risk ID.
+    - The Risk e-form doesn't show the Risk ID.
+    - The Risk ID is not visible.
+    - The risk ID isn't visible on the form.
+    - The Risk ID is not on the form.
+    - The Risk e-form doesn't have the Risk ID visible.
+    - The Risk ID isn't visible on the Risk e-form.
+    - The Risk ID is not visible on the Risk e-form. Why?
+    - where is risk id
+- intent: risk_capture_91
+  examples: |
+    - Will the MDU take responsibility of the risk or not?
+    - Is the MDU responsible for the risk or the LOS?
+    - How is it determined if the MDU will take responsibility of the risk or not?
+    - Will the MDU take responsibility for the risk or the LOS?
+    - Is it possible to determine whether the MDU will take responsibility of the risk or the LOS?
+    - Is it possible to determine if the MDU will take responsibility of the risk or the LOS?
+    - Will the MDU take responsibility of the risk or the LOS?
+    - Is it possible to determine whether the MDU will take responsibility of the risk or not?
+    - How is it determined if the MDU will take responsibility of the risk or the LOS?
+    - Is it possible to determine if the MDU will take responsibility of the risk or not?
+    - How is it to be determined whether the MDU will take responsibility of the risk or the LOS?
+- intent: risk_capture_92
+  examples: |
+    - What is the purpose of the risk from similar projects icon?
+    - What is the purpose of the Risk from Similar Projects icon on Monitor?
+    - What is the function of the Risk from Similar Projects icon on Monitor?
+    - There is a risk from similar projects icon on Monitor.
+    - There is an icon for risk from similar projects.
+    - What is the function of the Risk from Similar Projects icon?
+    - What is the function of the risk from similar project icon?
+    - I see an icon “Risk from Similar Projects” on Monitor -> Risks. What is this functionality for?
+- intent: risk_capture_93
+  examples: |
+    - Is there a way to look at the risks from similar projects while logging a new risk?
+    - Is there any way to look at risks from similar projects while logging a new risk?
+    - Is there a way to look at risks from similar projects while logging a new risk in Risk Discovery?
+    - There is a feature in Risk Discovery that looks at risks from similar projects.
+    - Is there a feature in Risk Discovery to look at risks from similar projects?
+    - Is there a feature in Risk Discovery to look at the risks from similar projects?
+    - Is there a way to look at risks from similar projects while logging a new risk?
+    - Is there a feature in Risk Discovery that shows the risks from similar projects?
+    - Is it possible to look at risks from similar projects while logging a new risk?
+    - Is it possible to look at risks from similar projects while logging a new risk in Risk Discovery?
+    - Is there any feature, like in Risk Discovery, to look at ‘Risks from similar projects’ while logging a new risk?
+    - risk for similar projects
+- intent: risk_capture_94
+  examples: |
+    - I don't know how to find out what challenges have been faced by projects similar to mine.
+    - What challenges have been faced by projects in the same area as mine?
+    - How do I find out what challenges have been faced by similar projects?
+    - What challenges have been faced by similar projects to mine?
+    - I don't know how to find out what challenges have been faced by projects like mine.
+    - What challenges have been faced by projects that are similar to mine?
+    - What challenges have been faced by projects like mine?
+    - I don't know how to find out what challenges have been faced by similar projects.
+    - What challenges have been faced by projects similar to mine?
+    - What challenges have been faced by projects similar to mine, how do I find out?
+    - How do I find out what challenges have been faced by projects similar to mine?
+- intent: risk_capture_95
+  examples: |
+    - Are there separate instances of risks created under my project?
+    - Is there a separate instance of risks created under my project?
+    - Is there a separate instance of the risks created under the project?
+    - Are there separate instances of the risks created under my project?
+    - Is there a separate instance of the risks imported from similar projects?
+    - Is there separate instances of the risks created under my project?
+    - Is there a separate instance of the risks created under my project?
+    - Is there a separate instance of the risks created under my project.
+    - Are there separate instances of the risks created under the project?
+    - Is there any separate instances of the risks created under my project?
+    - The risks which are imported from similar projects – are there separate instances of those created under my project?
+- intent: risk_discovery_96
+  examples: |
+    - Is the Risk Discovery option required before the PM Plan can be approved?
+    - The PM Plan has a Risk Discovery option.
+    - The Risk Discovery option is in the PM Plan.
+    - Before the PM Plan can be approved, is it mandatory for me to complete the Risk Discovery option?
+    - The Risk Discovery option is within the PM Plan.
+    - Before the PM Plan can be approved, is it necessary to complete the Risk Discovery option?
+    - Before the PM Plan can be approved, is it mandatory to complete the Risk Discovery option?
+    - Can the PM Plan be approved before the Risk Discovery option is completed?
+    - There is a Risk Discovery option within the PM Plan.
+    - Is the Risk Discovery option required to be completed before the PM Plan can be approved?
+    - I see a Risk Discovery option within the PM Plan. So is that mandatory to complete before the PM Plan can be approved?
+- intent: risk_discovery_98
+  examples: |
+    - I used to be able to score the risks by selecting 1 or 2 or 3, but that is no longer the case.
+    - I used to be able to score the risks by selecting 1 or 2 or 3, but now I don't see that option anymore.
+    - I used to be able to score the risks by selecting 1 or 2, but that is no longer the case.
+    - I used to be able to score the risks by selecting 1 or 2 or 3, but that option is no longer available.
+    - I used to be able to score the risks by selecting 1 or 2, but now I don't see that option anymore.
+    - I used to be able to score the risks by selecting 1 or 2, but now I don't see that option.
+    - I used to be able to score the risks on a scale of 1 to 3.
+    - I used to be able to score the risks by selecting 1 or 2 or 3, but now I don't see that option.
+    - I used to be able to score the risks by selecting 1 or 2, but not anymore.
+    - I used to be able to score the risks by selecting 1 or 2, but now I don't.
+    - I used to be able to score the risks by selecting 1 or 2 or 3 from the Severity dropdown. Now I do not see that option. How will the risks created, scored?
+- intent: risk_import_from_similar_projects_99
+  examples: |
+    - Will I be able to change the risks that I've copied in?
+    - Will I be able to change the risks that I have copied?
+    - Will I be able to change the risks I have copied in?
+    - Will I be able to change the risks I have written?
+    - Will I be able to change the risks I've copied in?
+    - Will I be able to modify the risks that I have copied in?
+    - Will I be able to change the risks that I have copied in?
+    - Will I be able to change the risks which I have copied in?
+    - Will I be able to modify the risks I have copied in?
+    - Will I be able to change the risks I have copied?
+    - Will I be able to edit the risks which I have copied in?
+    - editing risks
+    - how to edit risks
+    - edit copied risks
+- intent: risk_import_from_similar_projects_100
+  examples: |
+    - What if I want to copy a lot of the risks?
+    - What if I want to copy some of the risks?
+    - What if I want to copy a lot of risks?
+    - Is it possible that I will copy a number of risks from the list?
+    - What if I want to copy multiple risks?
+    - Is it possible to copy multiple risks from the list?
+    - Is it possible that I will copy multiple risks from the list of risks?
+    - Is it possible that I will copy multiple risks from the list?
+    - What if I want to copy many risks from the list?
+    - Is it possible to copy multiple risks from the list of risks?
+    - What if I intend to copy multiple risks from the list of risks available?
+- intent: risk_escalation_101
+  examples: |
+    - I don't know how to link a risk to an escalation.
+    - I don't know how to link a risk to an increase.
+    - How do I link a risk to an increase?
+    - Is it possible to link a risk to an escalation.
+    - I don't know how to link a risk with an escalation.
+    - Is it possible to link a risk to an increase?
+    - Is it possible to link a risk to an escalation?
+    - Is there a way to link a risk to an escalation?
+    - Is there a way to link a risk to an increase?
+    - How do I link a risk to an event?
+    - How do I link a risk to an escalation?
+- intent: risk_escalation_102
+  examples: |
+    - Is it possible to link multiple risks to an escalation?
+    - Is it possible to link multiple risks to an increase?
+    - Is there a link between multiple risks and an escalation?
+    - Is it possible to link multiple risks to an escalate?
+    - Is there a link between multiple risks and an increase?
+    - Is it possible to link multiple risks to an event?
+    - Can I link multiple risks?
+    - Is it possible to link multiple risks?
+    - Can I link multiple risks together?
+    - Is there a way to link multiple risks?
+    - Can I link multiple risks to an escalation?
+- intent: risk_escalation_103
+  examples: |
+    - Is there a way to make sure that the escalation in the portal has a linked risk?
+    - Is there a way to check if the escalation in the portal has a link to the risk?
+    - Is there a way to check if an escalation in the portal has a linked risk?
+    - Is there a way to check if the CEM portal has a linked risk?
+    - Is there a way to check if the escalation in the portal has a link to the linked risk?
+    - Is there a way to check if an escalate in the portal has a linked risk?
+    - Is there a way to check if an Escalation in the CEM portal has a linked risk?
+    - Is there a way to check if the escalation in the portal has a linked risk?
+    - Is there a way to check if an Escalation in the CEM portal has a corresponding linked risk?
+    - Is there a way systemically to check whether an escalation in the CEM portal has a corresponding linked risk?
+- intent: financial_impact_104
+  examples: |
+    - I'm not sure if Financial Impact is on the Risk e-form.
+    - I'm not sure if Financial Impact is on the Risk e-form or not.
+    - I don't see the Financial Impact scoring on the Risk e-form.
+    - I don't see Financial Impact on the Risk form.
+    - I'm not sure if the Financial Impact scoring is on the Risk e-form.
+    - I don't see the Financial Impact scoring on the Risk form.
+    - I don't see Financial Impact on the Risk e-form.
+    - I don't see Financial Impact scoring on the Risk e-form.
+    - I don't see Financial Impact scoring on the Risk form.
+    - Financial Impact is not on the Risk e-form.
+    - I do not see Financial Impact scoring dropdown on the Risk e-form. Is it on some other menu?
+- intent: financial_impact_105
+  examples: |
+    - I don't know if I need to fill out all the components.
+    - I don't know if I need to fill out all the revenue and cost components.
+    - Is it necessary for me to fill out all the revenue and cost components?
+    - I don't know if I need to fill out all of the revenue and cost components.
+    - Do I need to fill out all the components?
+    - Do I have to fill out all the components?
+    - Is it necessary for me to fill out all Revenue and Cost components?
+    - Is it necessary to fill out all the revenue and cost components?
+    - Do I need to fill out all the Revenue and Cost components?
+- intent: financial_impact_106
+  examples: |
+    - I don't think my project has any Financial Impact.
+    - I don't believe my project has Financial Impact.
+    - I don't think my project has a financial impact.
+    - I don't believe my project has any Financial Impact.
+    - I don't think my project has Financial Impact.
+    - I do not think my project has any Financial Impact. Is it mandatory to fill out and score Financial Impact?
+- intent: financial_impact_107
+  examples: |
+    - My score should be higher than what has been auto- computed based on the financial impact guidelines.
+    - I think my score should be higher than what has been auto- computed.
+    - My score should be higher than what has been auto- computed based on the scoring guidelines.
+    - My score should be higher than what has been auto- computed based on the guidelines.
+    - My score should be higher than what has been auto- computed, but why?
+    - My score should be higher than what has been computed based on the guidelines.
+    - My score should be higher than what has been auto- computed, based on the Financial Impact scoring guidelines.
+    - My score should be higher than what has been auto- computed.
+    - My score should be higher than what has been auto- computed based on the financial impact scoring guidelines.
+    - Based in the Financial Impact scoring guidelines, my score should be higher than what has been auto-computed. Why is that so?
+- intent: risk_re-evaluation_108
+  examples: |
+    - What causes me to re-examine the risks of my project?
+    - What are the things that cause me to re-examine the risks of my projects?
+    - What causes me to reexamine the risks of my work?
+    - What are the reasons for me to re-examine the risks of my projects?
+    - What causes me to rethink the risks of my projects?
+    - What causes me to reexamine the risks of my projects?
+    - What causes me to re-evaluate the risks of my projects?
+    - What causes me to re- evaluate the risks of my projects?
+    - What causes me to re-examine the risks of my projects?
+    - What causes me to re-examine the risks of my work?
+    - What are the triggers, which causes me to re-evaluate the risks of my projects?
+- intent: risk_re-evaluation_109
+  examples: |
+    - I have many risks in the project that haven't been changed in a long time, so how can I update them?
+    - I have many risks in the project that haven't been changed in a long time, how can I update them?
+    - I have many risks in the project which haven't been changed in a long time and I don't know how to update them.
+    - I have many risks in the project that haven't been modified in a long time, how can I update them?
+    - How can I update the risks that haven't been changed in a long time?
+    - I have many risks in the project which haven't been changed in a long time, how can I update them?
+    - I have many risks in the project that haven't been changed in a long time, but how can I update them?
+    - I have many risks in the project that haven't been changed in a long time and I don't know how to update them.
+    - There are many risks in the project which haven't been changed in a long time, how can I update them?
+    - How can I update the risks in the project that have not been changed in a long time?
+    - I have many risks in the project which haven’t been modified in a long time and I receive notifications to re-evaluate. How can I go and update all those risks?
+- intent: risk_migration_110
+  examples: |
+    - Does the PM have to open all his project-risks and manually score them in order to have the correct risk scores in the layout in Nov. 2020?
+    - Is it necessary for the PM to open all his project-risks and manually score them in order to have the correct Risk Scores in the layout in Nov. 2020?
+    - Does the PM have to open all his project-risks and manually score them in order to have the correct Risk Scores in the layout coming up in Oct-Nov of 2020?
+    - Does the PM have to open all his project-risks and manually score them in order to have the correct risk scores in Oct-Nov of 2020?
+    - Does the PM have to open all his project-risks in order to score them correctly in Oct-Nov of 2020?
+    - Is it necessary for the PM to open all his project-risks and manually score them in order to have the correct Risk Scores in the layout coming up in Oct-Nov of 2020?
+    - Is it necessary for the PM to open all his project-risks and manually score them in order to have the correct Risk Scores in the layout in Oct-Nov of 2020?
+    - Does the PM need to open all his project-risks and manually score them in order to have the correct Risk Scores in the layout in Nov. 2020?
+    - In order to have the correct Risk Scores in the layout coming up in Oct-Nov of 2020, does the PM have to open all his project-risks (including closed ones) and manually score them?
+- intent: delivery_governance_111
+  examples: |
+    - Comments are required while selecting health status.
+    - The system requires comments when selecting health status.
+    - The system mandates comments while selecting health status.
+    - The system requires comments while selecting health status.
+    - Comments are mandated while selecting health status.
+    - While selecting health status, the system requires comments.
+    - System requires comments while selecting health status.
+    - The system requires comments while selecting a health status.
+    - The system mandates comments when selecting health status.
+    - While selecting a health status, the system requires comments.
+    - While selecting health status, system mandates comments.
+    - health status comment compulsory
+- intent: delivery_governance_112
+  examples: |
+    - Is there a way to select the appropriate R/A/G status based on the situation in my project?
+    - Is there a way to pick the appropriate R/A/G status based on the ground situation?
+    - Is there a way to select the appropriate R/A/G status based on the ground situation in my project?
+    - Is there a way to select the appropriate R/A/G status based on the ground situation?
+    - Is there a way to select the appropriate R/A/G status based on the situation on the ground?
+    - Is there a way to pick the appropriate R/A/G status based on the ground situation in my project?
+    - Is there a way to select the appropriate R/A/G status based on the situation?
+    - Is there a way to pick the appropriate R/A/G status based on the situation in my project?
+    - I want to know if there is any guidance available for selecting the appropriate R/A/G status.
+    - Is there any guidance available for selecting the appropriate R/A/G status?
+    - Is there any guidance available to select the appropriate R/A/G status based on the ground-situation in my project?
+- intent: delivery_governance_113
+  examples: |
+    - The email said my project was recommended by the system.
+    - I received an email saying my project is recommended by the system.
+    - Why am I getting this email?
+    - The system for BU head review recommended my project to me.
+    - I received an email that said my project was recommended by the system for BU head review.
+    - I got an email saying my project is recommended by the system.
+    - I received an email that said my project was recommended by the BU head review system.
+    - The email said my project was recommended by the system for BU head review.
+    - I received an email that said my project was recommended by the system.
+    - The email said my project was recommended by the BU head review system.
+    - I received an email saying my project is recommended by the system for BU head review. Why am I receiving this email?
+- intent: delivery_governance_114
+  examples: |
+    - Under Monitor  Delivery Governance, I see a recommendation for an Executive Risk Review for my project.
+    - Under Monitor  Delivery Governance, I see a system recommendation for Executive Risk Review for my project.
+    - Under Monitor  Delivery Governance, I see a recommendation for an Executive Risk Review.
+    - Under Monitor  Delivery Governance, there is a system recommendation for Executive Risk Review.
+    - Under Monitor  Delivery Governance, I see a system recommendation for an Executive Risk Review.
+    - Under Monitor  Delivery Governance, I see a recommendation for Executive Risk Review for my project.
+    - Under Monitor  Delivery Governance, I see a system recommendation for an Executive Risk Review for my project.
+    - Under Monitor  Delivery Governance, I see a recommendation for risk review for my project.
+    - The project has been reviewed by account leaders.
+    - Under Monitor  Delivery Governance, I see a system recommendation for Executive Risk Review.
+    - Under Monitor  Delivery Governance, I see a system recommendation for Executive Risk Review for my project. My project has been reviewed by account leaders. What does this recommendation imply?
+- intent: delivery_governance_115
+  examples: |
+    - Do I have to promote my project to ERR?
+    - Do I need to promote my project to ERR?
+    - Is it necessary for me to promote my project to ERR?
+    - Do I have to promote it to ERR?
+    - I wonder if I have to promote my project to ERR.
+    - I don't know if I have to promote my project to ERR.
+    - Is it mandatory for me to promote my project to ERR?
+    - Do I have to promote the project to ERR?
+    - I wonder if I need to promote my project to ERR.
+    - Should I promote my project to ERR?
+    - I see a system-recommendation for promotion of my project to ERR. Do I have to mandatorily promote it to ERR?
+    - promotion to ERR
+- intent: delivery_governance_116
+  examples: |
+    - There is a flag inDGD about a recommendation for governance review for my project.
+    - There is a flag in theDGD about a system recommendation for governance review.
+    - There is a flag inDGD about a system recommendation for governance review.
+    - There is a flag in theDGD about a recommendation for governance review.
+    - There is a flag in thedg about a system recommendation for governance review.
+    - There is a flag inDGD that says a system recommendation for governance review.
+    - There is a flag inDGD that says a system recommendation for governance review for my project.
+    - There is a flag in theDGD about a system recommendation.
+    - There is a flag in DGD about a system recommendation for governance review.
+    - There is a flag inDGD about a recommendation for governance review.
+    - I see a flag in DGD about a system recommendation for governance review for my project. Why is that notification appearing?
+- intent: delivery_governance_117
+  examples: |
+    - For some projects, I see auto-elevated to BU watch-list, but for others, I do not.
+    - For some projects, I see auto-elevated to BU watch-list, but for others, I don't see it.
+    - For some projects, I see auto-elevated to BU Watch-list, but for others, I don't.
+    - For some projects, I see auto-elevated to BU watch-list but not for others.
+    - For some projects, I see auto-elevated to BU watch-list but for others, I don't.
+    - For some projects, I see auto-elevated to BU watch-list, but not for others.
+    - For some projects, I see auto-elevated to the BU watch-list, but for others, I don't.
+    - For some projects, I see ‘Auto-elevated to BU Watch-list’ but for some I do not see it. Why is that so?
+- intent: delivery_governance_118
+  examples: |
+    - In case of a system recommendation, who are all notified?
+    - Who is notified in case of a system recommendation?
+    - Who is notified if a system recommendation is made?
+    - In case of a system recommendation, who are notified?
+    - If a system recommendation is made, who are notified?
+    - Who are notified in case of a recommendation?
+    - Who is notified when a system recommendation is made?
+    - Who are notified if a system recommendation is made?
+    - Who is notified in case of a recommendation?
+    - Who is notified in the event of a system recommendation?
+    - Who all are notified in case of a system-recommendation?
+- intent: risk_reports_119
+  examples: |
+    - Is there a way to make a risk report for MDU?
+    - Is there a way to make a risk report for MDU/LOS?
+    - There is a way to generate a risk report.
+    - Is there a way to generate a risk report for MDU?
+    - Is there a way to create a risk report for MDU?
+    - Is there a way to generate a risk report for MDU/LOS?
+    - Is there a way to create a risk report?
+    - Is there a way to generate a risk report?
+    - Is there a way to make a MDU/LOS risk report?
+    - Is there a way to make a risk report?
+    - Is there a way to generate MDU/LOS level risk report?
+- intent: risk_reports_120
+  examples: |
+    - How do we know when a risk is past due or nearing the Target Closure Date?
+    - How do we know when risks are past due?
+    - How do we know when the risks are past due or close to the Target Closure Date?
+    - How do we know when the risks are past due or close to Target Closure Date?
+    - How do we know when the risks are past due or nearing the Target Closure Date?
+    - How do we know when a risk is past due or close to the Target Closure Date?
+    - How do we know when the risks are close to the Target Closure Date?
+    - How do we know when a risk is past due?
+    - How do we know when the risks are past due?
+    - How do we find out when the risks are past due?
+    - How do we get to know when risks are nearing the Target Closure Date or are past-due?
+    - risks nearing target closure date
+    - risks close to target closure date
+- intent: project_creation_0
+  examples: |
+    - The group project can be created in mainspring.
+    - How to make a group project in mainspring
+    - How to create a group project.
+    - Group project creation in mainspring.
+    - How to make a group project in mainspring.
+    - Group project creation in mainspring
+    - A group project can be created in mainspring.
+    - In mainspring, how to create a group project.
+    - A group project is created in mainspring.
+    - How to make a group project.
+    - How to create group project in mainspring
+- intent: project_creation_1
+  examples: |
+    - To see the project, unble.
+    - Unble to see the project.
+    - The project is in mainspring.
+    - Unble to look at the project in mainspring.
+    - The project can be viewed in mainspring.
+    - Unble to look at the project.
+    - Unble to see the project in its entirety.
+    - To view the project, unble.
+    - To see the project in mainspring, unble.
+    - Unble to view the project.
+    - Unble to view the project in mainspring
+- intent: pm_plan_workflow_2
+  examples: |
+    - DE's name wasn't found in the drop down for Reviewer work flow in the PM Plan.
+    - DE's name was not found in the drop down for Reviewer work flow in the PM Plan.
+    - DE's name wasn't found in the drop down for Reviewer work flow.
+    - DE's name was not found in the drop down for the Reviewer work flow in the PM Plan.
+    - DE's name is not found in the drop down for Reviewer work flow in the PM Plan.
+    - DE's name wasn't found in the drop down for Reviewer work flow in PM Plan.
+    - DE's name was not found in the drop down for Reviewer work flow in PM Plan.
+    - DE's name was not found in the drop down for Reviewer work flow.
+    - DE's name was not found in the drop down for the Reviewer work flow.
+    - Unable to find DE enable's name in the drop down for Reviewer work flow in PM Plan.
+- intent: document_repository_3
+  examples: |
+    - How to provide access to the repository?
+    - How can I make a repository and give access to it?
+    - How to make a repository and give access to it?
+    - How to give access to a repository?
+    - How can I provide access to a repository?
+    - How to provide access to a repository.
+    - How to provide access to a repository?
+    - How can we provide access to the repository?
+    - How to give access to the repository?
+    - How to give access to a repository.
+    - How to create a repository and provide access to it?
+- intent: access_roles__4
+  examples: |
+    - The RHMS role isn't going to the mainspring.
+    - The RHMS role is not moving to the mainspring.
+    - The role of RHMS is not flowing to the mainspring.
+    - The RHMS role isn't flowing to the mainspring.
+    - The role of RHMS isn't flowing to the mainspring.
+    - The RHMS role isn't going to mainspring.
+    - The role of RHMS is not going to mainspring.
+    - The RHMS role is not going to the mainspring.
+    - The RHMS role is not going to mainspring.
+    - The RHMS role is not flowing to the mainspring.
+    - RHMS role not flowing to mainspring
+- intent: allocation_details_5
+  examples: |
+    - There are incorrect allocation details in the mainspring.
+    - Incorrect allocation details in the mainspring.
+    - The allocation details in the mainspring are not correct.
+    - There are Incorrect allocation details in mainspring.
+    - Incorrect allocation details in mainspring.
+    - The allocation details in the mainspring are incorrect.
+    - The allocation details in mainspring are incorrect.
+    - Incorrect allocation details are in the mainspring.
+    - Incorrect allocation details in mainspring
+- intent: tracking_mode_change_6
+  examples: |
+    - How can I change the Tracking mode?
+    - How to change the tracking mode in mainspring?
+    - Can you tell me how to change the tracking mode in mainspring?
+    - How can I change the tracking mode in mainspring?
+    - How do I change the Tracking mode in mainspring?
+- intent: risk_tracking_7
+  examples: |
+    - How to stop the risk?
+    - How to shut down the risk?
+    - How to close the risk?
+    - How can we close the risk?
+    - How to get rid of the risk.
+    - How to stop the risk.
+    - How do you close the risk?
+    - How to close the risk.
+    - How to get rid of the risk?
+    - How to close the risk ?
+- intent: work_package__8
+  examples: |
+    - How do I complete the workpackage?
+    - How do I complete the work package?
+    - How to finish the workpackage?
+    - How do I complete a workpackage?
+    - How to complete the workpackage?
+    - How can I complete the workpackage?
+    - How do you complete a workpackage?
+    - How can I complete the work package?
+    - How to complete the work package?
+    - How to complete the package?
+    - How to complete workpackage?
+- intent: metric_report_9
+  examples: |
+    - How is the report generated?
+    - The metrics report is generated.
+    - How does the metrics report get created?
+    - How do the metrics reports get generated?
+    - How does the report get generated?
+    - How do the metrics report get created?
+    - The metrics report gets generated.
+    - How do the metrics report get generated?
+    - What happens to the metrics report?
+    - How does the report get created?
+    - How the metrics report gets generated?
+- intent: metric_actuals_10
+  examples: |
+    - What's the difference between metrics and actuals?
+    - What is the definition of metrics?
+    - What is the nature of metrics?
+    - What are metrics?
+    - What are the metrics?
+    - What is the actual number of metrics?
+    - What is the nature of the metrics?
+    - What is the difference between metrics and actuals?
+    - What is the meaning of metrics?
+    - What is the relationship between metrics and actuals?
+    - What is metrics actuals?
+- intent: release_sprint_11
+  examples: |
+    - Is it possible to re-open the release?
+    - How to re-open the print?
+    - Is it possible to re-open the release/sprint?
+    - How to open the print?
+    - How to open the release again?
+    - How can I re-open the release?
+    - How to re-open the release?
+    - How to open the release?
+    - Can you re-open the release?
+    - How to reopen the release?
+    - How to re-open the release/sprint?
+- intent: archeytpe_and_demographics_12
+  examples: |
+    - How can I change the Archetype?
+    - How can I change the process template?
+    - How to change the process template?
+    - Can you tell me how to change the Archetype/Methodology/ Process template?
+    - How can I change the Archetype/Methodology?
+    - How can I change the Archetype/Methodology/process template?
+    - Can you tell me how to change the Archetype/methodology/process template?
+    - How can I change the Archetype/Methodology/ Process template?
+    - How to change the Archetype/methodology/ Process Template?
+- intent: risk_tracking_13
+  examples: |
+    - OneBCM risk was not found in mainspring.
+    - The OneBCM risk was not found in the mainspring.
+    - There is no OneBCM risk in mainspring.
+    - The risk of OneBCM was not found in mainspring.
+    - The OneBCM risk was not found in mainspring.
+    - OneBCM risk is not found in mainspring.
+    - It was not possible to find OneBCM risk in mainspring.
+    - There is no OneBCM risk in the mainspring.
+    - It was not possible to find OneBCM risk in the mainspring.
+    - The risk of OneBCM was not found in the mainspring.
+    - Unable to find OneBCM risk in mainspring
+- intent: pm_plan_workflow_14
+  examples: |
+    - Who can approve or edit the PM plan?
+    - Who can approve or approve the PM plan?
+    - Who can approve or modify the PM plan?
+    - The PM plan can be edited or approved by someone.
+    - Who is able to approve the PM plan?
+    - Who can approve or disapprove the PM plan?
+    - Who can approve the plan?
+    - Who can make changes to the PM plan?
+    - Who can approve the PM plan?
+    - Who can approve/edit the PM plan?
+    - Who can edit/Approve the PM plan?
+- intent: project_creation_15
+  examples: |
+    - How to reopen the execution project?
+    - How to restart the project?
+    - How to reopen the project?
+    - How can I re-open the project?
+    - How to open the execution project again?
+    - How can I re-open the execution project?
+    - How to open the project again?
+    - The execution project needs to be re-opened.
+    - How to re-open the project?
+    - How do I re-open the project?
+    - How to re-open the execution project?
+- intent: release_sprint_16
+  examples: |
+    - Couldn't create release.
+    - It was not possible to create release.
+    - Unable to make a release.
+    - Unable to create a release
+    - Unable to create release
+    - Unable to make a release
+    - Unable to create release.
+    - It was not possible to create a release.
+    - Unable to create a release.
+    - Couldn't create a release.
+- intent: work_package__17
+  examples: |
+    - How to make a release with auto?
+    - How to create release with auto?
+    - How do I make a release with the auto option?
+    - How to create a release with auto?
+    - How to make a release with the auto option?
+    - How to create a release with the auto option?
+    - How do I create a release with the auto option?
+    - How to create a release with the auto uploading option?
+    - How can I make a release with the auto option?
+    - How can I create a release with the auto option?
+    - How to create release with Auto - create/bulk upload option?
+- intent: work_package__18
+  examples: |
+    - Unable to view/create workpackage in mainspring
+    - Unable to create/view workpackage in mainspring
+    - Unable to view the workpackage in mainspring
+    - Unable to see workpackage in mainspring
+    - Unable to see the workpackage in mainspring.
+    - Unable to view/create workpackage in mainspring.
+    - Unable to create/view workpackage in mainspring.
+    - Unable to view workpackage in mainspring.
+    - Unable to view the workpackage in mainspring.
+    - Unable to view workpackage in mainspring
+- intent: user_story_19
+  examples: |
+    - Unable to create userstory.
+    - Unable to view userstory.
+    - Unable to view/create userstory.
+    - Unable to view userstory
+    - Unable to view/create userstory
+    - Unable to see userstory
+    - Unable to create a userstory.
+    - Unable to view the userstory.
+    - Unable to view a userstory.
+    - Unable to see userstory.
+    - Unable to create/view userstory
+- intent: metric_actuals_20
+  examples: |
+    - What is the nature of ad hoc effort?
+    - What is adhoc effort?
+    - Adhoc effort is what it is.
+    - What is ad hoc effort?
+    - What's the difference between adhoc effort and regular effort?
+    - What is the difference between adhoc effort and regular effort?
+    - What does adhoc effort mean?
+    - adhoc effort is what it is?
+    - An adhoc effort is what it is.
+    - What is the nature of adhoc effort?
+- intent: project_merger_21
+  examples: |
+    - The project was not able to be De-Merged in Mainspring.
+    - The project in Mainspring was unable to be de-Merged.
+    - The project was unable to be De-Merged.
+    - There was a project in Mainspring that was unable to be De-Merged.
+    - The project was not able to be De-Merged.
+    - The De-Merge project was unable to be completed.
+    - The project was unable to be De-Merged in Mainspring.
+    - Unable to De-Merge project in Mainspring.
+- intent: project_merger_22
+  examples: |
+    - If the projects are merged, what will happen?
+    - If the projects are merged what will happen?
+    - If PM merges the projects, what will happen?
+    - What would happen if the projects are merged?
+    - What will happen if the projects are merged?
+    - What would happen if the PM merged the projects?
+    - What will happen if there is a merger?
+    - What will happen if the projects are combined?
+    - What will happen if the projects are merged by PM?
+    - What will happen if the projects are merged by the PM?
+    - What will happen if PM merge the projects?
+- intent: metric_report_23
+  examples: |
+    - Unable to close the report?
+    - Can't close the metrics report?
+    - Are you unable to close the report?
+    - Can't close metrics report?
+    - I can't close the metrics report.
+    - Is it not possible to close the metrics report?
+    - I can't close the report.
+    - Is it not possible to close metrics report?
+    - Couldn't close the metrics report?
+    - Are you unable to close the metrics report?
+    - Unable to close metrics report?
+- intent: archeytpe_and_demographics_24
+  examples: |
+    - How to update Archetype?
+    - How do I update Archetype for the execution project?
+    - How can I update Archetype for the execution project?
+    - How to change Archetype for the project?
+    - How to update Archetype for the project?
+    - How to change Archetype for a project?
+    - How to change Archetype for an execution project?
+    - How to update Archetype for the execution project?
+    - How to change Archetype for the execution project?
+    - How to update Archetype for an execution project?
+- intent: archeytpe_and_demographics_25
+  examples: |
+    - Who will review the filled in Archetypes?
+    - The filled in Archetypes will be reviewed by who?
+    - Who is going to review the filled in Archetypes?
+    - The filled in Archetypes will be reviewed.
+    - Who will check out the filled in Archetypes?
+    - Who will read the filled in Archetypes?
+    - The filled in Archetypes will be reviewed by someone.
+    - Who will look over the filled in Archetypes?
+    - Who will check the filled in Archetypes?
+    - Who will look at the filled in Archetypes?
+- intent: project_scope_26
+  examples: |
+    - Can you tell me how to change DE Scope in mainspring?
+    - How to change the DE scope in mainspring?
+    - How to change the DE scope in the spring?
+    - How to change the DE scope?
+    - How can I change the DE scope in mainspring?
+    - How can I change the DE scope?
+    - How can I change DE Scope in mainspring?
+    - How to change the scope in mainspring?
+    - How to change DE Scope in mainspring?
+    - DE Scope
+- intent: risk_tracking_27
+  examples: |
+    - How to create and close risk discovery?
+    - How to make risk discovery?
+    - How can I close Risk Discovery?
+    - How do I close Risk Discovery?
+    - How to create risk discovery?
+    - How to close Risk Discovery?
+    - How to create a risk discovery?
+    - How can Risk Discovery be created?
+    - How to create/close Risk Discovery?
+- intent: release_sprint_28
+  examples: |
+    - Are you unable to close release?
+    - Is it not possible to close release?
+    - Is it possible that the release is unable to close?
+    - Are you unable to close the release?
+    - Can't close the release?
+    - Couldn't close release?
+    - Couldn't close the release?
+    - Is it impossible to close release?
+    - Is it not possible to close the release?
+    - Can't close release?
+    - Unable to close release?
+- intent: release_sprint_29
+  examples: |
+    - How to close the risk in a closed project?
+    - How to close the open risk in a closed project
+    - In a closed project, how to close the open risk?
+    - How to close the open risk in a closed project?
+    - How do you close the open risk in a closed project?
+    - How to close the open risk in a project?
+    - There is an open risk in a closed project.
+    - How to close the open risk in a project.
+    - In a closed project how to close the open risk?
+    - How to close the open risk in a closed project.
+    - How to close the open risk in closed project?
+- intent: metricreport
+  examples: |
+    - What is a metric report
+    - What is the frequency of report generation
+- regex: item_id
+  examples: |
+    - [A-Z]+[0-9]+_TODO[0-9]+|[a-z]+[0-9]+_TODO[0-9]+|[a-z]+[0-9]+_todo[0-9]+|[A-Z]+[0-9]+|[a-z]+[0-9]+

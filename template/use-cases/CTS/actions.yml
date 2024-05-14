@@ -1,0 +1,182 @@
+email_action: []
+form_validation_action: []
+google_search_action: []
+http_action:
+- action_name: getsolrhelpdata
+  content_type: json
+  headers:
+  - _cls: HttpActionRequestBody
+    encrypt: true
+    key: AuthorizationToken
+    parameter_type: key_vault
+    value: MAINSPRING_TOKEN
+  - _cls: HttpActionRequestBody
+    encrypt: true
+    key: Authorization
+    parameter_type: slot
+    value: apigee_token
+  http_url: https://apigatewaydev.cognizant.com/2735/mainspring/data?SearchString=$USER_MESSAGE
+  request_method: GET
+  response:
+    dispatch: true
+    evaluation_type: expression
+    value: ${data.text}
+- action_name: navigation_action
+  content_type: json
+  headers:
+  - _cls: HttpActionRequestBody
+    encrypt: true
+    key: AuthorizationToken
+    parameter_type: key_vault
+    value: MAINSPRING_TOKEN
+  - _cls: HttpActionRequestBody
+    encrypt: true
+    key: Authorization
+    parameter_type: slot
+    value: apigee_token
+  http_url: https://apigatewaydev.cognizant.com/2735/mainspring/bot/response
+  params_list:
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: intentName
+    parameter_type: intent
+    value: ''
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: item_id
+    parameter_type: slot
+    value: item_id
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: menucode
+    parameter_type: slot
+    value: menucode
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: projectId
+    parameter_type: slot
+    value: projectid
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: ownerType
+    parameter_type: slot
+    value: ownertype
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: ownerId
+    parameter_type: slot
+    value: ownerid
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: userId
+    parameter_type: slot
+    value: userid
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: isShowItemName
+    parameter_type: value
+    value: 'false'
+  request_method: PUT
+  response:
+    dispatch: true
+    evaluation_type: script
+    value: if (data != null and (data.text == null or data.text == "")) { return "<span>Hmm...its
+      seems you have misspelled the name :disappointed:</span>"; } else { return data.text;
+      }
+- action_name: action_inbox_query
+  content_type: json
+  headers:
+  - _cls: HttpActionRequestBody
+    encrypt: true
+    key: AuthorizationToken
+    parameter_type: key_vault
+    value: MAINSPRING_TOKEN
+  - _cls: HttpActionRequestBody
+    encrypt: true
+    key: Authorization
+    parameter_type: slot
+    value: apigee_token
+  http_url: https://apigatewaydev.cognizant.com/2735/mainspring/bot/response
+  params_list:
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: intentName
+    parameter_type: intent
+    value: ''
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: item_id
+    parameter_type: slot
+    value: item_id
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: menucode
+    parameter_type: slot
+    value: menucode
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: projectId
+    parameter_type: slot
+    value: projectid
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: ownerType
+    parameter_type: slot
+    value: ownertype
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: ownerId
+    parameter_type: slot
+    value: ownerid
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: userId
+    parameter_type: slot
+    value: userid
+  request_method: PUT
+  response:
+    dispatch: true
+    evaluation_type: expression
+    value: ${data.text}
+- action_name: apigee
+  content_type: data
+  http_url: https://apigatewaydev.cognizant.com/2735/mainspring/token
+  params_list:
+  - _cls: HttpActionRequestBody
+    encrypt: false
+    key: grant_type
+    parameter_type: value
+    value: client_credentials
+  - _cls: HttpActionRequestBody
+    encrypt: true
+    key: client_id
+    parameter_type: key_vault
+    value: APIGEE_CLIENT_ID
+  - _cls: HttpActionRequestBody
+    encrypt: true
+    key: client_secret
+    parameter_type: key_vault
+    value: APIGEE_CLIENT_SECRET
+  request_method: POST
+  response:
+    dispatch: false
+    evaluation_type: expression
+  set_slots:
+  - evaluation_type: expression
+    name: apigee_token
+    value: Bearer ${access_token}
+jira_action: []
+pipedrive_leads_action: []
+slot_set_action:
+- name: reset_slot_navig
+  set_slots:
+  - name: item_id
+    type: reset_slot
+    value: ''
+  - name: menucode
+    type: reset_slot
+    value: undefined
+  - name: apigee_token
+    type: reset_slot
+    value: ''
+zendesk_action: []

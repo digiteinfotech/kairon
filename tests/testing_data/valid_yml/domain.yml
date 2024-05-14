@@ -1,4 +1,4 @@
-version: '2.0'
+version: "3.1"
 config:
   store_entities_as_slots: true
 session_config:
@@ -50,54 +50,58 @@ entities:
 - fdResponse
 slots:
   category:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings: []
   file:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: file
   file_error:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings: []
   file_text:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings: []
   name:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
+    mappings: []
   priority:
-    type: rasa.shared.core.slots.CategoricalSlot
+    type: categorical
     initial_value: null
-    auto_fill: true
     influence_conversation: true
     values:
     - low
     - medium
     - high
+    mappings:
+    - type: from_entity
+      entity: priority
   requested_slot:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
+    mappings: []
   ticketID:
-    type: rasa.shared.core.slots.FloatSlot
+    type: float
     initial_value: 1.0
-    auto_fill: true
     influence_conversation: true
     max_value: 1
     min_value: 0
+    mappings: []
   bot:
-    type: rasa.shared.core.slots.AnySlot
+    type: any
     initial_value: 6f7f0d6f9f6f09fff08fflkf896
-    auto_fill: false
     influence_conversation: false
+    mappings: []
 responses:
   utter_attachment_upload:
   - text: Do you wish to upload any relevant document?
@@ -244,11 +248,9 @@ actions:
 - ticket_file_form
 forms:
   ticket_attributes_form:
-    priority:
-      - type: from_entity
-        entity: priority
+    required_slots:
+      - priority
   ticket_file_form:
-    file:
-      - type: from_entity
-        entity: file
+    required_slots:
+      - file
 e2e_actions: []

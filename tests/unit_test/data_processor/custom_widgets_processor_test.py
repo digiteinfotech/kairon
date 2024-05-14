@@ -11,6 +11,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.custom_widgets.processor import CustomWidgetsProcessor
 from kairon.shared.data.processor import MongoProcessor
+from mongomock import MongoClient
 
 
 class TestCustomWidgetsProcessor:
@@ -272,7 +273,6 @@ class TestCustomWidgetsProcessor:
         }
         CustomWidgetsProcessor.edit_config(widget_id, config, bot, user)
 
-        responses.reset()
         responses.add(
             "POST", config["http_url"],
             json=expected_resp,
@@ -412,7 +412,6 @@ class TestCustomWidgetsProcessor:
         config["request_method"] = "POST"
         CustomWidgetsProcessor.edit_config(pytest.widget_id3, config, bot, user)
 
-        responses.reset()
         responses.add(
             "POST", "http://agtech.com/trends/1",
             json=expected_resp,

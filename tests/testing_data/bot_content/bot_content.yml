@@ -1,0 +1,31 @@
+- collection: test_content_collection
+  data:
+  - I am testing upload download bot content in Content Collection 1
+  - I am testing upload download bot content in Content Collection 2
+  metadata: []
+  type: text
+- collection: test_payload_collection
+  data:
+  - city: City 1
+    population: '100'
+  - city: City 2
+    population: '200'
+  - city: City 3
+    population: '300'
+  metadata:
+  - column_name: city
+    create_embeddings: true
+    data_type: str
+    enable_search: true
+  - column_name: population
+    create_embeddings: true
+    data_type: int
+    enable_search: true
+  type: json
+- collection: Default
+  data:
+  - I am testing upload download bot content in Default Collection 1
+  - I am testing upload download bot content in Default Collection 2
+  - I am testing upload download bot content in Default Collection 3
+  metadata: []
+  type: text

@@ -16,10 +16,9 @@ pipeline:
 policies:
 - name: MemoizationPolicy
 - epochs: 5
-  max_history: 5
   name: TEDPolicy
-- name: RulePolicy
-- core_threshold: 0.3
-  fallback_action_name: action_small_talk
-  name: FallbackPolicy
-  nlu_threshold: 0.75
+- core_fallback_action_name: action_default_fallback
+  core_fallback_threshold: 0.5
+  enable_fallback_prediction: false
+  max_history: 5
+  name: RulePolicy

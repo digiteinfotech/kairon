@@ -3,14 +3,17 @@ from typing import Text
 
 from loguru import logger as logging
 from rasa.core.agent import Agent
-from rasa.core.lock_store import LockStore
+from rasa.core.channels import UserMessage
 
 from kairon.shared.chat.cache.in_memory_agent import AgentCache
 from kairon.exceptions import AppException
 from kairon.shared.data.processor import MongoProcessor
 from .agent.agent import KaironAgent
 from kairon.shared.chat.cache.in_memory_agent import InMemoryAgentCache
+from ..shared.live_agent.live_agent import LiveAgentHandler
 from ..shared.utils import Utility
+from kairon.shared.otel import record_custom_attributes
+
 
 
 class AgentProcessor:
@@ -31,8 +34,7 @@ class AgentProcessor:
         """
         if not AgentProcessor.cache_provider.is_exists(bot) or not AgentProcessor.is_latest_version_in_mem(bot):
             AgentProcessor.reload(bot)
-
-        Utility.record_custom_metric_apm(num_models=AgentProcessor.cache_provider.len())
+        record_custom_attributes(num_models=AgentProcessor.cache_provider.len())
         return AgentProcessor.cache_provider.get(bot)
 
     @staticmethod
@@ -48,7 +50,7 @@ class AgentProcessor:
                 bot, raise_exception=False
             )
             action_endpoint = Utility.get_action_url(endpoint)
-            lock_store_endpoint = LockStore.create(Utility.get_lock_store_url(bot))
+            lock_store_endpoint = Utility.get_lock_store(bot)
             model_path = Utility.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             bot_settings = AgentProcessor.mongo_processor.get_bot_settings(bot, "system")
@@ -68,3 +70,11 @@ class AgentProcessor:
         in_mem_model_ver = AgentProcessor.cache_provider.get(bot).model_ver
         logging.debug(f"PID:{os.getpid()} In memory model:{in_mem_model_ver}, latest trained model:{latest_ver}")
         return latest_ver == in_mem_model_ver
+
+    @staticmethod
+    async def handle_channel_message(bot: Text, userdata: UserMessage):
+        is_live_agent_enabled = await LiveAgentHandler.check_live_agent_active(bot, userdata)
+        logging.debug(f"Live agent enabled:{is_live_agent_enabled}")
+        if not is_live_agent_enabled:
+            return await AgentProcessor.get_agent(bot).handle_message(userdata)
+        return await LiveAgentHandler.process_live_agent(bot, userdata)

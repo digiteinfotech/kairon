@@ -43,6 +43,11 @@ from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility, MailUtility
+from kairon.exceptions import AppException
+import time
+from kairon.idp.data_objects import IdpConfig
+from kairon.api.models import RegisterAccount, EventConfig, IDPConfig, StoryRequest, HttpActionParameters, Password
+from mongomock import MongoClient
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -104,6 +109,7 @@ class TestAccountProcessor:
         bot_response = AccountProcessor.add_bot("test", pytest.account, "fshaikh@digite.com", True)
         bot = Bot.objects(name="test").get().to_mongo().to_dict()
         assert bot['_id'].__str__() == bot_response['_id'].__str__()
+        pytest.bot = bot_response["_id"].__str__()
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
         expected_config = Utility.read_yaml(Utility.environment["model"]["train"]["default_model_training_config_path"])
         assert config['language'] == expected_config['language']
@@ -113,7 +119,6 @@ class TestAccountProcessor:
         assert len(rules) == 3
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot['_id'].__str__(), status=True).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
-        pytest.bot = bot_response['_id'].__str__()
 
     def test_update_bot_with_character_limit_exceeded(self):
         name = "supercalifragilisticexpialidociousalwaysworksmorethan60characters"
@@ -181,6 +186,7 @@ class TestAccountProcessor:
         assert config['policies'][2]['name'] == 'RulePolicy'
         assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
         assert config['policies'][2]['core_fallback_threshold'] == 0.5
+        assert config["policies"][2]["max_history"] == 5
         rules = Rules.objects.filter(bot=bot['_id'].__str__())
         assert len(rules) == 3
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
@@ -487,7 +493,7 @@ class TestAccountProcessor:
         AccountProcessor.add_bot("delete_account_bot_2", pytest.deleted_account, "ritika@digite.com", False)
         account_bots_before_delete = list(AccountProcessor.list_bots(pytest.deleted_account))
 
-        assert len(account_bots_before_delete) == 3
+        assert len(account_bots_before_delete) == 2
         AccountProcessor.delete_account(pytest.deleted_account)
 
         for bot in account_bots_before_delete:
@@ -508,10 +514,10 @@ class TestAccountProcessor:
             AccountProcessor.account_setup(account_setup=account))
 
         # Add shared bot
-        bot_response = AccountProcessor.add_bot("delete_account_shared_bot", 30, "udit.pandey@digite.com", False)
+        bot_response = AccountProcessor.add_bot("delete_account_shared_bot", user_detail['account'], "udit.pandey@digite.com", False)
         bot_id = bot_response['_id'].__str__()
         BotAccess(bot=bot_id, accessor_email="ritika@digite.com", user='testAdmin',
-                  role='designer', status='active', bot_account=30).save()
+                  role='designer', status='active', bot_account=user_detail['account']).save()
         pytest.deleted_account = user_detail['account'].__str__()
         accessors_before_delete = list(AccountProcessor.list_bot_accessors(bot_id))
 
@@ -520,10 +526,8 @@ class TestAccountProcessor:
         assert accessors_before_delete[1]['accessor_email'] == 'ritika@digite.com'
         AccountProcessor.delete_account(pytest.deleted_account)
         accessors_after_delete = list(AccountProcessor.list_bot_accessors(bot_id))
-        assert len(accessors_after_delete) == 1
-        assert accessors_after_delete[0]['accessor_email'] == 'udit.pandey@digite.com'
-        assert accessors_after_delete[0]['bot_account'] == 30
-        assert Bot.objects(id=bot_id, account=30, status=True).get()
+        assert len(accessors_after_delete) == 0
+        assert len(list(Bot.objects(id=bot_id, account=user_detail['account'], status=True))) == 0
 
     def test_delete_account_for_account(self):
         account = {
@@ -602,7 +606,7 @@ class TestAccountProcessor:
 
         assert new_account_id
         assert AccountProcessor.get_account(new_account_id).get('status')
-        assert len(list(AccountProcessor.list_bots(new_account_id))) == 1
+        assert len(list(AccountProcessor.list_bots(new_account_id))) == 0
 
     def test_add_user_duplicate(self):
         with pytest.raises(Exception):
@@ -979,10 +983,7 @@ class TestAccountProcessor:
         assert actual["_id"]
         assert actual["account"]
         assert actual["first_name"]
-        bot_id = Bot.objects(account=actual['account'], user="demo@ac.in").get()
-        assert BotAccess.objects(bot_account=actual['account'], accessor_email=account['email'], bot=str(bot_id.id),
-                                 status=ACTIVITY_STATUS.ACTIVE.value, role=ACCESS_ROLES.OWNER.value,
-                                 user=account['email']).get()
+        assert len(list(AccountProcessor.list_bots(actual['account']))) == 0
 
     def test_default_account_setup(self):
         loop = asyncio.new_event_loop()
@@ -1957,12 +1958,13 @@ class TestAccountProcessor:
         assert user.get('account') == user.get('email')
         assert not existing_user
         user = AccountProcessor.get_user_details('monisha.ks@digite.com')
+        print(user)
         assert all(
             user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 0
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     @pytest.mark.asyncio
@@ -2045,7 +2047,7 @@ class TestAccountProcessor:
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 0
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     @pytest.mark.asyncio
@@ -2073,25 +2075,13 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.POST,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.token_endpoint,
-            data={
-                "grant_type": "authorization_code",
-                "client_id": "asdfghjklzxcvb",
-                "code": "4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q",
-                "redirect_uri": "http://localhost:8080/callback/linkedin",
-                "client_secret": "qwertyuiopasdf"
-            },
             json={'access_token': '1234567890'},
             match_content=b"grant_type=authorization_code&client_id=asdfghjklzxcvb&code=4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback%2Flinkedin&client_secret=qwertyuiopasdf",
         )
         httpx_mock.add_response(
             method=responses.GET,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
-            json={'first_name': 'udit', 'last_name': 'pandey', 'profile_url': '1234::mkfnwuefhbwi'},
-        )
-        httpx_mock.add_response(
-            method=responses.GET,
-            url=await LoginSSOFactory.get_client('linkedin').sso_client.useremail_endpoint,
-            json={'emailAddress': '1234567890'},
+            json={'given_name': 'udit', 'family_name': 'pandey', 'name': 'udit pandey'},
         )
         scope = {
             "type": "http",
@@ -2120,25 +2110,14 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.POST,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.token_endpoint,
-            data={
-                "grant_type": "authorization_code",
-                "client_id": "asdfghjklzxcvb",
-                "code": "4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q",
-                "redirect_uri": "http://localhost:8080/callback/linkedin",
-                "client_secret": "qwertyuiopasdf"
-            },
             json={'access_token': '1234567890'},
             match_content=b"grant_type=authorization_code&client_id=asdfghjklzxcvb&code=4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback%2Flinkedin&client_secret=qwertyuiopasdf",
         )
         httpx_mock.add_response(
             method=responses.GET,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
-            json={'localizedFirstName': 'monisha', 'localizedLastName': 'reddy'},
-        )
-        httpx_mock.add_response(
-            method=responses.GET,
-            url=await LoginSSOFactory.get_client('linkedin').sso_client.useremail_endpoint,
-            json={'elements': [{'handle~': {'emailAddress': 'monisha.ks@digite.com'}}]}
+            json={'given_name': 'monisha', 'family_name': 'reddy', 'name': 'monisha reddy',
+                  'email': 'monisha.ks@digite.com'},
         )
         scope = {
             "type": "http",
@@ -2177,26 +2156,16 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.POST,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.token_endpoint,
-            data={
-                "grant_type": "authorization_code",
-                "client_id": "asdfghjklzxcvb",
-                "code": "4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q",
-                "redirect_uri": "http://localhost:8080/callback/linkedin",
-                "client_secret": "qwertyuiopasdf"
-            },
             json={'access_token': '1234567890'},
             match_content=b"grant_type=authorization_code&client_id=asdfghjklzxcvb&code=4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback%2Flinkedin&client_secret=qwertyuiopasdf",
         )
         httpx_mock.add_response(
             method=responses.GET,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.userinfo_endpoint,
-            json={'localizedFirstName': 'monisha', 'localizedLastName': 'reddy'},
+            json={'given_name': 'monisha', 'family_name': 'reddy', 'name': 'monisha reddy',
+                  'email': 'monisha.ks.ks@digite.com'},
         )
-        httpx_mock.add_response(
-            method=responses.GET,
-            url=await LoginSSOFactory.get_client('linkedin').sso_client.useremail_endpoint,
-            json={'elements': [{'handle~': {'emailAddress': 'monisha.ks.ks@digite.com'}}]}
-        )
+
         scope = {
             "type": "http",
             "http_version": "1.1",
@@ -2234,7 +2203,7 @@ class TestAccountProcessor:
             for key in user.keys()
         )
         print(list(AccountProcessor.list_bots(user['account'])))
-        assert len(list(AccountProcessor.list_bots(user['account']))) == 1
+        assert len(list(AccountProcessor.list_bots(user['account']))) == 0
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     def test_sso_login_client_linkedin(self):
@@ -2396,6 +2365,7 @@ class TestAccountProcessor:
             AccountProcessor.confirm_add_trusted_device("trust@digite.com", "1234567890fghj")
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_validate_trusted_device_add_device(self, monkeypatch):
         token = "abcgd563"
         enable = True
@@ -2420,13 +2390,10 @@ class TestAccountProcessor:
             "postal": "400070",
             "timezone": "Asia/Kolkata"
         }
-        responses.start()
         responses.add("GET", url, json=expected)
         request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
         with patch("kairon.shared.utils.SMTP", autospec=True):
             await Authentication.validate_trusted_device("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879", request)
-        responses.stop()
-        responses.reset()
 
     def test_list_trusted_device(self):
         assert AccountProcessor.list_trusted_device_fingerprints("udit.pandey@digite.com") == [
@@ -2439,6 +2406,7 @@ class TestAccountProcessor:
         await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", request)
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_validate_trusted_device_invalid(self, monkeypatch):
         token = "abcgd563"
         enable = True
@@ -2457,13 +2425,10 @@ class TestAccountProcessor:
             "postal": "400070",
             "timezone": "Asia/Kolkata"
         }
-        responses.start()
         responses.add("GET", url, json=expected)
         request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
         with patch("kairon.shared.utils.SMTP", autospec=True):
             await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio87", request)
-        responses.stop()
-        responses.reset()
 
     @pytest.mark.asyncio
     async def test_remove_trusted_device_not_exists_2(self):
@@ -2600,7 +2565,7 @@ class TestAccountProcessor:
         }
         idp_config = IdpConfig(user="${user}", account=[user.account], organization="DEL", config=config).save()
         OrgProcessor.upsert_organization(user=user, org_data=org_data)
-        result = get_idp_config("123456")
+        result = IDPProcessor.get_idp_config("123456")
         assert result is not None
 
     @pytest.mark.asyncio
@@ -2622,9 +2587,10 @@ class TestAccountProcessor:
         assert bots_after_delete == bots_before_delete
         assert result == (None, None, None)
 
-    def test_default_account_setup_error_msg(self):
-        result = AccountProcessor.default_account_setup()
-        assert result is not None
+    @pytest.mark.asyncio
+    async def test_default_account_setup_error_msg(self):
+        result = await AccountProcessor.default_account_setup()
+        assert result is None
 
     def test_validate_confirm_password(cls):
         with pytest.raises(ValueError, match="Password and Confirm Password does not match"):

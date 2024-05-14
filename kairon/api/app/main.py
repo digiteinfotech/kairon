@@ -1,13 +1,9 @@
-import logging
-from time import time
-
-from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security.utils import get_authorization_scheme_param
+from jwt import PyJWTError
 from loguru import logger
 from mongoengine import connect, disconnect
 from mongoengine.errors import (
@@ -32,9 +28,9 @@ from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
-from jwt import PyJWTError
+from contextlib import asynccontextmanager
+from kairon.shared.otel import instrument_fastapi
 
-logging.basicConfig(level="DEBUG")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (
@@ -66,7 +62,19 @@ secure_headers = Secure(
     content=content
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """ MongoDB is connected on the bot trainer startup """
+    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
+    connect(**config)
+    await AccountProcessor.default_account_setup()
+    AccountProcessor.load_system_properties()
+    yield
+    disconnect()
+
+
+app = FastAPI(lifespan=lifespan)
 allowed_origins = Utility.environment['cors']['origin']
 app.add_middleware(
     CORSMiddleware,
@@ -77,9 +85,7 @@ app.add_middleware(
     expose_headers=["content-disposition"],
 )
 app.add_middleware(GZipMiddleware)
-apm_client = Utility.initiate_fastapi_apm_client()
-if apm_client:
-    app.add_middleware(ElasticAPM, client=apm_client)
+instrument_fastapi(app)
 
 
 @app.middleware("http")
@@ -95,43 +101,10 @@ async def add_secure_headers(request: Request, call_next):
     return response
 
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """logging request calls"""
-    authorization: str = request.headers.get("Authorization")
-    _, param = get_authorization_scheme_param(authorization)
-    start_time = time()
-
-    response = await call_next(request)
-
-    process_time = (time() - start_time) * 1000
-    formatted_process_time = "{0:.2f}".format(process_time)
-    logger.info(
-        f"rid={param} request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}"
-    )
-    return response
-
-
-@app.on_event("startup")
-async def startup():
-    """ MongoDB is connected on the bot trainer startup """
-    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
-    connect(**config)
-    await AccountProcessor.default_account_setup()
-    AccountProcessor.load_system_properties()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """ MongoDB is disconnected when bot trainer is shut down """
-    disconnect()
-
-
 @app.exception_handler(StarletteHTTPException)
 async def startlette_exception_handler(request, exc):
     """ This function logs the Starlette HTTP error detected and returns the
         appropriate message and details of the error """
-    logger.exception(exc)
 
     return JSONResponse(
         Response(
@@ -264,7 +237,7 @@ async def pyjwt_exception_handler(request, exc):
 async def app_exception_handler(request, exc):
     """ logs the AppException error detected and returns the
             appropriate message and details of the error """
-    logger.exception(exc)
+    logger.info(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
     )

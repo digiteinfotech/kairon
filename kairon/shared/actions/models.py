@@ -47,6 +47,7 @@ class ActionType(str, Enum):
     pyscript_action = "pyscript_action"
     database_action = "database_action"
     web_search_action = "web_search_action"
+    live_agent_action = "live_agent_action"
 
 
 class HttpRequestContentType(str, Enum):
@@ -96,3 +97,4 @@ class DbActionOperationType(str, Enum):
 class DbQueryValueType(str, Enum):
     from_value = "from_value"
     from_slot = "from_slot"
+    from_user_message = "from_user_message"

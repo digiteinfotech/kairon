@@ -25,7 +25,7 @@ async def add_secret(
 
 @router.get("/keys/{key}", response_model=Response)
 async def get_secret(
-        key: str = Path(description="key to retrieve", example="AWS_SECRET"),
+        key: str = Path(description="key to retrieve", examples=["AWS_SECRET"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
     """
     Returns value for key.
@@ -58,7 +58,7 @@ async def update_secret_value(
 
 @router.delete("/{key}", response_model=Response)
 async def delete_key_value(
-        key: str = Path(description="key to retrieve", example="AWS_SECRET"),
+        key: str = Path(description="key to retrieve", examples=["AWS_SECRET"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """

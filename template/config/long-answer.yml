@@ -1,4 +1,4 @@
-
+recipe: default.v1
 language: "en"
 pipeline:
   - name: WhitespaceTokenizer
@@ -20,9 +20,13 @@ pipeline:
     epochs: 100
 
 policies:
-  - name: MemoizationPolicy
-  - name: TEDPolicy
-    epochs: 200
-  - name: RulePolicy
-    core_fallback_action_name: "action_default_fallback"
-    core_fallback_threshold: 0.3
+- name: MemoizationPolicy
+  max_history: 10
+- epochs: 100
+  name: TEDPolicy
+  max_history: 10
+- core_fallback_action_name: action_default_fallback
+  core_fallback_threshold: 0.5
+  enable_fallback_prediction: false
+  max_history: 10
+  name: RulePolicy

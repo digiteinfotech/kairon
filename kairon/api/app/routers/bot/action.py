@@ -7,7 +7,7 @@ from kairon.api.models import (
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
-    WebSearchActionRequest
+    WebSearchActionRequest, LiveAgentActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -33,7 +33,7 @@ async def add_http_action(
 
 
 @router.get("/httpaction/{action}", response_model=Response)
-async def get_http_action(action: str = Path(description="action name", example="http_action"),
+async def get_http_action(action: str = Path(description="action name", examples=["http_action"]),
                           current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns configuration set for the HTTP action
@@ -116,7 +116,7 @@ async def add_db_action(
 
 
 @router.get("/db/{action}", response_model=Response)
-async def get_vector_db_action(action: str = Path(description="name", example="database_action"),
+async def get_vector_db_action(action: str = Path(description="name", examples=["database_action"]),
                                current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns configuration set for the VectorDb action
@@ -430,7 +430,7 @@ async def edit_hubspot_forms_action(
 
 @router.delete("/{action}", response_model=Response)
 async def delete_action(
-        action: str = Path(description="action name", example="action_pipedrive"),
+        action: str = Path(description="action name", examples=["action_pipedrive"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -559,3 +559,46 @@ async def update_razorpay_action(
     """
     mongo_processor.edit_razorpay_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message="Action updated!")
+
+
+@router.get("/live_agent", response_model=Response)
+async def get_live_agent(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Returns configuration for live agent action.
+    """
+    config = mongo_processor.get_live_agent(current_user.get_bot())
+    return Response(data=config)
+
+
+@router.post("/live_agent", response_model=Response)
+async def enable_live_agent(
+        request_data: LiveAgentActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    status = mongo_processor.enable_live_agent(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    msg = "Live Agent Action enabled!" if status else "Live Agent Action already enabled!"
+    return Response(message=msg)
+
+
+@router.put("/live_agent", response_model=Response)
+async def update_live_agent(
+        request_data: LiveAgentActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates the live agent action config.
+    """
+
+    mongo_processor.edit_live_agent(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message="Action updated!")
+
+
+@router.get("/live_agent/disable", response_model=Response)
+async def disable_live_agent(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    mongo_processor.disable_live_agent(current_user.get_bot())
+    return Response(message="Live Agent Action disabled!")
+

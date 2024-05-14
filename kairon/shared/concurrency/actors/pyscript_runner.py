@@ -15,7 +15,6 @@ global_safe = _safe_globals
 global_safe['_getattr_'] = safer_getattr
 global_safe['json'] = json
 
-
 class PyScriptRunner(BaseActor):
 
     def execute(self, source_code: Text, predefined_objects: Optional[Dict] = None, **kwargs):

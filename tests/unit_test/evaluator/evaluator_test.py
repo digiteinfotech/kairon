@@ -64,6 +64,6 @@ class TestEvaluatorProcessor:
         for i in 10
         """
         script = textwrap.dedent(script)
-        with pytest.raises(AppException, match=re.escape('Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)')):
+        with pytest.raises(AppException, match=re.escape('Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)')):
             EvaluatorProcessor.evaluate_pyscript(source_code=script)
 
