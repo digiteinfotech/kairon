@@ -2060,7 +2060,6 @@ def test_whatsapp_valid_button_message_request_without_payload_value():
     assert whatsapp_msg_handler.call_args[0][2] == "910123456789"
     metadata = whatsapp_msg_handler.call_args[0][3]
     metadata.pop("timestamp")
-    print(metadata)
     assert metadata == {
         "context": {"from": "910123456789", "id": "wamid.HBgMOTE4MDk1MTAzMDIyFQIAERgSMDA3RkQTQxN0RBMDZEAA=="},
         "from": "910123456789",
@@ -2145,7 +2144,6 @@ def test_whatsapp_valid_button_message_request_without_payload_key():
     assert whatsapp_msg_handler.call_args[0][2] == "910123456789"
     metadata = whatsapp_msg_handler.call_args[0][3]
     metadata.pop("timestamp")
-    print(metadata)
     assert metadata == {
         "context": {"from": "910123456789", "id": "wamid.HBgMOTE4MDk1MTAzMDIyFQIAERgSMDA3RkQTQxN0RBMDZEAA=="},
         "from": "910123456789",
