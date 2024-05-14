@@ -165,7 +165,7 @@ services:
     container_name: kairon-worker
     hostname: kairon-worker
     networks:
-      - chatbotnetwork
+      - localnetwork
     environment:
       AGENT_URL: "http://kairon-chat:5000/"
       EVENTS_QUEUE_URL: "mongodb://mongo:27017/kairon-events"
@@ -177,6 +177,25 @@ services:
       - ./training_data:/app/training_data
       - ./testing_data:/app/testing_data
       - ./transformer_cache:/root/.cache/
+
+  kairon-live-agent:
+    image: 730423251530.dkr.ecr.us-east-1.amazonaws.com/kairon-live-agent:152905
+    container_name: kairon-live-agent
+    hostname: kairon-live-agent
+    ports:
+      - 8080:8080
+    environment:
+      MONGO_URI_LIVE_AGENT_HOST: "mongodb://192.168.100.38:27017/"
+      MONGO_URI_KAIRON_DB: "mongodb://192.168.100.38:27017/"
+      DB_NAME_LIVE_AGENT: "live_agent"
+      DB_NAME_CHAT: "test_conversations"
+      DB_NAME_KAIRON: "conversations"
+      JWT_SECRET: "Aquickbrownfox_24jump$9overthel@zydog"
+      FERNET_SECRET: "gH8F9M-3GTxT1z-XyvJXZlCfxfbMuFr2HgXDHl7Xkuw="
+      ALLOWED_USERS: "kairon,kairon_ui"
+      DATABASE_URL: "mongodb://mongo:27017/kairon"
+    networks:
+      - chatbotnetwork
 
 networks:
   chatbotnetwork:
