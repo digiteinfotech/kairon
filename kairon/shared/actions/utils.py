@@ -697,6 +697,7 @@ class ActionUtility:
         conversation_mail_template = Utility.email_conf['email']['templates']['conversation']
         bot_msg_template = Utility.email_conf['email']['templates']['bot_msg_conversation']
         user_msg_template = Utility.email_conf['email']['templates']['user_msg_conversation']
+        base_url = Utility.environment["app"]["frontend_url"]
         for event in tracker_events:
             msg = ""
             if list(event.keys())[0] == 'bot':
@@ -710,16 +711,20 @@ class ActionUtility:
             conversation_mail_template = conversation_mail_template.replace('USER_EMAIL', user_email)
         conversation_mail_template.replace('This email was sent to USER_EMAIL', '')
         conversation_mail_template = conversation_mail_template.replace('CONVERSATION_REPLACE', html_output)
+        conversation_mail_template = conversation_mail_template.replace('CONVERSATION_REPLACE', html_output)
+        conversation_mail_template = conversation_mail_template.replace("BASE_URL", base_url)
         return conversation_mail_template
 
     @staticmethod
     def prepare_email_text(custom_text_mail: Dict, subject: str, user_email: str = None):
         custom_text_mail_template = Utility.email_conf['email']['templates']['custom_text_mail']
         custom_text_mail_template = custom_text_mail_template.replace('SUBJECT', subject)
+        base_url = Utility.environment["app"]["frontend_url"]
         if not ActionUtility.is_empty(user_email):
             custom_text_mail_template = custom_text_mail_template.replace('USER_EMAIL', user_email)
         custom_text_mail_template.replace('This email was sent to USER_EMAIL', '')
         custom_text_mail_template = custom_text_mail_template.replace('CUSTOM_TEXT', custom_text_mail)
+        custom_text_mail_template = custom_text_mail_template.replace("BASE_URL", base_url)
         return custom_text_mail_template
 
     @staticmethod

@@ -87,7 +87,8 @@ class LiveAgentHandler:
         }
         res, status, _ = await ActionUtility.execute_request_async(url, 'GET', None, headers)
         if status != 200:
-            raise Exception(res.get('message', "Failed to process request"))
+            logger.error(res.get('message', "Failed to process request"))
+            return False
         return res['data']['status']
 
     @staticmethod

@@ -471,7 +471,7 @@ roles:
       generateStories: false
       manageQnaStories: false
       broadcast: false
-      customAnalytics: true
+      customAnalytics: false
       liveAgent: true
     pages:
       chatbots:
