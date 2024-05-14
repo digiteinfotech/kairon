@@ -51,7 +51,7 @@ class Whatsapp:
         elif message.get("type") == "text":
             text = message["text"]['body']
         elif message.get("type") == "button":
-            if message["button"]["payload"]:
+            if message["button"].get("payload"):
                 text = f"/k_quick_reply_msg{{\"{'quick_reply'}\": \"{message['button']['payload']}\"}}"
             else:
                 text = message["button"]["text"]
