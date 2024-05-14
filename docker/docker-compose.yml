@@ -165,7 +165,7 @@ services:
     container_name: kairon-worker
     hostname: kairon-worker
     networks:
-      - localnetwork
+      - chatbotnetwork
     environment:
       AGENT_URL: "http://kairon-chat:5000/"
       EVENTS_QUEUE_URL: "mongodb://mongo:27017/kairon-events"
