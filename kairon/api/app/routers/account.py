@@ -164,7 +164,7 @@ async def update_bot(
     """
     Update name of the bot.
     """
-    AccountProcessor.update_bot(request.data, bot)
+    AccountProcessor.update_bot(request.data, bot, current_user.get_user())
     return {'message': 'Name updated'}
 
 
