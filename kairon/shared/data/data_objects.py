@@ -916,6 +916,7 @@ class BotSettings(Auditlog):
     dynamic_broadcast_execution_timeout = IntField(default=21600)
     cognition_collections_limit = IntField(default=3)
     cognition_columns_per_collection_limit = IntField(default=5)
+    integrations_per_user_limit = IntField(default=3)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
