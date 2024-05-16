@@ -243,7 +243,6 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             filter_query["event.timestamp"] = {
                 "$gte": last_session[0]["event"]["timestamp"]
             }
-            filter_query["event.metadata.type"] = {"$exists": False}
 
         stored = list(
             self.conversations.aggregate(
@@ -266,6 +265,6 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         logger.debug(tracker.events)
         logger.debug(f"tracker existing events : {count}")
         logger.debug(f"tracker total events : {total_events}")
-        if count and count < total_events:
+        if count:
             return itertools.islice(tracker.events, count, total_events)
         return tracker.events
