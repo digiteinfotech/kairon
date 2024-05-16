@@ -18571,6 +18571,7 @@ def test_set_templates_with_sysadmin_as_user():
     stories = Stories.objects(bot=pytest.bot)
     stories = [{k: v for k, v in story.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
                story in stories]
+
     assert stories == [
         {'block_name': 'greet', 'start_checkpoints': ['STORY_START'], 'end_checkpoints': [],
          'events': [{'name': 'greet', 'type': 'user', 'entities': []},
@@ -18587,6 +18588,7 @@ def test_set_templates_with_sysadmin_as_user():
     intents = Intents.objects(bot=pytest.bot)
     intents = [{k: v for k, v in intent.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
                          intent in intents]
+
     assert intents == [
         {'name': 'greet', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
         {'name': 'goodbye', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
@@ -18600,6 +18602,7 @@ def test_set_templates_with_sysadmin_as_user():
     training_examples = TrainingExamples.objects(bot=pytest.bot)
     training_examples = [{k: v for k, v in example.to_mongo().to_dict().items() if k not in
                           ['_id', 'bot', 'timestamp']} for example in training_examples]
+
     assert training_examples == [
         {'intent': 'goodbye', 'text': 'bye', 'user': 'sysadmin', 'status': True},
         {'intent': 'goodbye', 'text': 'goodbye', 'user': 'sysadmin', 'status': True},
