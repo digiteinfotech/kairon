@@ -18555,6 +18555,65 @@ def test_add_bot_with_template_name(monkeypatch):
     assert mock_reload_model.called_with[0][1] == "integ1@gmail.com"
 
 
+def test_set_templates_with_sysadmin_as_user():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/templates/use-case",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "Hi-Hello-GPT"},
+    )
+
+    actual = response.json()
+    assert actual["data"] is None
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Data applied!"
+    assert actual["success"]
+
+    stories = Stories.objects(bot=pytest.bot)
+    stories = [{k: v for k, v in story.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
+               story in stories]
+    assert stories == [
+        {'block_name': 'greet', 'start_checkpoints': ['STORY_START'], 'end_checkpoints': [],
+         'events': [{'name': 'greet', 'type': 'user', 'entities': []},
+                    {'name': 'google_search_action', 'type': 'action'},
+                    {'name': 'kairon_faq_action', 'type': 'action'}],
+         'user': 'sysadmin', 'status': True, 'template_type': 'CUSTOM'},
+        {'block_name': 'goodbye', 'start_checkpoints': ['STORY_START'], 'end_checkpoints': [],
+         'events': [{'name': 'goodbye', 'type': 'user', 'entities': []},
+                    {'name': 'google_search_action', 'type': 'action'},
+                    {'name': 'kairon_faq_action', 'type': 'action'}],
+         'user': 'sysadmin', 'status': True, 'template_type': 'CUSTOM'}
+    ]
+
+    intents = Intents.objects(bot=pytest.bot)
+    intents = [{k: v for k, v in intent.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
+                         intent in intents]
+    assert intents == [
+        {'name': 'greet', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
+        {'name': 'goodbye', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
+        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
+        {'name': 'restart', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
+        {'name': 'back', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
+        {'name': 'out_of_scope', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
+        {'name': 'session_start', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True}
+    ]
+
+    training_examples = TrainingExamples.objects(bot=pytest.bot)
+    training_examples = [{k: v for k, v in example.to_mongo().to_dict().items() if k not in
+                          ['_id', 'bot', 'timestamp']} for example in training_examples]
+    assert training_examples == [
+        {'intent': 'goodbye', 'text': 'bye', 'user': 'sysadmin', 'status': True},
+        {'intent': 'goodbye', 'text': 'goodbye', 'user': 'sysadmin', 'status': True},
+        {'intent': 'goodbye', 'text': 'see you around', 'user': 'sysadmin', 'status': True},
+        {'intent': 'goodbye', 'text': 'see you later', 'user': 'sysadmin', 'status': True},
+        {'intent': 'greet', 'text': 'hey', 'user': 'sysadmin', 'status': True},
+        {'intent': 'greet', 'text': 'hello', 'user': 'sysadmin', 'status': True},
+        {'intent': 'greet', 'text': 'hi', 'user': 'sysadmin', 'status': True},
+        {'intent': 'greet', 'text': 'good morning', 'user': 'sysadmin', 'status': True},
+        {'intent': 'greet', 'text': 'good evening', 'user': 'sysadmin', 'status': True},
+        {'intent': 'greet', 'text': 'hey there', 'user': 'sysadmin', 'status': True}
+    ]
+
+
 def test_add_channel_config(monkeypatch):
     monkeypatch.setitem(
         Utility.environment["model"]["agent"], "url", "http://localhost:5056"
