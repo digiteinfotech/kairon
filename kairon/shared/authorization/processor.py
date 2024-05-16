@@ -5,6 +5,7 @@ from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
 from kairon.shared.authorization.data_objects import Integration
 from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 
 
@@ -15,7 +16,10 @@ class IntegrationProcessor:
             name: Text, bot: Text, user: Text, role: ACCESS_ROLES, iat: datetime = datetime.utcnow(), expiry: datetime = None,
             access_list: list = None
     ):
-        integration_limit = Utility.environment['security'].get('integrations_per_user') or 2
+
+        bot_settings = MongoProcessor.get_bot_settings(bot, user)
+        integration_limit = bot_settings.integrations_per_user_limit if bot_settings else 3
+
         current_integrations_count = Integration.objects(bot=bot, status__ne=INTEGRATION_STATUS.DELETED.value).count()
 
         if current_integrations_count >= integration_limit:

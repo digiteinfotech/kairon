@@ -73,7 +73,9 @@ class ActionLiveAgent(ActionsBase):
             dispatch_bot_response = action_config.get('dispatch_bot_response', True)
             bot_response = action_config.get('bot_response')
             channel = CONST_CHANNEL_NAME_MAP[tracker.get_latest_input_channel()]
-            await LiveAgentHandler.request_live_agent(self.bot, tracker.sender_id, channel)
+            resp_data = await LiveAgentHandler.request_live_agent(self.bot, tracker.sender_id, channel)
+            if resp_data and resp_data.get('msg'):
+                bot_response = resp_data.get('msg')
             self.__is_success = True
             self.__response = bot_response
         except Exception as e:

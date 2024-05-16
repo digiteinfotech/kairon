@@ -37,7 +37,7 @@ from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
     ORG_SETTINGS_MESSAGES, FeatureMappings
-from kairon.shared.data.data_objects import Configs, Rules, Responses
+from kairon.shared.data.data_objects import Configs, Rules, Responses, BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
@@ -1597,7 +1597,6 @@ class TestAccountProcessor:
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
-        monkeypatch.setitem(Utility.environment['security'], 'integrations_per_user', 3)
 
         def __mock_get_bot(*args, **kwargs):
             return {"account": 1000}
@@ -1610,6 +1609,10 @@ class TestAccountProcessor:
         bot = 'test'
         user = 'test_user'
 
+        def _mock_get_bot_settings(*args, **kwargs):
+            return BotSettings(bot=bot, user=user, integrations_per_user_limit=2)
+
+        monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
         def __mock_get_bot(*args, **kwargs):
             return {"account": 1000}
 
@@ -1650,11 +1653,11 @@ class TestAccountProcessor:
         bot = 'test'
         user = 'test_user'
 
+
         def __mock_get_bot(*args, **kwargs):
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        monkeypatch.setitem(Utility.environment['security'], 'integrations_per_user', 3)
         with pytest.raises(ValidationError, match='name is required to add integration'):
             Authentication.generate_integration_token(bot, user, expiry=15)
 
