@@ -2177,8 +2177,6 @@ class Utility:
     def get_client_ip(request):
         if request.headers.get("X-Forwarded-For"):
             client_ip = request.headers.get("X-Forwarded-For")
-            if ":" in client_ip:
-                client_ip = client_ip.split(":")[0].strip()
         elif request.headers.get("X-Real-IP"):
             client_ip = request.headers.get("X-Real-IP")
         else:
@@ -2186,6 +2184,9 @@ class Utility:
                 client_ip = request.client.host
             else:
                 client_ip = None
+        if client_ip:
+            if ":" in client_ip:
+                client_ip = client_ip.split(":")[0].strip()
         return client_ip
 
     @staticmethod
