@@ -1,6 +1,5 @@
 import asyncio
 from abc import ABC
-from datetime import datetime
 from typing import Union
 
 from aiohttp import ClientSession, ClientTimeout, ClientResponse, ClientConnectionError
