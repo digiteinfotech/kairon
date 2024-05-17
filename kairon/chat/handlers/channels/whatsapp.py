@@ -51,10 +51,10 @@ class Whatsapp:
         elif message.get("type") == "text":
             text = message["text"]['body']
         elif message.get("type") == "button":
-            if message["button"].get("payload"):
-                text = f"/k_quick_reply_msg{{\"{'quick_reply'}\": \"{message['button']['payload']}\"}}"
-            else:
+            if message["button"].get("payload") == message["button"].get("text"):
                 text = message["button"]["text"]
+            else:
+                text = f"/k_quick_reply_msg{{\"{'quick_reply'}\": \"{message['button']['payload']}\"}}"
         elif message.get("type") in {"image", "audio", "document", "video", "voice"}:
             if message['type'] == "voice":
                 message['type'] = "audio"
