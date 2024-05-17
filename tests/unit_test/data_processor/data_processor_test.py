@@ -15635,7 +15635,7 @@ class TestModelProcessor:
             return None
 
         monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-        mock_agent.side_effect = Exception("invalid model file")
+        mock_agent.side_effect = Exception("Failed to load the model for the bot.")
         start_training("tests", "testUser")
         model_training = ModelTraining.objects(bot="tests", status="Fail")
         assert model_training.__len__() == 2
