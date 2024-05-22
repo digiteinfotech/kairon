@@ -23,7 +23,7 @@ class LiveAgentHandler:
             bot_setting = BotSettings.objects(bot=bot_id).get().to_mongo().to_dict()
             return bot_setting.get('live_agent_enabled', False)
         except Exception as e:
-            print(repr(e))
+            logger.error(f"Error accessing bot settings: {repr(e)}")
             return False
 
     @staticmethod

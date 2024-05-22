@@ -7736,7 +7736,6 @@ class MongoProcessor:
 
     def enable_live_agent(self, request_data: dict, bot: Text, user: Text):
         bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
-        print(bot_setting)
         if not bot_setting.get("live_agent_enabled"):
             raise AppException("Live agent service is not available for the bot")
         action_name = "live_agent_action"
