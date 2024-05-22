@@ -1562,6 +1562,11 @@ def test_get_live_agent_with_no_live_agent():
 
 
 def test_enable_live_agent():
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.live_agent_enabled = True
+    bot_settings.save()
+
     request_body = {
         "bot_response": "connecting to live agent",
         "dispatch_bot_response": False,
@@ -1574,12 +1579,17 @@ def test_enable_live_agent():
     )
 
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 0
     assert actual["message"] == 'Live Agent Action enabled!'
     assert actual["success"]
 
 
-def test_get_live_agent_after_enabled():
+
+def test_get_live_agent_after_enabled_no_bot_settings_enabled():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.live_agent_enabled = False
+    bot_settings.save()
     response = client.get(
         url=f"/api/bot/{pytest.bot}/action/live_agent",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1587,9 +1597,28 @@ def test_get_live_agent_after_enabled():
 
     actual = response.json()
     print(actual)
-    assert actual["data"] == {'name': 'live_agent_action',
-                              'bot_response': 'connecting to live agent',
-                              'dispatch_bot_response': False}
+    assert actual["data"] == []
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+
+def test_get_live_agent_after_enabled():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.live_agent_enabled = True
+    bot_settings.save()
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/live_agent",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["data"] == {'name': 'live_agent_action', 'bot_response': 'connecting to live agent',
+                              'agent_connect_response': 'Connected to live agent',
+                              'agent_disconnect_response': 'Agent has closed the conversation',
+                              'agent_not_available_response': 'No agents available at this moment. An agent will reply you shortly.',
+                              'dispatch_bot_response': False, 'dispatch_agent_connect_response': True,
+                              'dispatch_agent_disconnect_response': True, 'dispatch_agent_not_available_response': True}
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
@@ -1614,6 +1643,7 @@ def test_enable_live_agent_already_exist():
 
 
 def test_update_live_agent():
+    BotSettings(bot=pytest.bot, user="integration@demo.ai", live_agent_enabled=True)
     request_body = {
         "bot_response": "connecting to different live agent...",
         "dispatch_bot_response": True,
@@ -1641,7 +1671,13 @@ def test_get_live_agent_after_updated():
     print(actual)
     assert actual["data"] == {'name': 'live_agent_action',
                               'bot_response': 'connecting to different live agent...',
-                              'dispatch_bot_response': True}
+                              'agent_connect_response': 'Connected to live agent',
+                              'agent_disconnect_response': 'Agent has closed the conversation',
+                              'agent_not_available_response': 'No agents available at this moment. An agent will reply you shortly.',
+                              'dispatch_bot_response': True,
+                              'dispatch_agent_connect_response': True,
+                              'dispatch_agent_disconnect_response': True,
+                              'dispatch_agent_not_available_response': True}
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
@@ -1662,7 +1698,7 @@ def test_disable_live_agent():
 
 def test_update_live_agent_does_not_exist():
     request_body = {
-        "bot_response": "connecting to different live agent...",
+        "bot_response": "connecting to different live agent",
         "dispatch_bot_response": True,
     }
 
@@ -9741,7 +9777,6 @@ def test_login_for_verified():
     assert actual["error_code"] == 0
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
-
 
 def test_list_bots_for_different_user():
     response = client.get(
@@ -19631,6 +19666,7 @@ def test_get_bot_settings():
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
+                              'live_agent_enabled': False,
                               'test_limit_per_day': 5,
                               'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 21600,
                               'website_data_generator_depth_search_limit': 2,
@@ -19712,6 +19748,7 @@ def test_update_analytics_settings():
                               'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 21600,
                               'website_data_generator_depth_search_limit': 2,
                               'whatsapp': 'meta',
+                              'live_agent_enabled': False,
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit':3 }

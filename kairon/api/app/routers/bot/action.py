@@ -577,6 +577,7 @@ async def enable_live_agent(
         request_data: LiveAgentActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
+    print(current_user.get_user())
     status = mongo_processor.enable_live_agent(request_data.dict(), current_user.get_bot(), current_user.get_user())
     msg = "Live Agent Action enabled!" if status else "Live Agent Action already enabled!"
     return Response(message=msg)
