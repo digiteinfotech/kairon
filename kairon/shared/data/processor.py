@@ -7776,7 +7776,7 @@ class MongoProcessor:
         Utility.hard_delete_document([Actions], bot, name__iexact="live_agent_action")
         Utility.hard_delete_document([LiveAgentActionConfig], bot=bot)
 
-    def is_live_agent_enabled(self, bot: Text, check_in_utils = True):
+    def is_live_agent_enabled(self, bot: Text, check_in_utils: bool = True):
         bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
         if not bot_setting.get("live_agent_enabled"):
             return False
