@@ -7719,24 +7719,21 @@ class MongoProcessor:
             yield action
 
     def get_live_agent(self, bot: Text):
-        try:
-            bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
-            if not bot_setting.get("live_agent_enabled"):
-                return []
-            live_agent = LiveAgentActionConfig.objects(bot=bot, status=True).get()
-            live_agent = live_agent.to_mongo().to_dict()
-            live_agent.pop("_id")
-            live_agent.pop("bot")
-            live_agent.pop("user")
-            live_agent.pop("status")
-            live_agent.pop("timestamp")
-            return live_agent
-        except Exception as e:
+        if not self.is_live_agent_enabled(bot):
             return []
+        live_agent = LiveAgentActionConfig.objects(bot=bot, status=True).get()
+        if not live_agent:
+            return []
+        live_agent = live_agent.to_mongo().to_dict()
+        live_agent.pop("_id")
+        live_agent.pop("bot")
+        live_agent.pop("user")
+        live_agent.pop("status")
+        live_agent.pop("timestamp")
+        return live_agent
 
     def enable_live_agent(self, request_data: dict, bot: Text, user: Text):
-        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
-        if not bot_setting.get("live_agent_enabled"):
+        if not self.is_live_agent_enabled(bot):
             raise AppException("Live agent service is not available for the bot")
         action_name = "live_agent_action"
         enabled = False
@@ -7759,12 +7756,10 @@ class MongoProcessor:
         if not Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, user=user):
             live_agent = LiveAgentActionConfig(**request_data, bot=bot, user=user, status=True)
             live_agent.save()
-
         return enabled
 
     def edit_live_agent(self, request_data: dict, bot: Text, user: Text):
-        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
-        if not bot_setting.get("live_agent_enabled"):
+        if not self.is_live_agent_enabled(bot):
             raise AppException("Live agent service is not available for the bot")
 
         live_agent = LiveAgentActionConfig.objects(bot=bot, user=user).update(

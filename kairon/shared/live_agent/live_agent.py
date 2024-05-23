@@ -19,7 +19,7 @@ class LiveAgentHandler:
     def is_live_agent_service_available(bot_id: str) -> bool:
         if not LiveAgentHandler.is_live_agent_service_enabled():
             return False
-        try :
+        try:
             bot_setting = BotSettings.objects(bot=bot_id).get().to_mongo().to_dict()
             return bot_setting.get('live_agent_enabled', False)
         except Exception as e:
@@ -30,10 +30,8 @@ class LiveAgentHandler:
     async def request_live_agent(bot_id: str, sender_id: str, channel: str):
         if not LiveAgentHandler.is_live_agent_service_available(bot_id):
             return {'msg': 'Live agent service is not available'}
-
         url = f"{Utility.environment['live_agent']['url']}/conversation/request"
         auth_token = Utility.environment['live_agent']['auth_token']
-
         data = {
             "bot_id": bot_id,
             "sender_id": sender_id,
@@ -67,7 +65,6 @@ class LiveAgentHandler:
             "channel": userdata.output_channel.name(),
             "message": userdata.text
         }
-
         res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
@@ -93,7 +90,7 @@ class LiveAgentHandler:
     @staticmethod
     async def authenticate_agent(user, bot_id):
         if not LiveAgentHandler.is_live_agent_service_available(bot_id):
-           return None
+            return None
         url = f"{Utility.environment['live_agent']['url']}/auth"
         data = {
             "bot_id": bot_id,
@@ -109,8 +106,7 @@ class LiveAgentHandler:
         if status != 200:
             if not res:
                 res = {}
-            logger.info(res.get('data', {}).get('message', "Failed to authenticate live agent"))
+            logger.warning(res.get('data', {}).get('message', "Failed to authenticate live agent"))
             return None
-
         return res.get('data')
 
