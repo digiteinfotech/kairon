@@ -34,6 +34,7 @@ from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, STORY_EVENT
 from kairon.shared.data.data_objects import EventConfig, Slots, LLMSettings
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.llm.clients.azure import AzureGPT3Resources
 from kairon.shared.llm.clients.factory import LLMClientFactory
@@ -3825,3 +3826,39 @@ data: [DONE]\n\n"""
 
         line = ConverterFactory.getConcreteInstance("link", "line")
         assert isinstance(line, LineResponseConverter)
+
+
+
+    @pytest.fixture
+    def bot_setting_dict(self):
+        return {
+            "live_agent_enabled": True
+        }
+
+    @pytest.fixture
+    def bot(self):
+        return "sample_bot"
+
+    def test_is_live_agent_enabled_true(self, bot, bot_setting_dict):
+        with patch('kairon.shared.data.data_objects.BotSettings.objects') as mock_objects:
+            mock_get = mock_objects.return_value.get
+            mock_get.return_value.to_mongo.return_value.to_dict.return_value = bot_setting_dict
+
+            processor = MongoProcessor();
+            assert processor.is_live_agent_enabled(bot, False) == True
+
+    def test_is_live_agent_enabled_false(self, bot):
+        bot_setting_dict = {"live_agent_enabled": False}
+
+        with patch('kairon.shared.data.data_objects.BotSettings.objects') as mock_objects:
+            mock_get = mock_objects.return_value.get
+            mock_get.return_value.to_mongo.return_value.to_dict.return_value = bot_setting_dict
+            processor = MongoProcessor()
+            assert processor.is_live_agent_enabled(bot) == False
+
+    def test_is_live_agent_enabled_no_bot_setting(self, bot):
+        with patch('kairon.shared.data.data_objects.BotSettings.objects') as mock_objects:
+            mock_get = mock_objects.return_value.get
+            mock_get.return_value.to_mongo.return_value.to_dict.return_value = {}
+            processor = MongoProcessor()
+            assert processor.is_live_agent_enabled(bot) == False

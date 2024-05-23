@@ -55,7 +55,13 @@ def test_index():
     assert result["message"] == "Kairon Action Server Up and Running"
 
 
+
+
+
 def test_live_agent_action_execution(aioresponses):
+    bot_settings = BotSettings(bot='5f50fd0a56b698ca10d35d2z', user='test')
+    bot_settings.live_agent_enabled = True
+    bot_settings.save()
     action_name = "live_agent_action"
     Actions(name=action_name, type=ActionType.live_agent_action.value,
             bot="5f50fd0a56b698ca10d35d2z", user="user").save()
@@ -265,6 +271,10 @@ def test_live_agent_action_execution_no_agent_available(aioresponses):
 
 
 def test_live_agent_action_execution_with_exception(aioresponses):
+    bot_settings = BotSettings(bot='5f50fd0a56b698ca10d35d21', user='user')
+    bot_settings.live_agent_enabled = True
+    bot_settings.save()
+
     action_name = "test_live_agent_action_execution_with_exception"
     Actions(name=action_name, type=ActionType.live_agent_action.value,
             bot="5f50fd0a56b698ca10d35d21", user="user").save()
@@ -280,7 +290,7 @@ def test_live_agent_action_execution_with_exception(aioresponses):
         method="POST",
         url=f"{Utility.environment['live_agent']['url']}/conversation/request",
         payload={"success": False, "data": None, "message": "invalid request body", "error_code": 422},
-        body={'bot_id': '5f50fd0a56b698ca10d35d2z', 'sender_id': 'default', 'channel': 'invalid'},
+        body={'bot_id': '5f50fd0a56b698ca10d35d21', 'sender_id': 'default', 'channel': 'invalid'},
         status=400
     )
 
@@ -369,6 +379,118 @@ def test_live_agent_action_execution_with_exception(aioresponses):
     assert len(response_json['responses']) == 1
     assert response_json['responses'][0]['text'] == 'Connecting to live agent'
     assert response_json == {'events': [], 'responses': [{'text': 'Connecting to live agent', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+
+
+def test_live_agent_action_execution_with_exception(aioresponses):
+    bot_settings = BotSettings(bot='5f50fd0a56b698ca10d35d21', user='user')
+    bot_settings.live_agent_enabled = True
+    bot_settings.save()
+
+    action_name = "test_live_agent_action_execution_with_exception"
+    Actions(name=action_name, type=ActionType.live_agent_action.value,
+            bot="5f50fd0a56b698ca10d35d21", user="user").save()
+    LiveAgentActionConfig(
+        name="live_agent_action",
+        bot_response="Connecting to live agent",
+        dispatch_bot_response=True,
+        bot="5f50fd0a56b698ca10d35d21",
+        user="user"
+    ).save()
+
+    aioresponses.add(
+        method="POST",
+        url=f"{Utility.environment['live_agent']['url']}/conversation/request",
+        payload={"success": False, "data": None, "message": "invalid request body", "error_code": 422},
+        body={'bot_id': '5f50fd0a56b698ca10d35d21', 'sender_id': 'default', 'channel': 'invalid'},
+        status=400
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d21", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'live_agent_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": "facebook",
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": "facebook", "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d21"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json['responses']) == 1
+    assert response_json['responses'][0]['text'] == 'Connecting to live agent'
+    assert response_json == {'events': [], 'responses': [{'text': 'Connecting to live agent', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+
 
 
 
