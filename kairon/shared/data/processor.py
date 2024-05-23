@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Text, Dict, List, Any
 from urllib.parse import urljoin
+from loguru import logger
 
 import networkx as nx
 import yaml
@@ -7719,6 +7720,8 @@ class MongoProcessor:
             yield action
 
     def get_live_agent(self, bot: Text):
+        if not self.is_live_agent_enabled(bot, False):
+            return []
         try:
             live_agent = LiveAgentActionConfig.objects(bot=bot, status=True).get()
             live_agent = live_agent.to_mongo().to_dict()
@@ -7728,10 +7731,13 @@ class MongoProcessor:
             live_agent.pop("status")
             live_agent.pop("timestamp")
             return live_agent
-        except:
+        except Exception as e:
+            logger.warning(f"Live agent action config doesn't exist. {repr(e)}")
             return []
 
     def enable_live_agent(self, request_data: dict, bot: Text, user: Text):
+        if not self.is_live_agent_enabled(bot, False):
+            raise AppException("Live agent service is not available for the bot")
         action_name = "live_agent_action"
         enabled = False
         if not Utility.is_exist(
@@ -7753,10 +7759,12 @@ class MongoProcessor:
         if not Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, user=user):
             live_agent = LiveAgentActionConfig(**request_data, bot=bot, user=user, status=True)
             live_agent.save()
-
         return enabled
 
     def edit_live_agent(self, request_data: dict, bot: Text, user: Text):
+        if not self.is_live_agent_enabled(bot, False):
+            raise AppException("Live agent service is not available for the bot")
+
         live_agent = LiveAgentActionConfig.objects(bot=bot, user=user).update(
             set__bot_response=request_data.get('bot_response'),
             set__dispatch_bot_response=request_data.get('dispatch_bot_response')
@@ -7768,5 +7776,10 @@ class MongoProcessor:
         Utility.hard_delete_document([Actions], bot, name__iexact="live_agent_action")
         Utility.hard_delete_document([LiveAgentActionConfig], bot=bot)
 
-    def is_live_agent_enabled(self, bot: Text):
+    def is_live_agent_enabled(self, bot: Text, check_in_utils: bool = True):
+        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
+        if not bot_setting.get("live_agent_enabled"):
+            return False
+        if not check_in_utils:
+            return True
         return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)

@@ -1,26 +1,37 @@
 import logging
+
 from kairon.shared.actions.utils import ActionUtility
 from rasa.core.channels import UserMessage
 
 from kairon import Utility
+from kairon.shared.data.data_objects import BotSettings
 
 logger = logging.getLogger(__name__)
 
 
 class LiveAgentHandler:
-
     @staticmethod
     def is_live_agent_service_enabled():
         v = Utility.environment.get('live_agent', {}).get('enable', False)
-        print(f"live agent {v}")
         return v
+
+    @staticmethod
+    def is_live_agent_service_available(bot_id: str) -> bool:
+        if not LiveAgentHandler.is_live_agent_service_enabled():
+            return False
+        try:
+            bot_setting = BotSettings.objects(bot=bot_id).get().to_mongo().to_dict()
+            return bot_setting.get('live_agent_enabled', False)
+        except Exception as e:
+            logger.error(f"Error accessing bot settings: {repr(e)}")
+            return False
+
     @staticmethod
     async def request_live_agent(bot_id: str, sender_id: str, channel: str):
-        if not LiveAgentHandler.is_live_agent_service_enabled():
-            return None
+        if not LiveAgentHandler.is_live_agent_service_available(bot_id):
+            return {'msg': 'Live agent service is not available'}
         url = f"{Utility.environment['live_agent']['url']}/conversation/request"
         auth_token = Utility.environment['live_agent']['auth_token']
-
         data = {
             "bot_id": bot_id,
             "sender_id": sender_id,
@@ -35,23 +46,9 @@ class LiveAgentHandler:
             raise Exception(res.get('message', "Failed to process request"))
         return res.get('data')
 
-    #
-    # @staticmethod
-    # async def close_conversation(identifier):
-    #     if not LiveAgentHandler.is_live_agent_service_enabled():
-    #         raise Exception("Live agent service is not enabled")
-    #     url = f"{Utility.environment['live_agent']['url']}/conversation/close/{identifier}"
-    #     headers = {
-    #         'Content-Type': 'application/json'
-    #     }
-    #     res, status, _ = await ActionUtility.execute_request_async(url, 'GET', None, headers)
-    #     if status != 200:
-    #         raise Exception(res.get('message', "Failed to process request"))
-    #     return res.get('data')
-
     @staticmethod
     async def process_live_agent(bot_id, userdata: UserMessage):
-        if not LiveAgentHandler.is_live_agent_service_enabled():
+        if not LiveAgentHandler.is_live_agent_service_available(bot_id):
             raise Exception("Live agent service is not enabled")
         text = userdata.text
         if text is None or text.strip() == "":
@@ -68,14 +65,13 @@ class LiveAgentHandler:
             "channel": userdata.output_channel.name(),
             "message": userdata.text
         }
-
         res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
 
     @staticmethod
     async def check_live_agent_active(bot_id, userdata: UserMessage):
-        if not LiveAgentHandler.is_live_agent_service_enabled():
+        if not LiveAgentHandler.is_live_agent_service_available(bot_id):
             return False
         channel = userdata.output_channel.name()
         sender_id = userdata.sender_id
@@ -93,6 +89,8 @@ class LiveAgentHandler:
 
     @staticmethod
     async def authenticate_agent(user, bot_id):
+        if not LiveAgentHandler.is_live_agent_service_available(bot_id):
+            return None
         url = f"{Utility.environment['live_agent']['url']}/auth"
         data = {
             "bot_id": bot_id,
@@ -106,5 +104,9 @@ class LiveAgentHandler:
         res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
         logger.info(res)
         if status != 200:
-            raise Exception(res.get('message', "Failed to process request"))
+            if not res:
+                res = {}
+            logger.warning(res.get('data', {}).get('message', "Failed to authenticate live agent"))
+            return None
         return res.get('data')
+

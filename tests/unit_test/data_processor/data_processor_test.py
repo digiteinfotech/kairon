@@ -994,6 +994,10 @@ class TestMongoProcessor:
 
     def test_enable_live_agent(self):
         processor = MongoProcessor()
+        bot_settings = BotSettings.objects(bot='test_bot').get()
+        bot_settings.live_agent_enabled = True
+        bot_settings.save()
+        processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
         request_data = {
@@ -1009,9 +1013,8 @@ class TestMongoProcessor:
         user = 'test_user'
         live_agent = processor.get_live_agent(bot=bot)
         print(live_agent)
-        assert live_agent == {'name': 'live_agent_action',
-                              'bot_response': 'connecting to live agent',
-                              'dispatch_bot_response': False}
+        assert live_agent == {'name': 'live_agent_action', 'bot_response': 'connecting to live agent', 'agent_connect_response': 'Connected to live agent', 'agent_disconnect_response': 'Disconnected from live agent', 'agent_not_available_response': 'No agents available', 'dispatch_bot_response': False, 'dispatch_agent_connect_response': True, 'dispatch_agent_disconnect_response': True, 'dispatch_agent_not_available_response': True}
+
 
     def test_enable_live_agent_already_exist(self):
         processor = MongoProcessor()
@@ -1036,9 +1039,8 @@ class TestMongoProcessor:
 
         live_agent = processor.get_live_agent(bot=bot)
         print(live_agent)
-        assert live_agent == {'name': 'live_agent_action',
-                              'bot_response': 'connecting to different live agent...',
-                              'dispatch_bot_response': True}
+        assert live_agent == {'name': 'live_agent_action', 'bot_response': 'connecting to different live agent...', 'agent_connect_response': 'Connected to live agent', 'agent_disconnect_response': 'Disconnected from live agent', 'agent_not_available_response': 'No agents available', 'dispatch_bot_response': True, 'dispatch_agent_connect_response': True, 'dispatch_agent_disconnect_response': True, 'dispatch_agent_not_available_response': True}
+
 
     def test_disable_live_agent(self):
         processor = MongoProcessor()

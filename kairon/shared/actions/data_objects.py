@@ -861,7 +861,13 @@ signals.pre_save_post_validation.connect(
 class LiveAgentActionConfig(Auditlog):
     name = StringField(default='live_agent_action')
     bot_response = StringField(default='Connecting to live agent')
+    agent_connect_response = StringField(default='Connected to live agent')
+    agent_disconnect_response = StringField(default='Disconnected from live agent')
+    agent_not_available_response = StringField(default='No agents available')
     dispatch_bot_response = BooleanField(default=True)
+    dispatch_agent_connect_response = BooleanField(default=True)
+    dispatch_agent_disconnect_response = BooleanField(default=True)
+    dispatch_agent_not_available_response = BooleanField(default=True)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
