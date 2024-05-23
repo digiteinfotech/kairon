@@ -33,7 +33,7 @@ from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, STORY_EVENT
-from kairon.shared.data.data_objects import EventConfig, Slots, LLMSettings, BotSettings
+from kairon.shared.data.data_objects import EventConfig, Slots, LLMSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.llm.clients.azure import AzureGPT3Resources
