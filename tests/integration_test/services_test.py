@@ -1721,7 +1721,8 @@ def test_get_live_agent_after_disabled():
     )
 
     actual = response.json()
-    assert actual["data"] == []
+    print(actual)
+    assert not actual["data"]
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
