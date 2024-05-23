@@ -47,6 +47,8 @@ from kairon.shared.data.constant import (
 )
 from kairon.shared.data.data_objects import (
     Stories,
+    Rules,
+    Utterances,
     Intents,
     TrainingExamples,
     Responses,
@@ -18696,6 +18698,199 @@ def test_add_channel_config(monkeypatch):
     assert actual["data"].startswith(
         f"http://localhost:5056/api/bot/slack/{pytest.bot}/e"
     )
+
+
+def test_add_bot_with_template_with_sysadmin_as_user(monkeypatch):
+
+    def mock_reload_model(*args, **kwargs):
+        mock_reload_model.called_with = (args, kwargs)
+        return None
+
+    monkeypatch.setattr(Utility, "reload_model", mock_reload_model)
+    monkeypatch.setitem(Utility.environment["llm"], "key", "secret_value")
+
+    response = client.post(
+        "/api/account/bot",
+        json={"name": "gpt-bot", "from_template": "Hi-Hello-GPT"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response["message"] == "Bot created"
+    assert response["data"] is not None
+    assert response["error_code"] == 0
+    assert response["success"]
+    bot_id = response["data"]["bot_id"]
+
+    stories = Stories.objects(bot=bot_id)
+    stories = [{k: v for k, v in story.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
+               story in stories]
+
+    assert stories == [
+        {'block_name': 'greet', 'start_checkpoints': ['STORY_START'], 'end_checkpoints': [],
+         'events': [{'name': 'greet', 'type': 'user', 'entities': []},
+                    {'name': 'google_search_action', 'type': 'action'},
+                    {'name': 'kairon_faq_action', 'type': 'action'}],
+         'user': 'sysadmin', 'status': True, 'template_type': 'CUSTOM'},
+        {'block_name': 'goodbye', 'start_checkpoints': ['STORY_START'], 'end_checkpoints': [],
+         'events': [{'name': 'goodbye', 'type': 'user', 'entities': []},
+                    {'name': 'google_search_action', 'type': 'action'},
+                    {'name': 'kairon_faq_action', 'type': 'action'}],
+         'user': 'sysadmin', 'status': True, 'template_type': 'CUSTOM'}
+    ]
+
+    rules = Rules.objects(bot=bot_id)
+    rules = [{k: v for k, v in rule.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
+               rule in rules]
+
+    assert rules == [
+        {'block_name': 'ask the user to rephrase whenever they send a message with low nlu confidence',
+         'condition_events_indices': [], 'start_checkpoints': ['STORY_START'], 'end_checkpoints': [],
+         'events': [{'name': '...', 'type': 'action'},
+                    {'name': 'nlu_fallback', 'type': 'user', 'entities': []},
+                    {'name': 'google_search_action', 'type': 'action'},
+                    {'name': 'kairon_faq_action', 'type': 'action'}],
+         'user': 'sysadmin', 'status': True, 'template_type': 'CUSTOM'}
+    ]
+
+    utterances = Utterances.objects(bot=bot_id)
+    utterances = [{k: v for k, v in utterance.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
+             utterance in utterances]
+
+    assert utterances == [
+        {'name': 'utter_please_rephrase', 'user': 'sysadmin', 'status': True},
+        {'name': 'utter_default', 'user': 'sysadmin', 'status': True}
+    ]
+
+    intents = Intents.objects(bot=bot_id)
+    intents = [{k: v for k, v in intent.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
+               intent in intents]
+
+    assert intents == [
+        {'name': 'greet', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
+        {'name': 'goodbye', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
+        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
+        {'name': 'restart', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
+        {'name': 'back', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
+        {'name': 'out_of_scope', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
+        {'name': 'session_start', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True}
+    ]
+
+    responses = Responses.objects(bot=bot_id)
+    responses = [{k: v for k, v in response.to_mongo().to_dict().items() if k not in
+                  ['_id', 'bot', 'timestamp']} for response in responses]
+
+    assert responses == [
+        {'name': 'utter_please_rephrase',
+         'text': {'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"},
+         'user': 'sysadmin', 'status': True},
+        {'name': 'utter_default', 'text': {'text': "Sorry I didn't get that. Can you rephrase?"},
+         'user': 'sysadmin', 'status': True}
+    ]
+
+
+def test_add_bot_without_template(monkeypatch):
+    def mock_reload_model(*args, **kwargs):
+        mock_reload_model.called_with = (args, kwargs)
+        return None
+
+    monkeypatch.setattr(Utility, "reload_model", mock_reload_model)
+    monkeypatch.setitem(Utility.environment["llm"], "key", "secret_value")
+
+    response = client.post(
+        "/api/account/bot",
+        json={"name": "normal-bot"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response["message"] == "Bot created"
+    assert response["data"] is not None
+    assert response["error_code"] == 0
+    assert response["success"]
+    bot_id = response["data"]["bot_id"]
+
+    rules = Rules.objects(bot=bot_id)
+    rules = [{k: v for k, v in rule.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
+             rule in rules]
+
+    assert rules == [
+        {'block_name': 'ask the user to rephrase whenever they send a message with low nlu confidence',
+         'condition_events_indices': [], 'start_checkpoints': ['STORY_START'], 'end_checkpoints': [],
+         'events': [{'name': '...', 'type': 'action'}, {'name': 'nlu_fallback', 'type': 'user'},
+                    {'name': 'utter_please_rephrase', 'type': 'action'}],
+         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'CUSTOM'},
+        {'block_name': 'bye', 'condition_events_indices': [], 'start_checkpoints': ['STORY_START'],
+         'end_checkpoints': [],
+         'events': [{'name': '...', 'type': 'action'}, {'name': 'bye', 'type': 'user'},
+                    {'name': 'utter_bye', 'type': 'action'}], 'user': 'integ1@gmail.com',
+         'status': True, 'template_type': 'Q&A'},
+        {'block_name': 'greet', 'condition_events_indices': [], 'start_checkpoints': ['STORY_START'],
+         'end_checkpoints': [],
+         'events': [{'name': '...', 'type': 'action'}, {'name': 'greet', 'type': 'user'},
+                    {'name': 'utter_greet', 'type': 'action'}],
+         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'Q&A'}
+    ]
+
+    utterances = Utterances.objects(bot=bot_id)
+    utterances = [{k: v for k, v in utterance.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
+                  utterance in utterances]
+
+    assert utterances == [
+        {'name': 'utter_please_rephrase', 'user': 'integ1@gmail.com', 'status': True},
+        {'name': 'utter_default', 'user': 'integ1@gmail.com', 'status': True},
+        {'name': 'utter_bye', 'user': 'integ1@gmail.com', 'status': True},
+        {'name': 'utter_greet', 'user': 'integ1@gmail.com', 'status': True}
+    ]
+
+    intents = Intents.objects(bot=bot_id)
+    intents = [{k: v for k, v in intent.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
+               intent in intents]
+
+    assert intents == [
+        {'name': 'bye', 'user': 'integ1@gmail.com', 'status': True, 'is_integration': False, 'use_entities': False},
+        {'name': 'greet', 'user': 'integ1@gmail.com', 'status': True, 'is_integration': False, 'use_entities': False}
+    ]
+
+    training_examples = TrainingExamples.objects(bot=bot_id)
+    training_examples = [{k: v for k, v in training_example.to_mongo().to_dict().items() if k not in
+                          ['_id', 'bot', 'timestamp']} for training_example in training_examples]
+
+    assert training_examples == [
+        {'intent': 'bye', 'text': 'good bye', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'bye', 'text': 'bye', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'bye', 'text': 'See you later!', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'bye', 'text': 'Goodbye!', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'greet', 'text': 'Hi', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'greet', 'text': 'Hello', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'greet', 'text': 'Greetings', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'greet', 'text': 'Hi there', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'greet', 'text': 'Good day', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'greet', 'text': 'Howdy', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'greet', 'text': 'Hey there', 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'greet', 'text': "What's up?", 'user': 'integ1@gmail.com', 'status': True},
+        {'intent': 'greet', 'text': 'Hullo', 'user': 'integ1@gmail.com', 'status': True}
+    ]
+
+    responses = Responses.objects(bot=bot_id)
+    responses = [{k: v for k, v in response.to_mongo().to_dict().items() if k not in
+                  ['_id', 'bot', 'timestamp']} for response in responses]
+
+    assert responses == [
+        {'name': 'utter_please_rephrase',
+         'text': {'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"},
+         'user': 'integ1@gmail.com', 'status': True},
+        {'name': 'utter_default', 'text': {'text': "Sorry I didn't get that. Can you rephrase?"},
+         'user': 'integ1@gmail.com', 'status': True},
+        {'name': 'utter_bye', 'text': {'text': "Take care, I'm here for you if you need anything."},
+         'user': 'integ1@gmail.com', 'status': True},
+        {'name': 'utter_bye', 'text': {'text': 'Adieu, always here for you.'},
+         'user': 'integ1@gmail.com', 'status': True},
+        {'name': 'utter_bye', 'text': {'text': "See you later, I'm here to help."},
+         'user': 'integ1@gmail.com', 'status': True},
+        {'name': 'utter_greet', 'text': {'text': "I'm your AI Assistant, ready to assist"},
+         'user': 'integ1@gmail.com', 'status': True},
+        {'name': 'utter_greet', 'text': {'text': 'Let me be your AI Assistant and provide you with service'},
+         'user': 'integ1@gmail.com', 'status': True}
+    ]
 
 
 @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
