@@ -447,7 +447,7 @@ class Authentication:
 
     @staticmethod
     async def validate_trusted_device(user: Text, fingerprint: Text, request: Request):
-        ip = request.headers.get('X-Forwarded-For')
+        ip = Utility.get_client_ip(request)
         geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip)
         geo_location = geo_location or {}
         await Authentication.__validate_trusted_device(user, fingerprint, **geo_location)
