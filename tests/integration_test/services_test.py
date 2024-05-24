@@ -18789,7 +18789,6 @@ def test_add_bot_with_template_with_sysadmin_as_user(monkeypatch):
 
 
 def test_add_bot_without_template(monkeypatch):
-
     def mock_reload_model(*args, **kwargs):
         mock_reload_model.called_with = (args, kwargs)
         return None
