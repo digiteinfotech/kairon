@@ -7766,8 +7766,7 @@ class MongoProcessor:
             raise AppException("Live agent service is not available for the bot")
 
         live_agent = LiveAgentActionConfig.objects(bot=bot, user=user).update(
-            set__bot_response=request_data.get('bot_response'),
-            set__dispatch_bot_response=request_data.get('dispatch_bot_response')
+            **{'set__' + k: v for k, v in request_data.items()}
         )
         if not live_agent:
             raise AppException("Live agent not enabled for the bot")
