@@ -251,7 +251,7 @@ class MongoProcessor:
         :raises: raise AppException
         """
         use_case_path = os.path.join("./template/use-cases", secure_filename(template))
-        user = "sysadmin" if template in ["Hi-Hello", "Hi-Hello-GPT"] else user
+        user = "sysadmin" if template else user
         if os.path.exists(use_case_path):
             await self.save_from_path(path=use_case_path, bot=bot, user=user)
         else:
