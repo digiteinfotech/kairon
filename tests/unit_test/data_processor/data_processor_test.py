@@ -15642,7 +15642,7 @@ class TestModelProcessor:
         model_training = ModelTraining.objects(bot="tests", status="Fail")
         assert model_training.__len__() == 2
         print(model_training[1].to_mongo().to_dict())
-        assert model_training[1].exception in str("invalid model file")
+        assert model_training[1].exception in str("Failed to load the model for the bot.")
 
     def test_train_model_for_bot(self):
         model = train_model_for_bot("tests")
