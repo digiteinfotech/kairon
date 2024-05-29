@@ -199,8 +199,6 @@ class AccountProcessor:
             )
         BotSettings(bot=bot_id, user=user).save()
         processor = MongoProcessor()
-        template = metadata.get('metadata').get('from_template') if metadata else ""
-        user = "sysadmin" if template else user
         if add_default_data:
             config = processor.load_config(bot_id)
             processor.add_or_overwrite_config(config, bot_id, user)
