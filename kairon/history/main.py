@@ -297,7 +297,7 @@ def index():
 
 
 @app.get("/healthcheck", response_model=Response)
-def index():
+def healthcheck():
     return {"message": "health check ok"}
 
 

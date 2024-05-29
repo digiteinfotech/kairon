@@ -300,7 +300,7 @@ async def get():
 
 
 @action.get("/healthcheck")
-def index():
+def healthcheck():
     return {"message": "health check ok"}
 
 
