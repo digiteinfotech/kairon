@@ -390,6 +390,13 @@ def test_index():
     assert response["message"] == "Chat server running!"
 
 
+def test_healthcheck():
+    response = client.get("/healthcheck")
+    response = response.json()
+    assert response["error_code"] == 0
+    assert response["message"] == "health check ok"
+
+
 def test_get_chat_client_config():
     response = client.get(
         f"/api/bot/{bot}/chat/client/config/{token}",

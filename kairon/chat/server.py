@@ -258,6 +258,11 @@ def index():
     return {"message": "Chat server running!"}
 
 
+@app.get("/healthcheck", response_model=Response)
+def index():
+    return {"message": "health check ok"}
+
+
 app.include_router(web_client.router, prefix="/api/bot/{bot}", tags=["Web client"])
 app.include_router(channels.router, prefix="/api/bot", tags=["Channels"])
 

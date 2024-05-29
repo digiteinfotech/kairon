@@ -40,6 +40,13 @@ def test_index():
     }
 
 
+def test_healthcheck():
+    response = client.get("/healthcheck")
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "health check ok"
+
+
 def test_lambda_executor():
     mock_env = Utility.environment.copy()
     mock_env["events"]["executor"]["type"] = EventExecutor.aws_lambda

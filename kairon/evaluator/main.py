@@ -82,5 +82,10 @@ def index():
     return {"message": "Running Evaluator Server"}
 
 
+@app.get("/healthcheck", response_model=Response)
+def index():
+    return {"message": "health check ok"}
+
+
 app.include_router(pyscript.router, tags=["Evaluator"])
 

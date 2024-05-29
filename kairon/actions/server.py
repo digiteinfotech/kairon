@@ -299,6 +299,11 @@ async def get():
     return {"message": "Kairon Action Server Up and Running"}
 
 
+@action.get("/healthcheck")
+def index():
+    return {"message": "health check ok"}
+
+
 @action.post("/webhook")
 async def webhook(request_json: dict):
     logging.debug(request_json)
