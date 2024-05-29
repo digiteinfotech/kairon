@@ -484,7 +484,7 @@ roles:
       common:
         trainBot: false
         testBot: false
-        botSettings: false
+        botSettings: true
       conversations:
         add: false
         update: false
