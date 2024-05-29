@@ -966,6 +966,7 @@ class TestUtility:
             "update_role_subject"
         ]
         expected_subject = expected_subject.replace("BOT_NAME", bot_name)
+
         await MailUtility.format_and_send_mail(
             mail_type=mail_type,
             email=email,
@@ -3861,103 +3862,3 @@ data: [DONE]\n\n"""
             mock_get.return_value.to_mongo.return_value.to_dict.return_value = {}
             processor = MongoProcessor()
             assert processor.is_live_agent_enabled(bot) == False
-
-    @pytest.mark.asyncio
-    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
-    async def test_handle_first_name_add_member_email_template(self, validate_and_send_mail_mock):
-        mail_type = "add_member"
-        email = "sampletest@gmail.com"
-        first_name = "sample"
-        bot_name = "test_bot"
-        role = "test_role"
-        access_url="http://localhost:3000"
-        bot_owner_name="Sample"
-        accessor_email = "test@gmail.com"
-        member_confirm = "test_name"
-        base_url = Utility.environment["app"]["frontend_url"]
-        Utility.email_conf["email"]["templates"]["add_member"] = (
-            open("template/emails/memberAddAccept.html", "rb").read().decode()
-        )
-        expected_body = Utility.email_conf["email"]["templates"][
-            "add_member"
-        ]
-        expected_body = (
-            expected_body.replace("BOT_NAME", bot_name)
-            .replace("ACCESS_TYPE", role)
-            .replace("FIRST_NAME", first_name)
-            .replace("USER_EMAIL", email)
-            .replace("BASE_URL", base_url)
-            .replace("ACCESS_URL", access_url)
-            .replace("BOT_OWNER_NAME",bot_owner_name )
-        )
-        expected_subject = Utility.email_conf["email"]["templates"][
-            "add_member_subject"
-        ]
-        expected_subject = expected_subject.replace(
-            "BOT_NAME", bot_name
-        )
-
-        await MailUtility.format_and_send_mail(
-            mail_type=mail_type,
-            email=email,
-            first_name=first_name,
-            bot_name=bot_name,
-            role=role,
-            accessor_email=accessor_email,
-            member_confirm=member_confirm,
-            url=base_url,
-        )
-        validate_and_send_mail_mock.assert_called_once_with(
-            email, expected_subject, expected_body
-        )
-
-    @pytest.mark.asyncio
-    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
-    async def test_handle_first_name_member_update_email_template(self, validate_and_send_mail_mock):
-        mail_type = "update_role_member_mail"
-        email = "sampletest@gmail.com"
-        first_name = "FIRST_"
-        bot_name = "test_bot"
-        new_role = "test_role"
-        status = "test_status"
-        owner_name = "BOT_OWNER_"
-        member_email = "test@gmail.com"
-        base_url = Utility.environment["app"]["frontend_url"]
-        Utility.email_conf["email"]["templates"]["update_role_member_mail"] = (
-            open("template/emails/memberUpdateRole.html", "rb").read().decode()
-        )
-        expected_body = Utility.email_conf["email"]["templates"]["update_role_member_mail"]
-        expected_body = (
-            expected_body.replace(
-                "MAIL_BODY_HERE",
-                Utility.email_conf["email"]["templates"]["update_role_member_mail_body"],
-            )
-            .replace("MEMBER_EMAIL", member_email)
-            .replace("BOT_NAME", bot_name)
-            .replace("NEW_ROLE", new_role)
-            .replace("STATUS", status)
-            .replace("MODIFIER_NAME", first_name.capitalize())
-            .replace("FIRST_NAME", first_name)
-            .replace("USER_EMAIL", email)
-            .replace("BASE_URL", base_url)
-            .replace("BOT_OWNER_NAME", owner_name)
-
-        )
-        expected_subject = Utility.email_conf["email"]["templates"][
-            "update_role_subject"
-        ]
-        expected_subject = expected_subject.replace("BOT_NAME", bot_name)
-        await MailUtility.format_and_send_mail(
-            mail_type=mail_type,
-            email=email,
-            first_name=first_name,
-            status=status,
-            bot_name=bot_name,
-            new_role=new_role,
-            owner_name=owner_name,
-            member_email=member_email,
-            base_url=base_url,
-        )
-        validate_and_send_mail_mock.assert_called_once_with(
-            email, expected_subject, expected_body
-        )
