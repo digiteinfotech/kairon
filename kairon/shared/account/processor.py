@@ -199,11 +199,11 @@ class AccountProcessor:
             )
         BotSettings(bot=bot_id, user=user).save()
         processor = MongoProcessor()
-        config = processor.load_config(bot_id)
-        processor.add_or_overwrite_config(config, bot_id, user)
-        processor.add_default_fallback_data(bot_id, user, True, True)
-        processor.add_system_required_slots(bot_id, user)
         if add_default_data:
+            config = processor.load_config(bot_id)
+            processor.add_or_overwrite_config(config, bot_id, user)
+            processor.add_default_fallback_data(bot_id, user, True, True)
+            processor.add_system_required_slots(bot_id, user)
             processor.add_default_training_data(bot_id, user)
         return bot
 

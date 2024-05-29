@@ -1641,7 +1641,7 @@ router.include_router(v2, prefix="/v2")
 
 @router.get("/settings", response_model=Response)
 async def get_bot_settings(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=VIEW_ACCESS),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=AGENT_ACCESS),
 ):
     """Retrieves bot settings"""
     bot_settings = MongoProcessor.get_bot_settings(current_user.get_bot(), current_user.get_user())
