@@ -52,6 +52,12 @@ def mock_archive_history(monkeypatch):
     monkeypatch.setattr(Collection, 'find', mock_find)
 
 
+def test_healthcheck():
+    response = client.get("/healthcheck")
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["message"] == "health check ok"
+
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
 def test_chat_history_users(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")

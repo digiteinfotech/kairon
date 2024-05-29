@@ -248,6 +248,11 @@ def index():
     return {"message": "hello"}
 
 
+@app.get("/healthcheck", response_model=Response)
+def healthcheck():
+    return {"message": "health check ok"}
+
+
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(account.router, prefix="/api/account", tags=["Account"])
 app.include_router(user.router, prefix="/api/user", tags=["User"])

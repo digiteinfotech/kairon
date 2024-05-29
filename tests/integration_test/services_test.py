@@ -128,6 +128,13 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
         ).execute()
 
 
+def test_healthcheck():
+    response = client.get("/healthcheck")
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["message"] == "health check ok"
+
+
 def test_api_wrong_login():
     response = client.post(
         "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"}

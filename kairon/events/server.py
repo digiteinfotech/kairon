@@ -102,9 +102,15 @@ async def catch_exceptions_middleware(request: Request, call_next):
             ).dict()
         )
 
+
 @app.get("/", response_model=Response)
 def index():
     return {"message": "Event server running!"}
+
+
+@app.get("/healthcheck", response_model=Response)
+def healthcheck():
+    return {"message": "health check ok"}
 
 
 @app.post("/api/events/execute/{event_type}", response_model=Response)

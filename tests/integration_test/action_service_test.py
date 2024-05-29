@@ -55,7 +55,11 @@ def test_index():
     assert result["message"] == "Kairon Action Server Up and Running"
 
 
-
+def test_healthcheck():
+    response = client.get("/healthcheck")
+    result = response.json()
+    assert response.status_code == 200
+    assert result["message"] == "health check ok"
 
 
 def test_live_agent_action_execution(aioresponses):
