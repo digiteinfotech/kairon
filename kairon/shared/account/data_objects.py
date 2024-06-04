@@ -82,6 +82,7 @@ class Bot(Auditlog):
     user = StringField(required=True)
     metadata = EmbeddedDocumentField(BotMetaData, default=BotMetaData())
     timestamp = DateTimeField(default=datetime.utcnow)
+    modified_at = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):

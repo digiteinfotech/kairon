@@ -1124,14 +1124,14 @@ def test_list_bots():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    pytest.bot = response["data"]["account_owned"][0]["_id"]
+    pytest.bot = response["data"]["account_owned"][1]["_id"]
     assert response["data"]["account_owned"][0]["user"] == "integration@demo.ai"
     assert response["data"]["account_owned"][0]["timestamp"]
-    assert response["data"]["account_owned"][0]["name"] == "Hi-Hello"
+    assert response["data"]["account_owned"][0]["name"] == "covid-bot"
     assert response["data"]["account_owned"][0]["_id"]
     assert response["data"]["account_owned"][1]["user"] == "integration@demo.ai"
     assert response["data"]["account_owned"][1]["timestamp"]
-    assert response["data"]["account_owned"][1]["name"] == "covid-bot"
+    assert response["data"]["account_owned"][1]["name"] == "Hi-Hello"
     assert response["data"]["account_owned"][1]["_id"]
     assert response["data"]["shared"] == []
 
@@ -9600,7 +9600,7 @@ def test_add_intents_to_different_bot():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    pytest.bot_2 = response["data"]["account_owned"][1]["_id"]
+    pytest.bot_2 = response["data"]["account_owned"][2]["_id"]
 
     response = client.post(
         f"/api/bot/{pytest.bot_2}/intents",
@@ -9724,7 +9724,7 @@ def test_train_insufficient_data(monkeypatch):
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    pytest.bot_sample = response["data"]["account_owned"][3]["_id"]
+    pytest.bot_sample = response["data"]["account_owned"][0]["_id"]
 
     response_story = client.get(
         f"/api/bot/{pytest.bot_sample}/stories",
@@ -9763,7 +9763,7 @@ def test_delete_bot():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    bot = response["data"]["account_owned"][1]["_id"]
+    bot = response["data"]["account_owned"][2]["_id"]
 
     response = client.delete(
         f"/api/account/bot/{bot}",
