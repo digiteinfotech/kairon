@@ -81,6 +81,7 @@ from kairon.shared.actions.data_objects import (
     PyscriptActionConfig,
     WebSearchAction,
     UserQuestion, LiveAgentActionConfig,
+    FlowActionConfig
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -3904,6 +3905,77 @@ class MongoProcessor:
         actions = HttpActionConfig.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
 
+    def add_flow_action(self, flow_config: Dict, user: str, bot: str):
+        """
+        Adds a new FlowActionConfig action.
+        :param flow_config: dict object containing configuration for the Flow action
+        :param user: user id
+        :param bot: bot id
+        :return: flow configuration id for saved flow action config
+        """
+        from kairon.shared.chat.data_objects import Channels
+
+        flow_config['user'] = user
+        flow_config['bot'] = bot
+        if not Utility.is_exist(Channels, raise_error=False, bot=bot, connector_type="whatsapp"):
+            raise AppException('Whatsapp Channel not found for this bot!')
+        Utility.is_valid_action_name(flow_config.get("name"), bot, FlowActionConfig)
+        action_id = FlowActionConfig(**flow_config).save().id.__str__()
+        self.add_action(flow_config['name'], bot, user, action_type=ActionType.flow_action.value,
+                        raise_exception=False)
+        return action_id
+
+    def update_flow_action(self, request_data: Dict, user: str, bot: str):
+        """
+        Updates Flow Action configuration.
+        :param request_data: Dict containing configuration to be modified
+        :param user: user id
+        :param bot: bot id
+        :return: Flow Action configuration id for updated Flow action config
+        """
+
+        if not Utility.is_exist(FlowActionConfig, raise_error=False, name=request_data.get('name'),
+                                bot=bot, status=True):
+            raise AppException(f'Action with name "{request_data.get("name")}" not found')
+        action = FlowActionConfig.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        action.name = request_data['name']
+        action.flow_id = CustomActionRequestParameters(**request_data['flow_id']) if request_data.get(
+            'flow_id') else None
+        action.header = request_data.get('header', None)
+        action.body = request_data['body']
+        action.footer = request_data.get('footer', None)
+        action.mode = request_data.get('mode')
+        action.flow_action = request_data.get('flow_action')
+        action.flow_token = request_data.get('flow_token')
+        action.recipient_phone = CustomActionRequestParameters(**request_data['recipient_phone']) if request_data.get(
+            'recipient_phone') else None
+        action.initial_screen = request_data['initial_screen']
+        action.flow_cta = request_data['flow_cta']
+        action.dispatch_response = request_data.get('dispatch_response', True)
+        action.response = request_data['response']
+        action.user = user
+        action.timestamp = datetime.utcnow()
+        return action.save().id.__str__()
+
+    def list_flow_actions(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches all Flow actions from collection
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of Flow actions.
+        """
+        for action in FlowActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
+            action.pop('timestamp')
+            yield action
+
     def add_pyscript_action(self, pyscript_config: Dict, user: str, bot: str):
         """
         Adds a new PyscriptActionConfig action.
@@ -6450,6 +6522,8 @@ class MongoProcessor:
                 Utility.hard_delete_document(
                     [PyscriptActionConfig], name__iexact=name, bot=bot
                 )
+            elif action.type == ActionType.flow_action.value:
+                Utility.delete_document([FlowActionConfig], name__iexact=name, bot=bot, user=user)
             action.delete()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')

@@ -22,7 +22,8 @@ from ..shared.actions.models import (
     EvaluationType,
     DispatchType,
     DbQueryValueType,
-    DbActionOperationType, UserMessageType
+    DbActionOperationType, UserMessageType,
+    FlowModes, FlowActionTypes
 )
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
@@ -894,6 +895,62 @@ class WebSearchActionRequest(BaseModel):
     def validate_top_n(cls, v, values, **kwargs):
         if not v or v < 1:
             raise ValueError("topn must be greater than or equal to 1!")
+        return v
+
+
+class FlowActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    flow_id: CustomActionParameter
+    header: str = None
+    body: str
+    footer: str = None
+    mode: FlowModes = FlowModes.published.value
+    flow_action: FlowActionTypes = FlowActionTypes.navigate.value
+    flow_token: str
+    recipient_phone: CustomActionParameter
+    initial_screen: str
+    flow_cta: str
+    dispatch_response: bool = True
+    response: str = None
+
+    @validator("name")
+    def validate_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("name is required")
+        return v
+
+    @validator("body")
+    def validate_body(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("body is required")
+        return v
+
+    @validator("initial_screen")
+    def validate_initial_screen(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("initial_screen is required")
+        return v
+
+    @validator("flow_cta")
+    def validate_flow_cta(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("flow_cta is required")
+        return v
+
+    @validator("flow_token")
+    def validate_flow_token(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("flow_token is required")
         return v
 
 

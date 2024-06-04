@@ -20,6 +20,16 @@ class ActionParameterType(str, Enum):
     key_vault = "key_vault"
 
 
+class FlowModes(str, Enum):
+    draft = "draft"
+    published = "published"
+
+
+class FlowActionTypes(str, Enum):
+    navigate = "navigate"
+    data_exchange = "data_exchange"
+
+
 class EvaluationType(str, Enum):
     expression = "expression"
     script = "script"
@@ -48,6 +58,7 @@ class ActionType(str, Enum):
     database_action = "database_action"
     web_search_action = "web_search_action"
     live_agent_action = "live_agent_action"
+    flow_action = "flow_action"
 
 
 class HttpRequestContentType(str, Enum):
