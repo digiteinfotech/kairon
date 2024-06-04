@@ -65,6 +65,8 @@ class ActionFlow(ActionsBase):
                 headers=headers, http_url=http_url, request_method="POST", request_body=body
             )
             logger.info("response: " + str(http_response))
+            logger.info("status_code: " + str(status_code))
+            logger.info("time_elapsed: " + str(time_elapsed))
         except Exception as e:
             exception = str(e)
             logger.exception(e)
