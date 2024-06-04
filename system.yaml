@@ -151,6 +151,11 @@ evaluator:
     trigger_task: ${PYSCRIPT_TRIGGER_TASK:false}
     url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8087/evaluate"}
 
+flow:
+  url: ${FLOW_TRIGGERING_ENDPOINT:"https://waba-v2.360dialog.io/messages"}
+  headers:
+    key: ${FLOW_HEADERS_KEY:"D360-API-KEY"}
+
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}
   project_id: ${MULTILINGUAL_TRANSLATOR_PROJECT_ID}

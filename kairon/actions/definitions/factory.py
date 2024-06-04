@@ -2,6 +2,7 @@ from typing import Text
 
 from kairon.actions.definitions.bot_response import ActionKaironBotResponse
 from kairon.actions.definitions.email import ActionEmail
+from kairon.actions.definitions.flow import ActionFlow
 from kairon.actions.definitions.form_validation import ActionFormValidation
 from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
@@ -41,7 +42,8 @@ class ActionFactory:
         ActionType.pyscript_action.value: ActionPyscript,
         ActionType.database_action.value: ActionDatabase,
         ActionType.web_search_action.value: ActionWebSearch,
-        ActionType.live_agent_action.value: ActionLiveAgent
+        ActionType.live_agent_action.value: ActionLiveAgent,
+        ActionType.flow_action.value: ActionFlow
     }
 
     @staticmethod

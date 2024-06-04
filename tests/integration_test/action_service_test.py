@@ -19,7 +19,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig
+    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig, \
+    FlowActionConfig
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
@@ -496,6 +497,477 @@ def test_live_agent_action_execution_with_exception(aioresponses):
     assert response_json == {'events': [], 'responses': [{'text': 'Connecting to live agent', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
 
 
+@responses.activate
+def test_flow_action_execution(aioresponses):
+    action_name = "test_flow_action_execution"
+    Actions(name=action_name, type=ActionType.flow_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    BotSecrets(secret_type=BotSecretType.d360_api_key.value,
+               value="abxyYxCNkabcdefgh9OpMfIAK", bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    FlowActionConfig(
+        name=action_name,
+        flow_id=CustomActionRequestParameters(value="9191123456789",
+                                              parameter_type=ActionParameterType.value.value),
+        body="Fill the Sign Up Form",
+        recipient_phone=CustomActionRequestParameters(value="919876543210",
+                                                      parameter_type=ActionParameterType.value.value),
+        initial_screen="REGISTER",
+        flow_token="AHSKSSLLHLSKLSKS",
+        flow_cta="Sign Up",
+        response="Flow Triggered",
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    resp_msg = json.dumps({
+        "messaging_product": "whatsapp",
+        "contacts": [
+            {
+                "input": "919876543210",
+                "wa_id": "919876543210"
+            }
+        ],
+        "messages": [
+            {
+                "id": "wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=="
+            }
+        ]
+    })
+
+    aioresponses.add(
+        method=responses.POST,
+        url="https://waba-v2.360dialog.io/messages",
+        body=resp_msg,
+        status=200
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'flow_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Flow Triggered'}
+    ]
+    assert response_json['responses'][0]['text'] == 'Flow Triggered'
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop("_id")
+    log.pop("timestamp")
+    log['headers'].pop('X-TimeStamp')
+    assert log == {'type': 'flow_action', 'intent': 'flow_action', 'action': 'test_flow_action_execution',
+                   'sender': 'default', 'headers': {'D360-API-KEY': 'abxyYxCNkabcdefgh9OpMfIAK'},
+                   'url': 'https://waba-v2.360dialog.io/messages',
+                   'request_params': {'recipient_type': 'individual', 'messaging_product': 'whatsapp', 'type': 'interactive', 'interactive': {'type': 'flow', 'action': {'name': 'flow', 'parameters': {'mode': 'published', 'flow_message_version': '3', 'flow_token': 'AHSKSSLLHLSKLSKS', 'flow_action': 'navigate', 'flow_cta': 'Sign Up', 'flow_id': '9191123456789', 'flow_action_payload': {'screen': 'REGISTER'}}}, 'body': {'text': 'Fill the Sign Up Form'}}, 'to': '919876543210'},
+                   'api_response': "{'messaging_product': 'whatsapp', 'contacts': [{'input': '919876543210', 'wa_id': '919876543210'}], 'messages': [{'id': 'wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=='}]}",
+                   'bot_response': 'Flow Triggered', 'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS',
+                   'user_msg': 'get intents'}
+
+
+@responses.activate
+def test_flow_action_execution_with_flow_id_from_slot(aioresponses):
+    action_name = "test_flow_action_execution_with_flow_id_from_slot"
+    Actions(name=action_name, type=ActionType.flow_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    FlowActionConfig(
+        name=action_name,
+        flow_id=CustomActionRequestParameters(value="flow_id",
+                                              parameter_type=ActionParameterType.slot.value),
+        body="Fill the Sign Up Form",
+        recipient_phone=CustomActionRequestParameters(value="919876543210",
+                                                      parameter_type=ActionParameterType.value.value),
+        initial_screen="REGISTER",
+        flow_token="AHSKSSLLHLSKLSKS",
+        flow_action="data_exchange",
+        flow_cta="Sign Up",
+        response="Flow Triggered",
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    resp_msg = json.dumps({
+        "messaging_product": "whatsapp",
+        "contacts": [
+            {
+                "input": "919876543210",
+                "wa_id": "919876543210"
+            }
+        ],
+        "messages": [
+            {
+                "id": "wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=="
+            }
+        ]
+    })
+
+    aioresponses.add(
+        method=responses.POST,
+        url="https://waba-v2.360dialog.io/messages",
+        body=resp_msg,
+        status=200
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "flow_id": "919112345678900303", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'flow_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Flow Triggered'}
+    ]
+    assert response_json['responses'][0]['text'] == 'Flow Triggered'
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop("_id")
+    log.pop("timestamp")
+    log['headers'].pop('X-TimeStamp')
+    assert log == {'type': 'flow_action', 'intent': 'flow_action',
+                   'action': 'test_flow_action_execution_with_flow_id_from_slot',
+                   'sender': 'default', 'headers': {'D360-API-KEY': 'abxyYxCNkabcdefgh9OpMfIAK'},
+                   'url': 'https://waba-v2.360dialog.io/messages',
+                   'request_params': {'recipient_type': 'individual', 'messaging_product': 'whatsapp', 'type': 'interactive', 'interactive': {'type': 'flow', 'action': {'name': 'flow', 'parameters': {'mode': 'published', 'flow_message_version': '3', 'flow_token': 'AHSKSSLLHLSKLSKS', 'flow_action': 'data_exchange', 'flow_cta': 'Sign Up', 'flow_id': '919112345678900303', 'flow_action_payload': {'screen': 'REGISTER'}}}, 'body': {'text': 'Fill the Sign Up Form'}}, 'to': '919876543210'},
+                   'api_response': "{'messaging_product': 'whatsapp', 'contacts': [{'input': '919876543210', 'wa_id': '919876543210'}], 'messages': [{'id': 'wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=='}]}",
+                   'bot_response': 'Flow Triggered', 'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS',
+                   'user_msg': 'get intents'}
+
+
+@responses.activate
+def test_flow_action_execution_with_recipient_phone_from_slot(aioresponses):
+    action_name = "test_flow_action_execution_with_recipient_phone_from_slot"
+    Actions(name=action_name, type=ActionType.flow_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    FlowActionConfig(
+        name=action_name,
+        flow_id=CustomActionRequestParameters(value="9191123456789",
+                                              parameter_type=ActionParameterType.value.value),
+        body="Fill the Sign Up Form",
+        recipient_phone=CustomActionRequestParameters(value="phone",
+                                                      parameter_type=ActionParameterType.slot.value),
+        initial_screen="REGISTER",
+        flow_cta="Sign Up",
+        flow_token="AHSKSSLLHLSKLSKS",
+        response="Flow Triggered",
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    resp_msg = json.dumps({
+        "messaging_product": "whatsapp",
+        "contacts": [
+            {
+                "input": "919877766554",
+                "wa_id": "919877766554"
+            }
+        ],
+        "messages": [
+            {
+                "id": "wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=="
+            }
+        ]
+    })
+
+    aioresponses.add(
+        method=responses.POST,
+        url="https://waba-v2.360dialog.io/messages",
+        body=resp_msg,
+        status=200
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "phone": "919877766554", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'flow_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Flow Triggered'}
+    ]
+    assert response_json['responses'][0]['text'] == 'Flow Triggered'
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop("_id")
+    log.pop("timestamp")
+    log['headers'].pop('X-TimeStamp')
+    assert log == {'type': 'flow_action', 'intent': 'flow_action',
+                   'action': 'test_flow_action_execution_with_recipient_phone_from_slot',
+                   'sender': 'default', 'headers': {'D360-API-KEY': 'abxyYxCNkabcdefgh9OpMfIAK'},
+                   'url': 'https://waba-v2.360dialog.io/messages',
+                   'request_params': {'recipient_type': 'individual', 'messaging_product': 'whatsapp', 'type': 'interactive', 'interactive': {'type': 'flow', 'action': {'name': 'flow', 'parameters': {'mode': 'published', 'flow_message_version': '3', 'flow_token': 'AHSKSSLLHLSKLSKS', 'flow_action': 'navigate', 'flow_cta': 'Sign Up', 'flow_id': '9191123456789', 'flow_action_payload': {'screen': 'REGISTER'}}}, 'body': {'text': 'Fill the Sign Up Form'}}, 'to': '919877766554'},
+                   'api_response': "{'messaging_product': 'whatsapp', 'contacts': [{'input': '919877766554', 'wa_id': '919877766554'}], 'messages': [{'id': 'wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=='}]}",
+                   'bot_response': 'Flow Triggered', 'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS',
+                   'user_msg': 'get intents'}
+
+
+@responses.activate
+def test_flow_action_execution_with_header_footer(aioresponses):
+    action_name = "test_flow_action_execution_with_header_footer"
+    Actions(name=action_name, type=ActionType.flow_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    FlowActionConfig(
+        name=action_name,
+        flow_id=CustomActionRequestParameters(value="9191123456789",
+                                              parameter_type=ActionParameterType.value.value),
+        body="Fill the Sign Up Form",
+        header="This is flow header",
+        footer="This is flow footer",
+        recipient_phone=CustomActionRequestParameters(value="919876543210",
+                                                      parameter_type=ActionParameterType.value.value),
+        initial_screen="REGISTER",
+        flow_token="AHSKSSLLHLSKLSKS",
+        flow_cta="Sign Up",
+        response="Flow Triggered",
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    resp_msg = json.dumps({
+        "messaging_product": "whatsapp",
+        "contacts": [
+            {
+                "input": "919876543210",
+                "wa_id": "919876543210"
+            }
+        ],
+        "messages": [
+            {
+                "id": "wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=="
+            }
+        ]
+    })
+
+    aioresponses.add(
+        method=responses.POST,
+        url="https://waba-v2.360dialog.io/messages",
+        body=resp_msg,
+        status=200
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'flow_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Flow Triggered'}
+    ]
+    assert response_json['responses'][0]['text'] == 'Flow Triggered'
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop("_id")
+    log.pop("timestamp")
+    log['headers'].pop('X-TimeStamp')
+    assert log == {'type': 'flow_action', 'intent': 'flow_action',
+                   'action': 'test_flow_action_execution_with_header_footer',
+                   'sender': 'default', 'headers': {'D360-API-KEY': 'abxyYxCNkabcdefgh9OpMfIAK'},
+                   'url': 'https://waba-v2.360dialog.io/messages',
+                   'request_params': {'recipient_type': 'individual', 'messaging_product': 'whatsapp', 'type': 'interactive', 'interactive': {'type': 'flow', 'action': {'name': 'flow', 'parameters': {'mode': 'published', 'flow_message_version': '3', 'flow_token': 'AHSKSSLLHLSKLSKS', 'flow_action': 'navigate', 'flow_cta': 'Sign Up', 'flow_id': '9191123456789', 'flow_action_payload': {'screen': 'REGISTER'}}}, 'header': {'type': 'text', 'text': 'This is flow header'}, 'body': {'text': 'Fill the Sign Up Form'}, 'footer': {'text': 'This is flow footer'}}, 'to': '919876543210'},
+                   'api_response': "{'messaging_product': 'whatsapp', 'contacts': [{'input': '919876543210', 'wa_id': '919876543210'}], 'messages': [{'id': 'wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=='}]}",
+                   'bot_response': 'Flow Triggered', 'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS',
+                   'user_msg': 'get intents'}
+
+
+@responses.activate
+def test_flow_action_execution_with_dispatch_response_disabled(aioresponses):
+    action_name = "test_flow_action_execution_with_dispatch_response_disabled"
+    Actions(name=action_name, type=ActionType.flow_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    FlowActionConfig(
+        name=action_name,
+        flow_id=CustomActionRequestParameters(value="9191123498765432",
+                                              parameter_type=ActionParameterType.value.value),
+        body="Fill the Sign Up Form",
+        header="This is flow header",
+        footer="This is flow footer",
+        mode="draft",
+        recipient_phone=CustomActionRequestParameters(value="919876543210",
+                                                      parameter_type=ActionParameterType.value.value),
+        initial_screen="REGISTER",
+        flow_cta="Sign Up",
+        flow_token="AHSKSSLLHLSKLSKS",
+        response="Flow Triggered",
+        dispatch_response=False,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    resp_msg = json.dumps({
+        "messaging_product": "whatsapp",
+        "contacts": [
+            {
+                "input": "919876543210",
+                "wa_id": "919876543210"
+            }
+        ],
+        "messages": [
+            {
+                "id": "wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=="
+            }
+        ]
+    })
+
+    aioresponses.add(
+        method=responses.POST,
+        url="https://waba-v2.360dialog.io/messages",
+        body=resp_msg,
+        status=200
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'flow_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 0
+    assert response_json['responses'] == []
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Flow Triggered'}
+    ]
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop("_id")
+    log.pop("timestamp")
+    log['headers'].pop('X-TimeStamp')
+    assert log == {'type': 'flow_action', 'intent': 'flow_action',
+                   'action': 'test_flow_action_execution_with_dispatch_response_disabled',
+                   'sender': 'default', 'headers': {'D360-API-KEY': 'abxyYxCNkabcdefgh9OpMfIAK'},
+                   'url': 'https://waba-v2.360dialog.io/messages',
+                   'request_params': {'recipient_type': 'individual', 'messaging_product': 'whatsapp', 'type': 'interactive', 'interactive': {'type': 'flow', 'action': {'name': 'flow', 'parameters': {'mode': 'draft', 'flow_message_version': '3', 'flow_token': 'AHSKSSLLHLSKLSKS', 'flow_action': 'navigate', 'flow_cta': 'Sign Up', 'flow_id': '9191123498765432', 'flow_action_payload': {'screen': 'REGISTER'}}}, 'header': {'type': 'text', 'text': 'This is flow header'}, 'body': {'text': 'Fill the Sign Up Form'}, 'footer': {'text': 'This is flow footer'}}, 'to': '919876543210'},
+                   'api_response': "{'messaging_product': 'whatsapp', 'contacts': [{'input': '919876543210', 'wa_id': '919876543210'}], 'messages': [{'id': 'wamid.HBgMOTE5NTEsTdlFsldsGldlsHfsfndMEIxQTMwMjQ1MzRDQTdEAA=='}]}",
+                   'bot_response': 'Flow Triggered', 'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS',
+                   'user_msg': 'get intents'}
 
 
 @responses.activate

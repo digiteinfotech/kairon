@@ -7,7 +7,7 @@ from kairon.api.models import (
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
-    WebSearchActionRequest, LiveAgentActionRequest
+    WebSearchActionRequest, LiveAgentActionRequest, FlowActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -64,6 +64,42 @@ async def update_http_action(
     response = {"http_config_id": http_config_id}
     message = "Http action updated!"
     return Response(data=response, message=message)
+
+
+@router.post("/flow", response_model=Response)
+async def add_flow_action(
+        request_data: FlowActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the flow action config
+    """
+    flow_config_id = mongo_processor.add_flow_action(request_data.dict(), current_user.get_user(),
+                                                     current_user.get_bot())
+    return Response(data={"_id": flow_config_id}, message="Action added!")
+
+
+@router.put("/flow", response_model=Response)
+async def update_flow_action(
+        request_data: FlowActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates the flow action config
+    """
+    action_id = mongo_processor.update_flow_action(request_data=request_data.dict(), user=current_user.get_user(),
+                                                   bot=current_user.get_bot())
+    return Response(data={"_id": action_id}, message="Action updated!")
+
+
+@router.get("/flow", response_model=Response)
+async def list_flow_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of flow actions for bot.
+    """
+    actions = list(mongo_processor.list_flow_actions(bot=current_user.get_bot()))
+    return Response(data=actions)
 
 
 @router.post("/pyscript", response_model=Response)
