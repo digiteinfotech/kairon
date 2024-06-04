@@ -192,7 +192,7 @@ class TestAccountProcessor:
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
 
     def test_add_member_already_exists(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         with pytest.raises(AppException, match='User is already a collaborator'):
             AccountProcessor.allow_bot_and_generate_invite_url(bot_id, "fshaikh@digite.com", 'testAdmin',
@@ -204,7 +204,7 @@ class TestAccountProcessor:
                                                                pytest.account)
 
     def test_list_bot_accessors_1(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
         assert len(accessors) == 1
@@ -216,7 +216,7 @@ class TestAccountProcessor:
         assert accessors[0]['timestamp']
 
     def test_update_bot_access_modify_bot_owner_access(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         with pytest.raises(AppException, match='Ownership modification denied'):
             AccountProcessor.update_bot_access(bot_id, "fshaikh@digite.com", 'testAdmin',
@@ -226,7 +226,7 @@ class TestAccountProcessor:
                                                ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value)
 
     def test_update_bot_access_user_not_exists(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         BotAccess(bot=bot_id, accessor_email="udit.pandey@digite.com", user='test',
                   role='designer', status='invite_not_accepted', bot_account=pytest.account).save()
@@ -236,7 +236,7 @@ class TestAccountProcessor:
 
     def test_update_bot_access_invite_not_accepted(self, monkeypatch):
         monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         User(email='udit.pandey@digite.com', first_name='udit', last_name='pandey', password='124556779', account=10,
              user='udit.pandey@digite.com').save()
@@ -263,7 +263,7 @@ class TestAccountProcessor:
         AccountProcessor.add_account('pandey.udit867@gmail.com', 'pandey.udit867@gmail.com')
         User(email='pandey.udit867@gmail.com', first_name='udit', last_name='pandey', password='124556779', account=10,
              user='pandey.udit867@gmail.com').save()
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         with pytest.raises(AppException, match='User not yet invited to collaborate'):
             AccountProcessor.update_bot_access(bot_id, "pandey.udit867@gmail.com",
@@ -275,7 +275,7 @@ class TestAccountProcessor:
 
         monkeypatch.setattr(AccountProcessor, 'get_user_details', _mock_get_user)
 
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         token = Utility.generate_token("udit.pandey@digite.com")
         AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
@@ -288,7 +288,7 @@ class TestAccountProcessor:
 
     def test_update_bot_access(self):
         account_bot_info = \
-            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
         assert ('test_version_2', 'fshaikh@digite.com', 'Fahad Ali', 'udit') == AccountProcessor.update_bot_access(
@@ -310,7 +310,7 @@ class TestAccountProcessor:
 
     def test_update_bot_access_invalid_role(self):
         account_bot_info = \
-            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
 
@@ -320,7 +320,7 @@ class TestAccountProcessor:
 
     def test_update_bot_access_to_same_role(self):
         account_bot_info = \
-            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
 
@@ -334,14 +334,14 @@ class TestAccountProcessor:
 
         monkeypatch.setattr(AccountProcessor, 'get_user_details', _mock_get_user)
 
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         token = Utility.generate_token("pandey.udit867@gmail.com")
         with pytest.raises(AppException, match='No pending invite found for this bot and user'):
             AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
 
     def test_accept_bot_access_invite_token_expired(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6InBhbmRleS51ZGl0ODY3QGdtYWlsLmNvbSIsImV4cCI6MTUxNjIzOTAyMn0.dP8a4rHXb9dBrPFKfKD3_tfKu4NdwfSz213F15qej18'
         with pytest.raises(AppException, match='Invalid token'):
@@ -353,7 +353,7 @@ class TestAccountProcessor:
             AccountProcessor.validate_request_and_accept_bot_access_invite(token, '61cb4e2f7c7ac78d2fa8fab7')
 
     def test_list_bot_accessors_2(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
         assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
@@ -376,7 +376,7 @@ class TestAccountProcessor:
                                                                ACCESS_ROLES.OWNER.value)
 
     def test_transfer_ownership(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         AccountProcessor.transfer_ownership(pytest.account, bot_id, "fshaikh@digite.com", 'udit.pandey@digite.com')
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
@@ -407,7 +407,7 @@ class TestAccountProcessor:
         assert AccountProcessor.get_bot_and_validate_status(bot_id)['account'] == pytest.account
 
     def test_transfer_ownership_to_non_member(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         User(email='udit@demo.ai', first_name='udit', last_name='pandey', password='124556779', account=10,
              user='udit@demo.ai').save()
@@ -415,13 +415,13 @@ class TestAccountProcessor:
             AccountProcessor.transfer_ownership(pytest.account, bot_id, "fshaikh@digite.com", 'udit@demo.ai')
 
     def test_remove_bot_access_not_a_member(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         with pytest.raises(AppException, match='User not a collaborator to this bot'):
             AccountProcessor.remove_bot_access(bot_id, accessor_email='pandey.udit867@gmail.com')
 
     def test_remove_bot_access(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][0][
             '_id']
         assert not AccountProcessor.remove_bot_access(bot_id, accessor_email='udit.pandey@digite.com')
         assert len(list(AccountProcessor.list_bot_accessors(bot_id))) == 1
@@ -442,9 +442,9 @@ class TestAccountProcessor:
 
     def test_list_bots_2(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
-        assert bot[0]['name'] == 'test'
+        assert bot[0]['name'] == 'test_version_2'
         assert bot[0]['_id']
-        assert bot[1]['name'] == 'test_version_2'
+        assert bot[1]['name'] == 'test'
         assert bot[1]['_id']
 
     def test_update_bot_name(self):
