@@ -62,6 +62,7 @@ class UserActivityType(str, Enum):
     invalid_login = 'invalid_login'
     download = "download"
     template_creation = 'template_creation'
+    flow_creation = "flow_creation"
     model_reload = "model_reload"
 
 
@@ -129,6 +130,27 @@ class ElementTypes(str, Enum):
 
 class WhatsappBSPTypes(str, Enum):
     bsp_360dialog = "360dialog"
+
+
+class FlowCategories(str, Enum):
+    SIGN_UP = "SIGN_UP"
+    SIGN_IN = "SIGN_IN"
+    APPOINTMENT_BOOKING = "APPOINTMENT_BOOKING"
+    LEAD_GENERATION = "LEAD_GENERATION"
+    CONTACT_US = "CONTACT_US"
+    CUSTOMER_SUPPORT = "CUSTOMER_SUPPORT"
+    SURVEY = "SURVEY"
+    OTHER = "OTHER"
+
+
+class FlowTemplates(str, Enum):
+    FLOWS_DEFAULT = "FLOWS_DEFAULT"
+    FLOWS_OFFSITE_CALL_TO_ACTION = "FLOWS_OFFSITE_CALL_TO_ACTION"
+    FLOWS_CUSTOMER_SATISFACTION = "FLOWS_CUSTOMER_SATISFACTION"
+    FLOWS_LEAD_RE_ENGAGEMENT = "FLOWS_LEAD_RE_ENGAGEMENT"
+    FLOWS_CONTENT_ENGAGEMENT = "FLOWS_CONTENT_ENGAGEMENT"
+    FLOWS_REQUEST_SUPPORT = "FLOWS_REQUEST_SUPPORT"
+    FLOWS_UPDATE_PREFERENCES = "FLOWS_UPDATE_PREFERENCES"
 
 
 class GPT3ResourceTypes(str, Enum):

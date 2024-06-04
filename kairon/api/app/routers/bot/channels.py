@@ -106,6 +106,128 @@ async def initiate_platform_onboarding(
     return Response(message='Channel added', data=channel_endpoint)
 
 
+@router.post("/whatsapp/flows/{bsp_type}", response_model=Response)
+async def add_whatsapp_flow(
+        request_data: DictData,
+        bsp_type: str = Path(description="Business service provider type",
+                             examples=[WhatsappBSPTypes.bsp_360dialog.value]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Adds whatsapp flows for configured bsp account. New Flows are created as drafts.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.add_whatsapp_flow(request_data.data, current_user.get_bot(), current_user.get_user())
+    return Response(data=response)
+
+
+@router.post("/whatsapp/flows/{bsp_type}/{flow_id}", response_model=Response)
+async def edit_whatsapp_flow(
+        request_data: DictData,
+        flow_id: str = Path(description="flow id", examples=["594425479261596"]),
+        bsp_type: str = Path(description="Business service provider type",
+                             examples=[WhatsappBSPTypes.bsp_360dialog.value]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits whatsapp flows for configured bsp account. New Flows are created as drafts.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.edit_whatsapp_flow(flow_id, request_data.data.get("flow_json"))
+    return Response(data=response)
+
+
+@router.get("/whatsapp/flows/{bsp_type}/{flow_id}", response_model=Response)
+async def preview_whatsapp_flow(
+        flow_id: str = Path(description="flow id", examples=["594425479261596"]),
+        bsp_type: str = Path(description="Business service provider type",
+                             examples=[WhatsappBSPTypes.bsp_360dialog.value]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Flows can be previewed through a public link generated with this endpoint.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.preview_whatsapp_flow(flow_id)
+    return Response(data=response)
+
+
+@router.get("/whatsapp/flows/{bsp_type}/{flow_id}/assets", response_model=Response)
+async def get_whatsapp_flow_assets(
+        flow_id: str = Path(description="flow id", examples=["594425479261596"]),
+        bsp_type: str = Path(description="Business service provider type",
+                             examples=[WhatsappBSPTypes.bsp_360dialog.value]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Returns all assets attached to a specified flow with this endpoint.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.get_whatsapp_flow_assets(flow_id)
+    return Response(data=response)
+
+
+@router.post("/whatsapp/flows/{bsp_type}/{flow_id}/deprecate", response_model=Response)
+async def deprecate_whatsapp_flow(
+        flow_id: str = Path(description="flow id", examples=["594425479261596"]),
+        bsp_type: str = Path(description="Business service provider type",
+                             examples=[WhatsappBSPTypes.bsp_360dialog.value]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Flow can be deprecated with this endpoint.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.deprecate_whatsapp_flow(flow_id)
+    return Response(data=response)
+
+
+@router.get("/whatsapp/flows/{bsp_type}", response_model=Response)
+async def retrieve_whatsapp_flows(
+        request: Request,
+        bsp_type: str = Path(description="Business service provider type",
+                             examples=[WhatsappBSPTypes.bsp_360dialog.value]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Retrieves all whatsapp flows for configured bsp account.
+    Query parameters passed are used as filters while retrieving these flows.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    flows = provider.list_whatsapp_flows(**request.query_params)
+    return Response(data={"flows": flows})
+
+
+@router.delete("/whatsapp/flows/{bsp_type}/{flow_id}", response_model=Response)
+async def delete_whatsapp_flow(
+        flow_id: str = Path(description="flow id", examples=["594425479261596"]),
+        bsp_type: str = Path(description="Business service provider type",
+                             examples=[WhatsappBSPTypes.bsp_360dialog.value]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes whatsapp flow from configured bsp account.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.delete_flow(flow_id)
+    return Response(data=response)
+
+
+@router.post("/whatsapp/flows/{bsp_type}/{flow_id}/publish", response_model=Response)
+async def publish_whatsapp_flow(
+        flow_id: str = Path(description="flow id", examples=["594425479261596"]),
+        bsp_type: str = Path(description="Business service provider type",
+                             examples=[WhatsappBSPTypes.bsp_360dialog.value]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Publishes whatsapp flow from configured bsp account.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    response = provider.publish_flow(flow_id)
+    return Response(data=response)
+
+
 @router.post("/whatsapp/templates/{bsp_type}", response_model=Response)
 async def add_message_templates(
         request_data: DictData,

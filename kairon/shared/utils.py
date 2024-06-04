@@ -67,7 +67,7 @@ from validators.utils import ValidationError as ValidationFailure
 from websockets import connect
 
 from .actions.models import ActionParameterType
-from .constants import EventClass, UserActivityType
+from .constants import EventClass, UserActivityType, FlowCategories, FlowTemplates
 from .constants import (
     MaskingStrategy,
     SYSTEM_TRIGGERED_UTTERANCES,
@@ -1301,6 +1301,22 @@ class Utility:
             )
 
     @staticmethod
+    def validate_add_flow_request(data: Dict):
+        required_keys = ['name', 'categories', 'template']
+        missing_keys = [key for key in required_keys if key not in data]
+        if missing_keys:
+            raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
+        categories = data.get('categories')
+        template = data.get('template')
+        invalid_categories = [category for category in categories
+                              if category not in [flow_category.value for flow_category in FlowCategories]]
+        invalid_template = template if template not in [flow_template.value for flow_template in FlowTemplates] else ""
+        if invalid_categories:
+            raise AppException(f'Invalid categories {", ".join(invalid_categories)} in request body!')
+        if invalid_template:
+            raise AppException(f'Invalid template {template} in request body!')
+
+    @staticmethod
     def validate_create_template_request(data: Dict):
         required_keys = ["name", "category", "components", "language"]
         missing_keys = [key for key in required_keys if key not in data]
@@ -1695,13 +1711,16 @@ class Utility:
                     timeout=kwargs.get("timeout"),
                 )
             elif request_method.lower() in ["post", "put", "patch"]:
-                response = session.request(
-                    request_method.upper(),
-                    http_url,
-                    json=request_body,
-                    headers=headers,
-                    timeout=kwargs.get("timeout"),
-                )
+                if kwargs.get('files'):
+                    response = session.request(
+                        request_method.upper(), http_url, data=request_body, headers=headers,
+                        timeout=kwargs.get('timeout'), files=kwargs.get('files')
+                    )
+                else:
+                    response = session.request(
+                        request_method.upper(), http_url, json=request_body, headers=headers,
+                        timeout=kwargs.get('timeout')
+                    )
             else:
                 raise AppException("Invalid request method!")
             logger.debug("raw response: " + str(response.text))

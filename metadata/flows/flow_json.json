@@ -1,0 +1,195 @@
+{
+    "version": "3.1",
+    "screens": [
+        {
+            "id": "RECOMMEND",
+            "title": "Feedback 1 of 2",
+            "data": {},
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "form",
+                        "children": [
+                            {
+                                "type": "TextSubheading",
+                                "text": "Would you recommend us to a friend?"
+                            },
+                            {
+                                "type": "RadioButtonsGroup",
+                                "label": "Choose one",
+                                "name": "recommend_radio",
+                                "data-source": [
+                                    {
+                                        "id": "0",
+                                        "title": "Yes"
+                                    },
+                                    {
+                                        "id": "1",
+                                        "title": "No"
+                                    }
+                                ],
+                                "required": true
+                            },
+                            {
+                                "type": "TextSubheading",
+                                "text": "How could we do better?"
+                            },
+                            {
+                                "type": "TextArea",
+                                "label": "Leave a comment",
+                                "required": false,
+                                "name": "comment_text"
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Continue",
+                                "on-click-action": {
+                                    "name": "navigate",
+                                    "next": {
+                                        "type": "screen",
+                                        "name": "RATE"
+                                    },
+                                    "payload": {
+                                        "recommend_radio": "${form.recommend_radio}",
+                                        "comment_text": "${form.comment_text}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "RATE",
+            "title": "Feedback 2 of 2",
+            "data": {
+                "recommend_radio": {
+                    "type": "string",
+                    "__example__": "Example"
+                },
+                "comment_text": {
+                    "type": "string",
+                    "__example__": "Example"
+                }
+            },
+            "terminal": true,
+            "success": true,
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "Form",
+                        "name": "form",
+                        "children": [
+                            {
+                                "type": "TextSubheading",
+                                "text": "Rate the following: "
+                            },
+                            {
+                                "type": "Dropdown",
+                                "label": "Purchase experience",
+                                "required": true,
+                                "name": "purchase_rating",
+                                "data-source": [
+                                    {
+                                        "id": "0",
+                                        "title": "\u2605\u2605\u2605\u2605\u2605 \u2022 Excellent (5/5)"
+                                    },
+                                    {
+                                        "id": "1",
+                                        "title": "\u2605\u2605\u2605\u2605\u2606 \u2022 Good (4/5)"
+                                    },
+                                    {
+                                        "id": "2",
+                                        "title": "\u2605\u2605\u2605\u2606\u2606 \u2022 Average (3/5)"
+                                    },
+                                    {
+                                        "id": "3",
+                                        "title": "\u2605\u2605\u2606\u2606\u2606 \u2022 Poor (2/5)"
+                                    },
+                                    {
+                                        "id": "4",
+                                        "title": "\u2605\u2606\u2606\u2606\u2606 \u2022 Very Poor (1/5)"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "Dropdown",
+                                "label": "Delivery and setup",
+                                "required": true,
+                                "name": "delivery_rating",
+                                "data-source": [
+                                    {
+                                        "id": "0",
+                                        "title": "\u2605\u2605\u2605\u2605\u2605 \u2022 Excellent (5/5)"
+                                    },
+                                    {
+                                        "id": "1",
+                                        "title": "\u2605\u2605\u2605\u2605\u2606 \u2022 Good (4/5)"
+                                    },
+                                    {
+                                        "id": "2",
+                                        "title": "\u2605\u2605\u2605\u2606\u2606 \u2022 Average (3/5)"
+                                    },
+                                    {
+                                        "id": "3",
+                                        "title": "\u2605\u2605\u2606\u2606\u2606 \u2022 Poor (2/5)"
+                                    },
+                                    {
+                                        "id": "4",
+                                        "title": "\u2605\u2606\u2606\u2606\u2606 \u2022 Very Poor (1/5)"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "Dropdown",
+                                "label": "Customer service",
+                                "required": true,
+                                "name": "cs_rating",
+                                "data-source": [
+                                    {
+                                        "id": "0",
+                                        "title": "\u2605\u2605\u2605\u2605\u2605 \u2022 Excellent (5/5)"
+                                    },
+                                    {
+                                        "id": "1",
+                                        "title": "\u2605\u2605\u2605\u2605\u2606 \u2022 Good (4/5)"
+                                    },
+                                    {
+                                        "id": "2",
+                                        "title": "\u2605\u2605\u2605\u2606\u2606 \u2022 Average (3/5)"
+                                    },
+                                    {
+                                        "id": "3",
+                                        "title": "\u2605\u2605\u2606\u2606\u2606 \u2022 Poor (2/5)"
+                                    },
+                                    {
+                                        "id": "4",
+                                        "title": "\u2605\u2606\u2606\u2606\u2606 \u2022 Very Poor (1/5)"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Done",
+                                "on-click-action": {
+                                    "name": "complete",
+                                    "payload": {
+                                        "purchase_rating": "${form.purchase_rating}",
+                                        "delivery_rating": "${form.delivery_rating}",
+                                        "cs_rating": "${form.cs_rating}",
+                                        "recommend_radio": "${data.recommend_radio}",
+                                        "comment_text": "${data.comment_text}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
