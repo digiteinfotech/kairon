@@ -32,7 +32,12 @@ class ChatUtils:
         model = AgentProcessor.get_agent(bot)
         metadata = ChatUtils.__get_metadata(account, bot, is_integration_user, metadata)
         msg = UserMessage(data, sender_id=user, metadata=metadata)
-        chat_response = await model.handle_message(msg)
+        chat_response = await AgentProcessor.handle_channel_message(bot, msg)
+        if not chat_response:
+            return {
+                "success": True,
+                "message": "user message delivered to live agent."
+            }
         await ChatUtils.__attach_agent_handoff_metadata(
             account, bot, user, chat_response, model.tracker_store
         )

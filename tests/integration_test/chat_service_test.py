@@ -796,6 +796,17 @@ def test_chat():
         > 0
     )
 
+def test_chat_verification():
+    response = client.get(
+        f"/api/bot/{bot}/verify/chat",
+        headers={"Authorization": token_type + " " + token},
+        timeout=0,
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
 
 def test_chat_with_user():
     access_token = chat_client_config["config"]["headers"]["authorization"][

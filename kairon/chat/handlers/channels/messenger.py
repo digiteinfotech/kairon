@@ -34,10 +34,12 @@ class Messenger:
     def __init__(
             self,
             page_access_token: Text,
+            is_instagram = False
     ) -> None:
 
         self.client = MessengerClient(page_access_token)
         self.last_message: Dict[Text, Any] = {}
+        self.is_instagram = is_instagram
 
     def get_user_id(self) -> Text:
         sender_id = self.last_message.get("sender", {}).get("id", "")
@@ -179,9 +181,9 @@ class Messenger:
 
         out_channel = MessengerBot(self.client)
         await out_channel.send_action(sender_id, sender_action="mark_seen")
-
+        input_channel_name = self.name() if not self.is_instagram else "instagram"
         user_msg = UserMessage(
-            text, out_channel, sender_id, input_channel=self.name(), metadata=metadata
+            text, out_channel, sender_id, input_channel=input_channel_name, metadata=metadata
         )
         await out_channel.send_action(sender_id, sender_action="typing_on")
 
@@ -502,7 +504,7 @@ class InstagramHandler(MessengerHandler):
             )
             return "not validated"
 
-        messenger = Messenger(page_access_token)
+        messenger = Messenger(page_access_token, is_instagram=True)
 
         metadata = self.get_metadata(self.request) or {}
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "instagram", "tabname": "default"})
