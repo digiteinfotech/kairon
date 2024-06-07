@@ -583,9 +583,6 @@ class StoryRequest(BaseModel):
             if v[i].type == StoryStepType.intent and v[j].type == StoryStepType.stop_flow_action:
                 raise ValueError("Stop Flow Action should not be after intent")
 
-        if v[len(v) - 1].type == StoryStepType.stop_flow_action and len(v) == 1:
-            raise ValueError("Stop Flow Action cannot be the only step in the flow")
-
         if "type" in values:
             if values["type"] == StoryType.rule and intents > 1:
                 raise ValueError(

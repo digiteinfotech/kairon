@@ -6113,6 +6113,58 @@ def test_add_story_empty_event():
     ]
 
 
+def test_add_story_stop_flow_action_not_at_end():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "test_add_story_stop_flow_action_not_at_end",
+            "type": "STORY",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_goodbye", "type": "BOT"},
+                {"name": "stop", "type": "STOP_FLOW_ACTION"},
+                {"name": "utter_goodbye", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {
+            "loc": ["body", "steps"],
+            "msg": "Stop Flow Action should only be at the end of the flow",
+            "type": "value_error",
+        }
+    ]
+
+
+def test_add_story_stop_flow_action_after_intent():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "test_add_story_stop_flow_action_after_intent",
+            "type": "STORY",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "stop", "type": "STOP_FLOW_ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {
+            "loc": ["body", "steps"],
+            "msg": "Stop Flow Action should not be after intent",
+            "type": "value_error",
+        }
+    ]
+
+
 def test_add_story_lone_intent():
     response = client.post(
         f"/api/bot/{pytest.bot}/stories",
@@ -6138,7 +6190,6 @@ def test_add_story_lone_intent():
             "type": "value_error",
         }
     ]
-
 
 def test_add_story_consecutive_intents():
     response = client.post(
