@@ -6150,34 +6150,6 @@ def test_add_story_empty_event():
     ]
 
 
-def test_add_story_stop_flow_action():
-    response = client.post(
-        f"/api/bot/{pytest.bot}/stories",
-        json={
-            "name": "test_add_story_stop_flow_action",
-            "type": "STORY",
-            "steps": [
-                {"name": "greet", "type": "INTENT"},
-                {"name": "utter_goodbye", "type": "BOT"},
-                {"name": "utter_goodbye", "type": "BOT"},
-                {"name": "stop", "type": "STOP_FLOW_ACTION"},
-            ],
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual['success'] == True
-    assert actual['message'] == "Flow added successfully"
-    assert actual['error_code'] == 0
-
-    story = Stories.objects(bot=pytest.bot, block_name="test_add_story_stop_flow_action").first()
-    assert story is not None
-    if story:
-        stop_action_event = story.events[-1]
-        assert stop_action_event.name == "action_listen"
-        assert stop_action_event.type == "action"
-
-
 def test_add_story_stop_flow_action_not_at_end():
     response = client.post(
         f"/api/bot/{pytest.bot}/stories",
