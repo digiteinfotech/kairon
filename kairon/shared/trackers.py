@@ -131,6 +131,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                     )
             flattened_conversation["data"]["action"] = actions_predicted
             flattened_conversation["data"]["bot_response"] = bot_responses
+            flattened_conversation["metadata"] = metadata
             data.append(flattened_conversation)
             if data:
                 self.conversations.insert_many(data)
