@@ -10985,6 +10985,25 @@ class TestMongoProcessor:
                                                      'utter_please_rephrase', 'utter_custom', 'utter_query',
                                                      'utter_more_queries']}, ignore_order=True)
 
+    def test_add_complex_story_with_stop_flow_action(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_goodbye", "type": "BOT"},
+            {"name": "utter_goodbye", "type": "BOT"},
+            {"name": "stop", "type": "STOP_FLOW_ACTION"}
+        ]
+        story_dict = {'name': "story with stop flow action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        pytest.story_id_three = processor.add_complex_story(story_dict, "tests", "testUser")
+        story = Stories.objects(block_name="story with stop flow action", bot="tests").get()
+        assert len(story.events) == 4
+        assert story is not None
+        if story:
+            stop_action_event = story.events[-1]
+            assert stop_action_event.name == "action_listen"
+            assert stop_action_event.type == "action"
+
+
     def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()
         steps = [
@@ -13038,7 +13057,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         data = list(processor.get_stories("tests"))
         assert all(item['type'] in ['STORY', 'RULE'] for item in data)
-        assert len(data) == 9
+        assert len(data) == 10
 
     def test_update_empty_rule_name(self):
         processor = MongoProcessor()
