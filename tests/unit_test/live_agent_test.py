@@ -125,3 +125,13 @@ async def test_authenticate_agent_service_unavailable(mock_environment, bot_id):
          patch.object(LiveAgentHandler, 'is_live_agent_service_available', return_value=False):
         response = await LiveAgentHandler.authenticate_agent(user, bot_id)
         assert not response
+
+
+def test_get_channel():
+    user_message = UserMessage('test', output_channel=MagicMock())
+    user_message.output_channel.name.return_value = 'collector'
+    ch = LiveAgentHandler.get_channel(user_message)
+    assert ch == 'web'
+    user_message.output_channel.name.return_value = 'other'
+    ch = LiveAgentHandler.get_channel(user_message)
+    assert ch == 'other'

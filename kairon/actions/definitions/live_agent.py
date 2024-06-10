@@ -67,12 +67,15 @@ class ActionLiveAgent(ActionsBase):
         dispatch_bot_response = True
         status = "SUCCESS"
         msg_logger = []
-
+        is_web = False
         try:
             action_config = self.retrieve_config()
             dispatch_bot_response = action_config.get('dispatch_bot_response', True)
             bot_response = action_config.get('bot_response')
-            channel = CONST_CHANNEL_NAME_MAP[tracker.get_latest_input_channel()]
+            channel_key = tracker.get_latest_input_channel()
+            if not channel_key:
+                is_web = True
+            channel = CONST_CHANNEL_NAME_MAP[channel_key] if channel_key else 'web'
             resp_data = await LiveAgentHandler.request_live_agent(self.bot, tracker.sender_id, channel)
             if resp_data and resp_data.get('msg'):
                 bot_response = resp_data.get('msg')
@@ -86,6 +89,11 @@ class ActionLiveAgent(ActionsBase):
             bot_response = bot_response if bot_response else "Sorry, I am unable to process your request at the moment."
         finally:
             if dispatch_bot_response:
+                if is_web:
+                    bot_response = {
+                        'action': 'live_agent',
+                        'response': bot_response
+                    }
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, DispatchType.text.value, bot_response)
                 if message:
                     msg_logger.append(message)
