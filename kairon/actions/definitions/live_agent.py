@@ -94,7 +94,8 @@ class ActionLiveAgent(ActionsBase):
                         'action': 'live_agent',
                         'response': bot_response
                     }
-                bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, DispatchType.text.value, bot_response)
+                dispatch_type = DispatchType.json.value if is_web else DispatchType.text.value
+                bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, bot_response)
                 if message:
                     msg_logger.append(message)
             ActionServerLogs(
