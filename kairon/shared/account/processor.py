@@ -209,7 +209,7 @@ class AccountProcessor:
 
     @staticmethod
     def list_bots(account_id: int):
-        for bot in Bot.objects(account=account_id, status=True):
+        for bot in Bot.objects(account=account_id, status=True).order_by('-modified_at'):
             bot = bot.to_mongo().to_dict()
             bot.pop("status")
             bot["role"] = ACCESS_ROLES.OWNER.value
@@ -224,6 +224,7 @@ class AccountProcessor:
             raise AppException("Bot Name cannot be more than 60 characters.")
         try:
             bot_info = Bot.objects(id=bot, status=True).get()
+            bot_info.modified_at = datetime.utcnow()
             bot_info.name = name
             bot_info.save()
         except DoesNotExist:
