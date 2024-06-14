@@ -82,3 +82,12 @@ async def reload_model(
     """
     background_tasks.add_task(ChatUtils.reload, bot, current_user.get_user())
     return {"message": "Reloading Model!"}
+
+
+@router.get('/verify/chat', response_model=Response)
+async def verity_auth(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)):
+    return {"message": "verification successful", "data": {
+        "sender_id": current_user.get_user(),
+        "bot_id": current_user.get_bot()
+    }}
+

@@ -28,6 +28,7 @@ class StoryStepType(str, Enum):
     database_action = "DATABASE_ACTION"
     web_search_action = "WEB_SEARCH_ACTION"
     live_agent_action = "LIVE_AGENT_ACTION"
+    stop_flow_action = "STOP_FLOW_ACTION"
 
 
 class StoryType(str, Enum):

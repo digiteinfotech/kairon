@@ -27,6 +27,14 @@ class LiveAgentHandler:
             return False
 
     @staticmethod
+    def get_channel(userdata: UserMessage):
+        channel = userdata.output_channel.name()
+        # output channel not set -> web
+        if channel == 'collector':
+            channel = 'web'
+        return channel
+
+    @staticmethod
     async def request_live_agent(bot_id: str, sender_id: str, channel: str):
         if not LiveAgentHandler.is_live_agent_service_available(bot_id):
             return {'msg': 'Live agent service is not available'}
@@ -62,18 +70,18 @@ class LiveAgentHandler:
         data = {
             "bot_id": bot_id,
             "sender_id": userdata.sender_id,
-            "channel": userdata.output_channel.name(),
+            "channel": LiveAgentHandler.get_channel(userdata),
             "message": userdata.text
         }
         res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
         if status != 200:
-            raise Exception(res.get('message', "Failed to process request"))
+            raise Exception("Failed to process request")
 
     @staticmethod
     async def check_live_agent_active(bot_id, userdata: UserMessage):
         if not LiveAgentHandler.is_live_agent_service_available(bot_id):
             return False
-        channel = userdata.output_channel.name()
+        channel = LiveAgentHandler.get_channel(userdata)
         sender_id = userdata.sender_id
         url = f"{Utility.environment['live_agent']['url']}/conversation/status/{bot_id}/{channel}/{sender_id}"
         auth_token = Utility.environment['live_agent']['auth_token']
