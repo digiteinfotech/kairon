@@ -1758,7 +1758,38 @@ class TestEventExecution:
         )
         mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 10, "dynamic_broadcast_execution_timeout": 21600}
-        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_send.return_value = {
+            "contacts": [
+                {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
+            ],
+            "messages": [
+                {
+                    "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ"
+                }
+            ]
+        }
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='Failed',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            errors=[
+                {
+                    "code": 130472,
+                    "title": "User's number is part of an experiment",
+                    "message": "User's number is part of an experiment",
+                    "error_data": {
+                        "details": "Failed to send message because this user's phone number is part of an experiment"
+                    },
+                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                }
+            ],
+            bot=bot,
+            user=user
+        ).save()
 
         with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
             event = MessageBroadcastEvent(bot, user)
@@ -1767,6 +1798,18 @@ class TestEventExecution:
             event.execute(event_id)
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+
+        coll = MessageBroadcastProcessor.get_db_client(bot)
+        history = list(coll.find({}))
+        print(history)
+        history[0].pop("timestamp")
+        history[0].pop("_id")
+        history[0].pop("conversation_id")
+        assert history[0] == {
+            'type': 'broadcast', 'sender_id': '918958030541',
+            'data': {'name': 'agronomy_support', 'template': template, 'template_params': [{'body': 'Udit Pandey'}],},
+            'status': 'Failed'
+        }
 
         assert len(logs[0]) == logs[1] == 2
         logs[0][1].pop("timestamp")
@@ -1785,10 +1828,19 @@ class TestEventExecution:
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'template': template,
-                              'bot': bot, 'status': 'Success', 'api_response': {
-                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+                              'bot': bot, 'status': 'Failed',
+                              'api_response': {
+                                  'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
+                              'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ'}]},
                               'recipient': '918958030541', 'template_params': [{'body': 'Udit Pandey'}],
-                              'template_name': 'agronomy_support'}
+                              'template_name': 'agronomy_support',
+                              'errors': [
+                                  {'code': 130472, 'title': "User's number is part of an experiment",
+                                   'message': "User's number is part of an experiment",
+                                   'error_data': {
+                                       'details': "Failed to send message because this user's phone number is part of an experiment"},
+                                   'href': 'https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/'}
+                              ]}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
