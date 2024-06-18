@@ -5584,14 +5584,7 @@ class MongoProcessor:
             client_config.config['headers']['X-USER'] = user
         client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
         client_config.config['nudge_server_url'] = Utility.environment['nudge']['server_url']
-
-        live_agent_url = Utility.environment['live_agent']['url']
-        parsed_url = urlparse(live_agent_url)
-        la_protocol = parsed_url.scheme
-        la_base_url = parsed_url.netloc
-        la_ws_protocol = 'ws' if la_protocol == 'http' else 'wss'
-        la_ws_url = f'{la_ws_protocol}://{la_base_url}/ws/client'
-        client_config.config['live_agent_socket_url'] = la_ws_url
+        client_config.config['live_agent_socket_url'] = Utility.environment['live_agent']['live_agent_socket_url']
 
         token, refresh_token = Authentication.generate_integration_token(
             bot,

@@ -239,4 +239,5 @@ core:
 live_agent:
   enable: true
   url: ${LIVE_AGENT_SERVER_URL:"http://localhost:8000/api/v1"}
+  live_agent_socket_url: ${LIVE_AGENT_SOCKET_URL:"ws://localhost:8000/ws/client"}
   auth_token: ${LIVE_AGENT_AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoia2Fpcm9uIn0.EJXuG2n8dy72h9J-8SoIBToVmnB4gpXDGKg_Smcz-C8"}
