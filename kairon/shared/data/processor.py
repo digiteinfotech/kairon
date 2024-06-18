@@ -7,7 +7,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Text, Dict, List, Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from loguru import logger
 
 import networkx as nx
@@ -5584,6 +5584,8 @@ class MongoProcessor:
             client_config.config['headers']['X-USER'] = user
         client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
         client_config.config['nudge_server_url'] = Utility.environment['nudge']['server_url']
+        client_config.config['live_agent_socket_url'] = Utility.environment['live_agent']['live_agent_socket_url']
+
         token, refresh_token = Authentication.generate_integration_token(
             bot,
             user,

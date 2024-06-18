@@ -45,7 +45,6 @@ class ActionLiveAgent(ActionsBase):
         try:
             live_agent_config_dict = LiveAgentActionConfig.objects().get(bot=self.bot,
                                                               name=self.name, status=True).to_mongo().to_dict()
-            logger.debug("live_agent_action_config: " + str(live_agent_config_dict))
             return live_agent_config_dict
         except DoesNotExist as e:
             logger.exception(e)
@@ -79,6 +78,7 @@ class ActionLiveAgent(ActionsBase):
             resp_data = await LiveAgentHandler.request_live_agent(self.bot, tracker.sender_id, channel)
             if resp_data and resp_data.get('msg'):
                 bot_response = resp_data.get('msg')
+                dispatch_bot_response = True
             self.__is_success = True
             self.__response = bot_response
         except Exception as e:
@@ -98,6 +98,15 @@ class ActionLiveAgent(ActionsBase):
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, bot_response)
                 if message:
                     msg_logger.append(message)
+            elif is_web:
+                resp_obj = {
+                    'action': 'live_agent',
+                    'response': None,
+                }
+                bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher,
+                                                                                DispatchType.json.value,
+                                                                                resp_obj)
+
             ActionServerLogs(
                 type=ActionType.live_agent_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),

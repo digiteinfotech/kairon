@@ -11,8 +11,9 @@ from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mock import patch
-from mongoengine import connect
+from mongoengine import connect, DoesNotExist
 
+from kairon.actions.definitions.live_agent import ActionLiveAgent
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.server import action
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
@@ -20,6 +21,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
     DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig
+from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
@@ -496,6 +498,11 @@ def test_live_agent_action_execution_with_exception(aioresponses):
     assert response_json == {'events': [], 'responses': [{'text': 'Connecting to live agent', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
 
 
+def test_retrieve_config_failure():
+    patch('kairon.actions.definitions.live_agent.LiveAgentActionConfig.objects().get', side_effect=DoesNotExist)
+    action_live_agent = ActionLiveAgent(bot='test_bot', name='test_action')
+    with pytest.raises(ActionFailure, match="No Live Agent action found for given action and bot"):
+        action_live_agent.retrieve_config()
 
 
 @responses.activate
