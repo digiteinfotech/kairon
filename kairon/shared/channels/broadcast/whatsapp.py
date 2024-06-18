@@ -33,6 +33,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         try:
             expr = self.config["recipients_config"]["recipients"]
             recipients = [number.strip() for number in expr.split(',')]
+            recipients = [f"91{number}" if len(number) == 10 else number for number in recipients]
+            recipients = list(set(recipients))
         except Exception as e:
             raise AppException(f"Failed to evaluate recipients: {e}")
 
@@ -57,6 +59,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         client = self.__get_db_client()
 
         def send_msg(template_id: Text, recipient, language_code: Text = "en", components: Dict = None, namespace: Text = None):
+            recipient = f"91{recipient}" if len(recipient) == 10 else recipient
             response = channel_client.send_template_message(template_id, recipient, language_code, components, namespace)
             status = "Failed" if response.get("error") else "Success"
             raw_template = self.__get_template(template_id, language_code)
@@ -64,9 +67,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                 status=status, recipient=recipient, template_params=components, template=raw_template,
-                event_id=self.event_id
+                event_id=self.event_id, template_name=template_id
             )
-            self.__log_broadcast_in_conversation_history(template_id, recipient, components, raw_template, client)
 
             return response
 
@@ -115,13 +117,11 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                     status = "Failed" if response.get("errors") else "Success"
                     if status == "Failed":
                         failure_cnt = failure_cnt + 1
-                    else:
-                        self.__log_broadcast_in_conversation_history(template_id, recipient, t_params, raw_template, db_client)
 
                     MessageBroadcastProcessor.add_event_log(
                         self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                         status=status, recipient=recipient, template_params=t_params, template=raw_template,
-                        event_id=self.event_id
+                        event_id=self.event_id, template_name=template_id
                     )
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
