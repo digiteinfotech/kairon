@@ -99,7 +99,8 @@ class HistoryProcessor:
                                                       "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                                     "$lte": Utility.get_timestamp_from_date(to_date)}}},
                                           {"$sort": {"timestamp": 1}},
-                                          {"$project": {"_id": 0, "sender_id": 1, "conversation_id": 1, "data": 1, "timestamp": 1}}])
+                                          {"$project": {"_id": 0, "sender_id": 1, "conversation_id": 1, "data": 1,
+                                                        "timestamp": 1, "status": 1}}])
                               )
                 if values:
                     return values, message
