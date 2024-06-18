@@ -45,7 +45,6 @@ class ActionLiveAgent(ActionsBase):
         try:
             live_agent_config_dict = LiveAgentActionConfig.objects().get(bot=self.bot,
                                                               name=self.name, status=True).to_mongo().to_dict()
-            logger.debug("live_agent_action_config: " + str(live_agent_config_dict))
             return live_agent_config_dict
         except DoesNotExist as e:
             logger.exception(e)
