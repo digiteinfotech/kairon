@@ -31,7 +31,7 @@ class TestUtility:
         enable = True
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
-        url = f"https://ipinfo.io/{ip}?token={token}"
+        url = f"https://ipinfo.io/batch?token={token}"
         expected = {
             "ip": "140.82.201.129",
             "city": "Mumbai",
@@ -42,7 +42,7 @@ class TestUtility:
             "postal": "400070",
             "timezone": "Asia/Kolkata"
         }
-        responses.add("GET", url, json=expected)
+        responses.add("POST", url, json=expected)
         response = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip=ip)
         assert response == expected
 
@@ -58,8 +58,8 @@ class TestUtility:
         enable = True
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
-        url = f"https://ipinfo.io/{ip}?token={token}"
-        responses.add("GET", url, status=400)
+        url = f"https://ipinfo.io/batch?token={token}"
+        responses.add("POST", url, status=400)
         response = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip)
         assert not response
 
