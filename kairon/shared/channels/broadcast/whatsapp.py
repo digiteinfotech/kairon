@@ -1,9 +1,7 @@
 import ujson as json
 from typing import List, Text, Dict
 
-import pymongo
 import requests
-from uuid6 import uuid7
 
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
@@ -33,7 +31,6 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         try:
             expr = self.config["recipients_config"]["recipients"]
             recipients = [number.strip() for number in expr.split(',')]
-            recipients = [f"91{number}" if len(number) == 10 else number for number in recipients]
             recipients = list(set(recipients))
         except Exception as e:
             raise AppException(f"Failed to evaluate recipients: {e}")
@@ -56,10 +53,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         script = self.config['pyscript']
         timeout = self.config.get('pyscript_timeout', 60)
         channel_client = self.__get_client()
-        client = self.__get_db_client()
 
         def send_msg(template_id: Text, recipient, language_code: Text = "en", components: Dict = None, namespace: Text = None):
-            recipient = f"91{recipient}" if len(recipient) == 10 else recipient
             response = channel_client.send_template_message(template_id, recipient, language_code, components, namespace)
             status = "Failed" if response.get("error") else "Success"
             raw_template = self.__get_template(template_id, language_code)
@@ -92,7 +87,6 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
     def __send_using_configuration(self, recipients: List):
         channel_client = self.__get_client()
         total = len(recipients)
-        db_client = self.__get_db_client()
 
         for i, template_config in enumerate(self.config['template_config']):
             failure_cnt = 0
@@ -144,21 +138,3 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         for template in BSP360Dialog(self.bot, self.user).list_templates(**{"business_templates.name": name}):
             if template.get("language") == language:
                 return template.get("components")
-
-    def __log_broadcast_in_conversation_history(self, template_id, contact: Text, template_params, template, mongo_client):
-        import time
-
-        mongo_client.insert_one({
-            "type": "broadcast", "sender_id": contact, "conversation_id": uuid7().hex, "timestamp": time.time(),
-            "data": {"name":template_id, "template": template, "template_params": template_params}
-        })
-
-    def __get_db_client(self):
-        config = Utility.get_local_db()
-        client = pymongo.MongoClient(
-            host=config['host'], username=config.get('username'), password=config.get('password'),
-            authSource=config['options'].get("authSource") if config['options'].get("authSource") else "admin"
-        )
-        db = client.get_database(config['db'])
-        coll = db.get_collection(self.bot)
-        return coll
