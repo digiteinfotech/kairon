@@ -29,7 +29,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
     def get_account(self, channel_id: Text):
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
         partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
-        url = f"{base_url}/api/v2/partners/{partner_id}/channels?filters={{'id':'{channel_id}'}}"
+        url = f'{base_url}/api/v2/partners/{partner_id}/channels?filters={{"id":"{channel_id}"}}'
         headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
         resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers, validate_status=True, err_msg="Failed to retrieve account info: ")
         return resp.get("partner_channels", {})[0].get("waba_account", {}).get("id")
@@ -65,7 +65,10 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
 
         if isinstance(channels, str):
-            channels = ast.literal_eval(channels)
+            try:
+                channels = ast.literal_eval(channels)
+            except ValueError:
+                channels = channels.strip('[]').split(',')
         if len(channels) == 0:
             raise AppException("Failed to save channel config, onboarding unsuccessful!")
 
@@ -180,7 +183,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         url = f"{base_url}/api/v2/partners/{partner_id}/channels/{channel_id}/api_keys"
         headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
         resp = Utility.execute_http_request(request_method="POST", http_url=url, headers=headers,
-                                            validate_status=True,
+                                            validate_status=False,
                                             err_msg="Failed to generate api_keys for business account: ")
         api_key = resp.get("api_key")
         return api_key
