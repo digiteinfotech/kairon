@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import Text
 
 from kairon import Utility
@@ -15,10 +16,12 @@ class IpInfoTracker(BasePlugin):
                 logger.error("ip is required")
                 return
             try:
+                ip_list = [ip.strip() for ip in ip.split(",")]
                 headers = {"user-agent": "IPinfoClient/Python3.8/4.2.1", "accept": "application/json"}
                 token = Utility.environment["plugins"]["location"]["token"]
-                url = f"https://ipinfo.io/{ip}?token={token}"
-                tracking_info = Utility.execute_http_request("GET", url, headers=headers)
+                url = f"https://ipinfo.io/batch?token={token}"
+                payload = json.dumps(ip_list)
+                tracking_info = Utility.execute_http_request("POST", url, headers=headers, data=payload)
                 return tracking_info
             except Exception as e:
                 logger.exception(e)

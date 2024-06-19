@@ -22081,7 +22081,9 @@ def test_add_end_user_metrics_with_ip(monkeypatch):
     enable = True
     monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
     monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
-    url = f"https://ipinfo.io/{ip}?token={token}"
+    ip_list = [ip.strip() for ip in ip.split(",")]
+    url = f"https://ipinfo.io/batch?token={token}"
+    payload = json.dumps(ip_list)
     expected = {
         "ip": "140.82.201.129",
         "city": "Mumbai",
@@ -22092,7 +22094,7 @@ def test_add_end_user_metrics_with_ip(monkeypatch):
         "postal": "400070",
         "timezone": "Asia/Kolkata",
     }
-    responses.add("GET", url, json=expected)
+    responses.add("POST", url, json=expected)
     response = client.post(
         f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={
@@ -22164,7 +22166,24 @@ def test_add_and_update_conversation_feedback(monkeypatch):
     assert actual["message"] == "Metrics updated"
 
 
-def test_get_end_user_metrics():
+def test_get_end_user_metrics(monkeypatch):
+    token = "abcgd563"
+    enable = True
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
+    monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
+    url = f"https://ipinfo.io/batch?token={token}"
+
+    expected = {
+        "ip": "140.82.201.129",
+        "city": "Mumbai",
+        "region": "Maharashtra",
+        "country": "IN",
+        "loc": "19.0728,72.8826",
+        "org": "AS13150 CATO NETWORKS LTD",
+        "postal": "400070",
+        "timezone": "Asia/Kolkata",
+    }
+    responses.add("POST", url, json=expected)
     for i in range(5):
         client.post(
             f"/api/bot/{pytest.bot}/metric/user/logs/{MetricType.agent_handoff}",
