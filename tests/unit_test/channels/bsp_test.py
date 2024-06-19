@@ -66,7 +66,7 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
         monkeypatch.setitem(Utility.environment["channels"]["360dialog"], "partner_id", partner_id)
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        url = f"{base_url}/api/v2/partners/{partner_id}/channels?filters={{'id':'{channel_id}'}}"
+        url = f'{base_url}/api/v2/partners/{partner_id}/channels?filters={{"id":"{channel_id}"}}'
         api_resp = {
             "count": 3,
             "filters": {},
@@ -110,7 +110,7 @@ class TestBusinessServiceProvider:
         monkeypatch.setitem(Utility.environment["channels"]["360dialog"], "partner_id", partner_id)
 
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        url = f"{base_url}/api/v2/partners/{partner_id}/channels?filters={{'id':'{channel_id}'}}"
+        url = f'{base_url}/api/v2/partners/{partner_id}/channels?filters={{"id":"{channel_id}"}}'
         responses.add("GET", json={}, url=url, status=500)
         with pytest.raises(AppException, match=r"Failed to retrieve account info: *"):
             BSP360Dialog("test", "test").get_account(channel_id)
@@ -183,10 +183,17 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
         monkeypatch.setitem(Utility.environment["channels"]["360dialog"], "partner_id", 'f167CmPA')
         url = "https://hub.360dialog.io/api/v2/partners/f167CmPA/channels/skds23Ga/api_keys"
-        responses.add("POST", json={}, url=url, status=500)
+        response_data = {
+            "meta": {
+                "success": False,
+                "http_code": 404,
+                "developer_message": "Some error"
+            }
+        }
+        responses.add("POST", json=response_data, url=url, status=404)
 
-        with pytest.raises(AppException, match=r"Failed to generate api_keys for business account: *"):
-            BSP360Dialog.generate_waba_key("skds23Ga")
+        actual_resp = BSP360Dialog.generate_waba_key("skds23Ga")
+        assert actual_resp is None
 
     def test_save_channel_config_without_channels(self, monkeypatch):
         bot = "62bc24b493a0d6b7a46328f5"
