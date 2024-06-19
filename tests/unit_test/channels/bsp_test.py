@@ -298,6 +298,41 @@ class TestBusinessServiceProvider:
                                     'partner_id': partner_id, 'bsp_type': '360dialog',
                                     'api_key': 'kHCwksdsdsMVYVx0doabaDyRLUQJUAK', 'waba_account_id': 'Cyih7GWA'}
 
+    def test_save_channel_config_with_string_list_channel_ids(self, monkeypatch):
+        bot = "62bc24b493a0d6b7a46328ff"
+        user = "test_user"
+        clientId = "kairon"
+        client = "skds23Ga"
+        channels = "[dfghjkl,afghlml,sfghlkl]"
+        partner_id = "new_partner_id"
+
+        def _get_integration_token(*args, **kwargs):
+            return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
+
+        def _generate_waba_key(*args, **kwargs):
+            return "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
+
+        def _get_waba_account_id(*args, **kwargs):
+            return "Cyih7GWA"
+
+        def _mock_get_bot_settings(*args, **kwargs):
+            return BotSettings(whatsapp="360dialog")
+
+        monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+        monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
+        monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', "test_id")
+        monkeypatch.setattr(Authentication, 'generate_integration_token', _get_integration_token)
+        monkeypatch.setattr(BSP360Dialog, 'generate_waba_key', _generate_waba_key)
+        monkeypatch.setattr(BSP360Dialog, 'get_account', _get_waba_account_id)
+
+        endpoint = BSP360Dialog(bot, user).save_channel_config(clientId, client, channels, partner_id)
+        assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328ff/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
+        config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
+        assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
+                                    'partner_id': partner_id, 'bsp_type': '360dialog',
+                                    'api_key': 'kHCwksdsdsMVYVx0doabaDyRLUQJUAK', 'waba_account_id': 'Cyih7GWA'}
+
+
     @responses.activate
     def test_add_template(self, monkeypatch):
         with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
