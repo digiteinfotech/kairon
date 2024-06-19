@@ -153,18 +153,21 @@ class MessageBroadcastProcessor:
             msg_id = log["message_id"]
             broadcast_log = broadcast_logs[msg_id]
             client = MessageBroadcastProcessor.get_db_client(broadcast_log['bot'])
-            status = None
             if log['errors']:
                 status = "Failed"
                 broadcast_log.update(errors=log['errors'], status="Failed")
+                MessageBroadcastProcessor.log_broadcast_in_conversation_history(
+                    template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
+                    template_params=broadcast_log['template_params'], template=broadcast_log['template'],
+                    status=status, mongo_client=client
+                )
             elif log['status'] in ['delivered', 'read']:
                 status = "Success"
-
-            MessageBroadcastProcessor.log_broadcast_in_conversation_history(
-                template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
-                template_params=broadcast_log['template_params'], template=broadcast_log['template'],
-                status=status, mongo_client=client
-            )
+                MessageBroadcastProcessor.log_broadcast_in_conversation_history(
+                    template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
+                    template_params=broadcast_log['template_params'], template=broadcast_log['template'],
+                    status=status, mongo_client=client
+                )
 
         ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id, campaign_name=campaign_name)
 
