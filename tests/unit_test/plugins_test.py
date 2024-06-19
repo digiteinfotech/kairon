@@ -46,6 +46,33 @@ class TestUtility:
         response = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip=ip)
         assert response == expected
 
+        ip= "119.151.16.200, 136.226.244.176"
+        expected= [
+            {
+                "ip": "119.151.16.200",
+                "city": "Hyderābād",
+                "region": "Telangana",
+                "country": "IN",
+                "loc": "17.3840,78.4564",
+                "org": "AS45432 Tech Mahindra Limited",
+                "postal": "500001",
+                "timezone": "Asia/Kolkata"
+            },
+            {
+                "ip": "136.226.244.176",
+                "city": "Chennai",
+                "region": "Tamil Nadu",
+                "country": "IN",
+                "loc": "13.0878,80.2785",
+                "org": "AS53813 ZSCALER, INC.",
+                "postal": "600001",
+                "timezone": "Asia/Kolkata"
+            }
+        ]
+        responses.add("POST", url, json=expected)
+        response=PluginFactory.get_instance(PluginTypes.ip_info).execute(ip=ip)
+        assert response == expected
+
     def test_enable_plugin(self):
         ip = "192.222.100.106"
         response = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip=ip)
