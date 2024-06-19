@@ -122,13 +122,48 @@ class MessageBroadcastProcessor:
         return broadcast_logs
 
     @staticmethod
+    def get_db_client(bot: Text):
+        import pymongo
+
+        config = Utility.get_local_db()
+        client = pymongo.MongoClient(
+            host=config['host'], username=config.get('username'), password=config.get('password'),
+            authSource=config['options'].get("authSource") if config['options'].get("authSource") else "admin"
+        )
+        db = client.get_database(config['db'])
+        coll = db.get_collection(bot)
+        return coll
+
+    @staticmethod
+    def log_broadcast_in_conversation_history(template_id, contact: Text, template_params, template,
+                                              status, mongo_client):
+        import time
+        from uuid6 import uuid7
+
+        mongo_client.insert_one({
+            "type": "broadcast", "sender_id": contact, "conversation_id": uuid7().hex, "timestamp": time.time(),
+            "data": {"name": template_id, "template": template, "template_params": template_params}, "status": status
+        })
+
+    @staticmethod
     def __add_broadcast_logs_status_and_errors(reference_id: Text, campaign_name: Text, broadcast_logs: Dict[Text, Document]):
         message_ids = list(broadcast_logs.keys())
         channel_logs = ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value)
         for log in channel_logs:
+            msg_id = log["message_id"]
+            broadcast_log = broadcast_logs[msg_id]
+            client = MessageBroadcastProcessor.get_db_client(broadcast_log['bot'])
             if log['errors']:
-                msg_id = log["message_id"]
-                broadcast_logs[msg_id].update(errors=log['errors'], status="Failed")
+                status = "Failed"
+                broadcast_log.update(errors=log['errors'], status="Failed")
+            else:
+                status = "Success"
+
+            MessageBroadcastProcessor.log_broadcast_in_conversation_history(
+                template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
+                template_params=broadcast_log['template_params'], template=broadcast_log['template'],
+                status=status, mongo_client=client
+            )
 
         ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id, campaign_name=campaign_name)
 

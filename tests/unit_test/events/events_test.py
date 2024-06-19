@@ -1281,7 +1281,7 @@ class TestEventExecution:
                                      'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
                                      'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
                                                    'message_status': 'accepted'}]}, 'recipient': '918958030541',
-                                 'template_params': None, 'template': [
+                                 'template_params': None, 'template_name': 'brochure_pdf', 'template': [
                 {'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'}, {
                     'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.',
                     'type': 'BODY'}, {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
@@ -1379,15 +1379,18 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
+        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
-                              'user': 'test_user', 'recipients': ['918958030541', ''], 'failure_cnt': 0, 'total': 2,
+                              'user': 'test_user', 'recipients': {'', '918958030541'},
+                              'failure_cnt': 0, 'total': 2,
                               'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send',
                               'bot': 'test_execute_message_broadcast', 'status': 'Success', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-                              'recipient': '918958030541', 'template_params': None, "template": template}
+                              'recipient': '918958030541', 'template_params': None, "template": template,
+                              'template_name': 'brochure_pdf'}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
@@ -1488,8 +1491,10 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
+        logs[0][2]['recipients'] = set(logs[0][2]['recipients'])
         assert logs[0][2] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
-                              'status': 'Completed', 'user': 'test_user', 'recipients': ['9876543210', '876543212345'],
+                              'status': 'Completed', 'user': 'test_user',
+                              'recipients': {'876543212345', '9876543210'},
                               'template_params': [[{'type': 'header', 'parameters': [{'type': 'document', 'document': {
                                   'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                   'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
@@ -1507,7 +1512,8 @@ class TestEventExecution:
                               'template_params': [{'type': 'header', 'parameters': [
                                   {'type': 'document', 'document': {
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                      'filename': 'Brochure.pdf'}}]}], "template": template}
+                                      'filename': 'Brochure.pdf'}}]}], "template": template,
+                              'template_name': 'brochure_pdf'}
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
@@ -1515,12 +1521,13 @@ class TestEventExecution:
                               'template_params': [{'type': 'header', 'parameters': [
                                   {'type': 'document', 'document': {
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                      'filename': 'Brochure.pdf'}}]}], "template": template}
+                                      'filename': 'Brochure.pdf'}}]}], "template": template,
+                              'template_name': 'brochure_pdf'}
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
         assert mock_send.call_args[0][1] == 'brochure_pdf'
-        assert mock_send.call_args[0][2] == '876543212345'
+        assert mock_send.call_args[0][2] in ['876543212345', '9876543210']
         assert mock_send.call_args[0][3] == 'hi'
         assert mock_send.call_args[0][4] == [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
             'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
@@ -1751,7 +1758,38 @@ class TestEventExecution:
         )
         mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 10, "dynamic_broadcast_execution_timeout": 21600}
-        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_send.return_value = {
+            "contacts": [
+                {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
+            ],
+            "messages": [
+                {
+                    "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ"
+                }
+            ]
+        }
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='Failed',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            errors=[
+                {
+                    "code": 130472,
+                    "title": "User's number is part of an experiment",
+                    "message": "User's number is part of an experiment",
+                    "error_data": {
+                        "details": "Failed to send message because this user's phone number is part of an experiment"
+                    },
+                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                }
+            ],
+            bot=bot,
+            user=user
+        ).save()
 
         with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
             event = MessageBroadcastEvent(bot, user)
@@ -1761,15 +1799,17 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 
-        coll = WhatsappBroadcast(bot, user, {}, event_id, "")._WhatsappBroadcast__get_db_client()
+        coll = MessageBroadcastProcessor.get_db_client(bot)
         history = list(coll.find({}))
         print(history)
         history[0].pop("timestamp")
         history[0].pop("_id")
         history[0].pop("conversation_id")
-        assert history == [{
+        assert history[0] == {
             'type': 'broadcast', 'sender_id': '918958030541',
-            'data': {'name': 'agronomy_support', 'template': template, 'template_params': [{'body': 'Udit Pandey'}],}}]
+            'data': {'name': 'agronomy_support', 'template': template, 'template_params': [{'body': 'Udit Pandey'}],},
+            'status': 'Failed'
+        }
 
         assert len(logs[0]) == logs[1] == 2
         logs[0][1].pop("timestamp")
@@ -1780,16 +1820,27 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         assert logged_config == config
+        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
-                              'user': 'test_user', 'recipients': ['918958030541', ''], 'failure_cnt': 0, 'total': 2,
+                              'user': 'test_user', 'recipients': {'918958030541', ''}, 'failure_cnt': 0, 'total': 2,
                               'template_params': [[{'body': 'Udit Pandey'}]],
                               'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'template': template,
-                              'bot': bot, 'status': 'Success', 'api_response': {
-                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-                              'recipient': '918958030541', 'template_params': [{'body': 'Udit Pandey'}]}
+                              'bot': bot, 'status': 'Failed',
+                              'api_response': {
+                                  'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
+                              'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ'}]},
+                              'recipient': '918958030541', 'template_params': [{'body': 'Udit Pandey'}],
+                              'template_name': 'agronomy_support',
+                              'errors': [
+                                  {'code': 130472, 'title': "User's number is part of an experiment",
+                                   'message': "User's number is part of an experiment",
+                                   'error_data': {
+                                       'details': "Failed to send message because this user's phone number is part of an experiment"},
+                                   'href': 'https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/'}
+                              ]}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)

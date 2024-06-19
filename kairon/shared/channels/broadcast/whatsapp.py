@@ -1,9 +1,7 @@
 import ujson as json
 from typing import List, Text, Dict
 
-import pymongo
 import requests
-from uuid6 import uuid7
 
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
@@ -33,6 +31,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         try:
             expr = self.config["recipients_config"]["recipients"]
             recipients = [number.strip() for number in expr.split(',')]
+            recipients = list(set(recipients))
         except Exception as e:
             raise AppException(f"Failed to evaluate recipients: {e}")
 
@@ -54,7 +53,6 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         script = self.config['pyscript']
         timeout = self.config.get('pyscript_timeout', 60)
         channel_client = self.__get_client()
-        client = self.__get_db_client()
 
         def send_msg(template_id: Text, recipient, language_code: Text = "en", components: Dict = None, namespace: Text = None):
             response = channel_client.send_template_message(template_id, recipient, language_code, components, namespace)
@@ -64,9 +62,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                 status=status, recipient=recipient, template_params=components, template=raw_template,
-                event_id=self.event_id
+                event_id=self.event_id, template_name=template_id
             )
-            self.__log_broadcast_in_conversation_history(template_id, recipient, components, raw_template, client)
 
             return response
 
@@ -90,7 +87,6 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
     def __send_using_configuration(self, recipients: List):
         channel_client = self.__get_client()
         total = len(recipients)
-        db_client = self.__get_db_client()
 
         for i, template_config in enumerate(self.config['template_config']):
             failure_cnt = 0
@@ -115,13 +111,11 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                     status = "Failed" if response.get("errors") else "Success"
                     if status == "Failed":
                         failure_cnt = failure_cnt + 1
-                    else:
-                        self.__log_broadcast_in_conversation_history(template_id, recipient, t_params, raw_template, db_client)
 
                     MessageBroadcastProcessor.add_event_log(
                         self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                         status=status, recipient=recipient, template_params=t_params, template=raw_template,
-                        event_id=self.event_id
+                        event_id=self.event_id, template_name=template_id
                     )
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
@@ -144,21 +138,3 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         for template in BSP360Dialog(self.bot, self.user).list_templates(**{"business_templates.name": name}):
             if template.get("language") == language:
                 return template.get("components")
-
-    def __log_broadcast_in_conversation_history(self, template_id, contact: Text, template_params, template, mongo_client):
-        import time
-
-        mongo_client.insert_one({
-            "type": "broadcast", "sender_id": contact, "conversation_id": uuid7().hex, "timestamp": time.time(),
-            "data": {"name":template_id, "template": template, "template_params": template_params}
-        })
-
-    def __get_db_client(self):
-        config = Utility.get_local_db()
-        client = pymongo.MongoClient(
-            host=config['host'], username=config.get('username'), password=config.get('password'),
-            authSource=config['options'].get("authSource") if config['options'].get("authSource") else "admin"
-        )
-        db = client.get_database(config['db'])
-        coll = db.get_collection(self.bot)
-        return coll
