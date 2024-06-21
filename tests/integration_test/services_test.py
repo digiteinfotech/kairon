@@ -23,6 +23,9 @@ from pipedrive.exceptions import UnauthorizedError
 from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
+from kairon.shared.utils import Utility, MailUtility
+
+Utility.load_system_metadata()
 
 from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
@@ -69,7 +72,6 @@ from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
-from kairon.shared.utils import Utility, MailUtility
 from urllib.parse import urlencode
 from deepdiff import DeepDiff
 
@@ -4100,9 +4102,10 @@ def test_get_prompt_action():
     assert actual["error_code"] == 0
     assert not actual["message"]
     actual["data"][0].pop("_id")
-    assert actual["data"] == [
+    assert not DeepDiff(actual["data"], [
         {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'failure_message': 'updated_failure_message',
          'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+         'llm_type': 'openai',
          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                              'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                              'logit_bias': {}}, 'llm_prompts': [
@@ -4118,7 +4121,7 @@ def test_get_prompt_action():
                                    'instructions': 'Answer according to the context', 'type': 'query',
                                    'source': 'static', 'is_enabled': True}],
          'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [], 'dispatch_response': True,
-         'status': True}]
+         'status': True}], ignore_order=True)
 
 
 def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypatch):
@@ -4191,10 +4194,11 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
     assert actual["error_code"] == 0
     assert not actual["message"]
     actual["data"][1].pop("_id")
-    assert actual["data"][1] == {
+    assert not DeepDiff(actual["data"][1], {
         'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt', 'num_bot_responses': 5,
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
+        'llm_type': 'openai',
         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                             'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                             'logit_bias': {}},
@@ -4212,7 +4216,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True}],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
-        'dispatch_response': True, 'status': True}
+        'dispatch_response': True, 'status': True}, ignore_order=True)
 
 
 def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
@@ -4279,10 +4283,11 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
     )
     actual = response.json()
     actual["data"][2].pop("_id")
-    assert actual["data"][2] == {
+    assert not DeepDiff(actual["data"][2], {
         'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload', 'num_bot_responses': 5,
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
+        'llm_type': 'openai',
         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                             'stream': False, 'stop': None, 'presence_penalty': 0.0,
                             'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -4299,7 +4304,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                          'data': 'If there is no specific query, assume that user is aking about java programming.',
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-        'set_slots': [], 'dispatch_response': True, 'status': True}
+        'set_slots': [], 'dispatch_response': True, 'status': True}, ignore_order=True)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -4370,10 +4375,11 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
     )
     actual = response.json()
     actual["data"][3].pop("_id")
-    assert actual["data"][3] == {
+    assert not DeepDiff(actual["data"][3], {
         'name': 'test_add_prompt_action_with_bot_content_prompt_with_content', 'num_bot_responses': 5,
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
+        'llm_type': 'openai',
         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                             'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                             'logit_bias': {}},
@@ -4391,7 +4397,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True}],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
-        'dispatch_response': True, 'status': True}
+        'dispatch_response': True, 'status': True}, ignore_order=True)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]

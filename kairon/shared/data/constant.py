@@ -208,6 +208,7 @@ DEFAULT_CONTEXT_PROMPT = "Answer question based on the context below, if answer 
 DEFAULT_SYSTEM_PROMPT = (
     "You are a personal assistant. Answer question based on the context below"
 )
+DEFAULT_LLM = "openai"
 
 
 class AuditlogActions(str, Enum):
