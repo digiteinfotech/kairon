@@ -8,6 +8,11 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
+from kairon.shared.utils import Utility
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+Utility.load_environment()
+Utility.load_system_metadata()
+
 
 from mock import patch
 import numpy as np
@@ -84,12 +89,9 @@ from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataT
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
-from kairon.shared.utils import Utility
 from kairon.train import train_model_for_bot, start_training
-
-os.environ["system_file"] = "./tests/testing_data/system.yaml"
-Utility.load_environment()
 from deepdiff import DeepDiff
+import litellm
 
 
 class TestMongoProcessor:
@@ -213,7 +215,7 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_slots', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -241,7 +243,7 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_http_action', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -270,7 +272,7 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_prompt_action_similarity', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -300,7 +302,7 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {'name': 'test_prompt_action_invalid_top_results', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -348,7 +350,7 @@ class TestMongoProcessor:
         processor.add_prompt_action(request, bot, user)
         prompt_action = processor.get_prompt_action(bot)
         prompt_action[0].pop("_id")
-        assert prompt_action == [
+        assert not DeepDiff(prompt_action, [
             {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
              'num_bot_responses': 5,
              'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
@@ -356,6 +358,7 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                  'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                  'frequency_penalty': 0.0, 'logit_bias': {}},
+             'llm_type': 'openai',
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                               'type': 'system', 'source': 'static', 'is_enabled': True},
                              {'name': 'Similarity Prompt', 'data': 'default',
@@ -366,7 +369,7 @@ class TestMongoProcessor:
                               'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}]
+             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}], ignore_order=True)
 
     def test_add_prompt_action_with_bot_content_prompt(self):
         processor = MongoProcessor()
@@ -392,8 +395,7 @@ class TestMongoProcessor:
         processor.add_prompt_action(request, bot, user)
         prompt_action = processor.get_prompt_action(bot)
         prompt_action[1].pop("_id")
-        print(prompt_action)
-        assert prompt_action[1] == {
+        assert not DeepDiff(prompt_action[1], {
             'name': 'test_add_prompt_action_with_bot_content_prompt',
             'num_bot_responses': 5,
             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
@@ -401,6 +403,7 @@ class TestMongoProcessor:
             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                 'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_type': 'openai',
             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                              'type': 'system', 'source': 'static', 'is_enabled': True},
                             {'name': 'Similarity Prompt', 'data': 'Bot_collection',
@@ -411,7 +414,7 @@ class TestMongoProcessor:
                              'is_enabled': True},
                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}
+            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}, ignore_order=True)
 
     def test_add_prompt_action_with_invalid_query_prompt(self):
         processor = MongoProcessor()
@@ -596,7 +599,7 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompts', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -621,13 +624,13 @@ class TestMongoProcessor:
         pytest.action_id = processor.add_prompt_action(request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
-        assert action == [{'name': 'test_add_prompt_action_faq_action_with_default_values', 'num_bot_responses': 5,
+        assert not DeepDiff(action, [{'name': 'test_add_prompt_action_faq_action_with_default_values', 'num_bot_responses': 5,
                            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_type': 'openai',
                            'llm_prompts': [
                                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                 'source': 'static', 'is_enabled': True},
@@ -635,7 +638,7 @@ class TestMongoProcessor:
                            'instructions': ['Answer in a short manner.', 'Keep it simple.'],
                            'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
                                          {'name': 'gpt_result_type', 'value': '${data.type}',
-                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}]
+                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}], ignore_order=True)
 
     def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
         processor = MongoProcessor()
@@ -644,14 +647,14 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_temperature_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="Temperature must be between 0.0 and 2.0!"):
+        with pytest.raises(ValidationError, match=re.escape("['temperature']: 3.0 is greater than the maximum of 2.0")):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_stop_hyperparameter(self):
@@ -661,7 +664,7 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_stop_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"],
                                        'presence_penalty': 0.0,
@@ -670,7 +673,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError,
-                           match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
+                           match=re.escape('[\'stop\']: ["\\n",".","?","!",";"] is not valid under any of the schemas listed in the \'anyOf\' keyword')):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_presence_penalty_hyperparameter(self):
@@ -681,14 +684,14 @@ class TestMongoProcessor:
         request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': -3.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="Presence penalty must be between -2.0 and 2.0!"):
+        with pytest.raises(ValidationError, match=re.escape("['presence_penalty']: -3.0 is less than the minimum of -2.0")):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter(self):
@@ -699,14 +702,14 @@ class TestMongoProcessor:
         request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 3.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="Frequency penalty must be between -2.0 and 2.0!"):
+        with pytest.raises(ValidationError, match=re.escape("['frequency_penalty']: 3.0 is greater than the maximum of 2.0")):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_max_tokens_hyperparameter(self):
@@ -716,14 +719,14 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
+        with pytest.raises(ValidationError, match=re.escape("['max_tokens']: 2 is less than the minimum of 5")):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_zero_max_tokens_hyperparameter(self):
@@ -733,14 +736,14 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
+        with pytest.raises(ValidationError, match=re.escape("['max_tokens']: 0 is less than the minimum of 5")):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_top_p_hyperparameter(self):
@@ -750,14 +753,14 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_top_p_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt-3.5-turbo',
                                        'top_p': 3.0,
                                        'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="top_p must be between 0.0 and 1.0!"):
+        with pytest.raises(ValidationError, match=re.escape("['top_p']: 3.0 is greater than the maximum of 1.0")):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_n_hyperparameter(self):
@@ -767,14 +770,14 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 7, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
+        with pytest.raises(ValidationError, match=re.escape("['n']: 7 is greater than the maximum of 5")):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_zero_n_hyperparameter(self):
@@ -784,14 +787,14 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 0, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
+        with pytest.raises(ValidationError, match=re.escape("['n']: 0 is less than the minimum of 1")):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_logit_bias_hyperparameter(self):
@@ -801,14 +804,14 @@ class TestMongoProcessor:
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_logit_bias_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
                                        'n': 2, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': 'a'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        with pytest.raises(ValidationError, match="logit_bias must be a dictionary!"):
+        with pytest.raises(ValidationError, match=re.escape('[\'logit_bias\']: "a" is not of type "object"')):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_faq_action_already_exist(self):
@@ -867,7 +870,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True}],
                    "failure_message": "updated_failure_message",
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
-                   "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters(),
+                   "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters('openai'),
                    "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                                  {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
                    "dispatch_response": False
@@ -875,12 +878,12 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
-        assert action == [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
+        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message', 'user_question': {'type': 'from_user_message'},
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_type': 'openai',
                            'llm_prompts': [
                                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                 'source': 'static', 'is_enabled': True},
@@ -898,7 +901,8 @@ class TestMongoProcessor:
                                 'is_enabled': True}], 'instructions': [],
                            'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
                                          {'name': 'gpt_result_type', 'value': '${data.type}',
-                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}]
+                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}],
+                            ignore_order=True)
         request = {'name': 'test_edit_prompt_action_faq_action_again',
                    'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -907,10 +911,10 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
-        assert action == [{'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5,
+        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5,
                            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                           'llm_type': 'openai',
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -918,7 +922,7 @@ class TestMongoProcessor:
                                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                 'source': 'static', 'is_enabled': True}],
                            'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
-                           'dispatch_response': True, 'status': True}]
+                           'dispatch_response': True, 'status': True}], ignore_order=True)
 
     def test_edit_prompt_action_with_less_hyperparameters(self):
         processor = MongoProcessor()
@@ -951,13 +955,13 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
-        assert action == [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
+        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message',
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_type': 'openai',
                            'llm_prompts': [
                                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                 'source': 'static', 'is_enabled': True},
@@ -973,7 +977,7 @@ class TestMongoProcessor:
                                 'data': 'If there is no specific query, assume that user is aking about java programming.',
                                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                                 'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
-                           'status': True}]
+                           'status': True}], ignore_order=True)
 
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -986,13 +990,13 @@ class TestMongoProcessor:
         bot = 'test_bot'
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
-        assert action == [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
+        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message',
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                           'llm_type': 'openai',
                            'llm_prompts': [
                                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                 'source': 'static', 'is_enabled': True},
@@ -1008,8 +1012,7 @@ class TestMongoProcessor:
                                 'data': 'If there is no specific query, assume that user is aking about java programming.',
                                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                                 'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
-                           'status': True}]
-
+                           'status': True}], ignore_order=True)
     def test_delete_prompt_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -2674,7 +2677,7 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
 
-    @patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+    @patch.object(litellm, "aembedding", autospec=True)
     @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
@@ -2695,8 +2698,8 @@ class TestMongoProcessor:
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        mock_openai.return_value = embedding
+        embedding = list(np.random.random(1532))
+        mock_openai.return_value = {'data': [{'embedding': embedding}]}
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)

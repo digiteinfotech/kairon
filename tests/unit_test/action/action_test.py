@@ -6,6 +6,8 @@ from unittest import mock
 import mock
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
+from kairon.shared.utils import Utility
+Utility.load_system_metadata()
 
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.factory import ActionFactory
@@ -42,9 +44,9 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.utils import Utility
 from unittest.mock import patch
 from urllib.parse import urlencode
+
 
 class TestActions:
 
@@ -2663,6 +2665,7 @@ class TestActions:
                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                                      'logit_bias': {}},
+                                 'llm_type': 'openai',
                                  'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                                   'type': 'system', 'source': 'static', 'is_enabled': True},
                                                  {'name': 'History Prompt', 'type': 'user',
@@ -3954,6 +3957,7 @@ class TestActions:
                                                            'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                            'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                                            'logit_bias': {}}, 'dispatch_response': True, 'set_slots': [],
+                                       'llm_type': 'openai',
                                        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                                         'type': 'system', 'source': 'static', 'is_enabled': True},
                                                        {'name': 'History Prompt', 'type': 'user',

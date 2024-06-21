@@ -7,16 +7,17 @@ import pytest
 import ujson as json
 from aiohttp import ClientConnectionError
 from mongoengine import connect
+from kairon.shared.utils import Utility
+Utility.load_system_metadata()
 
 from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
-from kairon.shared.data.data_objects import LLMSettings
-from kairon.shared.llm.factory import LLMFactory
-from kairon.shared.llm.gpt3 import GPT3FAQEmbedding, LLMBase
-from kairon.shared.utils import Utility
+from kairon.shared.llm.processor import LLMProcessor
+import litellm
+from deepdiff import DeepDiff
 
 
 class TestLLM:
@@ -26,36 +27,9 @@ class TestLLM:
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
-    def test_llm_base_train(self):
-        with pytest.raises(Exception):
-            base = LLMBase("Test")
-            base.train()
-
-    def test_llm_base_predict(self):
-        with pytest.raises(Exception):
-            base = LLMBase('Test')
-            base.predict("Sample")
-
-    def test_llm_factory_invalid_type(self):
-        with pytest.raises(Exception):
-            LLMFactory.get_instance("sample")("test", LLMSettings(provider="openai").to_mongo().to_dict())
-
-    def test_llm_factory_faq_type(self):
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value='value', bot='test', user='test').save()
-        inst = LLMFactory.get_instance("faq")("test", LLMSettings(provider="openai").to_mongo().to_dict())
-        assert isinstance(inst, GPT3FAQEmbedding)
-        assert inst.db_url == Utility.environment['vector']['db']
-        assert inst.headers == {}
-
-    def test_llm_factory_faq_type_set_vector_key(self):
-        with mock.patch.dict(Utility.environment, {'vector': {"db": "http://test:6333", 'key': 'test'}}):
-            inst = LLMFactory.get_instance("faq")("test", LLMSettings(provider="openai").to_mongo().to_dict())
-            assert isinstance(inst, GPT3FAQEmbedding)
-            assert inst.db_url == Utility.environment['vector']['db']
-            assert inst.headers == {'api-key': Utility.environment['vector']['key']}
-
     @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_train(self, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train(self, mock_embedding, aioresponses):
         bot = "test_embed_faq"
         user = "test"
         value = "nupurkhare"
@@ -64,19 +38,11 @@ class TestLLM:
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        request_header = {"Authorization": "Bearer nupurkhare"}
-
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret},
                                                    'vector': {'db': "http://kairon:6333", "key": None}}):
-            aioresponses.add(
-                url="https://api.openai.com/v1/embeddings",
-                method="POST",
-                status=200,
-                payload={'data': [{'embedding': embedding}]}
-            )
-
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+            mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+            gpt3 = LLMProcessor(test_content.bot)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -100,23 +66,26 @@ class TestLLM:
                 payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
-            response = await gpt3.train()
+            response = await gpt3.train(user=user, bot=bot)
             assert response['faq'] == 1
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix,
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                                 "input": test_content.data}
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
-
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
                             'vector': embedding,
-                            'payload': {"collection_name": f"{gpt3.bot}{gpt3.suffix}", 'content': test_content.data}
+                            'payload': {'content': test_content.data}
                             }]}
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [test_content.data], 'metadata': {'user': user, 'bot': bot},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_train_payload_text(self, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_payload_text(self, mock_embedding, aioresponses):
         bot = "test_embed_faq_text"
         user = "test"
         value = "nupurkhare"
@@ -149,18 +118,9 @@ class TestLLM:
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        request_header = {"Authorization": "Bearer nupurkhare"}
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]},
-            repeat=True
-        )
-
-        gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+        mock_embedding.side_effect = {'data': [{'embedding': embedding}]}, {'data': [{'embedding': embedding}]}, {'data': [{'embedding': embedding}]}
+        gpt3 = LLMProcessor(bot)
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -205,39 +165,36 @@ class TestLLM:
                 payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
-            response = await gpt3.train()
+            response = await gpt3.train(user=user, bot=bot)
             assert response['faq'] == 3
 
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'name': f"{gpt3.bot}_country_details{gpt3.suffix}",
                                                                                  'vectors': gpt3.vector_config}
 
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                                 "input": '{"country":"Spain","lang":"spanish"}'}
-            assert list(aioresponses.requests.values())[3][0].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                                 'input': '{"lang":"spanish","role":"ds"}'}
-            assert list(aioresponses.requests.values())[3][1].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[3][2].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                                 "input": '{"name":"Nupur","city":"Pune"}'}
-            assert list(aioresponses.requests.values())[3][2].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {'points': [{'id': test_content_two.vector_id,
+            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content_two.vector_id,
                                                                                              'vector': embedding,
-                                                                                             'payload': {'collection_name': f"{gpt3.bot}_country_details{gpt3.suffix}",
-                                                                                                         'country': 'Spain'}}]}
-            assert list(aioresponses.requests.values())[4][1].kwargs['json'] == {'points': [{'id': test_content_three.vector_id,
+                                                                                             'payload': {'country': 'Spain'}}]}
+            assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {'points': [{'id': test_content_three.vector_id,
                                                                                              'vector': embedding,
-                                                                                             'payload': {'collection_name': f"{gpt3.bot}_country_details{gpt3.suffix}", 'role': 'ds'}}]}
+                                                                                             'payload': {'role': 'ds'}}]}
 
-            assert list(aioresponses.requests.values())[5][0].kwargs['json'] == {'name': f"{gpt3.bot}_user_details{gpt3.suffix}",
+            assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {'name': f"{gpt3.bot}_user_details{gpt3.suffix}",
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[6][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
+            assert list(aioresponses.requests.values())[5][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
                                                                                              'vector': embedding,
-                                                                                             'payload': {'collection_name': f"{gpt3.bot}_user_details{gpt3.suffix}",
-                                                                                                         'name': 'Nupur'}}]}
+                                                                                             'payload': {'name': 'Nupur'}}]}
             assert response['faq'] == 3
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [json.dumps(test_content.data)], 'metadata': {'user': user, 'bot': bot},
+                        "api_key": value,
+                        "num_retries": 3}
+            print(mock_embedding.call_args)
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_train_payload_with_int(self, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_payload_with_int(self, mock_embedding, aioresponses):
         bot = "test_embed_faq_json"
         user = "test"
         value = "nupurkhare"
@@ -254,17 +211,11 @@ class TestLLM:
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        request_header = {"Authorization": "Bearer nupurkhare"}
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
         input = {"name": "Ram", "color": "red"}
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
 
-        gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+        gpt3 = LLMProcessor(bot)
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_json_payload_with_int_faq_embd"),
             method="PUT",
@@ -282,21 +233,25 @@ class TestLLM:
         )
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            response = await gpt3.train()
+            response = await gpt3.train(user=user, bot=bot)
             assert response['faq'] == 1
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'test_embed_faq_json_payload_with_int_faq_embd',
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                                 "input": json.dumps(input)}
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
                             'vector': embedding,
-                            'payload': {'name': 'Ram', 'age': 23, 'color': 'red', "collection_name": "test_embed_faq_json_payload_with_int_faq_embd"}
+                            'payload': {'name': 'Ram', 'age': 23, 'color': 'red'}
                             }]}
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_train_int(self, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_int(self, mock_embedding, aioresponses):
         bot = "test_int"
         user = "test"
         value = "nupurkhare"
@@ -313,18 +268,11 @@ class TestLLM:
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        request_header = {"Authorization": "Bearer nupurkhare"}
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
         input = {"name": "Ram", "color": "red"}
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
-
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+            gpt3 = LLMProcessor(bot)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -354,28 +302,32 @@ class TestLLM:
                 payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
-            response = await gpt3.train()
+            response = await gpt3.train(user=user, bot=bot)
             assert response['faq'] == 1
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'test_int_embd_int_faq_embd',
                                                                                  'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                                 "input": json.dumps(input)}
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             expected_payload = test_content.data
-            expected_payload['collection_name'] = 'test_int_embd_int_faq_embd'
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
+            #expected_payload['collection_name'] = 'test_int_embd_int_faq_embd'
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
                             'vector': embedding,
                             'payload': expected_payload
                             }]}
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     def test_gpt3_faq_embedding_train_failure(self):
         with pytest.raises(AppException, match=f"Bot secret '{BotSecretType.gpt_key.value}' not configured!"):
-            GPT3FAQEmbedding('test_failure', LLMSettings(provider="openai").to_mongo().to_dict())
+            LLMProcessor('test_failure')
 
     @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_train_upsert_error(self, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_upsert_error(self, mock_embedding, aioresponses):
         bot = "test_embed_faq_not_exists"
         user = "test"
         value = "nupurk"
@@ -384,19 +336,12 @@ class TestLLM:
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
-        request_header = {"Authorization": "Bearer nupurk"}
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+            gpt3 = LLMProcessor(test_content.bot)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -423,17 +368,21 @@ class TestLLM:
             )
 
             with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
-                await gpt3.train()
+                await gpt3.train(user=user, bot=bot)
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": test_content.data}
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
-                                                                  'vector': embedding, 'payload': {'collection_name': f"{bot}{gpt3.suffix}",'content': test_content.data}}]}
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
+                                                                  'vector': embedding, 'payload': {'content': test_content.data}}]}
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [test_content.data], 'metadata': {'user': user, 'bot': bot},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_train_payload_upsert_error_json(self, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_payload_upsert_error_json(self, mock_embedding, aioresponses):
         bot = "payload_upsert_error"
         user = "test"
         value = "nupurk"
@@ -450,19 +399,11 @@ class TestLLM:
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
-        request_header = {"Authorization": "Bearer nupurk"}
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
-
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+            gpt3 = LLMProcessor(test_content.bot)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -489,21 +430,27 @@ class TestLLM:
             )
 
             with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
-                await gpt3.train()
+                await gpt3.train(user=user, bot=bot)
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'payload_upsert_error_error_json_faq_embd', 'vectors': gpt3.vector_config}
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": json.dumps(test_content.data)}
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             expected_payload = test_content.data
-            expected_payload['collection_name'] = 'payload_upsert_error_error_json_faq_embd'
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
+            #expected_payload['collection_name'] = 'payload_upsert_error_error_json_faq_embd'
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
                                                                            'vector': embedding,
                                                                            'payload': expected_payload
                                                                            }]}
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [json.dumps(test_content.data)], 'metadata': {'user': user, 'bot': bot},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_predict(self, aioresponses):
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+    @mock.patch.object(litellm, "acompletion", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict(self,  mock_embedding, mock_completion, aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         bot = "test_embed_faq_predict"
         user = "test"
@@ -516,6 +463,7 @@ class TestLLM:
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
+        hyperparameters = Utility.get_default_llm_hyperparameters()
 
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
@@ -523,8 +471,9 @@ class TestLLM:
             "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
                                   'similarity_prompt_name': 'Similarity Prompt',
                                   'similarity_prompt_instructions': 'Answer according to this context.',
-                                  'collection': 'python'}]}
-        hyperparameters = Utility.get_llm_hyperparameters()
+                                  'collection': 'python'}],
+            "hyperparameters": hyperparameters
+        }
         mock_completion_request = {"messages": [
             {'role': 'system',
              'content': 'You are a personal assistant. Answer the question according to the below context'},
@@ -532,24 +481,10 @@ class TestLLM:
              'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        request_header = {"Authorization": "Bearer knupur"}
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-        )
-
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+            gpt3 = LLMProcessor(test_content.bot)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
@@ -558,24 +493,29 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
-            assert response['content'] == generated_text
+            response, time_elapsed = await gpt3.predict(query, user=user, bot=bot, **k_faq_action_config)
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                                 "input": query}
-            assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
-
-            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                                  'with_payload': True,
                                                                                  'score_threshold': 0.70}
-
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [query], 'metadata': {'user': user, 'bot': bot},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+            expected = mock_completion_request.copy()
+            expected['metadata'] = {'user': user, 'bot': bot}
+            expected['api_key'] = value
+            expected['num_retries'] = 3
+            assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_predict_with_default_collection(self, aioresponses):
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+    @mock.patch.object(litellm, "acompletion", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_default_collection(self, mock_embedding, mock_completion, aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         bot = "test_embed_faq_predict_with_default_collection"
         user = "test"
@@ -588,15 +528,17 @@ class TestLLM:
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
-
+        hyperparameters = Utility.get_default_llm_hyperparameters()
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
             "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
                                    'similarity_prompt_name': 'Similarity Prompt',
                                    'similarity_prompt_instructions': 'Answer according to this context.',
-                                   'collection': 'default'}]}
-        hyperparameters = Utility.get_llm_hyperparameters()
+                                   'collection': 'default'}],
+            'hyperparameters': hyperparameters
+        }
+
         mock_completion_request = {"messages": [
             {'role': 'system',
              'content': 'You are a personal assistant. Answer the question according to the below context'},
@@ -604,24 +546,10 @@ class TestLLM:
              'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        request_header = {"Authorization": "Bearer knupur"}
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-        )
-
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+            gpt3 = LLMProcessor(test_content.bot)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
@@ -631,40 +559,52 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, user=user, bot=bot, **k_faq_action_config)
             assert response['content'] == generated_text
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                                 "input": query}
-            assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
-
-            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                                  'with_payload': True,
                                                                                  'score_threshold': 0.70}
 
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [query], 'metadata': {'user': user, 'bot': bot},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+            expected = mock_completion_request.copy()
+            expected['metadata'] = {'user': user, 'bot': bot}
+            expected['api_key'] = value
+            expected['num_retries'] = 3
+            assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_predict_with_values(self, aioresponses):
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+    @mock.patch.object(litellm, "acompletion", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_values(self, mock_embedding, mock_completion, aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            collection='python', bot="test_embed_faq_predict", user="test").save()
+            collection='python', bot="test_gpt3_faq_embedding_predict_with_values", user="test").save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
+        hyperparameters = Utility.get_default_llm_hyperparameters()
+        key = 'test'
+        user = "tests"
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
             "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
                                   'similarity_prompt_name': 'Similarity Prompt',
                                   'similarity_prompt_instructions': 'Answer according to this context.',
-                                  'collection': 'python'}]}
+                                  'collection': 'python'}],
+            "hyperparameters": hyperparameters
+            }
 
-        hyperparameters = Utility.get_llm_hyperparameters()
         mock_completion_request = {"messages": [
             {"role": "system",
              "content": "You are a personal assistant. Answer the question according to the below context"},
@@ -672,24 +612,11 @@ class TestLLM:
              'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        request_header = {"Authorization": "Bearer knupur"}
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-        )
-
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': key}}):
+            gpt3 = LLMProcessor(test_content.bot)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
@@ -698,7 +625,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, user=user, bot=gpt3.bot, **k_faq_action_config)
             assert response['content'] == generated_text
             assert gpt3.logs == [
                 {'messages': [{'role': 'system',
@@ -714,25 +641,36 @@ class TestLLM:
                                      'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": query}
-            assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
 
-            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
-
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-    @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_predict_with_values_with_instructions(self, aioresponses):
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+            expected = {"model": "text-embedding-3-small",
+                        "input": [query], 'metadata': {'user': user, 'bot': gpt3.bot},
+                        "api_key": key,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+            expected = mock_completion_request.copy()
+            expected['metadata'] = {'user': user, 'bot': gpt3.bot}
+            expected['api_key'] = key
+            expected['num_retries'] = 3
+            assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
+    @pytest.mark.asyncio
+    @mock.patch.object(litellm, "acompletion", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_values_with_instructions(self, mock_embedding, mock_completion, aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+        user = "test"
+        bot = "test_gpt3_faq_embedding_predict_with_values_with_instructions"
+        key = 'test'
         test_content = CognitionData(
             data="Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ",
-            collection='java', bot="test_embed_faq_predict", user="test").save()
-
+            collection='java', bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
+        hyperparameters = Utility.get_default_llm_hyperparameters()
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
@@ -740,9 +678,10 @@ class TestLLM:
                                   'similarity_prompt_name': 'Similarity Prompt',
                                   'similarity_prompt_instructions': 'Answer according to this context.',
                                   "collection": "java"}],
-            'instructions': ['Answer in a short way.', 'Keep it simple.']}
+            'instructions': ['Answer in a short way.', 'Keep it simple.'],
+            "hyperparameters": hyperparameters
+        }
 
-        hyperparameters = Utility.get_llm_hyperparameters()
         mock_completion_request = {"messages": [
             {'role': 'system',
              'content': 'You are a personal assistant. Answer the question according to the below context'},
@@ -750,186 +689,210 @@ class TestLLM:
              'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        request_header = {"Authorization": "Bearer knupur"}
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+
+        gpt3 = LLMProcessor(test_content.bot)
 
         aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
             method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
+            payload={'result': [
+                {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-        )
+        response, time_elapsed = await gpt3.predict(query, user=user, bot=bot,**k_faq_action_config)
+        assert response['content'] == generated_text
+        assert gpt3.logs == [
+            {'messages': [{'role': 'system',
+                           'content': 'You are a personal assistant. Answer the question according to the below context'},
+                          {'role': 'user',
+                           'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
+             'raw_completion_response': {
+                 'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, '
+                                                     'high level, general purpose programming.',
+                                          'role': 'assistant'}}]},
+             'type': 'answer_query',
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                 'n': 1,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'logit_bias': {}}}]
 
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
 
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
-                method="POST",
-                payload={'result': [
-                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
-            )
+        assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
-            assert response['content'] == generated_text
-            assert gpt3.logs == [
-                {'messages': [{'role': 'system',
-                               'content': 'You are a personal assistant. Answer the question according to the below context'},
-                              {'role': 'user',
-                               'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Java is a high-level, general-purpose programming language. Java is known for its write once, run anywhere capability. ']\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
-                 'raw_completion_response': {
-                     'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, '
-                                                         'high level, general purpose programming.',
-                                              'role': 'assistant'}}]},
-                 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1,
-                                     'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                     'logit_bias': {}}}]
-
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small", "input": query}
-            assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
-
-            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
-
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
-            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+        expected = mock_completion_request.copy()
+        expected['metadata'] = {'user': user, 'bot': bot}
+        expected['api_key'] = key
+        expected['num_retries'] = 3
+        assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
-    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
-    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+    @mock.patch.object(litellm, "acompletion", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
     async def test_gpt3_faq_embedding_predict_completion_connection_error(self, mock_embedding, mock_completion, aioresponses):
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+        bot = "test_gpt3_faq_embedding_predict_completion_connection_error"
+        user = 'test'
+        key = "test"
 
-        test_content = CognitionData(
-            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            collection='python', bot="test_embed_faq_predict", user="test").save()
-
-        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        query = "What kind of language is python?"
-        k_faq_action_config = {
-            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
-            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-                                  'similarity_prompt_name': 'Similarity Prompt',
-                                  'similarity_prompt_instructions': 'Answer according to this context.',
-                                  "collection": 'python'}]}
-
-        def __mock_connection_error(*args, **kwargs):
-            import openai
-
-            raise openai.error.APIConnectionError("Connection reset by peer!")
-
-        mock_embedding.return_value = embedding
-        mock_completion.side_effect = __mock_connection_error
-
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
-
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
-                method="POST",
-                payload={'result': [
-                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
-            )
-
-            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
-            print(mock_completion.call_args.args[3])
-
-            assert response == {'exception': "Connection reset by peer!", 'is_failure': True, "content": None}
-
-            assert mock_embedding.call_args.args[1] == query
-
-            assert mock_completion.call_args.args[1] == 'What kind of language is python?'
-            assert mock_completion.call_args.args[
-                       2] == 'You are a personal assistant. Answer the question according to the below context'
-            assert mock_completion.call_args.args[3] == """Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n"""
-            assert mock_completion.call_args.kwargs == {'similarity_prompt': [
-                {'top_results': 10, 'similarity_threshold': 0.7, 'use_similarity_prompt': True,
-                 'similarity_prompt_name': 'Similarity Prompt',
-                 'similarity_prompt_instructions': 'Answer according to this context.', 'collection': 'python'}]}
-            assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
-
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
-            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
-
-    @pytest.mark.asyncio
-    @mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger", autospec=True)
-    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_exact_match(self, mock_embedding, mock_llm_request):
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-
-        test_content = CognitionData(
-            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            collection='python', bot="test_embed_faq_predict", user="test").save()
-
-        query = "What kind of language is python?"
-        k_faq_action_config = {
-            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
-            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
-                                  'similarity_prompt_name': 'Similarity Prompt',
-                                  'similarity_prompt_instructions': 'Answer according to this context.',
-                                  "collection": 'python'}]}
-
-        mock_embedding.return_value = embedding
-        mock_llm_request.side_effect = ClientConnectionError()
-
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
-
-            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
-            assert response == {'exception': 'Failed to connect to service: localhost', 'is_failure': True, "content": None}
-
-            assert mock_embedding.call_args.args[1] == query
-            assert gpt3.logs == []
-            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
-
-    @pytest.mark.asyncio
-    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_embedding_connection_error(self, mock_embedding):
-        import openai
-
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-
-        test_content = CognitionData(
-            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot="test_embed_faq_predict", user="test").save()
-
-        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        query = "What kind of language is python?"
-        k_faq_action_config = {
-            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
-            "context_prompt": "Based on below context answer question, if answer not in context check previous logs."}
-
-        mock_embedding.side_effect = [openai.error.APIConnectionError("Connection reset by peer!"), embedding]
-
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
-
-            response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
-            assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
-
-            assert mock_embedding.call_args.args[1] == query
-            assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
-            assert isinstance(time_elapsed, float) and time_elapsed > 0.0
-
-    @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_predict_with_previous_bot_responses(self, aioresponses):
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-
-        bot = "test_embed_faq_predict"
-        user = "test"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        hyperparameters = Utility.get_default_llm_hyperparameters()
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        query = "What kind of language is python?"
+
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  "collection": 'python'}],
+            "hyperparameters": hyperparameters
+            }
+
+        def __mock_connection_error(*args, **kwargs):
+            raise Exception("Connection reset by peer!")
+
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_completion.side_effect = __mock_connection_error
+
+        gpt3 = LLMProcessor(test_content.bot)
+
+        aioresponses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
+            method="POST",
+            payload={'result': [
+                {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+        )
+
+        response, time_elapsed = await gpt3.predict(query, user=user, bot=bot, **k_faq_action_config)
+        assert response == {'exception': "Connection reset by peer!", 'is_failure': True, "content": None}
+
+        assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
+
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
+        assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+        expected = {'messages': [{'role': 'system',
+                                  'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                 {'role': 'user',
+                                  'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
+                    'metadata': {'user': 'test', 'bot': 'test_gpt3_faq_embedding_predict_completion_connection_error'},
+                    'api_key': 'test', 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300,
+                    'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                    'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_exact_match(self, mock_embedding, mock_llm_request):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+        user ="test"
+        bot = "test_gpt3_faq_embedding_predict_exact_match"
+        key = 'test'
+        test_content = CognitionData(
+            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
+            collection='python', bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        query = "What kind of language is python?"
+        hyperparameters = Utility.get_default_llm_hyperparameters()
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "similarity_prompt": [{"top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+                                  'similarity_prompt_name': 'Similarity Prompt',
+                                  'similarity_prompt_instructions': 'Answer according to this context.',
+                                  "collection": 'python'}],
+            "hyperparameters": hyperparameters
+        }
+
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_llm_request.side_effect = ClientConnectionError()
+
+        gpt3 = LLMProcessor(test_content.bot)
+
+        response, time_elapsed = await gpt3.predict(query, user="test", bot="test_gpt3_faq_embedding_predict_exact_match", **k_faq_action_config)
+        assert response == {'exception': 'Failed to connect to service: localhost', 'is_failure': True, "content": None}
+
+        assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Failed to connect to service: localhost'}]
+        assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+        expected = {"model": "text-embedding-3-small",
+                   "input": [query], 'metadata': {'user': user, 'bot': bot},
+                   "api_key": key,
+                   "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
+    @pytest.mark.asyncio
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_embedding_connection_error(self, mock_embedding):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+        user = "test"
+        bot = "test_gpt3_faq_embedding_predict_embedding_connection_error"
+        key = "test"
+        test_content = CognitionData(
+            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
+            bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        hyperparameters = Utility.get_default_llm_hyperparameters()
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        query = "What kind of language is python?"
+
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "hyperparameters": hyperparameters
+        }
+        mock_embedding.side_effect = [Exception("Connection reset by peer!"), {'data': [{'embedding': embedding}]}]
+
+        gpt3 = LLMProcessor(test_content.bot)
+        mock_embedding.side_effect = [Exception("Connection reset by peer!"), embedding]
+
+        response, time_elapsed = await gpt3.predict(query, user="test", bot="test_gpt3_faq_embedding_predict_embedding_connection_error", **k_faq_action_config)
+        assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
+
+        assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
+        assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
+    @pytest.mark.asyncio
+    @mock.patch.object(litellm, "acompletion", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_previous_bot_responses(self, mock_embedding, mock_completion, aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+
+        bot = "test_gpt3_faq_embedding_predict_with_previous_bot_responses"
+        user = "test"
+        key = "test"
+        hyperparameters = Utility.get_default_llm_hyperparameters()
+        test_content = CognitionData(
+            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
+            collection='python', bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
@@ -940,9 +903,10 @@ class TestLLM:
             ],
             "similarity_prompt": [{'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
                                    'similarity_prompt_instructions': 'Answer according to this context.',
-                                   "collection": 'python'}]
+                                   "collection": 'python'}],
+            "hyperparameters": hyperparameters
         }
-        hyperparameters = Utility.get_llm_hyperparameters()
+
         mock_completion_request = {"messages": [
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
             {'role': 'user', 'content': 'hello'},
@@ -951,23 +915,10 @@ class TestLLM:
              'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        request_header = {"Authorization": "Bearer knupur"}
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-        )
-
-        gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+        gpt3 = LLMProcessor(test_content.bot)
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
@@ -976,44 +927,55 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
-        print(list(aioresponses.requests.values())[2][0].kwargs['json'])
+        response, time_elapsed = await gpt3.predict(query, user=user, bot=bot,**k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                             "input": query}
-        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
-
-        assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                              'with_payload': True,
                                                                              'score_threshold': 0.70}
 
-        assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_completion_request
-        assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-    @pytest.mark.asyncio
-    async def test_gpt3_faq_embedding_predict_with_query_prompt(self, aioresponses):
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+        expected = mock_completion_request.copy()
+        expected['metadata'] = {'user': user, 'bot': bot}
+        expected['api_key'] = key
+        expected['num_retries'] = 3
+        assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
-        bot = "test_embed_faq_predict"
+    @pytest.mark.asyncio
+    @mock.patch.object(litellm, "acompletion", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_query_prompt(self, mock_embedding, mock_completion, aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+
+        bot = "test_gpt3_faq_embedding_predict_with_query_prompt"
         user = "test"
+        key = "test"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         rephrased_query = "Explain python is called high level programming language in laymen terms?"
+        hyperparameters = Utility.get_default_llm_hyperparameters()
+
         k_faq_action_config = {"query_prompt": {
             "query_prompt": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
             "use_query_prompt": True},
-                               "similarity_prompt": [
-                                   {'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
-                                    'similarity_prompt_instructions': 'Answer according to this context.',
-                                    "collection": 'python'}]
-                               }
-        hyperparameters = Utility.get_llm_hyperparameters()
+            "similarity_prompt": [
+               {'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+                'similarity_prompt_instructions': 'Answer according to this context.',
+                "collection": 'python'}],
+            "hyperparameters": hyperparameters
+       }
+
         mock_rephrase_request = {"messages": [
             {"role": "system",
              "content": DEFAULT_SYSTEM_PROMPT},
@@ -1029,31 +991,11 @@ class TestLLM:
         ]}
         mock_rephrase_request.update(hyperparameters)
         mock_completion_request.update(hyperparameters)
-        request_header = {"Authorization": "Bearer knupur"}
 
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={'data': [{'embedding': embedding}]}
-        )
+        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_completion.side_effect = {'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}, {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}
-        )
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]},
-            repeat=True
-        )
-
-        gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+        gpt3 = LLMProcessor(test_content.bot)
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
@@ -1062,18 +1004,21 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, **k_faq_action_config)
-        print(list(aioresponses.requests.values())[2][1].kwargs['json'])
+        response, time_elapsed = await gpt3.predict(query, user=user, bot=bot, **k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-3-small",
-                                                                             "input": query}
-        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
-        assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                              'with_payload': True,
                                                                              'score_threshold': 0.70}
-        assert list(aioresponses.requests.values())[2][0].kwargs['json'] == mock_rephrase_request
-        assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
-        assert list(aioresponses.requests.values())[2][1].kwargs['json'] == mock_completion_request
-        assert list(aioresponses.requests.values())[2][1].kwargs['headers'] == request_header
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+        expected = mock_completion_request.copy()
+        expected['metadata'] = {'user': user, 'bot': bot}
+        expected['api_key'] = key
+        expected['num_retries'] = 3
+        assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)

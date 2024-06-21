@@ -1,7 +1,7 @@
 """Creates the Example and GPT classes for a user to interface with the OpenAI
 API."""
 
-import openai
+from openai import OpenAI
 import uuid
 
 
@@ -95,8 +95,9 @@ class GPT:
         """Calls the OpenAI API with the specified parameters."""
         if num_responses < 1:
             num_responses = 1
-        response = openai.Completion.create(api_key=api_key,
-                                            engine=self.get_engine(),
+        client = OpenAI(api_key=api_key)
+        response = client.completions.create(
+                                            model=self.get_engine(),
                                             prompt=self.craft_query(prompt),
                                             max_tokens=self.get_max_tokens(),
                                             temperature=self.get_temperature(),

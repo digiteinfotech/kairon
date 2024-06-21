@@ -34,6 +34,7 @@ from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     FALLBACK_MESSAGE,
     DEFAULT_NLU_FALLBACK_RESPONSE,
+    DEFAULT_LLM
 )
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import LlmPromptType, LlmPromptSource
@@ -784,7 +785,8 @@ class PromptAction(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
-    hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
+    llm_type = StringField(default=DEFAULT_LLM, choices=Utility.get_llms())
+    hyperparameters = DictField(default=Utility.get_default_llm_hyperparameters)
     llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
     instructions = ListField(StringField())
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
@@ -794,7 +796,7 @@ class PromptAction(Auditlog):
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
 
     def clean(self):
-        for key, value in Utility.get_llm_hyperparameters().items():
+        for key, value in Utility.get_llm_hyperparameters(self.llm_type).items():
             if key not in self.hyperparameters:
                 self.hyperparameters.update({key: value})
 
@@ -812,7 +814,7 @@ class PromptAction(Auditlog):
             dict_data["llm_prompts"], ValidationError
         )
         Utility.validate_llm_hyperparameters(
-            dict_data["hyperparameters"], ValidationError
+            dict_data["hyperparameters"], self.llm_type, ValidationError
         )
 
 

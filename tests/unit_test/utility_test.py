@@ -8,6 +8,9 @@ from email.mime.text import MIMEText
 from io import BytesIO
 from unittest.mock import patch, MagicMock
 from urllib.parse import urlencode
+from kairon.shared.utils import Utility, MailUtility
+
+Utility.load_system_metadata()
 
 import numpy as np
 import pandas as pd
@@ -36,12 +39,7 @@ from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, STORY_EVENT
 from kairon.shared.data.data_objects import EventConfig, Slots, LLMSettings, DemoRequestLogs
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
-from kairon.shared.llm.clients.azure import AzureGPT3Resources
-from kairon.shared.llm.clients.factory import LLMClientFactory
-from kairon.shared.llm.clients.gpt3 import GPT3Resources
-from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
-from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.verification.email import QuickEmailVerification
 
 
@@ -2122,7 +2120,7 @@ class TestUtility:
             return None
 
         monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
-        bot = "tests"
+        bot = "publish_auditlog"
         user = "testuser"
         event_config = EventConfig(
             bot=bot, user=user, ws_url="http://localhost:5000/event_url"
@@ -2134,14 +2132,14 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user, action="save"
         ).count()
-        assert count == 2
+        assert count == 1
 
     def test_save_and_publish_auditlog_action_save_another(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
             return None
 
         monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
-        bot = "tests"
+        bot = "publish_auditlog"
         user = "testuser"
         event_config = EventConfig(
             bot=bot,
@@ -2157,14 +2155,14 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user, action="save"
         ).count()
-        assert count == 3
+        assert count == 2
 
     def test_save_and_publish_auditlog_action_update(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
             return None
 
         monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
-        bot = "tests"
+        bot = "publish_auditlog"
         user = "testuser"
         event_config = EventConfig(
             bot=bot,
@@ -2179,14 +2177,14 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user, action="update"
         ).count()
-        assert count == 2
+        assert count == 1
 
     def test_save_and_publish_auditlog_total_count(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
             return None
 
         monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
-        bot = "tests"
+        bot = "publish_auditlog"
         user = "testuser"
         event_config = EventConfig(
             bot=bot,
@@ -2208,7 +2206,7 @@ class TestUtility:
             return None
 
         monkeypatch.setattr(Utility, "execute_http_request", execute_http_request)
-        bot = "tests"
+        bot = "publish_auditlog"
         user = "testuser"
         event_config = EventConfig(
             bot=bot,
@@ -2223,11 +2221,11 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user
         ).count()
-        assert count >= 3
+        assert count >= 2
 
     @responses.activate
     def test_publish_auditlog(self):
-        bot = "secret"
+        bot = "publish_auditlog"
         user = "secret_user"
         config = {
             "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
@@ -2263,7 +2261,7 @@ class TestUtility:
         count = AuditLogData.objects(
             attributes=[{"key": "bot", "value": bot}], user=user
         ).count()
-        assert count == 4
+        assert count == 1
 
     @pytest.mark.asyncio
     async def test_messageConverter_messenger_button_one(self):
@@ -2956,7 +2954,7 @@ class TestUtility:
             Utility.verify_email(email)
 
     def test_get_llm_hyperparameters(self):
-        hyperparameters = Utility.get_llm_hyperparameters()
+        hyperparameters = Utility.get_llm_hyperparameters("openai")
         assert hyperparameters == {
             "temperature": 0.0,
             "max_tokens": 300,
@@ -2971,508 +2969,10 @@ class TestUtility:
         }
 
     def test_get_llm_hyperparameters_not_found(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment["llm"], "faq", None)
         with pytest.raises(
-            AppException, match="Could not find any hyperparameters for configured LLM."
+            AppException, match="Could not find any hyperparameters for claude LLM."
         ):
-            Utility.get_llm_hyperparameters()
-
-    @pytest.mark.asyncio
-    async def test_trigger_gpt3_client_completion_with_generated_text(
-        self, aioresponses
-    ):
-        api_key = "test"
-        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        messages = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = messages
-        mock_completion_request.update(hyperparameters)
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={
-                "choices": [
-                    {"message": {"content": generated_text, "role": "assistant"}}
-                ]
-            },
-        )
-
-        resp = await GPT3Resources("test").invoke(
-            GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-        )
-        assert resp[0] == generated_text
-
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["json"]
-            == mock_completion_request
-        )
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_gpt3_client_completion_with_response(self, aioresponses):
-        api_key = "test"
-        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        mock_completion_request.update(hyperparameters)
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={
-                "choices": [
-                    {"message": {"content": generated_text, "role": "assistant"}}
-                ]
-            },
-        )
-
-        formatted_response, raw_response = await GPT3Resources("test").invoke(
-            GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-        )
-        assert formatted_response == generated_text
-        assert raw_response == {
-            "choices": [{"message": {"content": generated_text, "role": "assistant"}}]
-        }
-
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["json"]
-            == mock_completion_request
-        )
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_gp3_client_completion(self, aioresponses):
-        api_key = "test"
-        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        mock_completion_request.update(hyperparameters)
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            payload={
-                "choices": [
-                    {"message": {"content": generated_text, "role": "assistant"}}
-                ]
-            },
-        )
-        formatted_response, raw_response = await GPT3Resources(api_key).invoke(
-            GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-        )
-        assert formatted_response == generated_text
-        assert raw_response == {
-            "choices": [{"message": {"content": generated_text, "role": "assistant"}}]
-        }
-
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["json"]
-            == mock_completion_request
-        )
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_gp3_client_completion_failure(self, aioresponses):
-        api_key = "test"
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        mock_completion_request.update(hyperparameters)
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=504,
-            payload={"error": {"message": "Server unavailable!", "id": 876543456789}},
-        )
-        with pytest.raises(
-            AppException, match="Failed to connect to service: api.openai.com"
-        ):
-            await GPT3Resources(api_key).invoke(
-                GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-            )
-
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["json"]
-            == mock_completion_request
-        )
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=201,
-            body="openai".encode(),
-            repeat=True,
-        )
-        with pytest.raises(AppException):
-            await GPT3Resources(api_key).invoke(
-                GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-            )
-
-    @pytest.mark.asyncio
-    async def test_trigger_gp3_client_embedding(self, aioresponses):
-        api_key = "test"
-        query = "What kind of language is python?"
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        request_header = {"Authorization": f"Bearer {api_key}"}
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=200,
-            payload={"data": [{"embedding": embedding}]},
-        )
-        formatted_response, raw_response = await GPT3Resources(api_key).invoke(
-            GPT3ResourceTypes.embeddings.value,
-            model="text-embedding-3-small",
-            input=query,
-        )
-        assert formatted_response == embedding
-        assert raw_response == {"data": [{"embedding": embedding}]}
-
-        assert list(aioresponses.requests.values())[0][0].kwargs["json"] == {
-            "model": "text-embedding-3-small",
-            "input": query,
-        }
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_gp3_client_embedding_failure(self, aioresponses):
-        api_key = "test"
-        query = "What kind of language is python?"
-        request_header = {"Authorization": f"Bearer {api_key}"}
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings", method="POST", status=504
-        )
-
-        with pytest.raises(
-            AppException, match="Failed to connect to service: api.openai.com"
-        ):
-            await GPT3Resources(api_key).invoke(
-                GPT3ResourceTypes.embeddings.value,
-                model="text-embedding-3-small",
-                input=query,
-            )
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/embeddings",
-            method="POST",
-            status=204,
-            payload={"error": {"message": "Server unavailable!", "id": 876543456789}},
-            repeat=True,
-        )
-
-        with pytest.raises(
-            AppException, match="Server unavailable!. Request id: 876543456789"
-        ):
-            await GPT3Resources(api_key).invoke(
-                GPT3ResourceTypes.embeddings.value,
-                model="text-embedding-3-small",
-                input=query,
-            )
-
-        assert list(aioresponses.requests.values())[0][0].kwargs["json"] == {
-            "model": "text-embedding-3-small",
-            "input": query,
-        }
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-        assert list(aioresponses.requests.values())[0][1].kwargs["json"] == {
-            "model": "text-embedding-3-small",
-            "input": query,
-        }
-        assert (
-            list(aioresponses.requests.values())[0][1].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_gp3_client_streaming_completion(self, aioresponses):
-        api_key = "test"
-        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        mock_completion_request.update(hyperparameters)
-        mock_completion_request["stream"] = True
-
-        content = """data: {"choices": [{"delta": {"role": "assistant"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": "Python"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": " is"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": " dynamically"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": " typed"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": " garbage-collected"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": " high"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": " level"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": " general"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": " purpose"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": " programming"}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {"content": "."}, "index": 0, "finish_reason": null}]}\n\n
-data: {"choices": [{"delta": {}, "index": 0, "finish_reason": "stop"}]}\n\n
-data: [DONE]\n\n"""
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            body=content.encode(),
-            content_type="text/event-stream",
-        )
-
-        formatted_response, raw_response = await GPT3Resources(api_key).invoke(
-            GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-        )
-        assert formatted_response == generated_text
-        assert raw_response == [
-            b'data: {"choices": [{"delta": {"role": "assistant"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": "Python"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": " is"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": " dynamically"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": " typed"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": " garbage-collected"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": " high"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": " level"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": " general"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": " purpose"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": " programming"}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {"content": "."}, "index": 0, "finish_reason": null}]}\n',
-            b"\n",
-            b"\n",
-            b'data: {"choices": [{"delta": {}, "index": 0, "finish_reason": "stop"}]}\n',
-            b"\n",
-            b"\n",
-            b"data: [DONE]\n",
-            b"\n",
-        ]
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["json"]
-            == mock_completion_request
-        )
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_gp3_client_streaming_connection_error(self, aioresponses):
-        api_key = "test"
-        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        mock_completion_request.update(hyperparameters)
-        mock_completion_request["stream"] = True
-
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=401,
-        )
-
-        with pytest.raises(
-            AppException,
-            match=re.escape(
-                "Failed to execute the url: 401, message='Unauthorized', url=URL('https://api.openai.com/v1/chat/completions')"
-            ),
-        ):
-            await GPT3Resources(api_key).invoke(
-                GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-            )
-
-    @pytest.mark.asyncio
-    async def test_trigger_gp3_client_streaming_completion_failure(self, aioresponses):
-        api_key = "test"
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        mock_completion_request.update(hyperparameters)
-        mock_completion_request["stream"] = True
-
-        content = "data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n"
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            body=content.encode(),
-            content_type="text/event-stream",
-        )
-        with pytest.raises(
-            AppException,
-            match=re.escape(
-                "Failed to parse streaming response: b\"data: {'choices': [{'delta': {'role': 'assistant'}}]}\\n\""
-            ),
-        ):
-            await GPT3Resources(api_key).invoke(
-                GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-            )
-
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["json"]
-            == mock_completion_request
-        )
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_gp3_client_completion_failure_invalid_json(
-        self, aioresponses
-    ):
-        api_key = "test"
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        mock_completion_request.update(hyperparameters)
-        mock_completion_request["stream"] = True
-
-        content = "data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n"
-        aioresponses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=504,
-            body=content.encode(),
-        )
-        with pytest.raises(
-            AppException, match="Failed to connect to service: api.openai.com"
-        ):
-            await GPT3Resources(api_key).invoke(
-                GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-            )
-
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["json"]
-            == mock_completion_request
-        )
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
+            Utility.get_llm_hyperparameters("claude")
 
     def test_get_client_ip_with_request_client(self):
         request = MagicMock()
@@ -3481,217 +2981,6 @@ data: [DONE]\n\n"""
         ip = Utility.get_client_ip(request)
         assert "58.0.127.89" == ip
 
-    def test_llm_resource_provider_factory(self):
-        client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)
-        assert isinstance(client("test"), AzureGPT3Resources)
-
-        client = LLMClientFactory.get_resource_provider(
-            LLMResourceProvider.openai.value
-        )
-        assert isinstance(client("test"), GPT3Resources)
-
-    def test_llm_resource_provider_not_implemented(self):
-        with pytest.raises(AppException, match="aws client not supported"):
-            LLMClientFactory.get_resource_provider("aws")
-
-    @pytest.mark.asyncio
-    async def test_trigger_azure_client_completion(self, aioresponses):
-        api_key = "test"
-        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"api-key": api_key}
-        mock_completion_request = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        mock_completion_request.update(hyperparameters)
-        llm_settings = (
-            LLMSettings(
-                enable_faq=True,
-                provider="azure",
-                embeddings_model_id="openaimodel_embd",
-                chat_completion_model_id="openaimodel_completion",
-                api_version="2023-03-16",
-            )
-            .to_mongo()
-            .to_dict()
-        )
-        aioresponses.add(
-            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['chat_completion_model_id']}/{GPT3ResourceTypes.chat_completion.value}?api-version={llm_settings['api_version']}",
-            method="POST",
-            status=200,
-            payload={
-                "choices": [
-                    {"message": {"content": generated_text, "role": "assistant"}}
-                ]
-            },
-        )
-
-        client = LLMClientFactory.get_resource_provider(
-            LLMResourceProvider.azure.value
-        )(api_key, **llm_settings)
-        formatted_response, raw_response = await client.invoke(
-            GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-        )
-        assert formatted_response == generated_text
-        assert raw_response == {
-            "choices": [{"message": {"content": generated_text, "role": "assistant"}}]
-        }
-
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["json"]
-            == mock_completion_request
-        )
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_azure_client_embedding(self, aioresponses):
-        api_key = "test"
-        query = "What kind of language is python?"
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        request_header = {"api-key": api_key}
-        llm_settings = (
-            LLMSettings(
-                enable_faq=True,
-                provider="azure",
-                embeddings_model_id="openaimodel_embd",
-                chat_completion_model_id="openaimodel_completion",
-                api_version="2023-03-16",
-            )
-            .to_mongo()
-            .to_dict()
-        )
-
-        aioresponses.add(
-            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['embeddings_model_id']}/{GPT3ResourceTypes.embeddings.value}?api-version={llm_settings['api_version']}",
-            method="POST",
-            status=200,
-            payload={"data": [{"embedding": embedding}]},
-        )
-        client = LLMClientFactory.get_resource_provider(
-            LLMResourceProvider.azure.value
-        )(api_key, **llm_settings)
-        formatted_response, raw_response = await client.invoke(
-            GPT3ResourceTypes.embeddings.value,
-            model="text-embedding-3-small",
-            input=query,
-        )
-        assert formatted_response == embedding
-        assert raw_response == {"data": [{"embedding": embedding}]}
-
-        assert list(aioresponses.requests.values())[0][0].kwargs["json"] == {
-            "model": "text-embedding-3-small",
-            "input": query,
-        }
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_azure_client_embedding_failure(self, aioresponses):
-        api_key = "test"
-        query = "What kind of language is python?"
-        request_header = {"api-key": api_key}
-        llm_settings = (
-            LLMSettings(
-                enable_faq=True,
-                provider="azure",
-                embeddings_model_id="openaimodel_embd",
-                chat_completion_model_id="openaimodel_completion",
-                api_version="2023-03-16",
-            )
-            .to_mongo()
-            .to_dict()
-        )
-
-        aioresponses.add(
-            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['embeddings_model_id']}/{GPT3ResourceTypes.embeddings.value}?api-version={llm_settings['api_version']}",
-            method="POST",
-            status=504,
-        )
-        client = LLMClientFactory.get_resource_provider(
-            LLMResourceProvider.azure.value
-        )(api_key, **llm_settings)
-
-        with pytest.raises(
-            AppException, match="Failed to connect to service: kairon.openai.azure.com"
-        ):
-            await client.invoke(
-                GPT3ResourceTypes.embeddings.value,
-                model="text-embedding-3-small",
-                input=query,
-            )
-
-        assert list(aioresponses.requests.values())[0][0].kwargs["json"] == {
-            "model": "text-embedding-3-small",
-            "input": query,
-        }
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
-
-    @pytest.mark.asyncio
-    async def test_trigger_azure_client_completion_failure(self, aioresponses):
-        api_key = "test"
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"api-key": api_key}
-        llm_settings = (
-            LLMSettings(
-                enable_faq=True,
-                provider="azure",
-                embeddings_model_id="openaimodel_embd",
-                chat_completion_model_id="openaimodel_completion",
-                api_version="2023-03-16",
-            )
-            .to_mongo()
-            .to_dict()
-        )
-        mock_completion_request = {
-            "messages": [
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": "Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:",
-                },
-            ]
-        }
-        mock_completion_request.update(hyperparameters)
-
-        aioresponses.add(
-            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['chat_completion_model_id']}/{GPT3ResourceTypes.chat_completion.value}?api-version={llm_settings['api_version']}",
-            method="POST",
-            status=504,
-            payload={"error": {"message": "Server unavailable!", "id": 876543456789}},
-        )
-
-        client = LLMClientFactory.get_resource_provider(
-            LLMResourceProvider.azure.value
-        )(api_key, **llm_settings)
-        with pytest.raises(
-            AppException, match="Failed to connect to service: kairon.openai.azure.com"
-        ):
-            await client.invoke(
-                GPT3ResourceTypes.chat_completion.value, **mock_completion_request
-            )
-
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["json"]
-            == mock_completion_request
-        )
-        assert (
-            list(aioresponses.requests.values())[0][0].kwargs["headers"]
-            == request_header
-        )
 
     @pytest.mark.asyncio
     async def test_messageConverter_whatsapp_dropdown(self):

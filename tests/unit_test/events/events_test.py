@@ -17,15 +17,15 @@ from mongoengine import connect
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
 from rasa.shared.importers.rasa import RasaFileImporter
 from responses import matchers
+from kairon.shared.utils import Utility
+
+Utility.load_system_metadata()
 
 from kairon.shared.channels.broadcast.whatsapp import WhatsappBroadcast
 from kairon.shared.chat.data_objects import ChannelLogs
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
-from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
-
-from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
@@ -42,7 +42,6 @@ from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
-from kairon.shared.utils import Utility
 from kairon.test.test_models import ModelTester
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -2020,7 +2019,7 @@ class TestEventExecution:
         bot = 'test_execute_message_broadcast_with_pyscript_failure'
         user = 'test_user'
         script = """
-                import time         
+                import os         
                 """
         script = textwrap.dedent(script)
         config = {
@@ -2057,7 +2056,7 @@ class TestEventExecution:
         logs[0][0].pop("timestamp", None)
 
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
-                              'user': user, "exception": "Script execution error: import of 'time' is unauthorized"}
+                              'user': user, "exception": "Script execution error: import of 'os' is unauthorized"}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)

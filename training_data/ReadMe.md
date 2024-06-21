@@ -1,1 +1,0 @@
-Trained Data Directory
