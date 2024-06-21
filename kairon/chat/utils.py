@@ -222,7 +222,7 @@ class ChatUtils:
                                     "event.text": 1,
                                     "event.data": 1,
                                     "tabname": "$event.metadata.tabname",
-                                    "metadata": "$event.metadata",
+                                    "event.metadata": "$event.metadata",
                                 }
                             },
                             {"$sort": {"event.timestamp": 1}},
