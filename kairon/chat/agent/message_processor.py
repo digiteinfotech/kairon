@@ -294,15 +294,6 @@ class KaironMessageProcessor(MessageProcessor):
         Raises:
             ActionLimitReached if the limit of actions to predict has been reached.
         """
-        should_predict_another_action = self.should_predict_another_action(
-            tracker.latest_action_name
-        )
-
-        if self.is_action_limit_reached(tracker, should_predict_another_action):
-            raise ActionLimitReached(
-                "The limit of actions to predict has been reached."
-            )
-
         prediction = self._predict_next_with_tracker(tracker)
 
         action = self.action_for_index(

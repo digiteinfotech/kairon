@@ -16,6 +16,7 @@ from kairon.shared.data.constant import (
     INTEGRATION_STATUS,
     FALLBACK_MESSAGE,
     DEFAULT_NLU_FALLBACK_RESPONSE,
+    DEFAULT_LLM
 )
 from ..shared.actions.models import (
     ActionParameterType,
@@ -37,6 +38,7 @@ from ..shared.models import (
     CognitionDataType,
     CognitionMetadataType,
 )
+from kairon.shared.utils import Utility
 
 
 class RecaptchaVerifiedRequest(BaseModel):
@@ -1035,6 +1037,7 @@ class PromptActionConfigRequest(BaseModel):
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     user_question: UserQuestionModel = UserQuestionModel()
+    llm_type: str = DEFAULT_LLM
     hyperparameters: dict = None
     llm_prompts: List[LlmPromptRequest]
     instructions: List[str] = []
@@ -1056,16 +1059,27 @@ class PromptActionConfigRequest(BaseModel):
             raise ValueError("num_bot_responses should not be greater than 5")
         return v
 
+    @validator("llm_type")
+    def validate_llm_type(cls, v, values, **kwargs):
+        if v not in Utility.get_llms():
+            raise ValueError("Invalid llm type")
+        return v
+
+    @validator("hyperparameters")
+    def validate_llm_hyperparameters(cls, v, values, **kwargs):
+        Utility.validate_llm_hyperparameters(v, kwargs['llm_type'], ValueError)
+
     @root_validator
     def check(cls, values):
         from kairon.shared.utils import Utility
 
-        if not values.get("hyperparameters"):
-            values["hyperparameters"] = {}
+        if values.get("llm_type"):
+            if not values.get("hyperparameters"):
+                values["hyperparameters"] = {}
 
-        for key, value in Utility.get_llm_hyperparameters().items():
-            if key not in values["hyperparameters"]:
-                values["hyperparameters"][key] = value
+            for key, value in Utility.get_llm_hyperparameters(values.get("llm_type")).items():
+                if key not in values["hyperparameters"]:
+                    values["hyperparameters"][key] = value
         return values
 
 

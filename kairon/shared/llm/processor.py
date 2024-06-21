@@ -1,9 +1,9 @@
+import random
 import time
-
 from typing import Text, Dict, List, Tuple
 from urllib.parse import urljoin
 
-import openai
+import litellm
 from loguru import logger as logging
 from tiktoken import get_encoding
 from tqdm import tqdm
@@ -13,35 +13,33 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
-from kairon.shared.llm.clients.factory import LLMClientFactory
+from kairon.shared.llm.logger import LiteLLMLogger
 from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 
+litellm.callbacks = [LiteLLMLogger()]
 
-class GPT3FAQEmbedding(LLMBase):
+
+class LLMProcessor(LLMBase):
     __embedding__ = 1536
 
-    def __init__(self, bot: Text, llm_settings: dict):
+    def __init__(self, bot: Text):
         super().__init__(bot)
         self.db_url = Utility.environment['vector']['db']
         self.headers = {}
         if Utility.environment['vector']['key']:
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
-        self.vector_config = {'size': 1536, 'distance': 'Cosine'}
-        self.llm_settings = llm_settings
+        self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
-        self.client = LLMClientFactory.get_resource_provider(llm_settings["provider"])(self.api_key,
-                                                                                       **self.llm_settings)
         self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
         self.__logs = []
 
-    async def train(self, *args, **kwargs) -> Dict:
+    async def train(self, user, bot, *args, **kwargs) -> Dict:
         await self.__delete_collections()
         count = 0
         processor = CognitionDataProcessor()
@@ -51,44 +49,44 @@ class GPT3FAQEmbedding(LLMBase):
             {'$project': {'collection': "$_id", 'content': 1, '_id': 0}}
         ]))
         for collections in collection_groups:
-            collection = f"{self.bot}_{collections['collection']}{self.suffix}" if collections['collection'] else f"{self.bot}{self.suffix}"
+            collection = f"{self.bot}_{collections['collection']}{self.suffix}" if collections[
+                'collection'] else f"{self.bot}{self.suffix}"
             await self.__create_collection__(collection)
             for content in tqdm(collections['content'], desc="Training FAQ"):
                 if content['content_type'] == CognitionDataType.json.value:
                     metadata = processor.find_matching_metadata(self.bot, content['data'], content.get('collection'))
-                    search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(content['data'], metadata)
+                    search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
+                        content['data'], metadata)
                 else:
                     search_payload, embedding_payload = {'content': content["data"]}, content["data"]
-                search_payload['collection_name'] = collection
-                embeddings = await self.__get_embedding(embedding_payload)
+                #search_payload['collection_name'] = collection
+                embeddings = await self.get_embedding(embedding_payload, user, bot)
                 points = [{'id': content['vector_id'], 'vector': embeddings, 'payload': search_payload}]
-                await self.__collection_upsert__(collection, {'points': points}, err_msg="Unable to train FAQ! Contact support")
+                await self.__collection_upsert__(collection, {'points': points},
+                                                 err_msg="Unable to train FAQ! Contact support")
                 count += 1
         return {"faq": count}
 
-    async def predict(self, query: Text, *args, **kwargs) -> Tuple:
+    async def predict(self, query: Text, user, bot, *args, **kwargs) -> Tuple:
         start_time = time.time()
         embeddings_created = False
         try:
-            query_embedding = await self.__get_embedding(query)
+            query_embedding = await self.get_embedding(query, user, bot)
             embeddings_created = True
 
             system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
             context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
 
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
-            answer = await self.__get_answer(query, system_prompt, context, **kwargs)
+            answer = await self.__get_answer(query, system_prompt, context, user, bot, **kwargs)
             response = {"content": answer}
-        except openai.error.APIConnectionError as e:
+        except Exception as e:
             logging.exception(e)
             if embeddings_created:
                 failure_stage = "Retrieving chat completion for the provided query."
             else:
                 failure_stage = "Creating a new embedding for the provided query."
             self.__logs.append({'error': f"{failure_stage} {str(e)}"})
-            response = {"is_failure": True, "exception": str(e), "content": None}
-        except Exception as e:
-            logging.exception(e)
             response = {"is_failure": True, "exception": str(e), "content": None}
 
         end_time = time.time()
@@ -102,13 +100,36 @@ class GPT3FAQEmbedding(LLMBase):
         tokens = self.tokenizer.encode(text)[:self.EMBEDDING_CTX_LENGTH]
         return self.tokenizer.decode(tokens)
 
-    async def __get_embedding(self, text: Text) -> List[float]:
+    async def  get_embedding(self, text: Text, user, bot) -> List[float]:
         truncated_text = self.truncate_text(text)
-        result, _ = await self.client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-3-small",
-                                             input=truncated_text)
-        return result
+        result = await litellm.aembedding(model="text-embedding-3-small",
+                                          input=[truncated_text],
+                                          metadata={'user': user, 'bot': bot},
+                                          api_key=self.api_key,
+                                          num_retries=3)
+        return result["data"][0]["embedding"]
 
-    async def __get_answer(self, query, system_prompt: Text, context: Text, **kwargs):
+    async def __parse_completion_response(self, response, **kwargs):
+        if kwargs.get("stream"):
+            formatted_response = ''
+            msg_choice = random.randint(0, kwargs.get("n", 1) - 1)
+            if response["choices"][0].get("index") == msg_choice and response["choices"][0]['delta'].get('content'):
+                formatted_response = f"{response['choices'][0]['delta']['content']}"
+        else:
+            msg_choice = random.choice(response['choices'])
+            formatted_response = msg_choice['message']['content']
+        return formatted_response
+
+    async def __get_completion(self, messages, hyperparameters, user, bot, **kwargs):
+        response = await litellm.acompletion(messages=messages,
+                                             metadata={'user': user, 'bot': bot},
+                                             api_key=self.api_key,
+                                             num_retries=3,
+                                             **hyperparameters)
+        formatted_response = await self.__parse_completion_response(response, **kwargs)
+        return formatted_response, response
+
+    async def __get_answer(self, query, system_prompt: Text, context: Text, user, bot, **kwargs):
         use_query_prompt = False
         query_prompt = ''
         if kwargs.get('query_prompt', {}):
@@ -116,12 +137,15 @@ class GPT3FAQEmbedding(LLMBase):
             query_prompt = query_prompt_dict.get('query_prompt', '')
             use_query_prompt = query_prompt_dict.get('use_query_prompt')
         previous_bot_responses = kwargs.get('previous_bot_responses')
-        hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyperparameters())
+        hyperparameters = kwargs['hyperparameters']
         instructions = kwargs.get('instructions', [])
         instructions = '\n'.join(instructions)
 
         if use_query_prompt and query_prompt:
-            query = await self.__rephrase_query(query, system_prompt, query_prompt, hyperparameters=hyperparameters)
+            query = await self.__rephrase_query(query, system_prompt, query_prompt,
+                                                hyperparameters=hyperparameters,
+                                                user=user,
+                                                bot=bot)
         messages = [
             {"role": "system", "content": system_prompt},
         ]
@@ -130,21 +154,25 @@ class GPT3FAQEmbedding(LLMBase):
         messages.append({"role": "user", "content": f"{context} \n{instructions} \nQ: {query} \nA:"}) if instructions \
             else messages.append({"role": "user", "content": f"{context} \nQ: {query} \nA:"})
 
-        completion, raw_response = await self.client.invoke(GPT3ResourceTypes.chat_completion.value, messages=messages,
-                                                            **hyperparameters)
+        completion, raw_response = await self.__get_completion(messages=messages,
+                                                               hyperparameters=hyperparameters,
+                                                               user=user,
+                                                               bot=bot)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'answer_query', 'hyperparameters': hyperparameters})
         return completion
 
-    async def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, **kwargs):
+    async def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, user, bot, **kwargs):
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"{query_prompt}\n\n Q: {query}\n A:"}
         ]
-        hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyperparameters())
+        hyperparameters = kwargs['hyperparameters']
 
-        completion, raw_response = await self.client.invoke(GPT3ResourceTypes.chat_completion.value, messages=messages,
-                                                      **hyperparameters)
+        completion, raw_response = await self.__get_completion(messages=messages,
+                                                               hyperparameters=hyperparameters,
+                                                               user=user,
+                                                               bot=bot)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'rephrase_query', 'hyperparameters': hyperparameters})
         return completion
@@ -153,9 +181,9 @@ class GPT3FAQEmbedding(LLMBase):
         client = AioRestClient(False)
         try:
             response = await client.request(http_url=urljoin(self.db_url, "/collections"),
-                                      request_method="GET",
-                                      headers=self.headers,
-                                      timeout=5)
+                                            request_method="GET",
+                                            headers=self.headers,
+                                            timeout=5)
             if response.get('result'):
                 for collection in response['result'].get('collections') or []:
                     if collection['name'].startswith(self.bot):

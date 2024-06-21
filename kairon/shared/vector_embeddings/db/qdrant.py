@@ -8,7 +8,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import GPT3ResourceTypes
-from kairon.shared.llm.clients.factory import LLMClientFactory
+from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.vector_embeddings.db.base import VectorEmbeddingsDbBase
 
 
@@ -25,9 +25,7 @@ class Qdrant(VectorEmbeddingsDbBase, ABC):
         if Utility.environment['vector']['key']:
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.llm_settings = llm_settings
-        self.api_key = Sysadmin.get_bot_secret(self.bot, BotSecretType.gpt_key.value, raise_err=True)
-        self.client = LLMClientFactory.get_resource_provider(llm_settings["provider"])(self.api_key,
-                                                                                       **self.llm_settings)
+        self.llm = LLMProcessor(self.bot)
         self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
 
@@ -38,18 +36,16 @@ class Qdrant(VectorEmbeddingsDbBase, ABC):
         tokens = self.tokenizer.encode(text)[:self.EMBEDDING_CTX_LENGTH]
         return self.tokenizer.decode(tokens)
 
-    async def __get_embedding(self, text: Text) -> List[float]:
-        truncated_text = self.truncate_text(text)
-        result, _ = await self.client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-3-small",
-                                             input=truncated_text)
+    async def __get_embedding(self, text: Text, **kwargs) -> List[float]:
+        result, _ = await self.llm.get_embedding(text, user=kwargs.get('user'), bot=kwargs.get('bot'))
         return result
 
-    async def embedding_search(self, request_body: Dict):
+    async def embedding_search(self, request_body: Dict, **kwargs):
         url = urljoin(self.db_url, f"/collections/{self.collection_name}/points")
         if request_body.get("text"):
             url = urljoin(self.db_url, f"/collections/{self.collection_name}/points/search")
             user_msg = request_body.get("text")
-            vector = await self.__get_embedding(user_msg)
+            vector = await self.__get_embedding(user_msg, **kwargs)
             request_body = {'vector': vector, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
         embedding_search_result = ActionUtility.execute_http_request(http_url=url,
                                                                      request_method='POST',
@@ -57,7 +53,7 @@ class Qdrant(VectorEmbeddingsDbBase, ABC):
                                                                      request_body=request_body)
         return embedding_search_result
 
-    async def payload_search(self, request_body: Dict):
+    async def payload_search(self, request_body: Dict, **kwargs):
         url = urljoin(self.db_url, f"/collections/{self.collection_name}/points/scroll")
         payload_filter_result = ActionUtility.execute_http_request(http_url=url,
                                                                    request_method='POST',
