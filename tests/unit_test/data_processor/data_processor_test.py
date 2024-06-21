@@ -14,7 +14,7 @@ Utility.load_environment()
 Utility.load_system_metadata()
 
 
-from unittest.mock import patch
+from mock import patch
 import numpy as np
 import pandas as pd
 import pytest
@@ -60,7 +60,7 @@ from kairon.shared.data.constant import ENDPOINT_TYPE
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
-    DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_SYSTEM_PROMPT, DEFAULT_LLM
+    DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_SYSTEM_PROMPT
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -72,8 +72,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault, MultiflowStories, LLMSettings,
                                              MultiflowStoryEvents, Synonyms,
-                                             Lookup,
-                                             DemoRequestLogs
+                                             Lookup
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -81,7 +80,6 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.processor import DataImporterLogProcessor
-from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType
@@ -153,50 +151,6 @@ class TestMongoProcessor:
                                        {'name': 'persona', 'type': 'SLOT', 'value': 'positive'},
                                        {'name': 'utter_welcome_user', 'type': 'BOT'}]
 
-    def test_add_demo_request_with_empty_first_name(self):
-        processor = MongoProcessor()
-        processor.add_demo_request(
-            first_name="", last_name="Sattala", email="mahesh.sattala@digite.com", phone="+919876543210",
-            message="This is test message", recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
-        )
-
-    def test_add_demo_request_with_empty_last_name(self):
-        processor = MongoProcessor()
-        processor.add_demo_request(
-            first_name="Mahesh", last_name="", email="mahesh.sattala@digite.com", phone="+919876543210",
-            message="This is test message", recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
-        )
-
-    def test_add_demo_request_with_invalid_email(self):
-        processor = MongoProcessor()
-        processor.add_demo_request(
-            first_name="Mahesh", last_name="Sattala", email="mahesh.sattala", phone="+919876543210",
-            message="This is test message", recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
-        )
-
-    def test_add_demo_request_with_invalid_status(self):
-        processor = MongoProcessor()
-        processor.add_demo_request(
-            first_name="Mahesh", last_name="Sattala", email="mahesh.sattala@digite.com",
-            phone="+919876543210", message="This is test message", status="Invalid_status",
-            recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
-        )
-
-    def test_add_demo_request(self):
-        processor = MongoProcessor()
-        processor.add_demo_request(first_name="Mahesh", last_name="Sattala", email="mahesh.sattala@nimblework.com",
-                                   phone="+919876543210", message="This is test message", status="demo_given",
-                                   recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i")
-        demo_request_logs = DemoRequestLogs.objects(first_name="Mahesh", last_name="Sattala",
-                                                    email="mahesh.sattala@nimblework.com").get().to_mongo().to_dict()
-        assert demo_request_logs['first_name'] == "Mahesh"
-        assert demo_request_logs['last_name'] == "Sattala"
-        assert demo_request_logs['email'] == "mahesh.sattala@nimblework.com"
-        assert demo_request_logs['phone'] == "+919876543210"
-        assert demo_request_logs['status'] == "demo_given"
-        assert demo_request_logs['message'] == "This is test message"
-        assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
-
     def test_add_prompt_action_with_gpt_feature_disabled(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -216,7 +170,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
@@ -244,7 +198,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
@@ -273,7 +227,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -303,7 +257,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -355,7 +309,7 @@ class TestMongoProcessor:
              'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
              'user_question': {'type': 'from_user_message'},
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                 'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                  'frequency_penalty': 0.0, 'logit_bias': {}},
              'llm_type': 'openai',
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -400,7 +354,7 @@ class TestMongoProcessor:
             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
             'user_question': {'type': 'from_user_message'},
             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                 'frequency_penalty': 0.0, 'logit_bias': {}},
             'llm_type': 'openai',
             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -600,7 +554,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': []}
         with pytest.raises(ValidationError, match="llm_prompts are required!"):
@@ -627,7 +581,7 @@ class TestMongoProcessor:
                            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_type': 'openai',
                            'llm_prompts': [
@@ -648,7 +602,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -665,7 +619,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': ["\n", ".", "?", "!", ";"],
+                                       'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"],
                                        'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -685,7 +639,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': '?', 'presence_penalty': -3.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': -3.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -703,7 +657,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': '?', 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 3.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -720,7 +674,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': '?', 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -737,7 +691,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 1, 'stop': '?', 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -754,7 +708,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt-3.5-turbo',
                                        'top_p': 3.0,
-                                       'n': 1, 'stop': '?', 'presence_penalty': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -771,7 +725,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 7, 'stop': '?', 'presence_penalty': 0.0,
+                                       'n': 7, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -788,7 +742,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 0, 'stop': '?', 'presence_penalty': 0.0,
+                                       'n': 0, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -805,7 +759,7 @@ class TestMongoProcessor:
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-3.5-turbo',
                                        'top_p': 0.0,
-                                       'n': 2, 'stop': '?', 'presence_penalty': 0.0,
+                                       'n': 2, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': 'a'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -880,7 +834,7 @@ class TestMongoProcessor:
         assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message', 'user_question': {'type': 'from_user_message'},
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_type': 'openai',
                            'llm_prompts': [
@@ -915,7 +869,7 @@ class TestMongoProcessor:
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                            'llm_type': 'openai',
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_prompts': [
                                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -958,7 +912,7 @@ class TestMongoProcessor:
                            'failure_message': 'updated_failure_message',
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_type': 'openai',
                            'llm_prompts': [
@@ -993,7 +947,7 @@ class TestMongoProcessor:
                            'failure_message': 'updated_failure_message',
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
+                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_type': 'openai',
                            'llm_prompts': [
@@ -6538,7 +6492,6 @@ class TestMongoProcessor:
         actual_config.config.pop('live_agent_socket_url')
         headers = actual_config.config.pop('headers')
         expected_config['multilingual'] = {'enable': False, 'bots': []}
-        expected_config['live_agent_enabled'] = True
         assert expected_config == actual_config.config
 
         primary_token_claims = Utility.decode_limited_access_token(headers['authorization']['access_token'])
@@ -6556,22 +6509,6 @@ class TestMongoProcessor:
                 '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
                 '/api/bot/.+/metric/user/logs/user_metrics'
             ], 'access-limit': ['/api/auth/.+/token/refresh']}
-
-    def test_get_chat_client_config_live_agent_enabled_false(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com',
-                'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-        def _mock_is_live_agent_service_available(*args, **kwargs):
-            return False
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(LiveAgentHandler, 'is_live_agent_service_available', _mock_is_live_agent_service_available)
-        processor = MongoProcessor()
-        actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
-        assert actual_config.config['live_agent_enabled'] == False
-
 
     def test_save_chat_client_config_without_whitelisted_domain(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
@@ -8551,9 +8488,7 @@ class TestMongoProcessor:
                           'data': 'tester_action',
                           'instructions': 'Answer according to the context', 'type': 'user',
                           'source': 'action',
-                          'is_enabled': True}],
-            llm_type=DEFAULT_LLM,
-            hyperparameters=Utility.get_default_llm_hyperparameters()
+                          'is_enabled': True}]
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         processor.add_prompt_action(prompt_action_config.dict(), bot, user)
@@ -13262,8 +13197,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": {"value": "from_email", "parameter_type": "slot"},
-                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com", "test1@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13278,8 +13213,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": {"value": "from_email", "parameter_type": "slot"},
-                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com", "test1@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False,
@@ -13316,8 +13251,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": {"value": "from_email", "parameter_type": "slot"},
-                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+                        "from_email": "test@demo.com",
+                        "to_email": "test@test.com",
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13341,29 +13276,16 @@ class TestMongoProcessor:
             email_config['smtp_url'] = temp
 
             temp = email_config['from_email']
-            email_config['from_email'] = {"value": "test@test", "parameter_type": "value"}
+            email_config['from_email'] = "test@test"
             with pytest.raises(ValidationError, match="Invalid From or To email address"):
-                processor.add_email_action(email_config, "TEST", "tests")
-
-            email_config['from_email'] = {"value": "", "parameter_type": "slot"}
-            with pytest.raises(ValidationError, match="Provide name of the slot as value"):
                 processor.add_email_action(email_config, "TEST", "tests")
             email_config['from_email'] = temp
 
             temp = email_config['to_email']
-            email_config['to_email'] = {"value": "test@test", "parameter_type": "value"}
-            with pytest.raises(ValidationError, match="Provide list of emails as value"):
-                processor.add_email_action(email_config, "TEST", "tests")
-
-            email_config['to_email'] = {"value": ["test@test"], "parameter_type": "value"}
+            email_config['to_email'] = "test@test"
             with pytest.raises(ValidationError, match="Invalid From or To email address"):
                 processor.add_email_action(email_config, "TEST", "tests")
-
-            email_config['to_email'] = {"value": "", "parameter_type": "slot"}
-            with pytest.raises(ValidationError, match="Provide name of the slot as value"):
-                processor.add_email_action(email_config, "TEST", "tests")
-            email_config['to_email'] = temp
-
+            email_config['to_email'] = ["test@demo.com"]
             email_config["custom_text"] = {"value": "custom_text_slot", "parameter_type": "sender_id"}
             with pytest.raises(ValidationError, match="custom_text can only be of type value or slot!"):
                 processor.add_email_action(email_config, "TEST", "tests")
@@ -13375,8 +13297,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": {"value": "from_email", "parameter_type": "slot"},
-                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13392,8 +13314,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
-                        "to_email": {"value": "to_email", "parameter_type": "slot"},
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13409,8 +13331,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
-                        "to_email": {"value": "to_email", "parameter_type": "slot"},
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com", "test1@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13429,8 +13351,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
-                        "to_email": {"value": "to_email", "parameter_type": "slot"},
+                        "from_email": "test@demo.com",
+                        "to_email": "test@test.com",
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -13454,26 +13376,14 @@ class TestMongoProcessor:
             email_config['smtp_url'] = temp
 
             temp = email_config['from_email']
-            email_config['from_email'] = {"value": "test@demo", "parameter_type": "value"}
+            email_config['from_email'] = "test@test"
             with pytest.raises(ValidationError, match="Invalid From or To email address"):
-                processor.edit_email_action(email_config, "TEST", "tests")
-
-            email_config['from_email'] = {"value": "", "parameter_type": "slot"}
-            with pytest.raises(ValidationError, match="Provide name of the slot as value"):
                 processor.edit_email_action(email_config, "TEST", "tests")
             email_config['from_email'] = temp
 
             temp = email_config['to_email']
-            email_config['to_email'] = {"value": "test@test", "parameter_type": "value"}
-            with pytest.raises(ValidationError, match="Provide list of emails as value"):
-                processor.edit_email_action(email_config, "TEST", "tests")
-
-            email_config['to_email'] = {"value": ["test@test"], "parameter_type": "value"}
+            email_config['to_email'] = "test@test"
             with pytest.raises(ValidationError, match="Invalid From or To email address"):
-                processor.edit_email_action(email_config, "TEST", "tests")
-
-            email_config['to_email'] = {"value": "", "parameter_type": "slot"}
-            with pytest.raises(ValidationError, match="Provide name of the slot as value"):
                 processor.edit_email_action(email_config, "TEST", "tests")
             email_config['to_email'] = temp
 
@@ -13484,8 +13394,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
-                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
-                        "to_email": {"value": "to_email", "parameter_type": "slot"},
+                        "from_email": "test@demo.com",
+                        "to_email": "test@test.com",
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -14339,8 +14249,8 @@ class TestMongoProcessor:
                         "smtp_port": 25,
                         "smtp_userid": smtp_userid_list,
                         "smtp_password": {'value': "test"},
-                        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
-                        "to_email": {"value": "to_email", "parameter_type": "slot"},
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com", "test1@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False

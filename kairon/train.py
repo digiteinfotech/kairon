@@ -6,7 +6,7 @@ from loguru import logger as logging
 from rasa.api import train
 from rasa.model import DEFAULT_MODELS_PATH
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
-from kairon.shared.data.constant import DEFAULT_LLM
+
 from kairon.chat.agent.agent import KaironAgent
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -101,8 +101,8 @@ def start_training(bot: str, user: str, token: str = None):
         settings = processor.get_bot_settings(bot, user)
         settings = settings.to_mongo().to_dict()
         if settings["llm_settings"]['enable_faq']:
-            llm_processor = LLMProcessor(bot, DEFAULT_LLM)
-            faqs = asyncio.run(llm_processor.train(user=user))
+            llm_processor = LLMProcessor(bot)
+            faqs = asyncio.run(llm_processor.train(user=user, bot=bot))
             account = AccountProcessor.get_bot(bot)['account']
             MeteringProcessor.add_metrics(bot=bot, metric_type=MetricType.faq_training.value, account=account, **faqs)
         agent_url = Utility.environment['model']['agent'].get('url')

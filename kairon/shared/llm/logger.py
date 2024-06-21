@@ -1,10 +1,14 @@
 from litellm.integrations.custom_logger import CustomLogger
 from .data_objects import LLMLogs
 import ujson as json
-from loguru import logger
 
 
 class LiteLLMLogger(CustomLogger):
+    def log_pre_api_call(self, model, messages, kwargs):
+        pass
+
+    def log_post_api_call(self, kwargs, response_obj, start_time, end_time):
+        pass
 
     def log_stream_event(self, kwargs, response_obj, start_time, end_time):
         self.__logs_litellm(**kwargs)
@@ -25,17 +29,15 @@ class LiteLLMLogger(CustomLogger):
         self.__logs_litellm(**kwargs)
 
     def __logs_litellm(self, **kwargs):
-        logger.info("logging llms call")
-        litellm_params = kwargs.get('litellm_params')
-        self.__save_logs(**{'response': json.loads(kwargs.get('original_response')) if kwargs.get('original_response') else None,
-                            'start_time': kwargs.get('start_time'),
-                            'end_time': kwargs.get('end_time'),
-                            'cost': kwargs.get("response_cost"),
-                            'llm_call_id': litellm_params.get('litellm_call_id'),
-                            'llm_provider': litellm_params.get('custom_llm_provider'),
-                            'model_params': kwargs.get("additional_args", {}).get("complete_input_dict"),
-                            'metadata': litellm_params.get('metadata')})
+        litellm_params = kwargs['litellm_params']
+        self.__save_logs(**{'response': json.loads(kwargs['original_response']),
+                            'start_time': kwargs['start_time'],
+                            'end_time': kwargs['end_time'],
+                            'cost': kwargs["response_cost"],
+                            'llm_call_id': litellm_params['litellm_call_id'],
+                            'llm_provider': litellm_params['custom_llm_provider'],
+                            'model_params': kwargs["additional_args"]["complete_input_dict"],
+                            'metadata': litellm_params['metadata']})
 
     def __save_logs(self, **kwargs):
-        logs = LLMLogs(**kwargs).save().to_mongo().to_dict()
-        logger.info(f"llm logs: {logs}")
+        LLMLogs(**kwargs).save()

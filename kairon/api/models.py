@@ -15,7 +15,8 @@ from kairon.shared.data.constant import (
     ACTIVITY_STATUS,
     INTEGRATION_STATUS,
     FALLBACK_MESSAGE,
-    DEFAULT_NLU_FALLBACK_RESPONSE
+    DEFAULT_NLU_FALLBACK_RESPONSE,
+    DEFAULT_LLM
 )
 from ..shared.actions.models import (
     ActionParameterType,
@@ -903,38 +904,16 @@ class WebSearchActionRequest(BaseModel):
         return v
 
 
-class CustomActionParameterModel(BaseModel):
-    value: Any = None
-    parameter_type: ActionParameterType = ActionParameterType.value
-
-    @validator("parameter_type")
-    def validate_parameter_type(cls, v, values, **kwargs):
-        allowed_values = {ActionParameterType.value, ActionParameterType.slot}
-        if v not in allowed_values:
-            raise ValueError(f"Invalid parameter type. Allowed values: {allowed_values}")
-        return v
-
-    @root_validator
-    def check(cls, values):
-        if values.get('parameter_type') == ActionParameterType.slot and not values.get('value'):
-            raise ValueError("Provide name of the slot as value")
-
-        if values.get('parameter_type') == ActionParameterType.value and not isinstance(values.get('value'), list):
-            raise ValueError("Provide list of emails as value")
-
-        return values
-
-
 class EmailActionRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)
     smtp_url: str
     smtp_port: int
     smtp_userid: CustomActionParameter = None
     smtp_password: CustomActionParameter
-    from_email: CustomActionParameter
+    from_email: str
     subject: str
     custom_text: CustomActionParameter = None
-    to_email: CustomActionParameterModel
+    to_email: List[str]
     response: str
     tls: bool = False
 
@@ -1058,8 +1037,8 @@ class PromptActionConfigRequest(BaseModel):
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     user_question: UserQuestionModel = UserQuestionModel()
-    llm_type: str
-    hyperparameters: dict
+    llm_type: str = DEFAULT_LLM
+    hyperparameters: dict = None
     llm_prompts: List[LlmPromptRequest]
     instructions: List[str] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
@@ -1088,8 +1067,7 @@ class PromptActionConfigRequest(BaseModel):
 
     @validator("hyperparameters")
     def validate_llm_hyperparameters(cls, v, values, **kwargs):
-        if values.get('llm_type'):
-            Utility.validate_llm_hyperparameters(v, values['llm_type'], ValueError)
+        Utility.validate_llm_hyperparameters(v, kwargs['llm_type'], ValueError)
 
     @root_validator
     def check(cls, values):

@@ -1,4 +1,4 @@
-from secrets import randbelow, choice
+import random
 import time
 from typing import Text, Dict, List, Tuple
 from urllib.parse import urljoin
@@ -16,7 +16,6 @@ from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
 from kairon.shared.llm.logger import LiteLLMLogger
-from kairon.shared.llm.data_objects import LLMLogs
 from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
@@ -27,21 +26,20 @@ litellm.callbacks = [LiteLLMLogger()]
 class LLMProcessor(LLMBase):
     __embedding__ = 1536
 
-    def __init__(self, bot: Text, llm_type: str):
+    def __init__(self, bot: Text):
         super().__init__(bot)
         self.db_url = Utility.environment['vector']['db']
         self.headers = {}
         if Utility.environment['vector']['key']:
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
-        self.llm_type = llm_type
         self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
         self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
         self.__logs = []
 
-    async def train(self, user, *args, **kwargs) -> Dict:
+    async def train(self, user, bot, *args, **kwargs) -> Dict:
         await self.__delete_collections()
         count = 0
         processor = CognitionDataProcessor()
@@ -61,25 +59,26 @@ class LLMProcessor(LLMBase):
                         content['data'], metadata)
                 else:
                     search_payload, embedding_payload = {'content': content["data"]}, content["data"]
-                embeddings = await self.get_embedding(embedding_payload, user)
+                #search_payload['collection_name'] = collection
+                embeddings = await self.get_embedding(embedding_payload, user, bot)
                 points = [{'id': content['vector_id'], 'vector': embeddings, 'payload': search_payload}]
                 await self.__collection_upsert__(collection, {'points': points},
                                                  err_msg="Unable to train FAQ! Contact support")
                 count += 1
         return {"faq": count}
 
-    async def predict(self, query: Text, user, *args, **kwargs) -> Tuple:
+    async def predict(self, query: Text, user, bot, *args, **kwargs) -> Tuple:
         start_time = time.time()
         embeddings_created = False
         try:
-            query_embedding = await self.get_embedding(query, user)
+            query_embedding = await self.get_embedding(query, user, bot)
             embeddings_created = True
 
             system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
             context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
 
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
-            answer = await self.__get_answer(query, system_prompt, context, user, **kwargs)
+            answer = await self.__get_answer(query, system_prompt, context, user, bot, **kwargs)
             response = {"content": answer}
         except Exception as e:
             logging.exception(e)
@@ -101,11 +100,11 @@ class LLMProcessor(LLMBase):
         tokens = self.tokenizer.encode(text)[:self.EMBEDDING_CTX_LENGTH]
         return self.tokenizer.decode(tokens)
 
-    async def get_embedding(self, text: Text, user) -> List[float]:
+    async def  get_embedding(self, text: Text, user, bot) -> List[float]:
         truncated_text = self.truncate_text(text)
         result = await litellm.aembedding(model="text-embedding-3-small",
                                           input=[truncated_text],
-                                          metadata={'user': user, 'bot': self.bot},
+                                          metadata={'user': user, 'bot': bot},
                                           api_key=self.api_key,
                                           num_retries=3)
         return result["data"][0]["embedding"]
@@ -113,25 +112,24 @@ class LLMProcessor(LLMBase):
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
             formatted_response = ''
-            msg_choice = randbelow(kwargs.get("n", 1))
+            msg_choice = random.randint(0, kwargs.get("n", 1) - 1)
             if response["choices"][0].get("index") == msg_choice and response["choices"][0]['delta'].get('content'):
                 formatted_response = f"{response['choices'][0]['delta']['content']}"
         else:
-            msg_choice = choice(response['choices'])
+            msg_choice = random.choice(response['choices'])
             formatted_response = msg_choice['message']['content']
         return formatted_response
 
-    async def __get_completion(self, messages, hyperparameters, user, **kwargs):
+    async def __get_completion(self, messages, hyperparameters, user, bot, **kwargs):
         response = await litellm.acompletion(messages=messages,
-                                             metadata={'user': user, 'bot': self.bot},
+                                             metadata={'user': user, 'bot': bot},
                                              api_key=self.api_key,
                                              num_retries=3,
                                              **hyperparameters)
-        formatted_response = await self.__parse_completion_response(response,
-                                                                    **hyperparameters)
+        formatted_response = await self.__parse_completion_response(response, **kwargs)
         return formatted_response, response
 
-    async def __get_answer(self, query, system_prompt: Text, context: Text, user, **kwargs):
+    async def __get_answer(self, query, system_prompt: Text, context: Text, user, bot, **kwargs):
         use_query_prompt = False
         query_prompt = ''
         if kwargs.get('query_prompt', {}):
@@ -146,7 +144,8 @@ class LLMProcessor(LLMBase):
         if use_query_prompt and query_prompt:
             query = await self.__rephrase_query(query, system_prompt, query_prompt,
                                                 hyperparameters=hyperparameters,
-                                                user=user)
+                                                user=user,
+                                                bot=bot)
         messages = [
             {"role": "system", "content": system_prompt},
         ]
@@ -157,12 +156,13 @@ class LLMProcessor(LLMBase):
 
         completion, raw_response = await self.__get_completion(messages=messages,
                                                                hyperparameters=hyperparameters,
-                                                               user=user)
+                                                               user=user,
+                                                               bot=bot)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'answer_query', 'hyperparameters': hyperparameters})
         return completion
 
-    async def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, user, **kwargs):
+    async def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, user, bot, **kwargs):
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"{query_prompt}\n\n Q: {query}\n A:"}
@@ -171,7 +171,8 @@ class LLMProcessor(LLMBase):
 
         completion, raw_response = await self.__get_completion(messages=messages,
                                                                hyperparameters=hyperparameters,
-                                                               user=user)
+                                                               user=user,
+                                                               bot=bot)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'rephrase_query', 'hyperparameters': hyperparameters})
         return completion
@@ -261,26 +262,3 @@ class LLMProcessor(LLMBase):
                     similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
                     context_prompt = f"{context_prompt}\n{similarity_context}"
         return context_prompt
-
-    @staticmethod
-    def get_logs(bot: str, start_idx: int = 0, page_size: int = 10):
-        """
-        Get all logs for data importer event.
-        @param bot: bot id.
-        @param start_idx: start index
-        @param page_size: page size
-        @return: list of logs.
-        """
-        for log in LLMLogs.objects(metadata__bot=bot).order_by("-start_time").skip(start_idx).limit(page_size):
-            llm_log = log.to_mongo().to_dict()
-            llm_log.pop('_id')
-            yield llm_log
-
-    @staticmethod
-    def get_row_count(bot: str):
-        """
-        Gets the count of rows in a LLMLogs for a particular bot.
-        :param bot: bot id
-        :return: Count of rows
-        """
-        return LLMLogs.objects(metadata__bot=bot).count()

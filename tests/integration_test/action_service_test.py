@@ -3,7 +3,7 @@ import os
 from urllib.parse import urlencode, urljoin
 
 import litellm
-from unittest import mock
+import mock
 import numpy as np
 import pytest
 import responses
@@ -24,8 +24,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig, \
-    CustomActionParameters
+    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
@@ -5564,9 +5563,9 @@ def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config,
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
-        to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
-        subject="test",
+        from_email="test@demo.com",
+        subject="test script",
+        to_email=["test@test.com"],
         response="Email Triggered",
         custom_text=CustomActionRequestParameters(key="custom_text", value="custom_mail_text",
                                                   parameter_type=ActionParameterType.slot.value),
@@ -5618,14 +5617,14 @@ def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config,
     assert {} == kwargs
 
     from_email, password = args
-    assert from_email == action_config.from_email.value
+    assert from_email == action_config.from_email
     assert password == action_config.smtp_password.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().sendmail'
     assert {} == kwargs
 
-    assert args[0] == action_config.from_email.value
+    assert args[0] == action_config.from_email
     assert args[1] == ["test@test.com"]
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
@@ -5651,9 +5650,9 @@ def test_email_action_execution(mock_smtp, mock_action_config, mock_action):
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
-        to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+        from_email="test@demo.com",
         subject="test",
+        to_email=["test@test.com"],
         response="Email Triggered",
         bot="bot",
         user="user"
@@ -5769,14 +5768,14 @@ def test_email_action_execution(mock_smtp, mock_action_config, mock_action):
     assert {} == kwargs
 
     from_email, password = args
-    assert from_email == action_config.from_email.value
+    assert from_email == action_config.from_email
     assert password == action_config.smtp_password.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().sendmail'
     assert {} == kwargs
 
-    assert args[0] == action_config.from_email.value
+    assert args[0] == action_config.from_email
     assert args[1] == ["test@test.com"]
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
@@ -5786,852 +5785,6 @@ def test_email_action_execution(mock_smtp, mock_action_config, mock_action):
 @mock.patch("kairon.shared.actions.utils.ActionUtility.get_action")
 @mock.patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
 @mock.patch("kairon.shared.utils.SMTP", autospec=True)
-def test_email_action_execution_with_sender_email_from_slot(mock_smtp, mock_action_config, mock_action):
-    Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
-                                                                    'rb').read().decode()
-    Utility.email_conf['email']['templates']['bot_msg_conversation'] = open(
-        'template/emails/bot_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
-        'template/emails/user_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
-                                                                       'rb').read().decode()
-    action_name = "test_email_action_execution_with_sender_email_from_slot"
-    action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
-    action_config = EmailActionConfig(
-        action_name=action_name,
-        smtp_url="test.localhost",
-        smtp_port=293,
-        smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email=CustomActionRequestParameters(value="from_email", parameter_type="slot"),
-        to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
-        subject="test",
-        response="Email Triggered",
-        bot="bot",
-        user="user"
-    )
-
-    def _get_action(*arge, **kwargs):
-        return action.to_mongo().to_dict()
-
-    def _get_action_config(*arge, **kwargs):
-        return action_config.to_mongo().to_dict()
-
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "mahesh.sattala",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "requested_slot": "from_email",
-                      "from_email": "mahesh@gmail.com"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [
-                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
-                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
-                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
-                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
-                                       "parse_data": {
-                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
-                                           "entities": [], "intent_ranking": [
-                                               {"name": "test intent", "confidence": 0.253578245639801},
-                                               {"name": "goodbye", "confidence": 0.1504897326231},
-                                               {"name": "greet", "confidence": 0.138640150427818},
-                                               {"name": "affirm", "confidence": 0.0857767835259438},
-                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                               {"name": "deny", "confidence": 0.069614589214325},
-                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                           "response_selector": {
-                                               "default": {"response": {"name": None, "confidence": 0},
-                                                           "ranking": [], "full_retrieval_intent": None}},
-                                           "text": "can't"}, "input_channel": None,
-                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
-                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
-                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
-                                                   {"name": "goodbye", "confidence": 0.1504897326231},
-                                                   {"name": "greet", "confidence": 0.138640150427818},
-                                                   {"name": "affirm", "confidence": 0.0857767835259438},
-                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                                   {"name": "deny", "confidence": 0.069614589214325},
-                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                "response_selector": {
-                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
-                                                "full_retrieval_intent": None}}, "text": "can\"t"},
-                 "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
-                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
-                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
-                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    mock_action.side_effect = _get_action
-    mock_action_config.side_effect = _get_action_config
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 1
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "Email Triggered"}]
-    assert response_json['responses'][0]['text'] == "Email Triggered"
-    logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
-
-    name, args, kwargs = mock_smtp.method_calls.pop(0)
-    assert name == '().connect'
-    assert {} == kwargs
-
-    host, port = args
-    assert host == action_config.smtp_url
-    assert port == action_config.smtp_port
-    name, args, kwargs = mock_smtp.method_calls.pop(0)
-    assert name == '().login'
-    assert {} == kwargs
-
-    from_email, password = args
-    assert from_email == 'mahesh@gmail.com'
-    assert password == action_config.smtp_password.value
-
-    name, args, kwargs = mock_smtp.method_calls.pop(0)
-    assert name == '().sendmail'
-    assert {} == kwargs
-
-    assert args[0] == 'mahesh@gmail.com'
-    assert args[1] == ["test@test.com"]
-    assert str(args[2]).__contains__(action_config.subject)
-    assert str(args[2]).__contains__("Content-Type: text/html")
-    assert str(args[2]).__contains__("Subject: mahesh.sattala test")
-
-
-@patch("kairon.shared.actions.utils.ActionUtility.get_action")
-@patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
-@patch("kairon.shared.utils.SMTP", autospec=True)
-def test_email_action_execution_with_receiver_email_list_from_slot(mock_smtp, mock_action_config, mock_action):
-    Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
-                                                                    'rb').read().decode()
-    Utility.email_conf['email']['templates']['bot_msg_conversation'] = open(
-        'template/emails/bot_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
-        'template/emails/user_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
-                                                                       'rb').read().decode()
-
-    action_name = "test_email_action_execution_with_receiver_email_list_from_slot"
-    action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
-    action_config = EmailActionConfig(
-        action_name=action_name,
-        smtp_url="test.localhost",
-        smtp_port=293,
-        smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
-        to_email=CustomActionParameters(value="to_email", parameter_type="slot"),
-        subject="test",
-        response="Email Triggered",
-        bot="bot",
-        user="user"
-    )
-
-    def _get_action(*arge, **kwargs):
-        return action.to_mongo().to_dict()
-
-    def _get_action_config(*arge, **kwargs):
-        return action_config.to_mongo().to_dict()
-
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "mahesh.sattala",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "requested_slot": "to_email",
-                      "to_email": ["test@gmail.com"]},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [
-                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
-                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
-                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
-                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
-                                       "parse_data": {
-                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
-                                           "entities": [], "intent_ranking": [
-                                               {"name": "test intent", "confidence": 0.253578245639801},
-                                               {"name": "goodbye", "confidence": 0.1504897326231},
-                                               {"name": "greet", "confidence": 0.138640150427818},
-                                               {"name": "affirm", "confidence": 0.0857767835259438},
-                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                               {"name": "deny", "confidence": 0.069614589214325},
-                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                           "response_selector": {
-                                               "default": {"response": {"name": None, "confidence": 0},
-                                                           "ranking": [], "full_retrieval_intent": None}},
-                                           "text": "can't"}, "input_channel": None,
-                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
-                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
-                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
-                                                   {"name": "goodbye", "confidence": 0.1504897326231},
-                                                   {"name": "greet", "confidence": 0.138640150427818},
-                                                   {"name": "affirm", "confidence": 0.0857767835259438},
-                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                                   {"name": "deny", "confidence": 0.069614589214325},
-                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                "response_selector": {
-                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
-                                                "full_retrieval_intent": None}}, "text": "can\"t"},
-                 "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
-                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
-                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
-                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    mock_action.side_effect = _get_action
-    mock_action_config.side_effect = _get_action_config
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 1
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "Email Triggered"}]
-    assert response_json['responses'][0]['text'] == "Email Triggered"
-    logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
-
-    name, args, kwargs = mock_smtp.method_calls.pop(0)
-    assert name == '().connect'
-    assert {} == kwargs
-
-    host, port = args
-    assert host == action_config.smtp_url
-    assert port == action_config.smtp_port
-    name, args, kwargs = mock_smtp.method_calls.pop(0)
-    assert name == '().login'
-    assert {} == kwargs
-
-    from_email, password = args
-    assert from_email == action_config.from_email.value
-    assert password == action_config.smtp_password.value
-
-    name, args, kwargs = mock_smtp.method_calls.pop(0)
-    assert name == '().sendmail'
-    assert {} == kwargs
-
-    assert args[0] == action_config.from_email.value
-    assert args[1] == ["test@gmail.com"]
-    assert str(args[2]).__contains__(action_config.subject)
-    assert str(args[2]).__contains__("Content-Type: text/html")
-    assert str(args[2]).__contains__("Subject: mahesh.sattala test")
-
-
-@patch("kairon.shared.actions.utils.ActionUtility.get_action")
-@patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
-@patch("kairon.shared.utils.SMTP", autospec=True)
-def test_email_action_execution_with_single_receiver_email_from_slot(mock_smtp, mock_action_config, mock_action):
-    Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
-                                                                    'rb').read().decode()
-    Utility.email_conf['email']['templates']['bot_msg_conversation'] = open(
-        'template/emails/bot_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
-        'template/emails/user_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
-                                                                       'rb').read().decode()
-
-    action_name = "test_email_action_execution_with_single_receiver_email_from_slot"
-    action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
-    action_config = EmailActionConfig(
-        action_name=action_name,
-        smtp_url="test.localhost",
-        smtp_port=293,
-        smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
-        to_email=CustomActionParameters(value="to_email", parameter_type="slot"),
-        subject="test",
-        response="Email Triggered",
-        bot="bot",
-        user="user"
-    )
-
-    def _get_action(*arge, **kwargs):
-        return action.to_mongo().to_dict()
-
-    def _get_action_config(*arge, **kwargs):
-        return action_config.to_mongo().to_dict()
-
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "mahesh.sattala",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "requested_slot": "to_email",
-                      "to_email": "example@gmail.com"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [
-                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
-                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
-                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
-                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
-                                       "parse_data": {
-                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
-                                           "entities": [], "intent_ranking": [
-                                               {"name": "test intent", "confidence": 0.253578245639801},
-                                               {"name": "goodbye", "confidence": 0.1504897326231},
-                                               {"name": "greet", "confidence": 0.138640150427818},
-                                               {"name": "affirm", "confidence": 0.0857767835259438},
-                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                               {"name": "deny", "confidence": 0.069614589214325},
-                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                           "response_selector": {
-                                               "default": {"response": {"name": None, "confidence": 0},
-                                                           "ranking": [], "full_retrieval_intent": None}},
-                                           "text": "can't"}, "input_channel": None,
-                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
-                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
-                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
-                                                   {"name": "goodbye", "confidence": 0.1504897326231},
-                                                   {"name": "greet", "confidence": 0.138640150427818},
-                                                   {"name": "affirm", "confidence": 0.0857767835259438},
-                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                                   {"name": "deny", "confidence": 0.069614589214325},
-                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                "response_selector": {
-                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
-                                                "full_retrieval_intent": None}}, "text": "can\"t"},
-                 "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
-                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
-                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
-                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    mock_action.side_effect = _get_action
-    mock_action_config.side_effect = _get_action_config
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 1
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "Email Triggered"}]
-    assert response_json['responses'][0]['text'] == "Email Triggered"
-    logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
-
-    name, args, kwargs = mock_smtp.method_calls.pop(0)
-    assert name == '().connect'
-    assert {} == kwargs
-
-    host, port = args
-    assert host == action_config.smtp_url
-    assert port == action_config.smtp_port
-    name, args, kwargs = mock_smtp.method_calls.pop(0)
-    assert name == '().login'
-    assert {} == kwargs
-
-    from_email, password = args
-    assert from_email == action_config.from_email.value
-    assert password == action_config.smtp_password.value
-
-    name, args, kwargs = mock_smtp.method_calls.pop(0)
-    assert name == '().sendmail'
-    assert {} == kwargs
-
-    assert args[0] == action_config.from_email.value
-    assert args[1] == ["example@gmail.com"]
-    assert str(args[2]).__contains__(action_config.subject)
-    assert str(args[2]).__contains__("Content-Type: text/html")
-    assert str(args[2]).__contains__("Subject: mahesh.sattala test")
-
-
-@patch("kairon.shared.actions.utils.ActionUtility.get_action")
-@patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
-@patch("kairon.shared.utils.SMTP", autospec=True)
-def test_email_action_execution_with_invalid_from_email(mock_smtp, mock_action_config, mock_action):
-    Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
-                                                                    'rb').read().decode()
-    Utility.email_conf['email']['templates']['bot_msg_conversation'] = open(
-        'template/emails/bot_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
-        'template/emails/user_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
-                                                                       'rb').read().decode()
-
-    action_name = "test_email_action_execution_with_invalid_from_email"
-    action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
-    action_config = EmailActionConfig(
-        action_name=action_name,
-        smtp_url="test.localhost",
-        smtp_port=293,
-        smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email=CustomActionRequestParameters(value=["test@demo.com"], parameter_type="value"),
-        to_email=CustomActionParameters(value="to_email", parameter_type="slot"),
-        subject="test",
-        response="Email Triggered",
-        bot="bot",
-        user="user"
-    )
-
-    def _get_action(*arge, **kwargs):
-        return action.to_mongo().to_dict()
-
-    def _get_action_config(*arge, **kwargs):
-        return action_config.to_mongo().to_dict()
-
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "mahesh.sattala",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "requested_slot": "to_email",
-                      "to_email": "example@gmail.com"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [
-                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
-                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
-                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
-                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
-                                       "parse_data": {
-                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
-                                           "entities": [], "intent_ranking": [
-                                               {"name": "test intent", "confidence": 0.253578245639801},
-                                               {"name": "goodbye", "confidence": 0.1504897326231},
-                                               {"name": "greet", "confidence": 0.138640150427818},
-                                               {"name": "affirm", "confidence": 0.0857767835259438},
-                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                               {"name": "deny", "confidence": 0.069614589214325},
-                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                           "response_selector": {
-                                               "default": {"response": {"name": None, "confidence": 0},
-                                                           "ranking": [], "full_retrieval_intent": None}},
-                                           "text": "can't"}, "input_channel": None,
-                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
-                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
-                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
-                                                   {"name": "goodbye", "confidence": 0.1504897326231},
-                                                   {"name": "greet", "confidence": 0.138640150427818},
-                                                   {"name": "affirm", "confidence": 0.0857767835259438},
-                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                                   {"name": "deny", "confidence": 0.069614589214325},
-                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                "response_selector": {
-                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
-                                                "full_retrieval_intent": None}}, "text": "can\"t"},
-                 "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
-                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
-                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
-                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    mock_action.side_effect = _get_action
-    mock_action_config.side_effect = _get_action_config
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 1
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request"}]
-    assert response_json['responses'][0]['text'] == "I have failed to process your request"
-    logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "FAILURE"
-    assert logs.exception == "Invalid 'from_email' type. It must be of type str."
-
-
-@patch("kairon.shared.actions.utils.ActionUtility.get_action")
-@patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
-@patch("kairon.shared.utils.SMTP", autospec=True)
-def test_email_action_execution_with_invalid_to_email(mock_smtp, mock_action_config, mock_action):
-    Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
-                                                                    'rb').read().decode()
-    Utility.email_conf['email']['templates']['bot_msg_conversation'] = open(
-        'template/emails/bot_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
-        'template/emails/user_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
-                                                                       'rb').read().decode()
-
-    action_name = "test_email_action_execution_with_invalid_to_email"
-    action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
-    action_config = EmailActionConfig(
-        action_name=action_name,
-        smtp_url="test.localhost",
-        smtp_port=293,
-        smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
-        to_email=CustomActionParameters(value={"to_email": "test@test.com"}, parameter_type="value"),
-        subject="test",
-        response="Email Triggered",
-        bot="bot",
-        user="user"
-    )
-
-    def _get_action(*arge, **kwargs):
-        return action.to_mongo().to_dict()
-
-    def _get_action_config(*arge, **kwargs):
-        return action_config.to_mongo().to_dict()
-
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "mahesh.sattala",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "requested_slot": "to_email",
-                      "to_email": "example@gmail.com"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [
-                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
-                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
-                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
-                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
-                                       "parse_data": {
-                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
-                                           "entities": [], "intent_ranking": [
-                                               {"name": "test intent", "confidence": 0.253578245639801},
-                                               {"name": "goodbye", "confidence": 0.1504897326231},
-                                               {"name": "greet", "confidence": 0.138640150427818},
-                                               {"name": "affirm", "confidence": 0.0857767835259438},
-                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                               {"name": "deny", "confidence": 0.069614589214325},
-                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                           "response_selector": {
-                                               "default": {"response": {"name": None, "confidence": 0},
-                                                           "ranking": [], "full_retrieval_intent": None}},
-                                           "text": "can't"}, "input_channel": None,
-                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
-                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
-                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
-                                                   {"name": "goodbye", "confidence": 0.1504897326231},
-                                                   {"name": "greet", "confidence": 0.138640150427818},
-                                                   {"name": "affirm", "confidence": 0.0857767835259438},
-                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                                   {"name": "deny", "confidence": 0.069614589214325},
-                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                "response_selector": {
-                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
-                                                "full_retrieval_intent": None}}, "text": "can\"t"},
-                 "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
-                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
-                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
-                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    mock_action.side_effect = _get_action
-    mock_action_config.side_effect = _get_action_config
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 1
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request"}]
-    assert response_json['responses'][0]['text'] == "I have failed to process your request"
-    logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "FAILURE"
-    assert logs.exception == "Invalid 'from_email' type. It must be of type str."
-
-
-@patch("kairon.shared.actions.utils.ActionUtility.get_action")
-@patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
-@patch("kairon.shared.utils.SMTP", autospec=True)
-def test_email_action_execution_with_invalid_to_email(mock_smtp, mock_action_config, mock_action):
-    Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
-                                                                    'rb').read().decode()
-    Utility.email_conf['email']['templates']['bot_msg_conversation'] = open(
-        'template/emails/bot_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
-        'template/emails/user_msg_conversation.html', 'rb').read().decode()
-    Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
-                                                                       'rb').read().decode()
-
-    action_name = "test_email_action_execution_with_invalid_to_email"
-    action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
-    action_config = EmailActionConfig(
-        action_name=action_name,
-        smtp_url="test.localhost",
-        smtp_port=293,
-        smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
-        to_email=CustomActionParameters(value={"to_email": "test@test.com"}, parameter_type="value"),
-        subject="test",
-        response="Email Triggered",
-        bot="bot",
-        user="user"
-    )
-
-    def _get_action(*arge, **kwargs):
-        return action.to_mongo().to_dict()
-
-    def _get_action_config(*arge, **kwargs):
-        return action_config.to_mongo().to_dict()
-
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "mahesh.sattala",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "requested_slot": "to_email",
-                      "to_email": "example@gmail.com"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [
-                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
-                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
-                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
-                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
-                                       "parse_data": {
-                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
-                                           "entities": [], "intent_ranking": [
-                                               {"name": "test intent", "confidence": 0.253578245639801},
-                                               {"name": "goodbye", "confidence": 0.1504897326231},
-                                               {"name": "greet", "confidence": 0.138640150427818},
-                                               {"name": "affirm", "confidence": 0.0857767835259438},
-                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                               {"name": "deny", "confidence": 0.069614589214325},
-                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                           "response_selector": {
-                                               "default": {"response": {"name": None, "confidence": 0},
-                                                           "ranking": [], "full_retrieval_intent": None}},
-                                           "text": "can't"}, "input_channel": None,
-                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
-                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
-                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
-                                                   {"name": "goodbye", "confidence": 0.1504897326231},
-                                                   {"name": "greet", "confidence": 0.138640150427818},
-                                                   {"name": "affirm", "confidence": 0.0857767835259438},
-                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                                   {"name": "deny", "confidence": 0.069614589214325},
-                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                "response_selector": {
-                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
-                                                "full_retrieval_intent": None}}, "text": "can\"t"},
-                 "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
-                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
-                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
-                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    mock_action.side_effect = _get_action
-    mock_action_config.side_effect = _get_action_config
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 1
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request"}]
-    assert response_json['responses'][0]['text'] == "I have failed to process your request"
-    logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    print(logs.to_mongo().to_dict())
-    assert logs.status == "FAILURE"
-    assert logs.exception == "Invalid 'to_email' type. It must be of type str or list."
-
-
-@patch("kairon.shared.actions.utils.ActionUtility.get_action")
-@patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
-@patch("kairon.shared.utils.SMTP", autospec=True)
 def test_email_action_execution_varied_utterances(mock_smtp, mock_action_config, mock_action):
     Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
                                                                     'rb').read().decode()
@@ -6649,9 +5802,9 @@ def test_email_action_execution_varied_utterances(mock_smtp, mock_action_config,
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
-        to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+        from_email="test@demo.com",
         subject="test",
+        to_email=["test@test.com"],
         response="Email Triggered",
         bot="bot",
         user="user"
@@ -6973,14 +6126,14 @@ def test_email_action_execution_varied_utterances(mock_smtp, mock_action_config,
     assert {} == kwargs
 
     from_email, password = args
-    assert from_email == action_config.from_email.value
+    assert from_email == action_config.from_email
     assert password == action_config.smtp_password.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().sendmail'
     assert {} == kwargs
 
-    assert args[0] == action_config.from_email.value
+    assert args[0] == action_config.from_email
     assert args[1] == ["test@test.com"]
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
@@ -7095,9 +6248,9 @@ def test_email_action_failed_execution(mock_action_config, mock_action):
         smtp_url="test.localhost",
         smtp_port=293,
         smtp_password=CustomActionRequestParameters(value="test"),
-        from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
-        to_email=CustomActionParameters(value="test@test.com", parameter_type="value"),
+        from_email="test@demo.com",
         subject="test",
+        to_email="test@test.com",
         response="Email Triggered",
         bot="bot",
         user="user"
@@ -11344,7 +10497,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
         'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l'}, 'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -11411,7 +10564,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
         'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2k'}, 'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -11481,7 +10634,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
         'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b678ca10d35d2k'}, 'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -11706,7 +10859,7 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'delta': {'role': 'assistant', 'content': generated_text}, 'finish_reason': None, 'index': 0}]}
+    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11722,7 +10875,6 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json['events'])
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
     assert response_json['responses'] == [
@@ -12009,14 +11161,14 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\nAction Prompt:\nPython is a scripting language because it uses an interpreter to translate and run its code.\nInstructions on how to use Action Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
                 'metadata': {'user': 'nupur.khare', 'bot': '5u08kd0a56b698ca10d98e6s'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12093,7 +11245,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                      'content': 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
@@ -12101,7 +11253,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                                                                                                 'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
                 'metadata': {'user': 'test_user', 'bot': '5u08kd0a56b698ca10hgjgjkhgjks'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12218,14 +11370,14 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
                 'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhj'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12325,14 +11477,14 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
                      'content': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': 'Qdrant Prompt:\nConvert user questions into json requests in qdrant such that they will either filter, apply range queries and search the payload in qdrant. Sample payload present in qdrant looks like below with each of the points starting with 1 to 5 is a record in qdrant.1. {"Category (Risk, Issue, Action Item)": "Risk", "Date Added": 1673721000.0,2. {"Category (Risk, Issue, Action Item)": "Action Item", "Date Added": 1673721000.0,For eg: to find category of record created on 15/01/2023, the filter query is:{"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}\nInstructions on how to use Qdrant Prompt:\nCreate qdrant filter query out of user message based on above instructions.\n\n \nQ: category of record created on 15/01/2023? \nA:'}],
                 'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhjhjhj'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12423,14 +11575,14 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
                 'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2s'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12494,7 +11646,7 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Kanban And Scrum Together? \nA:"}],
                 'metadata': {'user': user, 'bot': bot}, 'api_key': value,
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12558,7 +11710,7 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_search, moc
         {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
         'metadata': {'user': 'udit.pandey', 'bot': bot}, 'api_key': value,
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12625,5 +11777,5 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
         {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
         'metadata': {'user': user, 'bot': bot}, 'api_key': value,
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
