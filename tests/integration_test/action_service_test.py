@@ -11344,7 +11344,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
         'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l'}, 'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -11411,7 +11411,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
         'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2k'}, 'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -11481,7 +11481,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
         'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b678ca10d35d2k'}, 'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -11706,7 +11706,7 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_completion.return_value = {'choices': [{'delta': {'role': 'assistant', 'content': generated_text}, 'finish_reason': None, 'index': 0}]}
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11722,6 +11722,7 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
+    print(response_json['events'])
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
     assert response_json['responses'] == [
@@ -12008,14 +12009,14 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\nAction Prompt:\nPython is a scripting language because it uses an interpreter to translate and run its code.\nInstructions on how to use Action Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
                 'metadata': {'user': 'nupur.khare', 'bot': '5u08kd0a56b698ca10d98e6s'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12092,7 +12093,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                      'content': 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
@@ -12100,7 +12101,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                                                                                                 'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
                 'metadata': {'user': 'test_user', 'bot': '5u08kd0a56b698ca10hgjgjkhgjks'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12217,14 +12218,14 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
                 'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhj'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12324,14 +12325,14 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
                      'content': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': 'Qdrant Prompt:\nConvert user questions into json requests in qdrant such that they will either filter, apply range queries and search the payload in qdrant. Sample payload present in qdrant looks like below with each of the points starting with 1 to 5 is a record in qdrant.1. {"Category (Risk, Issue, Action Item)": "Risk", "Date Added": 1673721000.0,2. {"Category (Risk, Issue, Action Item)": "Action Item", "Date Added": 1673721000.0,For eg: to find category of record created on 15/01/2023, the filter query is:{"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}\nInstructions on how to use Qdrant Prompt:\nCreate qdrant filter query out of user message based on above instructions.\n\n \nQ: category of record created on 15/01/2023? \nA:'}],
                 'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhjhjhj'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12422,14 +12423,14 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
                 'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2s'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12493,7 +12494,7 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Kanban And Scrum Together? \nA:"}],
                 'metadata': {'user': user, 'bot': bot}, 'api_key': value,
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12557,7 +12558,7 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_search, moc
         {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
         'metadata': {'user': 'udit.pandey', 'bot': bot}, 'api_key': value,
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
@@ -12624,5 +12625,5 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
         {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
         'metadata': {'user': user, 'bot': bot}, 'api_key': value,
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-        'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)

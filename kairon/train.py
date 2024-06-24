@@ -102,7 +102,7 @@ def start_training(bot: str, user: str, token: str = None):
         settings = settings.to_mongo().to_dict()
         if settings["llm_settings"]['enable_faq']:
             llm_processor = LLMProcessor(bot)
-            faqs = asyncio.run(llm_processor.train(user=user, bot=bot))
+            faqs = asyncio.run(llm_processor.train(user=user))
             account = AccountProcessor.get_bot(bot)['account']
             MeteringProcessor.add_metrics(bot=bot, metric_type=MetricType.faq_training.value, account=account, **faqs)
         agent_url = Utility.environment['model']['agent'].get('url')
