@@ -15,8 +15,7 @@ from kairon.shared.data.constant import (
     ACTIVITY_STATUS,
     INTEGRATION_STATUS,
     FALLBACK_MESSAGE,
-    DEFAULT_NLU_FALLBACK_RESPONSE,
-    DEFAULT_LLM
+    DEFAULT_NLU_FALLBACK_RESPONSE
 )
 from ..shared.actions.models import (
     ActionParameterType,
@@ -1037,8 +1036,8 @@ class PromptActionConfigRequest(BaseModel):
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     user_question: UserQuestionModel = UserQuestionModel()
-    llm_type: str = DEFAULT_LLM
-    hyperparameters: dict = None
+    llm_type: str
+    hyperparameters: dict
     llm_prompts: List[LlmPromptRequest]
     instructions: List[str] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
@@ -1067,7 +1066,8 @@ class PromptActionConfigRequest(BaseModel):
 
     @validator("hyperparameters")
     def validate_llm_hyperparameters(cls, v, values, **kwargs):
-        Utility.validate_llm_hyperparameters(v, kwargs['llm_type'], ValueError)
+        if values.get('llm_type'):
+            Utility.validate_llm_hyperparameters(v, values['llm_type'], ValueError)
 
     @root_validator
     def check(cls, values):
