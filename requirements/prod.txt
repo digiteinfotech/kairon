@@ -56,7 +56,7 @@ opentelemetry-instrumentation-botocore==0.45b0
 opentelemetry-instrumentation-httpx==0.45b0
 opentelemetry-instrumentation-logging==0.45b0
 opentelemetry-instrumentation-pymongo==0.45b0
-opentelemetry-instrumentation-requests==0.45b0
+opentelemetry-instrumentation-requests==0.46b0
 opentelemetry-instrumentation-system-metrics==0.45b0
 opentelemetry-instrumentation-grpc==0.45b0
 opentelemetry-instrumentation-sklearn==0.45b0
