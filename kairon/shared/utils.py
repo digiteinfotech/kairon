@@ -2069,12 +2069,12 @@ class Utility:
 
     @staticmethod
     def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, exception_class):
-        from jsonschema_rs import JSONSchema, ValidationError
+        from jsonschema_rs import JSONSchema, ValidationError as JValidationError
         schema = Utility.system_metadata["llm"][llm_type]
         try:
             validator = JSONSchema(schema)
             validator.validate(hyperparameters)
-        except ValidationError as e:
+        except JValidationError as e:
             message = f"{e.instance_path}: {e.message}"
             raise exception_class(message)
 
