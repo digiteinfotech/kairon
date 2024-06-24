@@ -33,7 +33,7 @@ keybert==0.8.4
 pyTelegramBotAPI==4.17.0
 APScheduler==3.9.1.post1
 croniter==2.0.3
-faiss-cpu==1.8.0
+faiss-cpu==1.8.0.post1
 tiktoken==0.6.0
 RestrictedPython==7.1
 AccessControl==6.3
