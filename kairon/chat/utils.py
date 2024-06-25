@@ -206,36 +206,28 @@ class ChatUtils:
                             {
                                 "$match": {
                                     "sender_id": sender_id,
-                                    "event.timestamp": {
+                                    "timestamp": {
                                         "$gt": last_session["event"]["timestamp"]
                                     },
-                                    "event.event": {
-                                        "$in": ["session_started", "user", "bot"]
+                                    "type": {
+                                        "$in": ["flattened"]
                                     },
                                 }
                             },
                             {
-                                "$project": {
-                                    "sender_id": 1,
-                                    "event.event": 1,
-                                    "event.timestamp": 1,
-                                    "event.text": 1,
-                                    "event.data": 1,
-                                    "tabname": "$event.metadata.tabname",
-                                    "event.metadata": "$event.metadata",
-                                }
+                                "$addFields": {"_id": {"$toString": "$_id"}}
                             },
-                            {"$sort": {"event.timestamp": 1}},
+                            {"$sort": {"timestamp": 1}},
                             {
                                 "$group": {
-                                    "_id": {"tabname": "$tabname"},
-                                    "events": {"$push": "$event"},
+                                  "_id": "$metadata.tabname",
+                                  "events": {"$push": "$$ROOT"}
                                 }
                             },
                             {
                                 "$project": {
                                     "_id": 0,
-                                    "tabname": "$_id.tabname",
+                                    "tabname": "$_id",
                                     "events": "$events",
                                 }
                             },
