@@ -688,7 +688,8 @@ class TestLLM:
     @pytest.mark.asyncio
     @mock.patch.object(litellm, "acompletion", autospec=True)
     @mock.patch.object(litellm, "aembedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_with_values_and_stream(self, mock_embedding, mock_completion, aioresponses):
+    async def test_gpt3_faq_embedding_predict_with_values_and_stream(self, mock_embedding, mock_completion,
+                                                                     aioresponses):
         embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         test_content = CognitionData(
@@ -720,7 +721,8 @@ class TestLLM:
         ]}
         mock_completion_request.update(hyperparameters)
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-        mock_completion.side_effect = [{'choices': [{'delta': {'role': 'assistant', 'content': generated_text[0:29]}, 'finish_reason': None, 'index': 0}]},
+        mock_completion.side_effect = [{'choices': [
+            {'delta': {'role': 'assistant', 'content': generated_text[0:29]}, 'finish_reason': None, 'index': 0}]},
                                        {'choices': [{'delta': {'role': 'assistant', 'content': generated_text[29:60]},
                                                      'finish_reason': None, 'index': 0}]},
                                        {'choices': [{'delta': {'role': 'assistant', 'content': generated_text[60:]},
@@ -745,7 +747,9 @@ class TestLLM:
                                'content': 'You are a personal assistant. Answer the question according to the below context'},
                               {'role': 'user',
                                'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
-                 'raw_completion_response': {'choices': [{'delta': {'role': 'assistant', 'content': generated_text[0:29]}, 'finish_reason': None, 'index': 0}]},
+                 'raw_completion_response': {'choices': [
+                     {'delta': {'role': 'assistant', 'content': generated_text[0:29]}, 'finish_reason': None,
+                      'index': 0}]},
                  'type': 'answer_query',
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                      'n': 1, 'stream': True, 'stop': None, 'presence_penalty': 0.0,
@@ -1177,15 +1181,15 @@ class TestLLM:
         litellm.callbacks = [LiteLLMLogger()]
 
         result = await litellm.acompletion(messages=["Hi"],
-                                          model="gpt-3.5-turbo",
-                                          mock_response="Hi, How may i help you?",
-                                          metadata={'user': user, 'bot': bot})
-        assert result
-
-        result = litellm.completion(messages=["Hi"],
                                            model="gpt-3.5-turbo",
                                            mock_response="Hi, How may i help you?",
                                            metadata={'user': user, 'bot': bot})
+        assert result
+
+        result = litellm.completion(messages=["Hi"],
+                                    model="gpt-3.5-turbo",
+                                    mock_response="Hi, How may i help you?",
+                                    metadata={'user': user, 'bot': bot})
         assert result
 
         result = litellm.completion(messages=["Hi"],
@@ -1197,4 +1201,38 @@ class TestLLM:
             print(chunk["choices"][0]["delta"]["content"])
             assert chunk["choices"][0]["delta"]["content"]
 
+        result = await litellm.acompletion(messages=["Hi"],
+                                           model="gpt-3.5-turbo",
+                                           mock_response="Hi, How may i help you?",
+                                           stream=True,
+                                           metadata={'user': user, 'bot': bot})
+        async for chunk in result:
+            print(chunk["choices"][0]["delta"]["content"])
+            assert chunk["choices"][0]["delta"]["content"]
+
         assert list(LLMLogs.objects(metadata__bot=bot))
+
+        with pytest.raises(Exception) as e:
+            await litellm.acompletion(messages=["Hi"],
+                                       model="gpt-3.5-turbo",
+                                       mock_response=Exception("Authentication error"),
+                                       metadata={'user': user, 'bot': bot})
+
+            assert str(e) == "Authentication error"
+
+        with pytest.raises(Exception) as e:
+            litellm.completion(messages=["Hi"],
+                                model="gpt-3.5-turbo",
+                                mock_response=Exception("Authentication error"),
+                                metadata={'user': user, 'bot': bot})
+
+            assert str(e) == "Authentication error"
+
+        with pytest.raises(Exception) as e:
+            await litellm.acompletion(messages=["Hi"],
+                                       model="gpt-3.5-turbo",
+                                       mock_response=Exception("Authentication error"),
+                                       stream=True,
+                                       metadata={'user': user, 'bot': bot})
+
+            assert str(e) == "Authentication error"
