@@ -38,7 +38,7 @@ tiktoken==0.6.0
 RestrictedPython==7.1
 AccessControl==6.3
 timeout-decorator==0.5.0
-googlesearch-python==1.2.3
+googlesearch-python==1.2.4
 aiohttp-retry==2.8.3
 pqdict==1.4.0
 google-businessmessages==1.0.5
