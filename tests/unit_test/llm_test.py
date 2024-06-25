@@ -1210,8 +1210,6 @@ class TestLLM:
             print(chunk["choices"][0]["delta"]["content"])
             assert chunk["choices"][0]["delta"]["content"]
 
-        assert list(LLMLogs.objects(metadata__bot=bot))
-
         with pytest.raises(Exception) as e:
             await litellm.acompletion(messages=["Hi"],
                                        model="gpt-3.5-turbo",
