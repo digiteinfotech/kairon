@@ -21,7 +21,7 @@ pipedrive-python-lib==1.2.3
 google-cloud-translate==3.13.0
 blinker==1.7.0
 pymupdf==1.23.7
-python-docx==1.1.0
+python-docx==1.1.2
 python-multipart==0.0.9
 pandas==2.2.2
 openpyxl==3.1.2
