@@ -36,7 +36,7 @@ croniter==2.0.3
 faiss-cpu==1.8.0
 tiktoken==0.6.0
 RestrictedPython==7.1
-AccessControl==6.3
+AccessControl==7.0
 timeout-decorator==0.5.0
 googlesearch-python==1.2.3
 aiohttp-retry==2.8.3
