@@ -1,4 +1,5 @@
 import os
+import time
 from urllib.parse import urljoin
 
 import mock
@@ -17,6 +18,7 @@ from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
 from kairon.shared.llm.processor import LLMProcessor
+from kairon.shared.llm.data_objects import LLMLogs
 import litellm
 from deepdiff import DeepDiff
 
@@ -1166,3 +1168,33 @@ class TestLLM:
         expected['api_key'] = key
         expected['num_retries'] = 3
         assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
+
+    @pytest.mark.asyncio
+    async def test_llm_logging(self):
+        from kairon.shared.llm.logger import LiteLLMLogger
+        bot = "test_llm_logging"
+        user = "test"
+        litellm.callbacks = [LiteLLMLogger()]
+
+        result = await litellm.acompletion(messages=["Hi"],
+                                          model="gpt-3.5-turbo",
+                                          mock_response="Hi, How may i help you?",
+                                          metadata={'user': user, 'bot': bot})
+        assert result
+
+        result = litellm.completion(messages=["Hi"],
+                                           model="gpt-3.5-turbo",
+                                           mock_response="Hi, How may i help you?",
+                                           metadata={'user': user, 'bot': bot})
+        assert result
+
+        result = litellm.completion(messages=["Hi"],
+                                    model="gpt-3.5-turbo",
+                                    mock_response="Hi, How may i help you?",
+                                    stream=True,
+                                    metadata={'user': user, 'bot': bot})
+        for chunk in result:
+            print(chunk["choices"][0]["delta"]["content"])
+            assert chunk["choices"][0]["delta"]["content"]
+
+        assert list(LLMLogs.objects(metadata__bot=bot))
