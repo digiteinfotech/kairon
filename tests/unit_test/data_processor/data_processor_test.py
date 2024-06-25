@@ -60,7 +60,7 @@ from kairon.shared.data.constant import ENDPOINT_TYPE
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
-    DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_SYSTEM_PROMPT
+    DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_SYSTEM_PROMPT, DEFAULT_LLM
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -8507,7 +8507,9 @@ class TestMongoProcessor:
                           'data': 'tester_action',
                           'instructions': 'Answer according to the context', 'type': 'user',
                           'source': 'action',
-                          'is_enabled': True}]
+                          'is_enabled': True}],
+            llm_type=DEFAULT_LLM,
+            hyperparameters=Utility.get_default_llm_hyperparameters()
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         processor.add_prompt_action(prompt_action_config.dict(), bot, user)

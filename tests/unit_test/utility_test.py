@@ -2950,7 +2950,6 @@ class TestUtility:
             "model": "gpt-3.5-turbo",
             "top_p": 0.0,
             "n": 1,
-            "stream": False,
             "stop": None,
             "presence_penalty": 0.0,
             "frequency_penalty": 0.0,
