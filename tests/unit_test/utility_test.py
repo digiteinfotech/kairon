@@ -2741,6 +2741,7 @@ class TestUtility:
             "userType": "custom",
             "userStorage": "ls",
             "whitelist": ["*"],
+            "live_agent_enabled": True,
             "styles": {
                 "headerStyle": {
                     "backgroundColor": "#2b3595",

@@ -11,6 +11,7 @@ config:
   name: kairon_testing
   openButtonClassName: ''
   live_agent_socket_url: ws://localhost:8000/ws/client
+  live_agent_enabled: true
   styles:
     botStyle:
       backgroundColor: '#e0e0e0'

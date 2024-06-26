@@ -459,7 +459,7 @@ class TestChat:
         mongo_client = mongomock.MongoClient("mongodb://test/conversations")
         db = mongo_client.get_database(test_db)
         collection = db.get_collection(bot)
-        items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
+        items = json.load(open("./tests/testing_data/history/conversations_history2.json", "r"))
         collection.insert_many(items)
         mock_mongo.return_value = mongo_client
         history, message = ChatUtils.get_last_session_conversation(bot, "spandan.mondal@nimblework.com")
