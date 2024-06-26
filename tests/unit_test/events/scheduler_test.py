@@ -1,7 +1,7 @@
 import os
 import re
 
-from mock import patch
+from unittest.mock import patch
 
 import pytest
 from apscheduler.jobstores.mongodb import MongoDBJobStore

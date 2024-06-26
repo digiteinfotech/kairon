@@ -1,13 +1,13 @@
 import os
-import time
+from unittest import mock
 from urllib.parse import urljoin
 
-import mock
 import numpy as np
 import pytest
 import ujson as json
 from aiohttp import ClientConnectionError
 from mongoengine import connect
+
 from kairon.shared.utils import Utility
 
 Utility.load_system_metadata()
@@ -18,7 +18,6 @@ from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
 from kairon.shared.llm.processor import LLMProcessor
-from kairon.shared.llm.data_objects import LLMLogs
 import litellm
 from deepdiff import DeepDiff
 

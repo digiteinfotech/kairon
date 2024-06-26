@@ -14,7 +14,7 @@ Utility.load_environment()
 Utility.load_system_metadata()
 
 
-from mock import patch
+from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pytest
