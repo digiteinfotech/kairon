@@ -44,7 +44,7 @@ class TestLLM:
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret},
                                                    'vector': {'db': "http://kairon:6333", "key": None}}):
             mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)[[]]
+            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
