@@ -708,12 +708,13 @@ class AccountProcessor:
         )
 
     @staticmethod
-    def get_user(email: str, is_login_request: bool = False):
+    def get_user(email: str, is_login_request: bool = False, raise_error: bool = True):
         """
         fetch user details
 
         :param email: user login id
         :param is_login_request: logs invalid logins if true
+        :param raise_error: logs raise error saying **User does not exist!** if true
         :return: user details
         """
         try:
@@ -729,7 +730,8 @@ class AccountProcessor:
                 UserActivityLogger.add_log(
                     a_type=UserActivityType.invalid_login.value, email=email, data={"username": email}
                 )
-            raise DoesNotExist("User does not exist!")
+            if raise_error:
+                raise DoesNotExist("User does not exist!")
 
     @staticmethod
     def get_user_details(email: str, is_login_request: bool = False):
