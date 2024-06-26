@@ -9322,10 +9322,7 @@ def test_list_bot_invites_none():
     assert response["success"]
 
 
-def test_add_member_email_disabled(monkeypatch):
-    def __get_user(*args, **kwargs):
-        return {"first_name": "Integration", "last_name": "User"}
-    monkeypatch.setattr(AccountProcessor, "get_user", __get_user)
+def test_add_member_email_disabled():
     response = client.post(
         f"/api/user/{pytest.add_member_bot}/member",
         json={"email": "integration_email_false@demo.ai", "role": "designer"},

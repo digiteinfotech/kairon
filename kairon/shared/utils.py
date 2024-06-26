@@ -2600,13 +2600,12 @@ class MailUtility:
         body = Utility.email_conf["email"]["templates"]["add_member_confirmation"]
         body = body.replace("BOT_NAME", kwargs.get("bot_name", ""))
         body = body.replace("ACCESS_TYPE", kwargs.get("role", ""))
-        body = body.replace("INVITED_PERSON_NAME", kwargs.get("accessor_name", ""))
-        body = body.replace("FIRST_NAME", kwargs.get("first_name", "").capitalize())
+        body = body.replace("INVITED_PERSON_NAME", kwargs.get("accessor_name", "").capitalize())
         subject = Utility.email_conf["email"]["templates"][
             "add_member_confirmation_subject"
         ]
         subject = subject.replace(
-            "INVITED_PERSON_NAME", kwargs.get("accessor_name", "")
+            "INVITED_PERSON_NAME", kwargs.get("accessor_name", "").capitalize()
         )
         return body, subject
 
