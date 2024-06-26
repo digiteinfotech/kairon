@@ -51,7 +51,7 @@ opentelemetry-instrumentation-fastapi==0.45b0
 opentelemetry-instrumentation-aiohttp-client==0.45b0
 opentelemetry-instrumentation-asyncio==0.45b0
 opentelemetry-instrumentation-aws-lambda==0.45b0
-opentelemetry-instrumentation-boto==0.45b0
+opentelemetry-instrumentation-boto==0.46b0
 opentelemetry-instrumentation-botocore==0.45b0
 opentelemetry-instrumentation-httpx==0.45b0
 opentelemetry-instrumentation-logging==0.45b0
