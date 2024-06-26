@@ -3,7 +3,7 @@ import time
 import ujson as json
 import os
 from re import escape
-from unittest.mock import patch
+from unittest import mock
 from urllib.parse import urlencode, quote_plus
 
 import mongomock
@@ -21,7 +21,6 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
-import mock
 from pymongo.errors import ServerSelectionTimeoutError
 
 
@@ -49,7 +48,7 @@ class TestChat:
                 "test", "test"
             )
 
-        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
+        with mock.patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -93,7 +92,7 @@ class TestChat:
                     "test"
                 )
 
-    @patch("kairon.shared.utils.Utility.get_slack_team_info", autospec=True)
+    @mock.patch("kairon.shared.utils.Utility.get_slack_team_info", autospec=True)
     def test_save_channel_config_slack_team_id_error(self, mock_slack_info):
         mock_slack_info.side_effect = AppException("The request to the Slack API failed. ")
         with pytest.raises(AppException, match="The request to the Slack API failed.*"):
@@ -108,7 +107,7 @@ class TestChat:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
+        with mock.patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -133,7 +132,7 @@ class TestChat:
                     "client_secret": "a23456789sfdghhtyutryuivcbn", "is_primary": True}}, "test", "test"
             )
 
-    @patch("kairon.shared.utils.Utility.get_slack_team_info", autospec=True)
+    @mock.patch("kairon.shared.utils.Utility.get_slack_team_info", autospec=True)
     def test_save_channel_config_slack_secondary_app_team_id_error(self, mock_slack_info        ):
         mock_slack_info.side_effect = AppException("The request to the Slack API failed. ")
         with pytest.raises(AppException, match="The request to the Slack API failed.*"):
@@ -149,7 +148,7 @@ class TestChat:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
+        with mock.patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -252,7 +251,7 @@ class TestChat:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
+        with mock.patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -317,7 +316,7 @@ class TestChat:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
+        with mock.patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
                 http_verb="POST",
@@ -384,7 +383,7 @@ class TestChat:
         def __mock_endpoint(*args):
             return f"https://test@test.com/api/bot/telegram/tests/test"
 
-        with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
+        with mock.patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
             ChatDataProcessor.save_channel_config({"connector_type": "telegram",
                                                "config": {
                                                    "access_token": access_token,
@@ -405,7 +404,7 @@ class TestChat:
             def __mock_endpoint(*args):
                 return f"https://test@test.com/api/bot/telegram/tests/test"
 
-            with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
+            with mock.patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
                 ChatDataProcessor.save_channel_config({"connector_type": "telegram",
                                                        "config": {
                                                            "access_token": access_token,
@@ -478,7 +477,7 @@ class TestChat:
         def __mock_endpoint(*args):
             return f"https://test@test.com/api/bot/business_messages/tests/test"
 
-        with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
+        with mock.patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
             channel_endpoint = ChatDataProcessor.save_channel_config(
                 {
                     "connector_type": "business_messages",
@@ -506,7 +505,7 @@ class TestChat:
         def __mock_endpoint(*args):
             return f"https://test@test.com/api/bot/business_messages/tests/test"
 
-        with patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
+        with mock.patch('kairon.shared.data.utils.DataUtility.get_channel_endpoint', __mock_endpoint):
             channel_endpoint = ChatDataProcessor.save_channel_config(
                 {
                     "connector_type": "business_messages",
@@ -594,7 +593,7 @@ class TestChat:
         def _mock_generate_integration_token(*arge, **kwargs):
             return "testtoken", "ignore"
 
-        with patch.object(Authentication, "generate_integration_token", _mock_generate_integration_token):
+        with mock.patch.object(Authentication, "generate_integration_token", _mock_generate_integration_token):
             channel_url = ChatDataProcessor.save_channel_config({
                 "connector_type": "whatsapp", "config": {
                     "app_secret": "app123",

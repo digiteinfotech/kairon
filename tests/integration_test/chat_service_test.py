@@ -19,7 +19,7 @@ from kairon.shared.live_agent.live_agent import LiveAgentHandler
 
 import pytest
 import responses
-from mock import patch
+from unittest.mock import patch
 from mongoengine import connect
 from slack_sdk.web.slack_response import SlackResponse
 from starlette.exceptions import HTTPException

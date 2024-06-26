@@ -3,7 +3,6 @@ import os
 import re
 from unittest import mock
 
-import mock
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 from kairon.shared.utils import Utility

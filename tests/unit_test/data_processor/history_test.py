@@ -2,7 +2,7 @@ import ujson as json
 import os
 from datetime import datetime
 
-import mock
+from unittest import mock
 import mongomock
 import pytest
 

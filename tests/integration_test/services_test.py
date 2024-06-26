@@ -6,11 +6,11 @@ import tarfile
 import tempfile
 from datetime import datetime, timedelta
 from io import BytesIO
-from mock import patch
+from unittest.mock import patch
 from urllib.parse import urljoin
 from zipfile import ZipFile
 
-import mock
+from unittest import mock
 import pytest
 import responses
 from botocore.exceptions import ClientError
