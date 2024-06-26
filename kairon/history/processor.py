@@ -796,7 +796,7 @@ class HistoryProcessor:
                         "$lte": Utility.get_timestamp_from_date(to_date)
                     }
                 }
-                values = list(conversations.find(search_query).sort("timestamp", 1))
+                values = list(conversations.find(search_query).sort("timestamp", -1))
 
                 if values:
                     for v in values:
