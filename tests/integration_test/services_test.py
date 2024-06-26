@@ -2077,6 +2077,130 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual["data"][0]["dispatch_response"]
 
 
+def test_initiate_bsp_onboarding_for_broadcast(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(whatsapp="360dialog", bot=pytest.bot, user="test_user")
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    monkeypatch.setitem(
+        Utility.environment["model"]["agent"], "url", "http://kairon-api.digite.com"
+    )
+    monkeypatch.setitem(
+        Utility.environment["channels"]["360dialog"], "partner_id", "f167CmPA"
+    )
+
+    with patch(
+            "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account"
+    ) as mock_get_account:
+        mock_get_account.return_value = "dfghj5678"
+        with patch(
+                "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key"
+        ) as mock_generate_waba_key:
+            mock_generate_waba_key.return_value = "dfghjk5678"
+            response = client.post(
+                f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?clientId=kairon&client=sdfgh5678&channels=['sdfghjk678']",
+                headers={
+                    "Authorization": pytest.token_type + " " + pytest.access_token
+                },
+            )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Channel added"
+    assert actual["data"].startswith(
+        f"http://kairon-api.digite.com/api/bot/whatsapp/{pytest.bot}/e"
+    )
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message(mock_event_server):
+    config = {
+        "name": "test_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "919876543210,919012345678"},
+        "template_config": [
+            {
+                "template_id": "sales_template",
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.broadcast_msg_id = actual["data"]["msg_broadcast_id"]
+    assert pytest.broadcast_msg_id
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_resend_broadcast_message(mock_event_server):
+    config = {
+        "name": "test_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "919876543210,919012345678"},
+        "template_config": [
+            {
+                "template_id": "sales_template",
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/resend/{pytest.broadcast_msg_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Resending Broadcast!"
+
+
+def test_list_broadcast():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["schedules"][0].pop("timestamp")
+    actual["data"]["schedules"][0].pop("user")
+    assert actual["data"] == {
+        "schedules": [
+            {
+                "_id": pytest.broadcast_msg_id,
+                "name": "test_broadcast",
+                "connector_type": "whatsapp",
+
+                "broadcast_type": "static",
+                "recipients_config": {"recipients": "919876543210,919012345678"},
+                "template_config": [{"template_id": "sales_template", "language": "en"}],
+                "bot": pytest.bot,
+                "status": True,
+            }
+        ]
+    }
+
+
+@patch("kairon.shared.utils.Utility.delete_scheduled_event", autospec=True)
+def test_delete_message_broadcast(mock_event_server):
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.broadcast_msg_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast removed!"
+
+
 def test_list_available_actions():
     script = """
     data = [1, 2, 3, 4, 5, 6]
