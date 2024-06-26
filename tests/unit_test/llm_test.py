@@ -1179,38 +1179,50 @@ class TestLLM:
         user = "test"
         litellm.callbacks = [LiteLLMLogger()]
 
-        result = await litellm.acompletion(messages=["Hi"],
+        messages = [{"role":"user", "content":"Hi"}]
+        expected = "Hi, How may i help you?"
+
+        result = await litellm.acompletion(messages=messages,
                                            model="gpt-3.5-turbo",
-                                           mock_response="Hi, How may i help you?",
+                                           mock_response=expected,
                                            metadata={'user': user, 'bot': bot})
-        assert result
+        assert result['choices'][0]['message']['content'] == expected
 
-        result = litellm.completion(messages=["Hi"],
+        result = litellm.completion(messages=messages,
                                     model="gpt-3.5-turbo",
-                                    mock_response="Hi, How may i help you?",
+                                    mock_response=expected,
                                     metadata={'user': user, 'bot': bot})
-        assert result
+        assert result['choices'][0]['message']['content'] == expected
 
-        result = litellm.completion(messages=["Hi"],
+        result = litellm.completion(messages=messages,
                                     model="gpt-3.5-turbo",
-                                    mock_response="Hi, How may i help you?",
+                                    mock_response=expected,
                                     stream=True,
                                     metadata={'user': user, 'bot': bot})
+        response = ''
         for chunk in result:
-            print(chunk["choices"][0]["delta"]["content"])
-            assert chunk["choices"][0]["delta"]["content"]
+            content = chunk["choices"][0]["delta"]["content"]
+            if content:
+                response = response + content
 
-        result = await litellm.acompletion(messages=["Hi"],
+        assert response == expected
+
+        result = await litellm.acompletion(messages=messages,
                                            model="gpt-3.5-turbo",
-                                           mock_response="Hi, How may i help you?",
+                                           mock_response=expected,
                                            stream=True,
                                            metadata={'user': user, 'bot': bot})
+        response = ''
         async for chunk in result:
-            print(chunk["choices"][0]["delta"]["content"])
-            assert chunk["choices"][0]["delta"]["content"]
+            content = chunk["choices"][0]["delta"]["content"]
+            print(chunk)
+            if content:
+                response += content
+
+        assert response.__contains__(expected)
 
         with pytest.raises(Exception) as e:
-            await litellm.acompletion(messages=["Hi"],
+            await litellm.acompletion(messages=messages,
                                        model="gpt-3.5-turbo",
                                        mock_response=Exception("Authentication error"),
                                        metadata={'user': user, 'bot': bot})
@@ -1218,7 +1230,7 @@ class TestLLM:
             assert str(e) == "Authentication error"
 
         with pytest.raises(Exception) as e:
-            litellm.completion(messages=["Hi"],
+            litellm.completion(messages=messages,
                                 model="gpt-3.5-turbo",
                                 mock_response=Exception("Authentication error"),
                                 metadata={'user': user, 'bot': bot})
@@ -1226,7 +1238,7 @@ class TestLLM:
             assert str(e) == "Authentication error"
 
         with pytest.raises(Exception) as e:
-            await litellm.acompletion(messages=["Hi"],
+            await litellm.acompletion(messages=messages,
                                        model="gpt-3.5-turbo",
                                        mock_response=Exception("Authentication error"),
                                        stream=True,
