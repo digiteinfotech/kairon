@@ -5,10 +5,8 @@ from tiktoken import get_encoding
 
 from kairon import Utility
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.admin.constants import BotSecretType
-from kairon.shared.admin.processor import Sysadmin
-from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.llm.processor import LLMProcessor
+from kairon.shared.data.constant import DEFAULT_LLM
 from kairon.shared.vector_embeddings.db.base import VectorEmbeddingsDbBase
 
 
@@ -25,7 +23,7 @@ class Qdrant(VectorEmbeddingsDbBase, ABC):
         if Utility.environment['vector']['key']:
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.llm_settings = llm_settings
-        self.llm = LLMProcessor(self.bot)
+        self.llm = LLMProcessor(self.bot, DEFAULT_LLM)
         self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
 

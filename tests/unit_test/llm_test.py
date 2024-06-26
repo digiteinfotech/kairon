@@ -16,7 +16,7 @@ from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
-from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
+from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_LLM
 from kairon.shared.llm.processor import LLMProcessor
 import litellm
 from deepdiff import DeepDiff
@@ -44,7 +44,7 @@ class TestLLM:
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret},
                                                    'vector': {'db': "http://kairon:6333", "key": None}}):
             mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-            gpt3 = LLMProcessor(test_content.bot)
+            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)[[]]
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -123,7 +123,7 @@ class TestLLM:
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         mock_embedding.side_effect = {'data': [{'embedding': embedding}]}, {'data': [{'embedding': embedding}]}, {
             'data': [{'embedding': embedding}]}
-        gpt3 = LLMProcessor(bot)
+        gpt3 = LLMProcessor(bot, DEFAULT_LLM)
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -227,7 +227,7 @@ class TestLLM:
         input = {"name": "Ram", "color": "red"}
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
 
-        gpt3 = LLMProcessor(bot)
+        gpt3 = LLMProcessor(bot, DEFAULT_LLM)
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
                         f"/collections/test_embed_faq_json_payload_with_int_faq_embd"),
@@ -288,7 +288,7 @@ class TestLLM:
         input = {"name": "Ram", "color": "red"}
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = LLMProcessor(bot)
+            gpt3 = LLMProcessor(bot, DEFAULT_LLM)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -339,7 +339,7 @@ class TestLLM:
 
     def test_gpt3_faq_embedding_train_failure(self):
         with pytest.raises(AppException, match=f"Bot secret '{BotSecretType.gpt_key.value}' not configured!"):
-            LLMProcessor('test_failure')
+            LLMProcessor('test_failure', DEFAULT_LLM)
 
     @pytest.mark.asyncio
     @mock.patch.object(litellm, "aembedding", autospec=True)
@@ -357,7 +357,7 @@ class TestLLM:
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = LLMProcessor(test_content.bot)
+            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -421,7 +421,7 @@ class TestLLM:
 
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = LLMProcessor(test_content.bot)
+            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -507,7 +507,7 @@ class TestLLM:
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = LLMProcessor(test_content.bot)
+            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
@@ -574,7 +574,7 @@ class TestLLM:
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = LLMProcessor(test_content.bot)
+            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
@@ -641,7 +641,7 @@ class TestLLM:
         mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
         with mock.patch.dict(Utility.environment, {'vector': {"key": "test", 'db': "http://localhost:6333"}}):
-            gpt3 = LLMProcessor(test_content.bot)
+            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
@@ -729,7 +729,7 @@ class TestLLM:
                                        ]
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': key}}):
-            gpt3 = LLMProcessor(test_content.bot)
+            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
@@ -832,7 +832,7 @@ class TestLLM:
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
-        gpt3 = LLMProcessor(bot)
+        gpt3 = LLMProcessor(bot, DEFAULT_LLM)
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
                         f"/collections/{gpt3.bot}_{test_content1.collection}{gpt3.suffix}/points/search"),
@@ -908,7 +908,7 @@ class TestLLM:
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         mock_completion.side_effect = __mock_connection_error
 
-        gpt3 = LLMProcessor(test_content.bot)
+        gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
@@ -971,7 +971,7 @@ class TestLLM:
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         mock_llm_request.side_effect = ClientConnectionError()
 
-        gpt3 = LLMProcessor(test_content.bot)
+        gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
         response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
         assert response == {'exception': 'Failed to connect to service: localhost', 'is_failure': True, "content": None}
@@ -1009,7 +1009,7 @@ class TestLLM:
         }
         mock_embedding.side_effect = [Exception("Connection reset by peer!"), {'data': [{'embedding': embedding}]}]
 
-        gpt3 = LLMProcessor(test_content.bot)
+        gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
         mock_embedding.side_effect = [Exception("Connection reset by peer!"), embedding]
 
         response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
@@ -1064,7 +1064,7 @@ class TestLLM:
         mock_embedding.return_value = {'data': [{'embedding': embedding}]}
         mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
-        gpt3 = LLMProcessor(test_content.bot)
+        gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
@@ -1143,7 +1143,7 @@ class TestLLM:
         mock_completion.side_effect = {'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}, {
             'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
-        gpt3 = LLMProcessor(test_content.bot)
+        gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
