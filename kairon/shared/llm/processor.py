@@ -26,13 +26,14 @@ litellm.callbacks = [LiteLLMLogger()]
 class LLMProcessor(LLMBase):
     __embedding__ = 1536
 
-    def __init__(self, bot: Text):
+    def __init__(self, bot: Text, llm_type: str):
         super().__init__(bot)
         self.db_url = Utility.environment['vector']['db']
         self.headers = {}
         if Utility.environment['vector']['key']:
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
+        self.llm_type = llm_type
         self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
         self.tokenizer = get_encoding("cl100k_base")
