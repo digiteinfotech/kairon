@@ -66,8 +66,9 @@ class ActionPrompt(ActionsBase):
             k_faq_action_config, bot_settings = self.retrieve_config()
             user_question = k_faq_action_config.get('user_question')
             user_msg = self.__get_user_msg(tracker, user_question)
+            llm_type = k_faq_action_config['llm_type']
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
-            llm_processor = LLMProcessor(self.bot)
+            llm_processor = LLMProcessor(self.bot, llm_type)
             llm_response, time_taken_llm_response = await llm_processor.predict(user_msg,
                                                                                 user=tracker.sender_id,
                                                                                 **llm_params)
