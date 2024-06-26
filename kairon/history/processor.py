@@ -789,25 +789,19 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                user_data = list(
-                    conversations.aggregate(
-                        [{"$match": {"type": {"$in": ["flattened", "broadcast"]},
-                                     "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                   "$lte": Utility.get_timestamp_from_date(to_date)}}},
-                            {"$project": {"user_input": "$data.user_input", "intent": "$data.intent",
-                                          "confidence": "$data.confidence", "action": "$data.action",
-                                          "timestamp": {"$toDate": {"$multiply": ["$timestamp", 1000]}},
-                                          "bot_response": "$data.bot_response", "sender_id": "$sender_id",
-                                          "template_name": "$data.name", "template": "$data.template",
-                                          "template_params": "$data.template_params"
-                                          }},
-                            {"$sort": {"timestamp": -1}},
-                            {"$project": {"_id": "$sender_id", "user_input": 1, "intent": 1, "confidence": 1,
-                                          "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}},
-                                          "action": 1, "bot_response": 1, "template_name": 1, "template": 1,
-                                          "template_params": 1}}
-                         ], allowDiskUse=True))
+                search_query = {
+                    "type": {"$in": ["flattened", "broadcast"]},
+                    "timestamp": {
+                        "$gte": Utility.get_timestamp_from_date(from_date),
+                        "$lte": Utility.get_timestamp_from_date(to_date)
+                    }
+                }
+                values = list(conversations.find(search_query).sort("timestamp", -1))
 
+                if values:
+                    for v in values:
+                        v.pop("_id")
+                    user_data = values
         except Exception as e:
             logger.error(e)
             message = str(e)

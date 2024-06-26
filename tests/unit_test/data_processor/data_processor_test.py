@@ -6490,6 +6490,7 @@ class TestMongoProcessor:
         actual_config.config.pop('live_agent_socket_url')
         headers = actual_config.config.pop('headers')
         expected_config['multilingual'] = {'enable': False, 'bots': []}
+        expected_config['live_agent_enabled'] = True
         assert expected_config == actual_config.config
 
         primary_token_claims = Utility.decode_limited_access_token(headers['authorization']['access_token'])
