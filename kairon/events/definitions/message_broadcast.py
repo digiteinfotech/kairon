@@ -50,18 +50,23 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         reference_id = None
         status = EVENT_STATUS.FAIL.value
         exception = None
+        is_resend = kwargs.get('is_resend', False)
         try:
-            config, reference_id = self.__retrieve_config(event_id)
+            config, reference_id = self.__retrieve_config(event_id, is_resend)
             broadcast = MessageBroadcastFactory.get_instance(config["connector_type"]).from_config(config, event_id, reference_id)
-            recipients = broadcast.get_recipients()
-            broadcast.send(recipients)
+            if is_resend:
+                broadcast.resend_broadcast()
+            else:
+                recipients = broadcast.get_recipients()
+                broadcast.send(recipients)
             status = EVENT_STATUS.COMPLETED.value
         except Exception as e:
             logger.exception(e)
             exception = str(e)
         finally:
             time.sleep(5)
-            MessageBroadcastProcessor.insert_status_received_on_channel_webhook(reference_id, config["name"])
+            MessageBroadcastProcessor.insert_status_received_on_channel_webhook(reference_id, config["name"],
+                                                                                is_resend=is_resend)
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, reference_id, status=status, exception=exception
             )
@@ -99,6 +104,16 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 MessageBroadcastProcessor.delete_task(msg_broadcast_id, self.bot)
             raise AppException(e)
 
+    def _resend_broadcast(self, msg_broadcast_id: Text, config: Dict):
+        try:
+            payload = {'bot': self.bot, 'user': self.user,
+                       "event_id": msg_broadcast_id, "is_resend": True}
+            Utility.request_event_server(EventClass.message_broadcast, payload)
+            return msg_broadcast_id
+        except Exception as e:
+            logger.error(e)
+            raise e
+
     def _update_schedule(self, msg_broadcast_id: Text, config: Dict):
         settings_updated = False
         current_settings = {}
@@ -130,13 +145,15 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             logger.error(e)
             raise e
 
-    def __retrieve_config(self, event_id: Text):
-        reference_id = ObjectId().__str__()
-        config = MessageBroadcastProcessor.get_settings(event_id, self.bot)
+    def __retrieve_config(self, event_id: Text, is_resend: bool):
+
+        reference_id = MessageBroadcastProcessor.get_reference_id_from_broadcasting_logs(event_id) \
+            if is_resend else ObjectId().__str__()
+        config = MessageBroadcastProcessor.get_settings(event_id, self.bot, is_resend=is_resend)
         bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
         config["pyscript_timeout"] = bot_settings["dynamic_broadcast_execution_timeout"]
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, reference_id, user=self.user, config=config,
-            status=EVENT_STATUS.INPROGRESS.value, event_id=event_id, is_new_log=True
+            status=EVENT_STATUS.INPROGRESS.value, event_id=event_id, is_new_log=True, is_resend=is_resend
         )
         return config, reference_id
