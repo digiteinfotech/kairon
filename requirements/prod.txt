@@ -48,7 +48,7 @@ opentelemetry-distro[otlp]==0.45b0
 opentelemetry-sdk-extension-aws==2.0.1
 opentelemetry-propagator-aws-xray==1.0.1
 opentelemetry-instrumentation-fastapi==0.45b0
-opentelemetry-instrumentation-aiohttp-client==0.45b0
+opentelemetry-instrumentation-aiohttp-client==0.46b0
 opentelemetry-instrumentation-asyncio==0.45b0
 opentelemetry-instrumentation-aws-lambda==0.45b0
 opentelemetry-instrumentation-boto==0.45b0
