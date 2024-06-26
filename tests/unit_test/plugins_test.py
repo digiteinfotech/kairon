@@ -1,7 +1,7 @@
 import os
 import re
 
-import mock
+from unittest import mock
 import pytest
 import requests
 import responses
@@ -11,7 +11,6 @@ from kairon.exceptions import AppException
 from kairon.shared.constants import PluginTypes
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
-from mongomock import MongoClient
 
 
 class TestUtility:

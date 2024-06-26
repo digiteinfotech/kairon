@@ -3,7 +3,7 @@ import os
 from urllib.parse import urlencode, urljoin
 
 import litellm
-import mock
+from unittest import mock
 import numpy as np
 import pytest
 import responses

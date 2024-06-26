@@ -1,8 +1,10 @@
+import argparse
+import os
 from datetime import datetime
-from unittest.mock import patch
+from unittest import mock
 
 import pytest
-import os
+from mongoengine import connect
 
 from kairon import cli
 from kairon.cli.conversations_deletion import initiate_history_deletion_archival
@@ -10,22 +12,17 @@ from kairon.cli.data_generator import generate_training_data
 from kairon.cli.delete_logs import delete_logs
 from kairon.cli.importer import validate_and_import
 from kairon.cli.message_broadcast import send_notifications
-from kairon.cli.training import train
 from kairon.cli.testing import run_tests_on_model
+from kairon.cli.training import train
 from kairon.cli.translator import translate_multilingual_bot
 from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
-from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.shared.concurrency.actors.factory import ActorFactory
-from kairon.shared.utils import Utility
-from mongoengine import connect
-import mock
-import argparse
-
 from kairon.shared.constants import EventClass
+from kairon.shared.utils import Utility
 
 
 class TestTrainingCli:
@@ -395,7 +392,7 @@ class TestMessageBroadcastCli:
                 return_value=argparse.Namespace(func=send_notifications, bot="test_cli", user="testUser",
                                                 event_id="65432123456789876543"))
     def test_message_broadcast_all_arguments(self, mock_namespace):
-        with patch('kairon.events.definitions.message_broadcast.MessageBroadcastEvent.execute', autospec=True):
+        with mock.patch('kairon.events.definitions.message_broadcast.MessageBroadcastEvent.execute', autospec=True):
 
             cli()
         for proxy in ActorFactory._ActorFactory__actors.values():

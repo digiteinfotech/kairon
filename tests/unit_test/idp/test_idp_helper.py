@@ -17,7 +17,6 @@ from kairon.idp.processor import IDPProcessor
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.utils import Utility
 from stress_test.data_objects import User
-from mock import patch
 
 
 def get_user():

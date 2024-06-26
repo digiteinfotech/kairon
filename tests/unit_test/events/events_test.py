@@ -8,7 +8,7 @@ from io import BytesIO
 from unittest.mock import patch
 from urllib.parse import urljoin
 
-import mock
+from unittest import mock
 import mongomock
 import pytest
 import responses
