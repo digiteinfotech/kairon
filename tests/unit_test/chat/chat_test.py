@@ -459,18 +459,27 @@ class TestChat:
         mongo_client = mongomock.MongoClient("mongodb://test/conversations")
         db = mongo_client.get_database(test_db)
         collection = db.get_collection(bot)
-        items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
-        for item in items:
-            item['event']['timestamp'] = time.time()
-            if not item["event"].get("metadata"):
-                item["event"]["metadata"] = {}
-            item["event"]["metadata"] = {"tabname": "coaching"}
+        items = json.load(open("./tests/testing_data/history/conversations_history2.json", "r"))
         collection.insert_many(items)
         mock_mongo.return_value = mongo_client
-        history, message = ChatUtils.get_last_session_conversation(bot, "fshaikh@digite.com")
-        assert len(history) == 1
-        assert history[0]["tabname"] == "coaching"
-        assert len(history[0]["events"]) == 2
+        history, message = ChatUtils.get_last_session_conversation(bot, "spandan.mondal@nimblework.com")
+        assert len(history) == 2
+        assert history[1]["tabname"] == "default"
+        assert len(history[0]["events"]) == 5
+        assert len(history[1]["events"]) == 2
+        history[1]["events"][0].pop("timestamp")
+        history[1]["events"][0].pop("_id")
+
+        assert history[1]["events"][0] == {
+            'type': 'flattened', 'sender_id': 'spandan.mondal@nimblework.com',
+            'conversation_id': '0190351c27607ebfa901061072d4906d',
+            'data': {'user_input': 'hi', 'intent': 'greet', 'confidence': 0.9993663430213928,
+                     'action': ['action_session_start',
+                                'action_listen', 'utter_greet', 'action_listen'],
+                     'bot_response': [{'text': 'Let me be your AI Assistant and provide you with service',
+                                       'data': {'elements': None, 'quick_replies': None, 'buttons': None,
+                                                'attachment': None, 'image': None, 'custom': None}}]},
+            'metadata': {'tabname': 'default'}}
         assert message is None
 
     @responses.activate

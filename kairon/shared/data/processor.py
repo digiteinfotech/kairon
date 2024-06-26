@@ -159,6 +159,7 @@ from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetad
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
+from ..live_agent.live_agent import LiveAgentHandler
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 
@@ -5585,7 +5586,7 @@ class MongoProcessor:
         client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
         client_config.config['nudge_server_url'] = Utility.environment['nudge']['server_url']
         client_config.config['live_agent_socket_url'] = Utility.environment['live_agent']['live_agent_socket_url']
-
+        client_config.config['live_agent_enabled'] = LiveAgentHandler.is_live_agent_service_available(bot)
         token, refresh_token = Authentication.generate_integration_token(
             bot,
             user,
