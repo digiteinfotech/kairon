@@ -37,4 +37,5 @@ class LiteLLMLogger(CustomLogger):
                             'metadata': litellm_params.get('metadata')})
 
     def __save_logs(self, **kwargs):
-        print(LLMLogs(**kwargs).save().to_mongo().to_dict())
+        logs = LLMLogs(**kwargs).save().to_mongo().to_dict()
+        logger.info(f"llm logs: {logs}")
