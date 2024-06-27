@@ -33,7 +33,7 @@ from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, STORY_EVENT
-from kairon.shared.data.data_objects import EventConfig, Slots, LLMSettings
+from kairon.shared.data.data_objects import EventConfig, Slots, LLMSettings, DemoRequestLogs
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.llm.clients.azure import AzureGPT3Resources
@@ -1189,7 +1189,7 @@ class TestUtility:
     @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_book_a_demo(self, validate_and_send_mail_mock):
         mail_type = "book_a_demo"
-        email = "sampletest@gmail.com"
+        email = "sample.test@gmail.com"
         first_name = "sample"
         request = MagicMock()
         request.headers = {"X-Forwarded-For": "58.0.127.89"}
@@ -1197,17 +1197,19 @@ class TestUtility:
         data = {
             "first_name": "sample",
             "last_name": "test",
-            "email": "sampletest@gmail.com",
-            "contact": "9876543210",
-            "additional_info": "Thank You",
+            "email": "sample.test@gmail.com",
+            "phone": "+919876543210",
+            "message": "Thank You",
+            "recaptcha_response": "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
         }
         Utility.email_conf["email"]["templates"]["custom_text_mail"] = (
             open("template/emails/custom_text_mail.html", "rb").read().decode()
         )
         user_details = (
             "Hi,<br>Following demo has been requested for Kairon:<br><li>first_name: sample</li>"
-            "<li>last_name: test</li><li>email: sampletest@gmail.com</li><li>contact: 9876543210</li>"
-            "<li>additional_info: Thank You</li>"
+            "<li>last_name: test</li><li>email: sample.test@gmail.com</li><li>phone: +919876543210</li>" \
+            "<li>message: Thank You</li>" \
+            "<li>recaptcha_response: Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i</li>"
         )
         expected_subject = Utility.email_conf["email"]["templates"][
             "book_a_demo_subject"
@@ -1231,6 +1233,15 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(
             email, expected_subject, expected_body
         )
+        demo_request_logs = DemoRequestLogs.objects(first_name="sample", last_name="test",
+                                                    email="sample.test@gmail.com").get().to_mongo().to_dict()
+        assert demo_request_logs['first_name'] == "sample"
+        assert demo_request_logs['last_name'] == "test"
+        assert demo_request_logs['email'] == "sample.test@gmail.com"
+        assert demo_request_logs['phone'] == "+919876543210"
+        assert demo_request_logs['status'] == "request_received"
+        assert demo_request_logs['message'] == "Thank You"
+        assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
 
     @pytest.mark.asyncio
     async def test_trigger_email(self):

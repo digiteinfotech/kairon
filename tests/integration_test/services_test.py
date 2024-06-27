@@ -55,6 +55,7 @@ from kairon.shared.data.data_objects import (
     ChatClientConfig,
     BotSettings,
     LLMSettings,
+    DemoRequestLogs,
 )
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -248,6 +249,42 @@ def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock):
     assert not response["data"]
     assert response["error_code"] == 422
     assert not response["success"]
+
+
+@mock.patch("kairon.shared.utils.Utility.validate_recaptcha", autospec=True)
+@mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
+def test_book_a_demo_with_valid_data(trigger_smtp_mock, validate_recaptcha_mock, monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+    data = {
+        "first_name": "Mahesh",
+        "last_name": 'Sattala',
+        "email": "mahesh.sattala@digite.com",
+        "phone": "+919876543210",
+        "message": "Thank You",
+        "recaptcha_response": "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
+    }
+    form_data = {"data": data, "recaptcha_response": "1234567890"}
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/user/demo",
+            json=form_data
+        ).json()
+    assert response['message'] == 'Thank You for your interest in Kairon. We will reach out to you soon.'
+    assert not response['data']
+    assert response['error_code'] == 0
+    assert response['success']
+    demo_request_logs = DemoRequestLogs.objects(first_name="Mahesh", last_name="Sattala",
+                                                email="mahesh.sattala@digite.com").get().to_mongo().to_dict()
+    assert demo_request_logs['first_name'] == "Mahesh"
+    assert demo_request_logs['last_name'] == "Sattala"
+    assert demo_request_logs['email'] == "mahesh.sattala@digite.com"
+    assert demo_request_logs['phone'] == "+919876543210"
+    assert demo_request_logs['status'] == "request_received"
+    assert demo_request_logs['message'] == "Thank You"
+    assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
 
 
 def test_account_registration_error():

@@ -2695,9 +2695,11 @@ class MailUtility:
     @staticmethod
     def __handle_book_a_demo(**kwargs):
         from kairon.shared.plugins.factory import PluginFactory
+        from kairon.shared.data.processor import MongoProcessor
 
         request = kwargs.get("request")
         data = kwargs.get("data")
+        MongoProcessor.add_demo_request(**data)
         ip = Utility.get_client_ip(request)
         geo_location = (
             PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
