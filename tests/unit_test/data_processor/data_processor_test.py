@@ -75,6 +75,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.processor import DataImporterLogProcessor
+from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
@@ -6508,6 +6509,22 @@ class TestMongoProcessor:
                 '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
                 '/api/bot/.+/metric/user/logs/user_metrics'
             ], 'access-limit': ['/api/auth/.+/token/refresh']}
+
+    def test_get_chat_client_config_live_agent_enabled_false(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com',
+                'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+        def _mock_is_live_agent_service_available(*args, **kwargs):
+            return False
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        monkeypatch.setattr(LiveAgentHandler, 'is_live_agent_service_available', _mock_is_live_agent_service_available)
+        processor = MongoProcessor()
+        actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
+        assert actual_config.config['live_agent_enabled'] == False
+
 
     def test_save_chat_client_config_without_whitelisted_domain(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):

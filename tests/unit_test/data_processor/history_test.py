@@ -396,6 +396,40 @@ class TestHistory:
         assert message is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
+    def test_flatten_conversation_with_data_no_ids(self, mock_client):
+        with open("./tests/testing_data/history/flattened_conversations.json", "r") as f:
+            conversations = json.load(f)
+            timestamp = time.time() - 2000
+            for conversation in conversations:
+                conversation['timestamp'] = timestamp
+                timestamp += 200
+            mock_client.return_value = mongomock.MongoClient(Utility.environment['tracker']['url'])
+            collection = mock_client().get_database().get_collection("tests_flattened")
+            collection.insert_many(conversations)
+            r_dict, message = HistoryProcessor.flatten_conversations("tests_flattened")
+
+            for conversation in r_dict["conversation_data"]:
+                assert not conversation.get("id")
+                assert not conversation.get("_id")
+                assert conversation.get("timestamp")
+
+            assert len(r_dict["conversation_data"]) == 11
+            assert message is None
+            r_dict["conversation_data"][0].pop('timestamp')
+            assert r_dict["conversation_data"][0] == {
+                'type': 'flattened', 'sender_id': 'mathew.anil@digite.com',
+                'data': {
+                    'user_input': 'Hi',
+                    'intent': 'nlu_fallback',
+                    'confidence': 0.7, 'action': ['utter_please_rephrase'],
+                    'bot_response_text': 'Sorry, I did not get you!',
+                    'bot_response_data': {
+                        'elements': None, 'quick_replies': None, 'buttons': None, 'attachment': None,
+                        'image': None, 'custom': None}
+                }
+            }
+
+    @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_total_conversation_range_error(self, mock_client):
         mock_client.side_effect = ServerSelectionTimeoutError("Failed to connect")
         conversation_steps, message = HistoryProcessor.total_conversation_range("tests")
