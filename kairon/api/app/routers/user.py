@@ -71,9 +71,11 @@ async def allow_bot_for_user(
                                                                        current_user.get_user(),
                                                                        current_user.account, allow_bot.role)
     if Utility.email_conf["email"]["enable"]:
+        accessor_name = AccountProcessor.get_user(allow_bot.email, raise_error=False)
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member', email=allow_bot.email, url=url,
                                   first_name=f'{current_user.first_name} {current_user.last_name}',
-                                  bot_name=bot_name, role=allow_bot.role)
+                                  bot_name=bot_name, role=allow_bot.role.value,
+                                  accessor_name=f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}")
         return Response(message='An invitation has been sent to the user')
     else:
         return {"message": "User added"}
@@ -88,11 +90,12 @@ async def accept_bot_collaboration_invite_with_token_validation(
     Accepts a bot collaboration invitation sent via mail.
     """
     bot_admin, bot_name, accessor_email, role = AccountProcessor.validate_request_and_accept_bot_access_invite(token.data, bot)
-    user = AccountProcessor.get_user(bot_admin)
+    accessor_name = AccountProcessor.get_user(accessor_email, raise_error=False)
+    first_name = AccountProcessor.get_user(bot_admin, raise_error=False).get("first_name")
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
-                                  first_name=bot_admin, accessor_email=accessor_email,
-                                  bot_name=bot_name, role=role, member_confirm=user['first_name'])
+                                  first_name=first_name, accessor_email=accessor_email,
+                                  bot_name=bot_name, role=role, accessor_name=f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}")
     return {"message": "Invitation accepted"}
 
 
@@ -106,9 +109,11 @@ async def accept_bot_collaboration_invite(
     Accepts a bot collaboration invitation for logged in user.
     """
     bot_admin, bot_name, accessor_email, role = AccountProcessor.accept_bot_access_invite(bot, current_user.get_user())
+    accessor_name = AccountProcessor.get_user(accessor_email, raise_error=False).get("first_name")
+    first_name = AccountProcessor.get_user(bot_admin, raise_error=False).get("first_name")
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
-                                  first_name=bot_admin, accessor_email=accessor_email,
+                                  first_name=first_name, accessor_email=accessor_email, accessor_name=accessor_name,
                                   bot_name=bot_name, role=role)
     return {"message": "Invitation accepted"}
 
@@ -127,9 +132,9 @@ async def update_bot_access_for_user(
     )
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='update_role_member_mail',
-                                  email=allow_bot.email, first_name=f'{current_user.first_name} {current_user.last_name}',
+                                  email=allow_bot.email, first_name=member_name,
                                   bot_name=bot_name, new_role=allow_bot.role, status=allow_bot.activity_status,
-                                  member_name=member_name)
+                                  member_name=member_name, modifier_name=f'{current_user.first_name} {current_user.last_name}')
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='update_role_owner_mail', email=owner_email,
                                   member_email=allow_bot.email, bot_name=bot_name, new_role=allow_bot.role,
                                   first_name=f'{current_user.first_name} {current_user.last_name}',
@@ -147,13 +152,14 @@ async def transfer_ownership(
     Transfers ownership to provided user.
     """
     bot_name = AccountProcessor.transfer_ownership(current_user.account, bot, current_user.get_user(), request_data.data)
+    accessor_name = AccountProcessor.get_user(request_data.data, raise_error=False)
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='update_role_member_mail',
                                   email=request_data.data, bot_name=bot_name, new_role=ACCESS_ROLES.OWNER.value,
-                                  first_name=f'{current_user.first_name} {current_user.last_name}',
-                                  status=ACTIVITY_STATUS.ACTIVE.value)
+                                  first_name=f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}",
+                                  status=ACTIVITY_STATUS.ACTIVE.value, modifier_name=f'{current_user.first_name} {current_user.last_name}')
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='transfer_ownership_mail',
-                                  email=current_user.get_user(), member_email=current_user.get_user(),
+                                  email=current_user.get_user(), new_owner_mail=request_data.data,
                                   bot_name=bot_name, new_role=ACCESS_ROLES.OWNER.value,
                                   first_name=f'{current_user.first_name} {current_user.last_name}')
     return Response(message='Ownership transferred')
