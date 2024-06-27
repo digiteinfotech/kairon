@@ -902,16 +902,38 @@ class WebSearchActionRequest(BaseModel):
         return v
 
 
+class CustomActionParameterModel(BaseModel):
+    value: Any = None
+    parameter_type: ActionParameterType = ActionParameterType.value
+
+    @validator("parameter_type")
+    def validate_parameter_type(cls, v, values, **kwargs):
+        allowed_values = {ActionParameterType.value, ActionParameterType.slot}
+        if v not in allowed_values:
+            raise ValueError(f"Invalid parameter type. Allowed values: {allowed_values}")
+        return v
+
+    @root_validator
+    def check(cls, values):
+        if values.get('parameter_type') == ActionParameterType.slot and not values.get('value'):
+            raise ValueError("Provide name of the slot as value")
+
+        if values.get('parameter_type') == ActionParameterType.value and not isinstance(values.get('value'), list):
+            raise ValueError("Provide list of emails as value")
+
+        return values
+
+
 class EmailActionRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)
     smtp_url: str
     smtp_port: int
     smtp_userid: CustomActionParameter = None
     smtp_password: CustomActionParameter
-    from_email: str
+    from_email: CustomActionParameter
     subject: str
     custom_text: CustomActionParameter = None
-    to_email: List[str]
+    to_email: CustomActionParameterModel
     response: str
     tls: bool = False
 

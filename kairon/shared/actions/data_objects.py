@@ -395,6 +395,12 @@ class CustomActionRequestParameters(HttpActionRequestBody):
     )
 
 
+class CustomActionParameters(HttpActionRequestBody):
+    value = DynamicField(required=True)
+    parameter_type = StringField(default=ActionParameterType.value,
+                                 choices=[ActionParameterType.value, ActionParameterType.slot])
+
+
 @auditlogger.log
 @push_notification.apply
 class EmailActionConfig(Auditlog):
@@ -403,9 +409,9 @@ class EmailActionConfig(Auditlog):
     smtp_port = IntField(required=True)
     smtp_userid = EmbeddedDocumentField(CustomActionRequestParameters)
     smtp_password = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
-    from_email = StringField(required=True)
+    from_email = EmbeddedDocumentField(CustomActionRequestParameters)
     subject = StringField(required=True)
-    to_email = ListField(StringField(), required=True)
+    to_email = EmbeddedDocumentField(CustomActionParameters)
     response = StringField(required=True)
     custom_text = EmbeddedDocumentField(CustomActionRequestParameters)
     tls = BooleanField(default=False)
@@ -428,12 +434,18 @@ class EmailActionConfig(Auditlog):
             raise ValidationError("URL cannot be empty")
         if not Utility.validate_smtp(self.smtp_url, self.smtp_port):
             raise ValidationError("Invalid SMTP url")
-        elif isinstance(email(self.from_email), ValidationFailure):
+        elif isinstance(email(self.from_email.value), ValidationFailure) and self.from_email.parameter_type == "value":
             raise ValidationError("Invalid From or To email address")
-        else:
-            for to_email in self.to_email:
+        elif self.from_email.parameter_type == "slot" and ActionUtility.is_empty(self.from_email.value):
+            raise ValidationError("Provide name of the slot as value")
+        elif self.to_email.parameter_type == "value":
+            if not isinstance(self.to_email.value, list):
+                raise ValidationError("Provide list of emails as value")
+            for to_email in self.to_email.value:
                 if isinstance(email(to_email), ValidationFailure):
                     raise ValidationError("Invalid From or To email address")
+        elif self.to_email.parameter_type == "slot" and ActionUtility.is_empty(self.to_email.value):
+            raise ValidationError("Provide name of the slot as value")
 
         if self.custom_text and self.custom_text.parameter_type not in {ActionParameterType.value, ActionParameterType.slot}:
             raise ValidationError("custom_text can only be of type value or slot!")

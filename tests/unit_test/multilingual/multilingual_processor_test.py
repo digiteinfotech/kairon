@@ -266,9 +266,9 @@ class TestMultilingualProcessor:
                 smtp_url="test.localhost",
                 smtp_port=293,
                 smtp_password={"value": "test"},
-                from_email="test@demo.com",
+                from_email={"value": "from_email", "parameter_type": "slot"},
                 subject="test",
-                to_email=["test@test.com","test1@test.com"],
+                to_email={"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                 response="Validated",
                 bot="test_bot",
                 user="test_user"
