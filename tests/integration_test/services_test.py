@@ -1,3 +1,5 @@
+import time
+
 import ujson as json
 import os
 import re
@@ -23352,6 +23354,47 @@ def test_trigger_widget():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 2
     assert not actual["message"]
+    
+    
+def test_get_llm_logs():
+    from kairon.shared.llm.logger import LiteLLMLogger
+    import litellm
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    user = "test"
+    litellm.callbacks = [LiteLLMLogger()]
+
+    messages = [{"role": "user", "content": "Hi"}]
+    expected = "Hi, How may i help you?"
+
+    result = loop.run_until_complete(litellm.acompletion(messages=messages,
+                                                         model="gpt-3.5-turbo",
+                                                         mock_response=expected,
+                                                         metadata={'user': user, 'bot': pytest.bot}))
+    assert result['choices'][0]['message']['content'] == expected
+
+    time.sleep(2)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/llm/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+    assert actual["data"]["logs"][0]['start_time']
+    assert actual["data"]["logs"][0]['end_time']
+    assert actual["data"]["logs"][0]['cost']
+    assert actual["data"]["logs"][0]['llm_call_id']
+    assert actual["data"]["logs"][0]["llm_provider"] == "openai"
+    assert not actual["data"]["logs"][0].get("model")
+    assert actual["data"]["logs"][0]["model_params"] == {}
+    assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
+    assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
 
 
 def test_add_custom_widget_invalid_config():

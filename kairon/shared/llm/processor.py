@@ -16,6 +16,7 @@ from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
 from kairon.shared.llm.logger import LiteLLMLogger
+from kairon.shared.llm.data_objects import LLMLogs
 from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
@@ -260,3 +261,26 @@ class LLMProcessor(LLMBase):
                     similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
                     context_prompt = f"{context_prompt}\n{similarity_context}"
         return context_prompt
+
+    @staticmethod
+    def get_logs(bot: str, start_idx: int = 0, page_size: int = 10):
+        """
+        Get all logs for data importer event.
+        @param bot: bot id.
+        @param start_idx: start index
+        @param page_size: page size
+        @return: list of logs.
+        """
+        for log in LLMLogs.objects(metadata__bot=bot).order_by("-start_time").skip(start_idx).limit(page_size):
+            llm_log = log.to_mongo().to_dict()
+            llm_log.pop('_id')
+            yield llm_log
+
+    @staticmethod
+    def get_row_count(bot: str):
+        """
+        Gets the count of rows in a LLMLogs for a particular bot.
+        :param bot: bot id
+        :return: Count of rows
+        """
+        return LLMLogs.objects(metadata__bot=bot).count()
