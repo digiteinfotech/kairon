@@ -82,7 +82,6 @@ from kairon.shared.data.training_data_generation_processor import TrainingDataGe
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
-from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType
