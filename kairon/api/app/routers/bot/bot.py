@@ -39,12 +39,10 @@ from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
+from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.models import User, TemplateType
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
-from kairon.shared.llm.processor import LLMProcessor
-from kairon.shared.llm.data_objects import LLMLogs
-
 
 router = APIRouter()
 v2 = APIRouter()
