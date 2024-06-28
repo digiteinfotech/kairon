@@ -80,7 +80,7 @@ class TestLLM:
                             }]}
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [test_content.data], 'metadata': {'user': user, 'bot': bot},
+                        "input": [test_content.data], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
@@ -198,7 +198,7 @@ class TestLLM:
             assert response['faq'] == 3
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [json.dumps(test_content.data)], 'metadata': {'user': user, 'bot': bot},
+                        "input": [json.dumps(test_content.data)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
             print(mock_embedding.call_args)
@@ -260,7 +260,7 @@ class TestLLM:
                             }]}
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot},
+                        "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
@@ -332,7 +332,7 @@ class TestLLM:
                             }]}
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot},
+                        "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
@@ -393,7 +393,7 @@ class TestLLM:
                             'vector': embedding, 'payload': {'content': test_content.data}}]}
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [test_content.data], 'metadata': {'user': user, 'bot': bot},
+                        "input": [test_content.data], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
@@ -464,7 +464,7 @@ class TestLLM:
                             }]}
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [json.dumps(test_content.data)], 'metadata': {'user': user, 'bot': bot},
+                        "input": [json.dumps(test_content.data)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
@@ -525,12 +525,12 @@ class TestLLM:
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [query], 'metadata': {'user': user, 'bot': bot},
+                        "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
             expected = mock_completion_request.copy()
-            expected['metadata'] = {'user': user, 'bot': bot}
+            expected['metadata'] = {'user': user, 'bot': bot, 'invocation': None}
             expected['api_key'] = value
             expected['num_retries'] = 3
             assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -594,12 +594,12 @@ class TestLLM:
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [query], 'metadata': {'user': user, 'bot': bot},
+                        "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
             expected = mock_completion_request.copy()
-            expected['metadata'] = {'user': user, 'bot': bot}
+            expected['metadata'] = {'user': user, 'bot': bot, 'invocation': None}
             expected['api_key'] = value
             expected['num_retries'] = 3
             assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -674,12 +674,12 @@ class TestLLM:
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [query], 'metadata': {'user': user, 'bot': gpt3.bot},
+                        "input": [query], 'metadata': {'user': user, 'bot': gpt3.bot, 'invocation': None},
                         "api_key": key,
                         "num_retries": 3}
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
             expected = mock_completion_request.copy()
-            expected['metadata'] = {'user': user, 'bot': gpt3.bot}
+            expected['metadata'] = {'user': user, 'bot': gpt3.bot, 'invocation': None}
             expected['api_key'] = key
             expected['num_retries'] = 3
             assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -761,12 +761,12 @@ class TestLLM:
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
             expected = {"model": "text-embedding-3-small",
-                        "input": [query], 'metadata': {'user': user, 'bot': gpt3.bot},
+                        "input": [query], 'metadata': {'user': user, 'bot': gpt3.bot, 'invocation': None},
                         "api_key": key,
                         "num_retries": 3}
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
             expected = mock_completion_request.copy()
-            expected['metadata'] = {'user': user, 'bot': gpt3.bot}
+            expected['metadata'] = {'user': user, 'bot': gpt3.bot, 'invocation': None}
             expected['api_key'] = key
             expected['num_retries'] = 3
             assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -863,12 +863,12 @@ class TestLLM:
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
         expected = {"model": "text-embedding-3-small",
-                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
         expected = mock_completion_request.copy()
-        expected['metadata'] = {'user': user, 'bot': bot}
+        expected['metadata'] = {'user': user, 'bot': bot, 'invocation': None}
         expected['api_key'] = key
         expected['num_retries'] = 3
         assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -929,7 +929,7 @@ class TestLLM:
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
         expected = {"model": "text-embedding-3-small",
-                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
@@ -937,7 +937,7 @@ class TestLLM:
                                   'content': 'You are a personal assistant. Answer the question according to the below context'},
                                  {'role': 'user',
                                   'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
-                    'metadata': {'user': 'test', 'bot': 'test_gpt3_faq_embedding_predict_completion_connection_error'},
+                    'metadata': {'user': 'test', 'bot': 'test_gpt3_faq_embedding_predict_completion_connection_error', 'invocation': None},
                     'api_key': 'test', 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300,
                     'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1, 'stop': None,
                     'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
@@ -981,7 +981,7 @@ class TestLLM:
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
         expected = {"model": "text-embedding-3-small",
-                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
@@ -1019,7 +1019,7 @@ class TestLLM:
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
         expected = {"model": "text-embedding-3-small",
-                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
@@ -1084,12 +1084,12 @@ class TestLLM:
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
         expected = {"model": "text-embedding-3-small",
-                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
         expected = mock_completion_request.copy()
-        expected['metadata'] = {'user': user, 'bot': bot}
+        expected['metadata'] = {'user': user, 'bot': bot, 'invocation': None}
         expected['api_key'] = key
         expected['num_retries'] = 3
         assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -1162,12 +1162,12 @@ class TestLLM:
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
         expected = {"model": "text-embedding-3-small",
-                    "input": [query], 'metadata': {'user': user, 'bot': bot},
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
         expected = mock_completion_request.copy()
-        expected['metadata'] = {'user': user, 'bot': bot}
+        expected['metadata'] = {'user': user, 'bot': bot, 'invocation': None}
         expected['api_key'] = key
         expected['num_retries'] = 3
         assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -1185,20 +1185,20 @@ class TestLLM:
         result = await litellm.acompletion(messages=messages,
                                            model="gpt-3.5-turbo",
                                            mock_response=expected,
-                                           metadata={'user': user, 'bot': bot})
+                                           metadata={'user': user, 'bot': bot, 'invocation': None})
         assert result['choices'][0]['message']['content'] == expected
 
         result = litellm.completion(messages=messages,
                                     model="gpt-3.5-turbo",
                                     mock_response=expected,
-                                    metadata={'user': user, 'bot': bot})
+                                    metadata={'user': user, 'bot': bot, 'invocation': None})
         assert result['choices'][0]['message']['content'] == expected
 
         result = litellm.completion(messages=messages,
                                     model="gpt-3.5-turbo",
                                     mock_response=expected,
                                     stream=True,
-                                    metadata={'user': user, 'bot': bot})
+                                    metadata={'user': user, 'bot': bot, 'invocation': None})
         response = ''
         for chunk in result:
             content = chunk["choices"][0]["delta"]["content"]
@@ -1211,7 +1211,7 @@ class TestLLM:
                                            model="gpt-3.5-turbo",
                                            mock_response=expected,
                                            stream=True,
-                                           metadata={'user': user, 'bot': bot})
+                                           metadata={'user': user, 'bot': bot, 'invocation': None})
         response = ''
         async for chunk in result:
             content = chunk["choices"][0]["delta"]["content"]
@@ -1225,7 +1225,7 @@ class TestLLM:
             await litellm.acompletion(messages=messages,
                                        model="gpt-3.5-turbo",
                                        mock_response=Exception("Authentication error"),
-                                       metadata={'user': user, 'bot': bot})
+                                       metadata={'user': user, 'bot': bot, 'invocation': None})
 
             assert str(e) == "Authentication error"
 
@@ -1233,7 +1233,7 @@ class TestLLM:
             litellm.completion(messages=messages,
                                 model="gpt-3.5-turbo",
                                 mock_response=Exception("Authentication error"),
-                                metadata={'user': user, 'bot': bot})
+                                metadata={'user': user, 'bot': bot, 'invocation': None})
 
             assert str(e) == "Authentication error"
 
@@ -1242,6 +1242,6 @@ class TestLLM:
                                        model="gpt-3.5-turbo",
                                        mock_response=Exception("Authentication error"),
                                        stream=True,
-                                       metadata={'user': user, 'bot': bot})
+                                       metadata={'user': user, 'bot': bot, 'invocation': None})
 
             assert str(e) == "Authentication error"
