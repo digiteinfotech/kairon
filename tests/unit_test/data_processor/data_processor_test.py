@@ -152,6 +152,35 @@ class TestMongoProcessor:
                                        {'name': 'persona', 'type': 'SLOT', 'value': 'positive'},
                                        {'name': 'utter_welcome_user', 'type': 'BOT'}]
 
+    def test_add_demo_request_with_empty_first_name(self):
+        processor = MongoProcessor()
+        processor.add_demo_request(
+            first_name="", last_name="Sattala", email="mahesh.sattala@digite.com", phone="+919876543210",
+            message="This is test message", recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
+        )
+
+    def test_add_demo_request_with_empty_last_name(self):
+        processor = MongoProcessor()
+        processor.add_demo_request(
+            first_name="Mahesh", last_name="", email="mahesh.sattala@digite.com", phone="+919876543210",
+            message="This is test message", recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
+        )
+
+    def test_add_demo_request_with_invalid_email(self):
+        processor = MongoProcessor()
+        processor.add_demo_request(
+            first_name="Mahesh", last_name="Sattala", email="mahesh.sattala", phone="+919876543210",
+            message="This is test message", recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
+        )
+
+    def test_add_demo_request_with_invalid_status(self):
+        processor = MongoProcessor()
+        processor.add_demo_request(
+            first_name="Mahesh", last_name="Sattala", email="mahesh.sattala@digite.com",
+            phone="+919876543210", message="This is test message", status="Invalid_status",
+            recaptcha_response="Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
+        )
+
     def test_add_demo_request(self):
         processor = MongoProcessor()
         processor.add_demo_request(first_name="Mahesh", last_name="Sattala", email="mahesh.sattala@nimblework.com",
