@@ -71,6 +71,7 @@ class ActionPrompt(ActionsBase):
             llm_processor = LLMProcessor(self.bot, llm_type)
             llm_response, time_taken_llm_response = await llm_processor.predict(user_msg,
                                                                                 user=tracker.sender_id,
+                                                                                invocation='prompt_action',
                                                                                 **llm_params)
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")

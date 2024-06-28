@@ -28,7 +28,7 @@ class Qdrant(VectorEmbeddingsDbBase, ABC):
         self.EMBEDDING_CTX_LENGTH = 8191
 
     async def __get_embedding(self, text: Text, user: str, **kwargs) -> List[float]:
-        return await self.llm.get_embedding(text, user=user)
+        return await self.llm.get_embedding(text, user=user, invocation='db_action_qdrant')
 
     async def embedding_search(self, request_body: Dict, user: str, **kwargs):
         url = urljoin(self.db_url, f"/collections/{self.collection_name}/points")
