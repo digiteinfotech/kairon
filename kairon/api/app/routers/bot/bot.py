@@ -26,7 +26,7 @@ from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
-    VIEW_ACCESS, EventClass, AGENT_ACCESS
+    EventClass, AGENT_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
@@ -38,10 +38,12 @@ from kairon.shared.data.training_data_generation_processor import TrainingDataGe
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.importer.processor import DataImporterLogProcessor
+from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.models import User, TemplateType
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
-from kairon.shared.live_agent.live_agent import LiveAgentHandler
+from kairon.shared.llm.processor import LLMProcessor
+from kairon.shared.llm.data_objects import LLMLogs
 
 
 router = APIRouter()
@@ -1666,5 +1668,22 @@ async def get_live_agent_token(current_user: User = Security(Authentication.get_
     Fetches existing list of stories (conversation flows)
     """
     data = await LiveAgentHandler.authenticate_agent(current_user.get_user(), current_user.get_bot())
+    return Response(data=data)
+
+
+@router.get("/llm/logs", response_model=Response)
+async def get_llm_logs(
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Get data llm event logs.
+    """
+    logs = list(LLMProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
+    row_cnt = LLMProcessor.get_row_count(current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
     return Response(data=data)
 
