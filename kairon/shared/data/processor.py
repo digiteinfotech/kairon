@@ -5484,8 +5484,6 @@ class MongoProcessor:
             ).save()
         except Exception as e:
             logging.error(str(e))
-            raise AppException(e)
-        return logs.to_mongo().to_dict()
 
     @staticmethod
     def edit_bot_settings(bot_settings: dict, bot: Text, user: Text):
