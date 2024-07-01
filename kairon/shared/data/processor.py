@@ -4323,6 +4323,25 @@ class MongoProcessor:
             action.pop("status")
             yield action
 
+    def list_all_actions(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches all actions from the collection
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of actions.
+        """
+        for action in Actions.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = str(action["_id"])
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("status")
+            action.pop("timestamp")
+            yield action
+
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
         """
         Adds slot if it doesn't exist, updates slot if it exists
