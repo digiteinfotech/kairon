@@ -15,7 +15,7 @@ uuid6==2024.01.12
 passlib[bcrypt]==1.7.4
 openai==0.28.1
 json2html==1.3.0
-google-api-python-client==2.110.0
+google-api-python-client==2.135.0
 jira==3.5.2
 pipedrive-python-lib==1.2.3
 google-cloud-translate==3.13.0
