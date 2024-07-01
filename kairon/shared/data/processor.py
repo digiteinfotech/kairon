@@ -1136,7 +1136,21 @@ class MongoProcessor:
         :return: list of actions
         """
         actions = Actions.objects(bot=bot, status=status).values_list("name")
-        return list(actions)
+
+        actions_list = list(actions)
+
+        for story in Stories.objects(bot=bot, status=status):
+            for event in story.events:
+                if event.name == 'action_listen':
+                    if 'action_listen' not in actions_list:
+                        actions_list.append('action_listen')
+
+        for story in MultiflowStories.objects(bot=bot, status=status):
+            for event in story.events:
+                if event.step.name == 'stop_flow_action' and 'stop_flow_action' not in actions_list:
+                    actions_list.append('stop_flow_action')
+
+        return actions_list
 
     def __prepare_training_actions(self, bot: Text):
         actions = self.fetch_actions(bot)
@@ -1697,6 +1711,10 @@ class MongoProcessor:
                 elif event.step_type == StoryStepType.slot.value:
                     story_events.append(
                         SlotSet(key=event.name, value=event.value, timestamp=timestamp)
+                    )
+                elif event.step_type == StoryStepType.stop_flow_action.value:
+                    story_events.append(
+                        ActionExecuted(action_name=ACTION_LISTEN_NAME, timestamp=timestamp)
                     )
                 else:
                     story_events.append(
@@ -3348,6 +3366,9 @@ class MongoProcessor:
                         step["type"] = StoryStepType.web_search_action.value
                     elif event['name'] == 'live_agent_action':
                         step["type"] = StoryStepType.live_agent_action.value
+                    elif event['name'] == 'action_listen':
+                        step["type"] = StoryStepType.stop_flow_action.value
+                        step["name"] = 'stop_flow_action'
                     elif str(event["name"]).startswith("utter_"):
                         step["type"] = StoryStepType.bot.value
                     else:

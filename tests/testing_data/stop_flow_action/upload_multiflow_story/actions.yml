@@ -1,0 +1,31 @@
+database_action: []
+email_action: []
+form_validation_action: []
+google_search_action: []
+http_action:
+- action_name: api
+  content_type: json
+  http_url: https://reqres.in/api/users?page=2
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data.data.0.first_name}
+  set_slots:
+  - evaluation_type: expression
+    name: apiresponse
+    value: ${data.data.0.first_name}
+jira_action: []
+pipedrive_leads_action: []
+prompt_action: []
+pyscript_action: []
+razorpay_action: []
+slot_set_action:
+- name: reset
+  set_slots:
+  - name: apiresponse
+    type: reset_slot
+    value: ''
+two_stage_fallback: []
+zendesk_action: []

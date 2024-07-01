@@ -1,0 +1,42 @@
+version: "3.1"
+nlu:
+- intent: bye
+  examples: |
+    - good bye
+    - bye
+    - See you later!
+    - Goodbye!
+- intent: get_user
+  examples: |
+    - get user list
+    - user list is what I need
+    - User list is what I need.
+    - I need the user list.
+    - The user list is what you should get.
+    - The user list is something to get.
+    - Get the user list.
+    - The user list should be obtained.
+    - You can get a user list.
+    - I need a user list.
+    - The user list is what I need.
+    - A user list is what I need.
+    - Get the list of users.
+    - Get a user list.
+    - The user list is what I need the most.
+    - User list can be obtained.
+    - The user list is what I want.
+    - I need user list.
+    - Get user list.
+    - What I need is a user list.
+    - Get a list of users.
+- intent: greet
+  examples: |
+    - Hi
+    - Hello
+    - Greetings
+    - Hi there
+    - Good day
+    - Howdy
+    - Hey there
+    - What's up?
+    - Hullo

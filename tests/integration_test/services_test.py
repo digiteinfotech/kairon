@@ -6,6 +6,7 @@ import tarfile
 import tempfile
 from datetime import datetime, timedelta
 from io import BytesIO
+import yaml
 from mock import patch
 from urllib.parse import urljoin
 from zipfile import ZipFile
@@ -6150,6 +6151,40 @@ def test_add_story_empty_event():
     ]
 
 
+
+def test_add_story_stop_flow_action():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "test_add_story_stop_flow_action",
+            "type": "STORY",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_goodbye", "type": "BOT"},
+                {"name": "utter_goodbye", "type": "BOT"},
+                {"name": "stop", "type": "STOP_FLOW_ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    story = next((item for item in actual['data'] if item['name'] == 'test_add_story_stop_flow_action'), None)
+    assert story is not None
+    assert story['steps'][-1]['name'] == 'stop_flow_action'
+    assert story['steps'][-1]['type'] == 'STOP_FLOW_ACTION'
+
+
 def test_add_story_stop_flow_action_not_at_end():
     response = client.post(
         f"/api/bot/{pytest.bot}/stories",
@@ -6200,6 +6235,562 @@ def test_add_story_stop_flow_action_after_intent():
             "type": "value_error",
         }
     ]
+
+@responses.activate
+def test_upload_stop_flow_action():
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("tests/testing_data/stop_flow_action/upload_story/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("tests/testing_data/stop_flow_action/upload_story/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("tests/testing_data/stop_flow_action/upload_story/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("tests/testing_data/stop_flow_action/upload_story/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/stop_flow_action/upload_story/chat_client_config.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    story = next((story_item for story_item in actual["data"] if story_item["name"] == "story_with_stop_flow_action"), None)
+
+    assert story is not None
+    assert story["steps"][-1]["name"] == "stop_flow_action"
+    assert story["steps"][-1]["type"] == "STOP_FLOW_ACTION"
+
+
+def test_download_story_with_stop_flow_action():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "test_download_story_with_stop_flow_action",
+            "type": "STORY",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_goodbye", "type": "BOT"},
+                {"name": "stop_flow_action", "type": "STOP_FLOW_ACTION"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/download/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    file_bytes = BytesIO(response.content)
+
+    zip_file = ZipFile(file_bytes, mode="r")
+    with zip_file.open("data/stories.yml") as file:
+        stories_yaml = yaml.safe_load(file.read().decode("utf-8"))
+    with zip_file.open("domain.yml") as file:
+        domain_yaml = yaml.safe_load(file.read().decode("utf-8"))
+
+    story = next((story_item for story_item in stories_yaml["stories"] if story_item["story"] == "test_download_story_with_stop_flow_action"), None)
+    assert story is not None
+    assert story["steps"][-1]["action"] == "action_listen"
+    assert domain_yaml["actions"][-1] == "action_listen"
+
+
+@responses.activate
+def test_add_multiflow_story_stop_flow_action():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_add_multiflow_story_stop_flow_action",
+            "steps": [
+                {
+                    "step": {
+                        "name": "greet",
+                        "type": "INTENT",
+                        "node_id": "1",
+                        "component_id": "Mnvehd",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_greet",
+                            "type": "BOT",
+                            "node_id": "2",
+                            "component_id": "PLhfhs",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_greet",
+                        "type": "BOT",
+                        "node_id": "2",
+                        "component_id": "PLhfhs",
+                    },
+                    "connections": [
+                        {
+                            "name": "stop_flow",
+                            "type": "STOP_FLOW_ACTION",
+                            "node_id": "3",
+                            "component_id": "NNXX",
+                        },
+                        {
+                            "name": "utter_bye",
+                            "type": "BOT",
+                            "node_id": "4",
+                            "component_id": "NNXXY",
+                        },
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "stop_flow",
+                        "type": "STOP_FLOW_ACTION",
+                        "node_id": "3",
+                        "component_id": "NNXX",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "utter_bye",
+                        "type": "BOT",
+                        "node_id": "4",
+                        "component_id": "NNXXY",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_bye",
+                            "type": "BOT",
+                            "node_id": "5",
+                            "component_id": "NNXXY",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_bye",
+                        "type": "BOT",
+                        "node_id": "5",
+                        "component_id": "NNXXY",
+                    },
+                    "connections": None,
+                }
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Story flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    story = next((item for item in actual['data'] if item['name'] == 'test_add_multiflow_story_stop_flow_action'), None)
+    assert story is not None
+
+    stop_flow_step = next((step for step in story['steps'] if
+                           step['step']['name'] == 'stop_flow' and step['step']['type'] == 'STOP_FLOW_ACTION'), None)
+
+    assert stop_flow_step is not None
+    assert stop_flow_step['connections'] == []
+
+
+def test_add_multiflow_story_stop_flow_action_not_at_end():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_stop_path",
+            "steps": [
+                {
+                    "step": {
+                        "name": "greet",
+                        "type": "INTENT",
+                        "node_id": "1",
+                        "component_id": "Mnvehd",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_greet",
+                            "type": "BOT",
+                            "node_id": "2",
+                            "component_id": "PLhfhs",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_greet",
+                        "type": "BOT",
+                        "node_id": "2",
+                        "component_id": "PLhfhs",
+                    },
+                    "connections": [
+                        {
+                            "name": "more_queries",
+                            "type": "INTENT",
+                            "node_id": "3",
+                            "component_id": "MNbcg",
+                        },
+                        {
+                            "name": "stop_flow",
+                            "type": "STOP_FLOW_ACTION",
+                            "node_id": "4",
+                            "component_id": "QQAA",
+                        },
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "stop_flow",
+                        "type": "STOP_FLOW_ACTION",
+                        "node_id": "4",
+                        "component_id": "QQAA",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_goodbye",
+                            "type": "BOT",
+                            "node_id": "5",
+                            "component_id": "NNXX",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_goodbye",
+                        "type": "BOT",
+                        "node_id": "5",
+                        "component_id": "NNXX",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "utter_more_queries",
+                        "type": "BOT",
+                        "node_id": "6",
+                        "component_id": "MnveRRhd",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "more_queries",
+                        "type": "INTENT",
+                        "node_id": "3",
+                        "component_id": "MNbcg",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_more_queries",
+                            "type": "BOT",
+                            "node_id": "6",
+                            "component_id": "MnveRRhd",
+                        }
+                    ],
+                },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual['success']
+    assert actual['message'] == 'STOP_FLOW_ACTION should be a leaf node!'
+    assert actual["error_code"] == 422
+
+
+def test_add_multiflow_story_stop_flow_action_after_intent():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_stop_path",
+            "steps": [
+                {
+                    "step": {
+                        "name": "greet",
+                        "type": "INTENT",
+                        "node_id": "1",
+                        "component_id": "Mnvehd",
+                    },
+                    "connections": [
+                        {
+                            "name": "stop_flow",
+                            "type": "STOP_FLOW_ACTION",
+                            "node_id": "2",
+                            "component_id": "PLhfhs",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "stop_flow",
+                        "type": "STOP_FLOW_ACTION",
+                        "node_id": "2",
+                        "component_id": "PLhfhs",
+                    },
+                    "connections": None,
+                },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual['success']
+    assert actual['message'] == 'STOP_FLOW_ACTION cannot be a successor of an intent!'
+    assert actual["error_code"] == 422
+
+@responses.activate
+@patch.object(ModelProcessor, "is_daily_training_limit_exceeded")
+def test_upload_stop_flow_action_multiflow(mock_training_limit):
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("tests/testing_data/stop_flow_action/upload_multiflow_story/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("rules.yml", open("tests/testing_data/stop_flow_action/upload_multiflow_story/data/rules.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("tests/testing_data/stop_flow_action/upload_multiflow_story/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("tests/testing_data/stop_flow_action/upload_multiflow_story/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("tests/testing_data/stop_flow_action/upload_multiflow_story/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/stop_flow_action/upload_multiflow_story/chat_client_config.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "actions.yml",
+                open("tests/testing_data/stop_flow_action/upload_multiflow_story/actions.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "multiflow_stories.yml",
+                open("tests/testing_data/stop_flow_action/upload_multiflow_story/multiflow_stories.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    for story in actual["data"]:
+        if story.get("type") == "MULTIFLOW":
+            for substep in story["steps"]:
+                if substep.get("step", {}).get("name") == "stop_flow_action":
+                    assert substep["connections"] == []
+
+
+    mock_training_limit.return_value = False
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.model_training}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Model training started."
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.model_training
+    )
+
+
+def test_download_multiflow_story_with_stop_flow_action():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_download_multiflow_story_with_stop_flow_action",
+            "steps": [
+                {
+                    "step": {
+                        "name": "greet",
+                        "type": "INTENT",
+                        "node_id": "1",
+                        "component_id": "Mnvehd",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_greet",
+                            "type": "BOT",
+                            "node_id": "2",
+                            "component_id": "PLhfhs",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_greet",
+                        "type": "BOT",
+                        "node_id": "2",
+                        "component_id": "PLhfhs",
+                    },
+                    "connections": [
+                        {
+                            "name": "stop_flow_action",
+                            "type": "STOP_FLOW_ACTION",
+                            "node_id": "3",
+                            "component_id": "NNXX",
+                        },
+                        {
+                            "name": "utter_bye",
+                            "type": "BOT",
+                            "node_id": "4",
+                            "component_id": "NNXXY",
+                        },
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "stop_flow_action",
+                        "type": "STOP_FLOW_ACTION",
+                        "node_id": "3",
+                        "component_id": "NNXX",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "utter_bye",
+                        "type": "BOT",
+                        "node_id": "4",
+                        "component_id": "NNXXY",
+                    },
+                    "connections": None,
+                },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Story flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/download/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    file_bytes = BytesIO(response.content)
+    zip_file = ZipFile(file_bytes, mode="r")
+
+    with zip_file.open("multiflow_stories.yml") as file:
+        multi_stories_content = yaml.safe_load(file.read().decode("utf-8"))
+    with zip_file.open("domain.yml") as file:
+        domain_content = yaml.safe_load(file.read().decode("utf-8"))
+
+    events = next(block['events'] for block in multi_stories_content['multiflow_story'] if block['block_name'] == 'test_download_multiflow_story_with_stop_flow_action')
+
+    for event in events:
+        if event["step"]["name"] == "stop_flow_action":
+            assert event["connections"] == []
+
+    for event in events:
+        if event["step"]["name"] == "utter_greet":
+            assert any(conn["name"] == "stop_flow_action" for conn in event["connections"])
+
+    assert domain_content['actions'][-1] == 'stop_flow_action'
+
 
 
 def test_add_story_lone_intent():
