@@ -602,3 +602,13 @@ async def disable_live_agent(
     mongo_processor.disable_live_agent(current_user.get_bot())
     return Response(message="Live Agent Action disabled!")
 
+
+@router.get("/actions", response_model=Response)
+async def list_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of all actions for bot.
+    """
+    actions = list(mongo_processor.list_all_actions(bot=current_user.get_bot()))
+    return Response(data=actions)
+

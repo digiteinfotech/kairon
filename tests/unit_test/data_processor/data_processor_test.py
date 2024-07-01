@@ -13970,6 +13970,42 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f"{KAIRON_TWO_STAGE_FALLBACK} is a reserved keyword"):
             processor.add_hubspot_forms_action(action, bot, user)
 
+
+    def test_list_all_actions(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_list_all_action_pyscript_action"
+        script = """
+                data = [1, 2, 3, 4, 5, 6]
+                total = 0
+                for i in data:
+                    total += i
+                print(total)
+                """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        action_id = processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+
+        action = {
+            'name': 'test_list_all_action_google_action',
+            'api_key': {'value': '12345678'},
+            'search_engine_id': 'asdfg:123456', "dispatch_response": False, "set_slot": "google_search_result",
+            'failure_response': 'I have failed to process your request',
+            'website': 'https://www.google.com',
+        }
+
+        action_id = processor.add_google_search_action(action, bot, user)
+
+        actions_list = list(processor.list_all_actions(bot=bot))
+
+        assert actions_list[-1]['name'] == 'test_list_all_action_google_action'
+        assert actions_list[-2]['name'] == 'test_list_all_action_pyscript_action'
+
+
     def test_add_custom_2_stage_fallback_action_validation_error(self):
         processor = MongoProcessor()
         bot = 'test'

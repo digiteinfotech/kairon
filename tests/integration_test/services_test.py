@@ -1192,6 +1192,32 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["data"]["api_server_host_url"] == expected_app_server_url
     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
+@responses.activate
+def test_default_values():
+    response = client.get(
+        f"/api/system/default/names"
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    expected_default_intents = [
+        "restart", "back", "out_of_scope", "session_start", "nlu_fallback"
+    ]
+    expected_default_action_names = [
+        "action_listen", "action_restart", "action_session_start",
+        "action_default_fallback", "action_deactivate_loop",
+        "action_revert_fallback_events", "action_default_ask_affirmation",
+        "action_default_ask_rephrase", "action_two_stage_fallback",
+        "action_unlikely_intent", "action_back", "...", "action_extract_slots"
+    ]
+    expected_default_slot_names = [
+        "knowledge_base_last_object_type", "session_started_metadata",
+        "knowledge_base_listed_objects", "requested_slot", "knowledge_base_last_object"
+    ]
+
+    assert sorted(actual["data"]["default_intents"]) == sorted(expected_default_intents)
+    assert sorted(actual["data"]["default_action_names"]) == sorted(expected_default_action_names)
+    assert sorted(actual["data"]["default_slot_names"]) == sorted(expected_default_slot_names)
 
 @responses.activate
 def test_upload_with_bot_content_only_validate_content_data():
