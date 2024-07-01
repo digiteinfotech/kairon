@@ -26,7 +26,7 @@ python-multipart==0.0.9
 pandas==2.2.2
 openpyxl==3.1.2
 sentencepiece==0.1.99
-dramatiq==1.15.0
+dramatiq==1.17.0
 dramatiq-mongodb==0.8.3
 nlpaug==1.1.11
 keybert==0.8.4
