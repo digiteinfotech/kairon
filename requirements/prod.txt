@@ -5,7 +5,7 @@ uvicorn[standard]==0.29.0
 smart-config==0.1.3
 fastapi_sso==0.9.1
 fastapi-keycloak==1.0.10
-pykka==3.1.1
+pykka==4.0.2
 zenpy==2.0.42
 validators==0.28.0
 secure==0.3.0
