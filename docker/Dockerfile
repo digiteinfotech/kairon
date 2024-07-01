@@ -38,6 +38,8 @@ COPY . .
 RUN rm -rf ${TEMPLATE_DIR_DEFAULT}/models/* && \
     rasa train --data ${TEMPLATE_DIR_DEFAULT}/data --config ${TEMPLATE_DIR_DEFAULT}/config.yml --domain ${TEMPLATE_DIR_DEFAULT}/domain.yml --out ${TEMPLATE_DIR_DEFAULT}/models
 
+RUN cp kairon/shared/rule_policy.py /usr/local/lib/python3.10/site-packages/rasa/core/policies/rule_policy.py
+RUN cp kairon/shared/schemas/domain.yml /usr/local/lib/python3.10/site-packages/rasa/shared/utils/schemas/domain.yml
 
 ENV HF_HOME="/home/cache" SENTENCE_TRANSFORMERS_HOME="/home/cache"
 

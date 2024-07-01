@@ -1,4 +1,5 @@
 import asyncio
+import ujson as json
 from unittest import mock
 
 import pytest
@@ -101,3 +102,19 @@ class TestAioRestClient:
             with pytest.raises(AppException, match="Request timed out: Request timed out"):
                 await AioRestClient().request("get", url, request_body={"name": "udit.pandey", "loc": "blr"},
                                               headers={"Authorization": "Bearer sasdfghjkytrtyui"}, max_retries=3)
+
+    @pytest.mark.asyncio
+    async def test_aio_rest_client_post_request_stream(self, aioresponses):
+        url = 'http://kairon.com'
+        aioresponses.post("http://kairon.com", status=200, body=json.dumps({'data': 'hi!'}))
+        resp = await AioRestClient().request("post", url, request_body={"name": "udit.pandey", "loc": "blr"},
+                                         headers={"Authorization": "Bearer sasdfghjkytrtyui"}, is_streaming_resp=True)
+        response = ''
+        async for content in resp.content:
+            response += content.decode()
+
+        assert json.loads(response) == {"data": "hi!"}
+        assert list(aioresponses.requests.values())[0][0].kwargs == {'allow_redirects': True, 'headers': {
+            'Authorization': 'Bearer sasdfghjkytrtyui'}, 'json': {'loc': 'blr', 'name': 'udit.pandey'}, 'timeout': None,
+                                                                     'data': None,
+                                                                     'trace_request_ctx': {'current_attempt': 1}}

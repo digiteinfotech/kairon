@@ -1,6 +1,5 @@
 from kairon.shared.concurrency.actors.factory import ActorFactory
 import pytest
-from mock import patch
 import os
 
 

@@ -695,9 +695,9 @@ class TrainingDataValidator(Validator):
                     data_error.append(
                         f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
                 llm_prompts_errors = TrainingDataValidator.__validate_llm_prompts(action['llm_prompts'])
-                if action.get('hyperparameters') is not None:
-                    llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(
-                        action.get('hyperparameters'))
+                if action.get('hyperparameters'):
+                    llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparameters(
+                        action.get('hyperparameters'), action.get("llm_type", "openai"))
                     data_error.extend(llm_hyperparameters_errors)
                 data_error.extend(llm_prompts_errors)
                 if action['name'] in actions_present:
@@ -785,27 +785,12 @@ class TrainingDataValidator(Validator):
         return error_list
 
     @staticmethod
-    def __validate_llm_prompts_hyperparamters(hyperparameters: dict):
+    def __validate_llm_prompts_hyperparameters(hyperparameters: dict, llm_type: str):
         error_list = []
-        for key, value in hyperparameters.items():
-            if key == 'temperature' and not 0.0 <= value <= 2.0:
-                error_list.append("Temperature must be between 0.0 and 2.0!")
-            elif key == 'presence_penalty' and not -2.0 <= value <= 2.0:
-                error_list.append("presence_penality must be between -2.0 and 2.0!")
-            elif key == 'frequency_penalty' and not -2.0 <= value <= 2.0:
-                error_list.append("frequency_penalty must be between -2.0 and 2.0!")
-            elif key == 'top_p' and not 0.0 <= value <= 1.0:
-                error_list.append("top_p must be between 0.0 and 1.0!")
-            elif key == 'n' and not 1 <= value <= 5:
-                error_list.append("n must be between 1 and 5!")
-            elif key == 'max_tokens' and not 5 <= value <= 4096:
-                error_list.append("max_tokens must be between 5 and 4096!")
-            elif key == 'logit_bias' and not isinstance(value, dict):
-                error_list.append("logit_bias must be a dictionary!")
-            elif key == 'stop':
-                if value and (not isinstance(value, (str, int, list)) or (isinstance(value, list) and len(value) > 4)):
-                    error_list.append(
-                        "Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
+        try:
+            Utility.validate_llm_hyperparameters(hyperparameters, llm_type, AppException)
+        except AppException as e:
+            error_list.append(e.__str__())
         return error_list
 
     @staticmethod

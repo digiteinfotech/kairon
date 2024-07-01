@@ -7,6 +7,8 @@ import uuid
 from unittest import mock
 from unittest.mock import patch
 from urllib.parse import urljoin
+from kairon.shared.utils import Utility, MailUtility
+Utility.load_system_metadata()
 
 import jwt
 import pytest
@@ -22,7 +24,6 @@ from starlette.datastructures import Headers, URL
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from kairon.api.app.routers.idp import get_idp_config
 from kairon.api.models import RegisterAccount, EventConfig, IDPConfig, StoryRequest, HttpActionParameters, Password
 from kairon.exceptions import AppException
 from kairon.idp.data_objects import IdpConfig
@@ -42,12 +43,6 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
-from kairon.shared.utils import Utility, MailUtility
-from kairon.exceptions import AppException
-import time
-from kairon.idp.data_objects import IdpConfig
-from kairon.api.models import RegisterAccount, EventConfig, IDPConfig, StoryRequest, HttpActionParameters, Password
-from mongomock import MongoClient
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 

@@ -33,14 +33,6 @@ class AioRestClient(RestClientBase):
         self._status_code = None
 
     @property
-    def streaming_response(self):
-        return self._streaming_response
-
-    @streaming_response.setter
-    def streaming_response(self, resp):
-        self._streaming_response = resp
-
-    @property
     def time_elapsed(self):
         return self._time_elapsed
 
@@ -60,7 +52,7 @@ class AioRestClient(RestClientBase):
                       headers: dict = None,
                       return_json: bool = True, **kwargs):
         max_retries = kwargs.get("max_retries", 1)
-        status_forcelist = kwargs.get("status_forcelist", [104, 502, 503, 504])
+        status_forcelist = set(kwargs.get("status_forcelist", [104, 502, 503, 504]))
         timeout = ClientTimeout(total=kwargs['timeout']) if kwargs.get('timeout') else None
         is_streaming_resp = kwargs.pop("is_streaming_resp", False)
         content_type = kwargs.pop("content_type", HttpRequestContentType.json.value)
@@ -124,12 +116,9 @@ class AioRestClient(RestClientBase):
             logger.debug(f"Content-type: {response.headers['content-type']}")
             logger.debug(f"Status code: {str(response.status)}")
             self.status_code = response.status
-            if is_streaming_resp:
-                streaming_resp = await AioRestClient.parse_streaming_response(response)
-                self.streaming_response = streaming_resp
-                logger.debug(f"Raw streaming response: {streaming_resp}")
-            text = await response.text()
-            logger.debug(f"Raw response: {text}")
+            if not is_streaming_resp:
+                text = await response.text()
+                logger.debug(f"Raw response: {text}")
             return response
 
     def __validate_response(self, response: ClientResponse, **kwargs):
@@ -150,13 +139,3 @@ class AioRestClient(RestClientBase):
         """
         if not self.session.closed:
             await self.session.close()
-
-    @staticmethod
-    async def parse_streaming_response(response):
-        chunks = []
-        async for chunk in response.content:
-            if not chunk:
-                break
-            chunks.append(chunk)
-
-        return chunks

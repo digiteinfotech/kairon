@@ -5,6 +5,8 @@ import logging
 import re
 from datetime import datetime
 from typing import Any, List, Text, Dict
+from ..utils import Utility
+Utility.load_system_metadata()
 
 import requests
 from aiohttp import ContentTypeError
@@ -26,7 +28,6 @@ from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPO
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..rest_client import AioRestClient
-from ..utils import Utility
 from ...exceptions import AppException
 
 

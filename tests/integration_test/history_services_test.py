@@ -8,7 +8,7 @@ from kairon.shared.utils import Utility
 from mongomock import MongoClient
 from kairon.history.processor import HistoryProcessor
 from pymongo.collection import Collection
-import mock
+from unittest import mock
 from urllib.parse import urlencode
 
 

@@ -16,7 +16,7 @@ from kairon.shared.chat.cache.least_priority import LeastPriorityCache
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.model_processor import ModelProcessor
 
-from mock import patch
+from unittest.mock import patch
 from mongoengine import connect
 
 

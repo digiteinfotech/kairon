@@ -1,3 +1,5 @@
+import time
+
 import ujson as json
 import os
 import re
@@ -6,11 +8,11 @@ import tarfile
 import tempfile
 from datetime import datetime, timedelta
 from io import BytesIO
-from mock import patch
+from unittest.mock import patch
 from urllib.parse import urljoin
 from zipfile import ZipFile
 
-import mock
+from unittest import mock
 import pytest
 import responses
 from botocore.exceptions import ClientError
@@ -23,6 +25,9 @@ from pipedrive.exceptions import UnauthorizedError
 from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
+from kairon.shared.utils import Utility, MailUtility
+
+Utility.load_system_metadata()
 
 from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
@@ -44,6 +49,7 @@ from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     FeatureMappings,
     DEFAULT_NLU_FALLBACK_RESPONSE,
+    DEFAULT_LLM
 )
 from kairon.shared.data.data_objects import (
     Stories,
@@ -69,7 +75,6 @@ from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
-from kairon.shared.utils import Utility, MailUtility
 from urllib.parse import urlencode
 from deepdiff import DeepDiff
 
@@ -1571,7 +1576,6 @@ def test_get_live_agent_with_no_live_agent():
 
 
 def test_enable_live_agent():
-
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.live_agent_enabled = True
     bot_settings.save()
@@ -1594,7 +1598,6 @@ def test_enable_live_agent():
     assert actual["success"]
 
 
-
 def test_get_live_agent_after_enabled_no_bot_settings_enabled():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.live_agent_enabled = False
@@ -1610,6 +1613,7 @@ def test_get_live_agent_after_enabled_no_bot_settings_enabled():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
+
 
 def test_get_live_agent_after_enabled():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -2347,7 +2351,9 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
                                'source': 'static', 'is_enabled': True}],
               'instructions': ['Answer in a short manner.', 'Keep it simple.'],
               'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+              "llm_type": DEFAULT_LLM,
+              "hyperparameters": Utility.get_default_llm_hyperparameters()}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -3084,6 +3090,8 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
         ],
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3141,6 +3149,8 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
         ],
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3185,6 +3195,8 @@ def test_add_prompt_action_with_invalid_query_prompt():
         ],
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3242,6 +3254,8 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
         ],
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "num_bot_responses": 10,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3298,7 +3312,9 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3363,7 +3379,9 @@ def test_add_prompt_action_with_multiple_system_prompt():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3420,7 +3438,9 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3477,7 +3497,9 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3538,7 +3560,9 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3598,6 +3622,8 @@ def test_add_prompt_action_with_gpt_feature_disabled():
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "top_results": 10,
         "similarity_threshold": 0.70,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3611,6 +3637,138 @@ def test_add_prompt_action_with_gpt_feature_disabled():
     )
     assert not actual["data"]
     assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    action = {
+        "name": "test_add_prompt_action_with_invalid_llm_type", 'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Similarity Prompt",
+                "data": "Bot_collection",
+                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                "type": "user",
+                "source": "bot_content",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "If there is no specific query, assume that user is aking about java programming.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": "test",
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not DeepDiff(actual["message"],
+                        [{'loc': ['body', 'llm_type'], 'msg': 'Invalid llm type', 'type': 'value_error'}],
+                        ignore_order=True)
+    assert not actual["success"]
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
+    temp = Utility.get_default_llm_hyperparameters()
+    temp['temperature'] = 3.0
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    action = {
+        "name": "test_add_prompt_action_with_invalid_hyperameters", 'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Similarity Prompt",
+                "data": "Bot_collection",
+                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                "type": "user",
+                "source": "bot_content",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "If there is no specific query, assume that user is aking about java programming.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": temp
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not DeepDiff(actual["message"],
+                        [{'loc': ['body', 'hyperparameters'],
+                          'msg': "['temperature']: 3.0 is greater than the maximum of 2.0", 'type': 'value_error'}],
+                        ignore_order=True)
+    assert not actual["success"]
+    assert not actual["data"]
     assert actual["error_code"] == 422
 
 
@@ -3660,7 +3818,9 @@ def test_add_prompt_action(monkeypatch):
         ],
         "instructions": ["Answer in a short manner.", "Keep it simple."],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3721,7 +3881,9 @@ def test_add_prompt_action_already_exist(monkeypatch):
         ],
         "instructions": ["Answer in a short manner.", "Keep it simple."],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -3772,7 +3934,9 @@ def test_update_prompt_action_does_not_exist():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/61512cc2c6219f0aae7bba3d",
@@ -3824,7 +3988,9 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": "updated_failure_message"
+        "failure_message": "updated_failure_message",
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -3869,7 +4035,9 @@ def test_update_prompt_action_with_invalid_top_results():
             },
         ],
         "num_bot_responses": 5,
-        "failure_message": "updated_failure_message"
+        "failure_message": "updated_failure_message",
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -3913,7 +4081,9 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
             },
         ],
         "num_bot_responses": 50,
-        "failure_message": "updated_failure_message"
+        "failure_message": "updated_failure_message",
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -3962,6 +4132,8 @@ def test_update_prompt_action_with_invalid_query_prompt():
         "num_bot_responses": 5,
         "use_query_prompt": True,
         "query_prompt": "",
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -4019,6 +4191,8 @@ def test_update_prompt_action_with_query_prompt_with_false():
             },
         ],
         "dispatch_response": False,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -4075,7 +4249,9 @@ def test_update_prompt_action():
         ],
         "instructions": ["Answer in a short manner.", "Keep it simple."],
         "num_bot_responses": 5,
-        "failure_message": "updated_failure_message"
+        "failure_message": "updated_failure_message",
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
@@ -4100,11 +4276,12 @@ def test_get_prompt_action():
     assert actual["error_code"] == 0
     assert not actual["message"]
     actual["data"][0].pop("_id")
-    assert actual["data"] == [
+    assert not DeepDiff(actual["data"], [
         {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'failure_message': 'updated_failure_message',
          'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+         'llm_type': 'openai',
          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                             'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                             'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                              'logit_bias': {}}, 'llm_prompts': [
             {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
              'is_enabled': True}, {'name': 'Similarity_analytical Prompt', 'data': 'Bot_collection',
@@ -4118,7 +4295,7 @@ def test_get_prompt_action():
                                    'instructions': 'Answer according to the context', 'type': 'query',
                                    'source': 'static', 'is_enabled': True}],
          'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [], 'dispatch_response': True,
-         'status': True}]
+         'status': True}], ignore_order=True)
 
 
 def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypatch):
@@ -4168,7 +4345,9 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
         ],
         "instructions": ["Answer in a short manner.", "Keep it simple."],
         "num_bot_responses": 5,
-        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -4191,12 +4370,13 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
     assert actual["error_code"] == 0
     assert not actual["message"]
     actual["data"][1].pop("_id")
-    assert actual["data"][1] == {
+    assert not DeepDiff(actual["data"][1], {
         'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt', 'num_bot_responses': 5,
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
+        'llm_type': 'openai',
         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                             'logit_bias': {}},
         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                          'source': 'static', 'is_enabled': True},
@@ -4212,7 +4392,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True}],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
-        'dispatch_response': True, 'status': True}
+        'dispatch_response': True, 'status': True}, ignore_order=True)
 
 
 def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
@@ -4265,7 +4445,10 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                                'source': 'static', 'is_enabled': True}],
               'instructions': ['Answer in a short manner.', 'Keep it simple.'],
               'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+              "llm_type": DEFAULT_LLM,
+              "hyperparameters": Utility.get_default_llm_hyperparameters()
+              }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -4279,12 +4462,13 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
     )
     actual = response.json()
     actual["data"][2].pop("_id")
-    assert actual["data"][2] == {
+    assert not DeepDiff(actual["data"][2], {
         'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload', 'num_bot_responses': 5,
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
+        'llm_type': 'openai',
         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                            'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                            'stop': None, 'presence_penalty': 0.0,
                             'frequency_penalty': 0.0, 'logit_bias': {}},
         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                          'source': 'static', 'is_enabled': True},
@@ -4299,7 +4483,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                          'data': 'If there is no specific query, assume that user is aking about java programming.',
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-        'set_slots': [], 'dispatch_response': True, 'status': True}
+        'set_slots': [], 'dispatch_response': True, 'status': True}, ignore_order=True)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -4356,7 +4540,10 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                                'source': 'static', 'is_enabled': True}],
               'instructions': ['Answer in a short manner.', 'Keep it simple.'],
               'num_bot_responses': 5,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+              "llm_type": DEFAULT_LLM,
+              "hyperparameters": Utility.get_default_llm_hyperparameters()
+              }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -4370,12 +4557,13 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
     )
     actual = response.json()
     actual["data"][3].pop("_id")
-    assert actual["data"][3] == {
+    assert not DeepDiff(actual["data"][3], {
         'name': 'test_add_prompt_action_with_bot_content_prompt_with_content', 'num_bot_responses': 5,
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
+        'llm_type': 'openai',
         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                            'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                            'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                             'logit_bias': {}},
         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                          'source': 'static', 'is_enabled': True},
@@ -4391,7 +4579,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                          'is_enabled': True}],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
-        'dispatch_response': True, 'status': True}
+        'dispatch_response': True, 'status': True}, ignore_order=True)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -5030,7 +5218,8 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
-                                                                'actions', 'chat_client_config', 'multiflow_stories', 'bot_content'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories',
+                                                                'bot_content'}
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
@@ -5062,7 +5251,8 @@ def test_get_data_importer_logs():
                                                     ]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
-                                                                'actions', 'chat_client_config', 'multiflow_stories','bot_content'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories',
+                                                                'bot_content'}
 
 
 @responses.activate
@@ -6190,6 +6380,7 @@ def test_add_story_lone_intent():
             "type": "value_error",
         }
     ]
+
 
 def test_add_story_consecutive_intents():
     response = client.post(
@@ -9843,6 +10034,7 @@ def test_login_for_verified():
     assert actual["error_code"] == 0
     pytest.access_token = actual["data"]["access_token"]
     pytest.token_type = actual["data"]["token_type"]
+
 
 def test_list_bots_for_different_user():
     response = client.get(
@@ -18690,7 +18882,7 @@ def test_set_templates_with_sysadmin_as_user():
 
     intents = Intents.objects(bot=pytest.bot)
     intents = [{k: v for k, v in intent.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
-                         intent in intents]
+               intent in intents]
 
     assert intents == [
         {'name': 'greet', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
@@ -18766,7 +18958,6 @@ def test_add_channel_config(monkeypatch):
 
 
 def test_add_bot_with_template_with_sysadmin_as_user(monkeypatch):
-
     def mock_reload_model(*args, **kwargs):
         mock_reload_model.called_with = (args, kwargs)
         return None
@@ -18805,7 +18996,7 @@ def test_add_bot_with_template_with_sysadmin_as_user(monkeypatch):
 
     rules = Rules.objects(bot=bot_id)
     rules = [{k: v for k, v in rule.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
-               rule in rules]
+             rule in rules]
 
     assert rules == [
         {'block_name': 'ask the user to rephrase whenever they send a message with low nlu confidence',
@@ -18819,7 +19010,7 @@ def test_add_bot_with_template_with_sysadmin_as_user(monkeypatch):
 
     utterances = Utterances.objects(bot=bot_id)
     utterances = [{k: v for k, v in utterance.to_mongo().to_dict().items() if k not in ['_id', 'bot', 'timestamp']} for
-             utterance in utterances]
+                  utterance in utterances]
 
     assert utterances == [
         {'name': 'utter_please_rephrase', 'user': 'sysadmin', 'status': True},
@@ -19934,7 +20125,7 @@ def test_get_bot_settings():
                               'whatsapp': 'meta',
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
-                              'integrations_per_user_limit':3 }
+                              'integrations_per_user_limit': 3}
 
 
 def test_update_analytics_settings_with_empty_value():
@@ -20012,7 +20203,7 @@ def test_update_analytics_settings():
                               'live_agent_enabled': False,
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
-                              'integrations_per_user_limit':3 }
+                              'integrations_per_user_limit': 3}
 
 
 def test_delete_channels_config():
@@ -23163,6 +23354,47 @@ def test_trigger_widget():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 2
     assert not actual["message"]
+    
+    
+def test_get_llm_logs():
+    from kairon.shared.llm.logger import LiteLLMLogger
+    import litellm
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    user = "test"
+    litellm.callbacks = [LiteLLMLogger()]
+
+    messages = [{"role": "user", "content": "Hi"}]
+    expected = "Hi, How may i help you?"
+
+    result = loop.run_until_complete(litellm.acompletion(messages=messages,
+                                                         model="gpt-3.5-turbo",
+                                                         mock_response=expected,
+                                                         metadata={'user': user, 'bot': pytest.bot}))
+    assert result['choices'][0]['message']['content'] == expected
+
+    time.sleep(2)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/llm/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+    assert actual["data"]["logs"][0]['start_time']
+    assert actual["data"]["logs"][0]['end_time']
+    assert actual["data"]["logs"][0]['cost']
+    assert actual["data"]["logs"][0]['llm_call_id']
+    assert actual["data"]["logs"][0]["llm_provider"] == "openai"
+    assert not actual["data"]["logs"][0].get("model")
+    assert actual["data"]["logs"][0]["model_params"] == {}
+    assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
+    assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
 
 
 def test_add_custom_widget_invalid_config():

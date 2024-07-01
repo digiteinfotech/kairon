@@ -83,7 +83,7 @@ class ActionDatabase(ActionsBase):
             request_body = ActionUtility.get_payload(payload, tracker)
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)
-            response = await vector_db.perform_operation(operation_type, request_body)
+            response = await vector_db.perform_operation(operation_type, request_body, user=tracker.sender_id)
             logger.info("response: " + str(response))
             response_context = self.__add_user_context_to_http_response(response, tracker_data)
             bot_response, bot_resp_log, _ = ActionUtility.compose_response(vector_action_config['response'], response_context)

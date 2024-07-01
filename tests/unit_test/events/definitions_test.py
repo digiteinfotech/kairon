@@ -4,11 +4,11 @@ from datetime import datetime
 from io import BytesIO
 from urllib.parse import urljoin
 
-import mock
+from unittest import mock
 import pytest
 import responses
 from fastapi import UploadFile
-from mock.mock import patch
+from unittest.mock import patch
 from mongoengine import connect
 
 from augmentation.utils import WebsiteParser

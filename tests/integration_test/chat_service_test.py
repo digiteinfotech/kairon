@@ -5,17 +5,21 @@ import time
 from datetime import datetime, timedelta
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
-
-from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.utils import Utility
-
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ["ASYNC_TEST_TIMEOUT"] = "3600"
 Utility.load_environment()
 
+Utility.load_system_metadata()
+
+from kairon.shared.live_agent.live_agent import LiveAgentHandler
+
+
+
+
 import pytest
 import responses
-from mock import patch
+from unittest.mock import patch
 from mongoengine import connect
 from slack_sdk.web.slack_response import SlackResponse
 from starlette.exceptions import HTTPException
