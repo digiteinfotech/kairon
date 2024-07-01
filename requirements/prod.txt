@@ -6,7 +6,7 @@ smart-config==0.1.3
 fastapi_sso==0.9.1
 fastapi-keycloak==1.0.10
 pykka==3.1.1
-zenpy==2.0.42
+zenpy==2.0.49
 validators==0.28.0
 secure==0.3.0
 password-strength==0.0.3.post2
