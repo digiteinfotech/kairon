@@ -79,6 +79,7 @@ from .data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     SLOT_TYPE,
 )
+from kairon.shared.kairon_yaml_story_writer import kaironYAMLStoryWriter
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
 from ..exceptions import AppException
@@ -192,20 +193,20 @@ class Utility:
             if slot_type == SLOT_TYPE.TEXT.value and not isinstance(initial_value, str):
                 raise AppException("initial value for type Text must be a string")
             elif slot_type == SLOT_TYPE.BOOLEAN.value and not isinstance(
-                initial_value, bool
+                    initial_value, bool
             ):
                 raise AppException(
                     "initial value for type Boolean must be a true or false"
                 )
             elif slot_type == SLOT_TYPE.LIST.value and not isinstance(
-                initial_value, list
+                    initial_value, list
             ):
                 raise AppException(
                     "initial value for type List must be a list of elements"
                 )
             elif slot_type == SLOT_TYPE.FLOAT.value:
                 if not isinstance(initial_value, int) and not isinstance(
-                    initial_value, float
+                        initial_value, float
                 ):
                     raise AppException(
                         "initial value for type Float must be a numeric value"
@@ -215,15 +216,15 @@ class Utility:
             min_value = slot_value.get("min_value")
             max_value = slot_value.get("max_value")
             if (
-                min_value
-                and not isinstance(min_value, int)
-                and not isinstance(min_value, float)
+                    min_value
+                    and not isinstance(min_value, int)
+                    and not isinstance(min_value, float)
             ):
                 raise AppException("min_value must be a numeric value")
             if (
-                max_value
-                and not isinstance(max_value, int)
-                and not isinstance(max_value, float)
+                    max_value
+                    and not isinstance(max_value, int)
+                    and not isinstance(max_value, float)
             ):
                 raise AppException("max_value must be a numeric value")
             if min_value and max_value and min_value > max_value:
@@ -404,12 +405,12 @@ class Utility:
         headers = {"Content-type": "application/json", "Accept": "text/plain"}
         url = endpoint["bot_endpoint"].get("url")
         if endpoint["bot_endpoint"].get("token_type") and endpoint["bot_endpoint"].get(
-            "token"
+                "token"
         ):
             headers["Authorization"] = (
-                endpoint["bot_endpoint"].get("token_type")
-                + " "
-                + endpoint["bot_endpoint"].get("token")
+                    endpoint["bot_endpoint"].get("token_type")
+                    + " "
+                    + endpoint["bot_endpoint"].get("token")
             )
         try:
             model_file = Utility.get_latest_file(os.path.join(DEFAULT_MODELS_PATH, bot))
@@ -737,7 +738,8 @@ class Utility:
         six_months_back_date = (datetime.utcnow() - timedelta(6 * 30)).date()
         today_date = datetime.utcnow().date()
         if six_months_back_date > from_date or from_date > today_date:
-            logger.info(f"from_date: {from_date}, to_date: {to_date}, six_month_back_date: {six_months_back_date}, today_date: {today_date}")
+            logger.info(
+                f"from_date: {from_date}, to_date: {to_date}, six_month_back_date: {six_months_back_date}, today_date: {today_date}")
             raise AppException("from_date should be within six months and today date")
         elif six_months_back_date > to_date or to_date > today_date:
             logger.info(
@@ -758,11 +760,11 @@ class Utility:
 
     @staticmethod
     def http_request(
-        method: str,
-        url: str,
-        token: str = None,
-        user: str = None,
-        json_dict: Dict = None,
+            method: str,
+            url: str,
+            token: str = None,
+            user: str = None,
+            json_dict: Dict = None,
     ):
         logger.info("agent event started " + url)
         headers = {"content-type": "application/json"}
@@ -792,8 +794,8 @@ class Utility:
     @staticmethod
     async def upload_document(doc):
         if not (
-            doc.filename.lower().endswith(".pdf")
-            or doc.filename.lower().endswith(".docx")
+                doc.filename.lower().endswith(".pdf")
+                or doc.filename.lower().endswith(".docx")
         ):
             raise AppException("Invalid File Format")
         folder_path = "data_generator"
@@ -1029,7 +1031,7 @@ class Utility:
 
     @staticmethod
     def download_csv(
-        data, message="No data available!", filename="conversation_history.csv"
+            data, message="No data available!", filename="conversation_history.csv"
     ):
         if not data:
             raise AppException(message)
@@ -1166,7 +1168,8 @@ class Utility:
             yaml.safe_dump(domain, open(domain_path, "w"))
         Utility.write_to_file(nlu_path, nlu_as_str)
         Utility.write_to_file(config_path, config_as_str)
-        YAMLStoryWriter().dump(stories_path, stories.story_steps)
+        story_writer = kaironYAMLStoryWriter()
+        story_writer.dump(stories_path, stories.story_steps)
         if rules:
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
         if actions:
@@ -1317,11 +1320,11 @@ class Utility:
 
     @staticmethod
     def trigger_history_server_request(
-        bot: Text,
-        endpoint: Text,
-        request_body: dict = None,
-        request_method: str = "GET",
-        return_json: bool = True,
+            bot: Text,
+            endpoint: Text,
+            request_body: dict = None,
+            request_method: str = "GET",
+            return_json: bool = True,
     ):
         from kairon.shared.data.processor import MongoProcessor
 
@@ -1480,7 +1483,7 @@ class Utility:
 
     @staticmethod
     def push_notification(
-        channel: Text, event_type: Text, collection: Text, metadata: dict
+            channel: Text, event_type: Text, collection: Text, metadata: dict
     ):
         push_server_endpoint = Utility.environment["notifications"]["server_endpoint"]
         push_server_endpoint = urljoin(push_server_endpoint, channel)
@@ -1544,11 +1547,11 @@ class Utility:
     def validate_whatsapp_bsp(channel, config, error, encrypt=True):
         bsp_type = config.get("bsp_type")
         if (
-            bsp_type
-            and bsp_type
-            in Utility.system_metadata["channels"]["whatsapp"][
-                "business_providers"
-            ].keys()
+                bsp_type
+                and bsp_type
+                in Utility.system_metadata["channels"]["whatsapp"][
+            "business_providers"
+        ].keys()
         ):
             for required_field in Utility.system_metadata["channels"]["whatsapp"][
                 "business_providers"
@@ -1618,7 +1621,7 @@ class Utility:
         root_dir = Utility.environment["storage"]["assets"].get("root_dir")
         extension = Path(file_path).suffix
         if extension not in Utility.environment["storage"]["assets"].get(
-            "allowed_extensions"
+                "allowed_extensions"
         ):
             raise AppException(
                 f'Only {Utility.environment["storage"]["assets"].get("allowed_extensions")} type files allowed'
@@ -1640,12 +1643,12 @@ class Utility:
 
     @staticmethod
     def execute_http_request(
-        request_method: str,
-        http_url: str,
-        request_body: Union[dict, list] = None,
-        headers: dict = None,
-        return_json: bool = True,
-        **kwargs,
+            request_method: str,
+            http_url: str,
+            request_body: Union[dict, list] = None,
+            headers: dict = None,
+            return_json: bool = True,
+            **kwargs,
     ):
         """
         Executes http urls provided.
@@ -1707,8 +1710,8 @@ class Utility:
             logger.debug("raw response: " + str(response.text))
             logger.debug("status " + str(response.status_code))
         except (
-            requests.exceptions.ConnectTimeout,
-            requests.exceptions.ConnectionError,
+                requests.exceptions.ConnectTimeout,
+                requests.exceptions.ConnectionError,
         ):
             _, _, host, _, _, _, _ = parse_url(http_url)
             raise AppException(f"Failed to connect to service: {host}")
@@ -1717,7 +1720,7 @@ class Utility:
             raise AppException(f"Failed to execute the url: {str(e)}")
 
         if kwargs.get("validate_status", False) and response.status_code != kwargs.get(
-            "expected_status_code", 200
+                "expected_status_code", 200
         ):
             if Utility.check_empty_string(kwargs.get("err_msg")):
                 raise AppException("err_msg cannot be empty")
@@ -1740,12 +1743,12 @@ class Utility:
 
     @staticmethod
     def request_event_server(
-        event_class: EventClass,
-        payload: dict,
-        method: Text = "POST",
-        is_scheduled: bool = False,
-        cron_exp: Text = None,
-        timezone: Text = None,
+            event_class: EventClass,
+            payload: dict,
+            method: Text = "POST",
+            is_scheduled: bool = False,
+            cron_exp: Text = None,
+            timezone: Text = None,
     ):
         """
         Trigger request to event server along with payload.
@@ -1875,8 +1878,8 @@ class Utility:
     @staticmethod
     def encrypt_action_parameter(param: Dict):
         if (
-            param["encrypt"] is True
-            and param["parameter_type"] == ActionParameterType.value.value
+                param["encrypt"] is True
+                and param["parameter_type"] == ActionParameterType.value.value
         ):
             if not Utility.check_empty_string(param["value"]):
                 param["value"] = Utility.encrypt_message(param["value"])
@@ -1884,8 +1887,8 @@ class Utility:
     @staticmethod
     def decrypt_action_parameter(param: Dict):
         if (
-            param["encrypt"] is True
-            and param["parameter_type"] == ActionParameterType.value.value
+                param["encrypt"] is True
+                and param["parameter_type"] == ActionParameterType.value.value
         ):
             if not Utility.check_empty_string(param["value"]):
                 param["value"] = Utility.decrypt_message(param["value"])
@@ -2063,35 +2066,35 @@ class Utility:
         params = Utility.system_metadata["llm"]["gpt"]
         for key, value in hyperparameters.items():
             if (
-                key == "temperature"
-                and not params["temperature"]["min"]
-                <= value
-                <= params["temperature"]["max"]
+                    key == "temperature"
+                    and not params["temperature"]["min"]
+                            <= value
+                            <= params["temperature"]["max"]
             ):
                 raise exception_class(
                     f"Temperature must be between {params['temperature']['min']} and {params['temperature']['max']}!"
                 )
             elif (
-                key == "presence_penalty"
-                and not params["presence_penalty"]["min"]
-                <= value
-                <= params["presence_penalty"]["max"]
+                    key == "presence_penalty"
+                    and not params["presence_penalty"]["min"]
+                            <= value
+                            <= params["presence_penalty"]["max"]
             ):
                 raise exception_class(
                     f"Presence penalty must be between {params['presence_penalty']['min']} and {params['presence_penalty']['max']}!"
                 )
             elif (
-                key == "frequency_penalty"
-                and not params["presence_penalty"]["min"]
-                <= value
-                <= params["presence_penalty"]["max"]
+                    key == "frequency_penalty"
+                    and not params["presence_penalty"]["min"]
+                            <= value
+                            <= params["presence_penalty"]["max"]
             ):
                 raise exception_class(
                     f"Frequency penalty must be between {params['presence_penalty']['min']} and {params['presence_penalty']['max']}!"
                 )
             elif (
-                key == "top_p"
-                and not params["top_p"]["min"] <= value <= params["top_p"]["max"]
+                    key == "top_p"
+                    and not params["top_p"]["min"] <= value <= params["top_p"]["max"]
             ):
                 raise exception_class(
                     f"top_p must be between {params['top_p']['min']} and {params['top_p']['max']}!"
@@ -2101,10 +2104,10 @@ class Utility:
                     f"n must be between {params['n']['min']} and {params['n']['max']} and should not be 0!"
                 )
             elif (
-                key == "max_tokens"
-                and not params["max_tokens"]["min"]
-                <= value
-                <= params["max_tokens"]["max"]
+                    key == "max_tokens"
+                    and not params["max_tokens"]["min"]
+                            <= value
+                            <= params["max_tokens"]["max"]
             ):
                 raise exception_class(
                     f"max_tokens must be between {params['max_tokens']['min']} and {params['max_tokens']['max']} and should not be 0!"
@@ -2129,37 +2132,37 @@ class Utility:
         history_prompt_count = 0
         for prompt in llm_prompts:
             if (
-                prompt["type"] == LlmPromptType.system.value
-                and prompt["source"] != LlmPromptSource.static.value
+                    prompt["type"] == LlmPromptType.system.value
+                    and prompt["source"] != LlmPromptSource.static.value
             ):
                 raise exception_class("System prompt must have static source!")
             if (
-                Utility.check_empty_string(prompt.get("data"))
-                and prompt["source"] == LlmPromptSource.action.value
+                    Utility.check_empty_string(prompt.get("data"))
+                    and prompt["source"] == LlmPromptSource.action.value
             ):
                 raise exception_class("Data must contain action name!")
             if (
-                Utility.check_empty_string(prompt.get("data"))
-                and prompt["source"] == LlmPromptSource.slot.value
+                    Utility.check_empty_string(prompt.get("data"))
+                    and prompt["source"] == LlmPromptSource.slot.value
             ):
                 raise exception_class("Data must contain slot name!")
             if Utility.check_empty_string(prompt.get("name")):
                 raise exception_class("Name cannot be empty!")
             if (
-                Utility.check_empty_string(prompt.get("data"))
-                and prompt["source"] == LlmPromptSource.static.value
+                    Utility.check_empty_string(prompt.get("data"))
+                    and prompt["source"] == LlmPromptSource.static.value
             ):
                 raise exception_class("data is required for static prompts!")
             if (
-                Utility.check_empty_string(prompt.get("data"))
-                and prompt["source"] == LlmPromptSource.bot_content.value
+                    Utility.check_empty_string(prompt.get("data"))
+                    and prompt["source"] == LlmPromptSource.bot_content.value
             ):
                 raise exception_class(
                     "Data must contain collection name is required for bot content prompts!"
                 )
             if (
-                prompt["type"] == LlmPromptType.query.value
-                and prompt["source"] != LlmPromptSource.static.value
+                    prompt["type"] == LlmPromptType.query.value
+                    and prompt["source"] != LlmPromptSource.static.value
             ):
                 raise exception_class("Query prompt must have static source!")
             if prompt.get("type") == LlmPromptType.system.value:
@@ -2216,16 +2219,25 @@ class StoryValidator:
             )
         for story_step in steps:
             story_step_object = vertices[story_step["step"]["node_id"]]
+
             for connected_story_step in story_step["connections"] or []:
-                if connected_story_step["node_id"] in vertices.keys():
-                    connection_object = vertices[connected_story_step["node_id"]]
-                else:
-                    connection_object = KaironStoryStep(
-                        connected_story_step["name"],
-                        connected_story_step["type"],
-                        connected_story_step["node_id"],
-                    )
-                graph.add_edge(story_step_object, connection_object)
+                try:
+                    test = connected_story_step["node_id"]
+                    test2 = vertices.keys()
+                    if connected_story_step["node_id"] in vertices.keys():
+                        connection_object = vertices[connected_story_step["node_id"]]
+                    else:
+                        connection_object = KaironStoryStep(
+                            connected_story_step["name"],
+                            connected_story_step["type"],
+                            connected_story_step["node_id"],
+                        )
+                    graph.add_edge(story_step_object, connection_object)
+                except KeyError as e:
+                    print(f"KeyError: {e} - The key does not exist in the connected_story_step.")
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+
         return graph
 
     @staticmethod
@@ -2271,9 +2283,15 @@ class StoryValidator:
                     raise AppException(
                         "Intent can only have one connection of action type or slot type"
                     )
+                if [
+                    successor
+                    for successor in story_graph.successors(story_node)
+                    if successor.step_type == "STOP_FLOW_ACTION"
+                ]:
+                    raise AppException("STOP_FLOW_ACTION cannot be a successor of an intent!")
             if story_node.step_type == "SLOT" and story_node.value:
                 if story_node.value is not None and not isinstance(
-                    story_node.value, (str, int, bool)
+                        story_node.value, (str, int, bool)
                 ):
                     raise ValidationError(
                         "slot values in multiflow story must be either None or of type int, str or boolean"
@@ -2286,6 +2304,8 @@ class StoryValidator:
                 raise AppException("Slots cannot be leaf nodes!")
             if story_node.step_type == "INTENT" and story_node.node_id in leaf_node_ids:
                 raise AppException("Leaf nodes cannot be intent")
+            if story_node.step_type == "STOP_FLOW_ACTION" and story_node.node_id not in leaf_node_ids:
+                raise AppException("STOP_FLOW_ACTION should be a leaf node!")
         if flow_metadata:
             for value in flow_metadata:
                 if value.get("flow_type") == "RULE":
@@ -2302,15 +2322,15 @@ class StoryValidator:
                             )
                         )
                         if any(
-                            len(
-                                [
-                                    node.step_type
-                                    for node in path
-                                    if node.step_type == "INTENT"
-                                ]
-                            )
-                            > 1
-                            for path in paths
+                                len(
+                                    [
+                                        node.step_type
+                                        for node in path
+                                        if node.step_type == "INTENT"
+                                    ]
+                                )
+                                > 1
+                                for path in paths
                         ):
                             raise AppException(
                                 "Path tagged as RULE can have only one intent!"
@@ -2354,7 +2374,7 @@ class StoryValidator:
                     )
             if story_node.step_type == "SLOT" and story_node.value:
                 if story_node.value is not None and not isinstance(
-                    story_node.value, (str, int, bool)
+                        story_node.value, (str, int, bool)
                 ):
                     errors.append(
                         "slot values in multiflow story must be either None or of type int, str or boolean"
@@ -2383,15 +2403,15 @@ class StoryValidator:
                             )
                         )
                         if any(
-                            len(
-                                [
-                                    node.step_type
-                                    for node in path
-                                    if node.step_type == "INTENT"
-                                ]
-                            )
-                            > 1
-                            for path in paths
+                                len(
+                                    [
+                                        node.step_type
+                                        for node in path
+                                        if node.step_type == "INTENT"
+                                    ]
+                                )
+                                > 1
+                                for path in paths
                         ):
                             errors.append(
                                 "Path tagged as RULE can have only one intent!"
@@ -2429,7 +2449,7 @@ class StoryValidator:
 class MailUtility:
     @staticmethod
     async def format_and_send_mail(
-        mail_type: str, email: str, first_name: str, url: str = None, **kwargs
+            mail_type: str, email: str, first_name: str, url: str = None, **kwargs
     ):
         mail_actions_dict = {
             "password_reset": MailUtility.__handle_password_reset,
@@ -2510,16 +2530,16 @@ class MailUtility:
 
     @staticmethod
     async def trigger_email(
-        email: List[str],
-        subject: str,
-        body: str,
-        smtp_url: str,
-        smtp_port: int,
-        sender_email: str,
-        smtp_password: str,
-        smtp_userid: str = None,
-        tls: bool = False,
-        content_type="html",
+            email: List[str],
+            subject: str,
+            body: str,
+            smtp_url: str,
+            smtp_port: int,
+            sender_email: str,
+            smtp_password: str,
+            smtp_userid: str = None,
+            tls: bool = False,
+            content_type="html",
     ):
         """
         Sends an email to the mail id of the recipient
@@ -2699,7 +2719,7 @@ class MailUtility:
         data = kwargs.get("data")
         ip = Utility.get_client_ip(request)
         geo_location = (
-            PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
+                PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
         )
         data.update(geo_location)
         user_details = "Hi,<br>Following demo has been requested for Kairon:<br>"
