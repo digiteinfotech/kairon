@@ -11067,6 +11067,50 @@ class TestMongoProcessor:
             assert stop_action_event.name == "action_listen"
             assert stop_action_event.type == "action"
 
+    def test_add_multiflow_story_with_stop_flow_action(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": [
+                 {"name": "stop_flow", "type": "STOP_FLOW_ACTION", "node_id": "7",
+                  "component_id": "63gm5BzYuhC1bc6yzysEnN65"}]
+             },
+            {"step": {"name": "stop_flow", "type": "STOP_FLOW_ACTION", "node_id": "7",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN65"},
+             "connections": None
+             },
+        ]
+        story_dict = {'name': "multiflow story with stop flow action", 'steps': steps, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "test", "TestUser")
+        story = MultiflowStories.objects(block_name="multiflow story with stop flow action", bot="test").get()
+        assert len(story.events) == 7
+        stop_flow_step = story.events[6]['step']
+        assert stop_flow_step['name'] == "stop_flow"
+        assert stop_flow_step['type'] == "STOP_FLOW_ACTION"
 
     def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()

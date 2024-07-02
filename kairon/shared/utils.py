@@ -79,6 +79,7 @@ from .data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     SLOT_TYPE,
 )
+from kairon.shared.kairon_yaml_story_writer import kaironYAMLStoryWriter
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
 from ..exceptions import AppException
@@ -1166,7 +1167,8 @@ class Utility:
             yaml.safe_dump(domain, open(domain_path, "w"))
         Utility.write_to_file(nlu_path, nlu_as_str)
         Utility.write_to_file(config_path, config_as_str)
-        YAMLStoryWriter().dump(stories_path, stories.story_steps)
+        story_writer = kaironYAMLStoryWriter()
+        story_writer.dump(stories_path, stories.story_steps)
         if rules:
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
         if actions:
@@ -2271,6 +2273,12 @@ class StoryValidator:
                     raise AppException(
                         "Intent can only have one connection of action type or slot type"
                     )
+                if [
+                    successor
+                    for successor in story_graph.successors(story_node)
+                    if successor.step_type == "STOP_FLOW_ACTION"
+                ]:
+                    raise AppException("STOP_FLOW_ACTION cannot be a successor of an intent!")
             if story_node.step_type == "SLOT" and story_node.value:
                 if story_node.value is not None and not isinstance(
                     story_node.value, (str, int, bool)
@@ -2286,6 +2294,8 @@ class StoryValidator:
                 raise AppException("Slots cannot be leaf nodes!")
             if story_node.step_type == "INTENT" and story_node.node_id in leaf_node_ids:
                 raise AppException("Leaf nodes cannot be intent")
+            if story_node.step_type == "STOP_FLOW_ACTION" and story_node.node_id not in leaf_node_ids:
+                raise AppException("STOP_FLOW_ACTION should be a leaf node!")
         if flow_metadata:
             for value in flow_metadata:
                 if value.get("flow_type") == "RULE":
