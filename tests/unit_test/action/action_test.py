@@ -37,7 +37,8 @@ from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig, WebSearchAction
+    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig, WebSearchAction, \
+    CustomActionParameters
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -2568,9 +2569,9 @@ class TestActions:
                 smtp_url="test.localhost",
                 smtp_port=293,
                 smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-                from_email="test@demo.com",
+                from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
+                to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
                 subject="test",
-                to_email=["test@test.com","test1@test.com"],
                 response="Validated",
                 bot="bot",
                 user="user"
@@ -2584,8 +2585,10 @@ class TestActions:
             assert expected['smtp_port'] == actual['smtp_port']
             assert {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password', 'encrypt': False, 'value': 'test',
                     'parameter_type': 'value'} == actual['smtp_password']
-            assert 'test@demo.com' == actual['from_email']
-            assert expected['to_email'] == actual['to_email']
+            assert 'test@demo.com' == actual['from_email']['value']
+            assert 'value' == actual['from_email']['parameter_type']
+            assert expected['to_email']['value'] == actual['to_email']['value']
+            assert expected['to_email']['parameter_type'] == actual['to_email']['parameter_type']
             assert expected.get("smtp_userid") == actual.get("smtp_userid")
 
             expected = EmailActionConfig(
@@ -2594,9 +2597,9 @@ class TestActions:
                 smtp_port=293,
                 smtp_userid=CustomActionRequestParameters(value='test.user_id'),
                 smtp_password=CustomActionRequestParameters(value="test"),
-                from_email="test@demo.com",
+                from_email=CustomActionRequestParameters(value="test@demo.com", parameter_type="value"),
+                to_email=CustomActionParameters(value=["test@test.com", "test1@test.com"], parameter_type="value"),
                 subject="test",
-                to_email=["test@test.com", "test1@test.com"],
                 response="Validated",
                 bot="bot",
                 user="user"
@@ -2610,8 +2613,10 @@ class TestActions:
             assert expected['smtp_port'] == actual['smtp_port']
             assert {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password', 'encrypt': False, 'value': 'test',
                     'parameter_type': 'value'} == actual['smtp_password'] == actual['smtp_password']
-            assert 'test@demo.com' == actual['from_email']
-            assert expected['to_email'] == actual['to_email']
+            assert 'test@demo.com' == actual['from_email']['value']
+            assert 'value' == actual['from_email']['parameter_type']
+            assert expected['to_email']['value'] == actual['to_email']['value']
+            assert expected['to_email']['parameter_type'] == actual['to_email']['parameter_type']
             assert {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_userid', 'encrypt': False,
                     'value': 'test.user_id', 'parameter_type': 'value'} == actual['smtp_userid'] == actual.get(
                 "smtp_userid")

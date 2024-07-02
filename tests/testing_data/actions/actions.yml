@@ -179,11 +179,17 @@ email_action:
     key: smtp_password
     value: dfgh4567
     parameter_type: value
-  from_email: udit.pandey@digite.com
+  from_email:
+    key: from_email
+    value: udit.pandey@digite.com
+    parameter_type: value
   subject: bot fallback
   to_email:
-  - udit.pandey@digite.com
-  - ritika.gupta@digite.com
+    key: to_email
+    value:
+      - udit.pandey@digite.com
+      - ritika.gupta@digite.com
+    parameter_type: value
   response: email sent
   tls: False
 - action_name: email_action_2
@@ -193,11 +199,17 @@ email_action:
     key: smtp_password
     value: sdfgh5678
     parameter_type: value
-  from_email: udit.pandey@digite.com
+  from_email:
+    key: from_email
+    value: udit.pandey@digite.com
+    parameter_type: value
   subject: bot fallback
   to_email:
-  - udit.pandey@digite.com
-  - ritika.gupta@digite.com
+    key: to_email
+    value:
+      - udit.pandey@digite.com
+      - ritika.gupta@digite.com
+    parameter_type: value
   response: email sent
 
 pipedrive_leads_action:

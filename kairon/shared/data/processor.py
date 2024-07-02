@@ -80,7 +80,8 @@ from kairon.shared.actions.data_objects import (
     DbQuery,
     PyscriptActionConfig,
     WebSearchAction,
-    UserQuestion, LiveAgentActionConfig,
+    UserQuestion, CustomActionParameters,
+    LiveAgentActionConfig,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -6522,9 +6523,9 @@ class MongoProcessor:
             if action.get("custom_text")
             else None
         )
-        email_action.from_email = action["from_email"]
+        email_action.from_email = CustomActionRequestParameters(**action['from_email']) if action.get('from_email') else None
         email_action.subject = action["subject"]
-        email_action.to_email = action["to_email"]
+        email_action.to_email = CustomActionParameters(**action['to_email']) if action.get('to_email') else None
         email_action.response = action["response"]
         email_action.tls = action["tls"]
         email_action.user = user
