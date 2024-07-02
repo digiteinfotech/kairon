@@ -128,6 +128,7 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
+    DEMO_REQUEST_STATUS,
 )
 from .data_objects import (
     Responses,
@@ -152,7 +153,7 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, MultiFlowStoryMetadata,
-    Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs
+    Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
 )
 from .utils import DataUtility
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
@@ -5469,6 +5470,21 @@ class MongoProcessor:
             logging.info(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
+
+    @staticmethod
+    def add_demo_request(**kwargs):
+        try:
+            logs = DemoRequestLogs(
+                first_name=kwargs.get("first_name"),
+                last_name=kwargs.get("last_name"),
+                email=kwargs.get("email"),
+                phone=kwargs.get("phone", None),
+                message=kwargs.get("message", None),
+                status=kwargs.get("status", DEMO_REQUEST_STATUS.REQUEST_RECEIVED.value),
+                recaptcha_response=kwargs.get("recaptcha_response", None),
+            ).save()
+        except Exception as e:
+            logging.error(str(e))
 
     @staticmethod
     def edit_bot_settings(bot_settings: dict, bot: Text, user: Text):

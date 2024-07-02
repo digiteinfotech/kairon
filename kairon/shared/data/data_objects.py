@@ -42,7 +42,7 @@ from kairon.shared.models import (
     CognitionMetadataType,
 )
 from kairon.shared.utils import Utility
-from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
+from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType, DEMO_REQUEST_STATUS
 from ..constants import WhatsappBSPTypes, LLMResourceProvider
 
 
@@ -785,6 +785,35 @@ class EndPointBot(EmbeddedDocument):
     def validate(self, clean=True):
         if isinstance(url(self.url, simple_host=True), ValidationFailure):
             raise AppException("Invalid Bot server url")
+
+
+@auditlogger.log
+@push_notification.apply
+class DemoRequestLogs(Document):
+    first_name = StringField(required=True)
+    last_name = StringField(required=True)
+    email = StringField(required=True)
+    phone = StringField(default=None)
+    message = StringField(default=None)
+    recaptcha_response = StringField(default=None)
+    status = StringField(default=DEMO_REQUEST_STATUS.REQUEST_RECEIVED.value,
+                         choices=[type.value for type in DEMO_REQUEST_STATUS])
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    def validate(self, clean=True):
+        from validators import email
+
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.first_name):
+            raise ValidationError("first_name cannot be empty")
+        if Utility.check_empty_string(self.last_name):
+            raise ValidationError("last_name cannot be empty")
+        if isinstance(email(self.email), ValidationFailure):
+            raise ValidationError("Invalid email address")
+        if self.status not in [type.value for type in DEMO_REQUEST_STATUS]:
+            raise ValidationError("Invalid demo request status")
 
 
 @auditlogger.log
