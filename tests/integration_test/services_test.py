@@ -6150,7 +6150,6 @@ def test_add_story_empty_event():
         }
     ]
 
-
 def test_add_story_lone_intent():
     response = client.post(
         f"/api/bot/{pytest.bot}/stories",
