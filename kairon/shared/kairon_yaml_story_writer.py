@@ -18,7 +18,7 @@ class kaironYAMLStoryWriter(YAMLStoryWriter):
         result[KEY_STORY_NAME] = story_step.block_name
         steps = self.process_checkpoints(story_step.start_checkpoints)
         for event in story_step.events:
-            if not self._filter_event(event):  # Use custom filter event
+            if not self._filter_event(event):
                 continue
             processed = self.process_event(event)
             if processed:

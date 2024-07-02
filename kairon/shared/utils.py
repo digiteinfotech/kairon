@@ -2219,25 +2219,16 @@ class StoryValidator:
             )
         for story_step in steps:
             story_step_object = vertices[story_step["step"]["node_id"]]
-
             for connected_story_step in story_step["connections"] or []:
-                try:
-                    test = connected_story_step["node_id"]
-                    test2 = vertices.keys()
-                    if connected_story_step["node_id"] in vertices.keys():
-                        connection_object = vertices[connected_story_step["node_id"]]
-                    else:
-                        connection_object = KaironStoryStep(
-                            connected_story_step["name"],
-                            connected_story_step["type"],
-                            connected_story_step["node_id"],
-                        )
-                    graph.add_edge(story_step_object, connection_object)
-                except KeyError as e:
-                    print(f"KeyError: {e} - The key does not exist in the connected_story_step.")
-                except Exception as e:
-                    print(f"An error occurred: {e}")
-
+                if connected_story_step["node_id"] in vertices.keys():
+                    connection_object = vertices[connected_story_step["node_id"]]
+                else:
+                    connection_object = KaironStoryStep(
+                        connected_story_step["name"],
+                        connected_story_step["type"],
+                        connected_story_step["node_id"],
+                    )
+                graph.add_edge(story_step_object, connection_object)
         return graph
 
     @staticmethod
