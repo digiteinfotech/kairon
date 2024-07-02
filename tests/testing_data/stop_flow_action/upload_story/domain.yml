@@ -1,0 +1,135 @@
+version: "3.1"
+intents:
+- greet:
+    use_entities: []
+actions:
+- action_listen
+slots:
+  quick_reply:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: quick_reply
+  latitude:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: latitude
+  longitude:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: longitude
+  doc_url:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: doc_url
+  document:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: document
+  video:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: video
+  audio:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: audio
+  image:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: image
+  http_status_code:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: http_status_code
+  flow_reply:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: flow_reply
+  order:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: order
+  kairon_action_response:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: kairon_action_response
+  bot:
+    initial_value: 667cd22413292148a54baa89
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: bot
+session_config:
+  session_expiration_time: 60
+  carry_over_slots: true
+responses:
+  utter_goodbye:
+  - text: Bye Bye
+  utter_default:
+  - text: Sorry I didn't get that. Can you rephrase?
+  utter_please_rephrase:
+  - text: I'm sorry, I didn't quite understand that. Could you rephrase?
+entities:
+- bot
+- kairon_action_response
+- order
+- flow_reply
+- http_status_code
+- image
+- audio
+- video
+- document
+- doc_url
+- longitude
+- latitude
+- quick_reply
