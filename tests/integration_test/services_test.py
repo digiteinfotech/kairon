@@ -1158,7 +1158,7 @@ def test_get_client_config_with_nudge_server_url():
 @responses.activate
 def test_default_values():
     response = client.get(
-        f"/api/system/default/names"
+        "/api/system/default/names"
     )
     actual = response.json()
     assert actual["success"]
@@ -2019,6 +2019,39 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual["data"][0]["name"] == "test_add_pyscript_action_case_insensitivity"
     assert actual["data"][0]["source_code"] == script2
     assert actual["data"][0]["dispatch_response"]
+
+
+def test_list_available_actions():
+    script = """
+    data = [1, 2, 3, 4, 5, 6]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": "test_list_available_actions_pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual=response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data'][-1]['name'] == 'test_list_available_actions_pyscript_action'
+    assert actual['data'][-1]['type'] == 'pyscript_action'
 
 
 def test_get_client_config_url_with_ip_info(monkeypatch):
