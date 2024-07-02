@@ -18,9 +18,10 @@ from kairon.shared.data.constant import EVENT_STATUS
 class MessageBroadcastProcessor:
 
     @staticmethod
-    def get_settings(notification_id: Text, bot: Text):
+    def get_settings(notification_id: Text, bot: Text, **kwargs):
         try:
-            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=True).get()
+            status = False if kwargs.get("is_resend", False) else True
+            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=status).get()
             settings = settings.to_mongo().to_dict()
             settings["_id"] = settings["_id"].__str__()
             return settings
@@ -81,10 +82,13 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def add_event_log(bot: Text, log_type: Text, reference_id: Text = None, status: Text = None, **kwargs):
-        event_completion_states = [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]
-        is_new_log = log_type in {MessageBroadcastLogType.send.value, MessageBroadcastLogType.self.value} or kwargs.pop("is_new_log", None)
+        is_resend = kwargs.pop("is_resend", False)
+        event_completion_states = [] if is_resend else [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]
+        is_new_log = log_type in {MessageBroadcastLogType.send.value,
+                                  MessageBroadcastLogType.resend.value,
+                                  MessageBroadcastLogType.self.value} or kwargs.pop("is_new_log", None)
         try:
-            if is_new_log:
+            if is_new_log and not is_resend:
                 raise DoesNotExist()
             log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type,
                                                status__nin=event_completion_states).get()
@@ -109,9 +113,16 @@ class MessageBroadcastProcessor:
         return logs, total_count
 
     @staticmethod
-    def extract_message_ids_from_broadcast_logs(reference_id: Text):
+    def get_reference_id_from_broadcasting_logs(event_id):
+        log = MessageBroadcastLogs.objects(event_id=event_id, log_type=MessageBroadcastLogType.common.value).get()
+        return log.reference_id
+
+    @staticmethod
+    def extract_message_ids_from_broadcast_logs(reference_id: Text, **kwargs):
+        log_type = MessageBroadcastLogType.resend.value \
+            if kwargs.get('is_resend') else MessageBroadcastLogType.send.value
         message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
-                                                              log_type=MessageBroadcastLogType.send.value)
+                                                              log_type=log_type)
         broadcast_logs = {
             message['id']: log
             for log in message_broadcast_logs
@@ -168,8 +179,10 @@ class MessageBroadcastProcessor:
         ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id, campaign_name=campaign_name)
 
     @staticmethod
-    def insert_status_received_on_channel_webhook(reference_id: Text, broadcast_name: Text):
-        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
+    def insert_status_received_on_channel_webhook(reference_id: Text, broadcast_name: Text, **kwargs):
+        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(
+            reference_id, is_resend=kwargs.get('is_resend')
+        )
         if broadcast_logs:
             MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_name, broadcast_logs)
 
