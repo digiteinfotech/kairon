@@ -1193,6 +1193,33 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["data"]["api_server_host_url"] == expected_app_server_url
     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
+@responses.activate
+def test_default_values():
+    response = client.get(
+        "/api/system/default/names"
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    expected_default_intents = [
+        "restart", "back", "out_of_scope", "session_start", "nlu_fallback"
+    ]
+    expected_default_action_names = [
+        "action_listen", "action_restart", "action_session_start",
+        "action_default_fallback", "action_deactivate_loop",
+        "action_revert_fallback_events", "action_default_ask_affirmation",
+        "action_default_ask_rephrase", "action_two_stage_fallback",
+        "action_unlikely_intent", "action_back", "...", "action_extract_slots"
+    ]
+    expected_default_slot_names = [
+        "knowledge_base_last_object_type", "session_started_metadata",
+        "knowledge_base_listed_objects", "requested_slot", "knowledge_base_last_object"
+    ]
+
+    assert sorted(actual["data"]["default_intents"]) == sorted(expected_default_intents)
+    assert sorted(actual["data"]["default_action_names"]) == sorted(expected_default_action_names)
+    assert sorted(actual["data"]["default_slot_names"]) == sorted(expected_default_slot_names)
+
 
 @responses.activate
 def test_upload_with_bot_content_only_validate_content_data():
@@ -2031,6 +2058,39 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual["data"][0]["name"] == "test_add_pyscript_action_case_insensitivity"
     assert actual["data"][0]["source_code"] == script2
     assert actual["data"][0]["dispatch_response"]
+
+
+def test_list_available_actions():
+    script = """
+    data = [1, 2, 3, 4, 5, 6]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": "test_list_available_actions_pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual=response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data'][-1]['name'] == 'test_list_available_actions_pyscript_action'
+    assert actual['data'][-1]['type'] == 'pyscript_action'
 
 
 def test_get_client_config_url_with_ip_info(monkeypatch):
