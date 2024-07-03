@@ -36,7 +36,7 @@ class ScheduledEventsBase(EventsBase, ABC):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def _resend_broadcast(self, msg_broadcast_id: Text, config: Dict):
+    def _resend_broadcast(self, msg_broadcast_id: Text):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
