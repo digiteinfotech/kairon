@@ -4,7 +4,6 @@ from loguru import logger
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
@@ -12,8 +11,8 @@ from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
-from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.models import LlmPromptType, LlmPromptSource
+from kairon.shared.llm.processor import LLMProcessor
 
 
 class ActionPrompt(ActionsBase):
@@ -62,14 +61,18 @@ class ActionPrompt(ActionsBase):
         time_taken_slots = 0
         final_slots = {"type": "slots_to_fill"}
         llm_response_log = {"type": "llm_response"}
-
+        llm_processor = None
         try:
             k_faq_action_config, bot_settings = self.retrieve_config()
             user_question = k_faq_action_config.get('user_question')
             user_msg = self.__get_user_msg(tracker, user_question)
+            llm_type = k_faq_action_config['llm_type']
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
-            llm = LLMFactory.get_instance("faq")(self.bot, bot_settings["llm_settings"])
-            llm_response, time_taken_llm_response = await llm.predict(user_msg, **llm_params)
+            llm_processor = LLMProcessor(self.bot, llm_type)
+            llm_response, time_taken_llm_response = await llm_processor.predict(user_msg,
+                                                                                user=tracker.sender_id,
+                                                                                invocation='prompt_action',
+                                                                                **llm_params)
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")
             bot_response = llm_response['content']
@@ -93,8 +96,8 @@ class ActionPrompt(ActionsBase):
             total_time_elapsed = time_taken_llm_response + time_taken_slots
             events_to_extend = [llm_response_log, final_slots]
             events.extend(events_to_extend)
-            if llm:
-                llm_logs = llm.logs
+            if llm_processor:
+                llm_logs = llm_processor.logs
             ActionServerLogs(
                 type=ActionType.prompt_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -119,16 +122,6 @@ class ActionPrompt(ActionsBase):
         return slots_to_fill
 
     async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
-        implementations = {
-            "GPT3_FAQ_EMBED": self.__get_gpt_params,
-        }
-
-        llm_type = Utility.environment['llm']["faq"]
-        if not implementations.get(llm_type):
-            raise ActionFailure(f'{llm_type} type LLM is not supported')
-        return await implementations[Utility.environment['llm']["faq"]](k_faq_action_config, dispatcher, tracker, domain)
-
-    async def __get_gpt_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         from kairon.actions.definitions.factory import ActionFactory
 
         system_prompt = None
@@ -147,7 +140,7 @@ class ActionPrompt(ActionsBase):
                     history_prompt = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
                 elif prompt['source'] == LlmPromptSource.bot_content.value and prompt['is_enabled']:
                     use_similarity_prompt = True
-                    hyperparameters = prompt.get('hyperparameters', {})
+                    hyperparameters = prompt.get("hyperparameters", {})
                     similarity_prompt.append({'similarity_prompt_name': prompt['name'],
                                               'similarity_prompt_instructions': prompt['instructions'],
                                               'collection': prompt['data'],
@@ -179,7 +172,7 @@ class ActionPrompt(ActionsBase):
                 is_query_prompt_enabled = True
                 query_prompt_dict.update({'query_prompt': query_prompt, 'use_query_prompt': is_query_prompt_enabled})
 
-        params["hyperparameters"] = k_faq_action_config.get('hyperparameters', Utility.get_llm_hyperparameters())
+        params["hyperparameters"] = k_faq_action_config['hyperparameters']
         params["system_prompt"] = system_prompt
         params["context_prompt"] = context_prompt
         params["query_prompt"] = query_prompt_dict

@@ -1,7 +1,7 @@
 from augmentation.paraphrase.gpt3.generator import GPT3ParaphraseGenerator
 from augmentation.paraphrase.gpt3.models import GPTRequest
 from augmentation.paraphrase.gpt3.gpt import GPT
-import openai
+from openai.resources.completions import Completions
 import pytest
 import responses
 
@@ -61,7 +61,7 @@ def test_questions_set_generation(monkeypatch):
 
 
 def test_generate_questions(monkeypatch):
-    monkeypatch.setattr(openai.Completion, 'create', mock_create)
+    monkeypatch.setattr(Completions, 'create', mock_create)
 
     request_data = GPTRequest(api_key="MockKey",
                               data=["Are there any more test questions?"], num_responses=2)
@@ -73,7 +73,7 @@ def test_generate_questions(monkeypatch):
 
 
 def test_generate_questions_empty_api_key(monkeypatch):
-    monkeypatch.setattr(openai.Completion, 'create', mock_create)
+    monkeypatch.setattr(Completions, 'create', mock_create)
 
     request_data = GPTRequest(api_key="",
                               data=["Are there any more test questions?"], num_responses=2)
@@ -84,7 +84,7 @@ def test_generate_questions_empty_api_key(monkeypatch):
 
 
 def test_generate_questions_empty_data(monkeypatch):
-    monkeypatch.setattr(openai.Completion, 'create', mock_create)
+    monkeypatch.setattr(Completions, 'create', mock_create)
 
     request_data = GPTRequest(api_key="MockKey",
                               data=[], num_responses=2)
@@ -125,6 +125,6 @@ def test_generate_questions_invalid_api_key():
                               data=["Are there any more test questions?"], num_responses=2)
 
     gpt3_generator = GPT3ParaphraseGenerator(request_data=request_data)
-    with pytest.raises(APIError, match=r'.*Incorrect API key provided: InvalidKey. You can find your API key at https://beta.openai.com..*'):
+    with pytest.raises(APIError, match=r'.*Incorrect API key provided: InvalidKey. You can find your API key at https://platform.openai.com/account/..*'):
         gpt3_generator.paraphrases()
 

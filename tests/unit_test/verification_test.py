@@ -2,7 +2,7 @@ import unittest
 import responses
 from kairon.shared.verification.email import QuickEmailVerification
 from urllib.parse import urlencode
-import mock
+from unittest import mock
 from kairon.shared.utils import Utility
 import os
 

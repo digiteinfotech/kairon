@@ -3,7 +3,7 @@ import re
 
 from dramatiq.brokers.stub import StubBroker
 from loguru import logger
-from mock import patch
+from unittest.mock import patch
 from starlette.testclient import TestClient
 
 from kairon.shared.constants import EventClass, EventExecutor

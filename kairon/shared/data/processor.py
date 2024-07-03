@@ -7326,9 +7326,7 @@ class MongoProcessor:
         action.failure_message = request_data.get("failure_message")
         action.user_question = UserQuestion(**request_data.get("user_question"))
         action.num_bot_responses = request_data.get("num_bot_responses", 5)
-        action.hyperparameters = request_data.get(
-            "hyperparameters", Utility.get_llm_hyperparameters()
-        )
+        action.hyperparameters = request_data.get("hyperparameters")
         action.llm_prompts = [
             LlmPrompt(**prompt) for prompt in request_data.get("llm_prompts", [])
         ]

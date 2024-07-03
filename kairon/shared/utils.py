@@ -78,6 +78,7 @@ from .data.constant import (
     TOKEN_TYPE,
     KAIRON_TWO_STAGE_FALLBACK,
     SLOT_TYPE,
+    DEFAULT_LLM
 )
 from kairon.shared.kairon_yaml_story_writer import kaironYAMLStoryWriter
 from .data.dto import KaironStoryStep
@@ -2052,73 +2053,33 @@ class Utility:
                 raise AppException("Invalid or disposable Email!")
 
     @staticmethod
-    def get_llm_hyperparameters():
-        hyperparameters = {}
-        if Utility.environment["llm"]["faq"] in {"GPT3_FAQ_EMBED"}:
-            for key, value in Utility.system_metadata["llm"]["gpt"].items():
-                hyperparameters[key] = value["default"]
-            return hyperparameters
-        raise AppException("Could not find any hyperparameters for configured LLM.")
+    def get_llms():
+        return Utility.system_metadata.get("llm", {}).keys()
 
     @staticmethod
-    def validate_llm_hyperparameters(hyperparameters: dict, exception_class):
-        params = Utility.system_metadata["llm"]["gpt"]
-        for key, value in hyperparameters.items():
-            if (
-                key == "temperature"
-                and not params["temperature"]["min"]
-                <= value
-                <= params["temperature"]["max"]
-            ):
-                raise exception_class(
-                    f"Temperature must be between {params['temperature']['min']} and {params['temperature']['max']}!"
-                )
-            elif (
-                key == "presence_penalty"
-                and not params["presence_penalty"]["min"]
-                <= value
-                <= params["presence_penalty"]["max"]
-            ):
-                raise exception_class(
-                    f"Presence penalty must be between {params['presence_penalty']['min']} and {params['presence_penalty']['max']}!"
-                )
-            elif (
-                key == "frequency_penalty"
-                and not params["presence_penalty"]["min"]
-                <= value
-                <= params["presence_penalty"]["max"]
-            ):
-                raise exception_class(
-                    f"Frequency penalty must be between {params['presence_penalty']['min']} and {params['presence_penalty']['max']}!"
-                )
-            elif (
-                key == "top_p"
-                and not params["top_p"]["min"] <= value <= params["top_p"]["max"]
-            ):
-                raise exception_class(
-                    f"top_p must be between {params['top_p']['min']} and {params['top_p']['max']}!"
-                )
-            elif key == "n" and not params["n"]["min"] <= value <= params["n"]["max"]:
-                raise exception_class(
-                    f"n must be between {params['n']['min']} and {params['n']['max']} and should not be 0!"
-                )
-            elif (
-                key == "max_tokens"
-                and not params["max_tokens"]["min"]
-                <= value
-                <= params["max_tokens"]["max"]
-            ):
-                raise exception_class(
-                    f"max_tokens must be between {params['max_tokens']['min']} and {params['max_tokens']['max']} and should not be 0!"
-                )
-            elif key == "logit_bias" and not isinstance(value, dict):
-                raise exception_class("logit_bias must be a dictionary!")
-            elif key == "stop":
-                exc_msg = "Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."
-                if value and not isinstance(value, (str, int, list)):
-                    raise exception_class(exc_msg)
-                elif value and (isinstance(value, list) and len(value) > 4):
-                    raise exception_class(exc_msg)
+    def get_default_llm_hyperparameters():
+        return Utility.get_llm_hyperparameters(DEFAULT_LLM)
+
+    @staticmethod
+    def get_llm_hyperparameters(llm_type):
+        hyperparameters = {}
+        if llm_type in Utility.system_metadata["llm"].keys():
+            for key, value in Utility.system_metadata["llm"][llm_type]['properties'].items():
+                hyperparameters[key] = value["default"]
+            return hyperparameters
+        raise AppException(f"Could not find any hyperparameters for {llm_type} LLM.")
+
+    @staticmethod
+    def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, exception_class):
+        from jsonschema_rs import JSONSchema, ValidationError as JValidationError
+        schema = Utility.system_metadata["llm"][llm_type]
+        try:
+            validator = JSONSchema(schema)
+            validator.validate(hyperparameters)
+        except JValidationError as e:
+            message = f"{e.instance_path}: {e.message}"
+            raise exception_class(message)
+
 
     @staticmethod
     def create_uuid_from_string(val: str):

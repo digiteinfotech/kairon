@@ -1,19 +1,25 @@
 from types import ModuleType
 from typing import Text, Dict, Optional, Callable
 
+import orjson as json
 from AccessControl.ZopeGuards import _safe_globals
 from RestrictedPython import compile_restricted
 from RestrictedPython.Guards import safer_getattr
 from loguru import logger
 from timeout_decorator import timeout_decorator
-import orjson as json
 
-from ..actors.base import BaseActor
 from kairon.exceptions import AppException
+from ..actors.base import BaseActor
+from AccessControl.SecurityInfo import allow_module
+
+allow_module("datetime")
+allow_module("time")
+
 
 global_safe = _safe_globals
 global_safe['_getattr_'] = safer_getattr
 global_safe['json'] = json
+
 
 class PyScriptRunner(BaseActor):
 

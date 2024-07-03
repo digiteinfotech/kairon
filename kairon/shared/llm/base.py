@@ -8,9 +8,9 @@ class LLMBase(ABC):
         self.bot = bot
 
     @abstractmethod
-    async def train(self, *args, **kwargs) -> Dict:
+    async def train(self, user, *args, **kwargs) -> Dict:
         pass
 
     @abstractmethod
-    async def predict(self, query, *args, **kwargs) -> Dict:
+    async def predict(self, query, user, *args, **kwargs) -> Dict:
         pass

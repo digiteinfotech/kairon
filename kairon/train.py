@@ -6,17 +6,17 @@ from loguru import logger as logging
 from rasa.api import train
 from rasa.model import DEFAULT_MODELS_PATH
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
-
+from kairon.shared.data.constant import DEFAULT_LLM
 from kairon.chat.agent.agent import KaironAgent
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
+from kairon.shared.llm.processor import LLMProcessor
 
 
 def train_model_for_bot(bot: str):
@@ -81,6 +81,7 @@ def train_model_for_bot(bot: str):
         raise AppException(e)
     return model
 
+
 def start_training(bot: str, user: str, token: str = None):
     """
     prevents training of the bot,
@@ -100,8 +101,8 @@ def start_training(bot: str, user: str, token: str = None):
         settings = processor.get_bot_settings(bot, user)
         settings = settings.to_mongo().to_dict()
         if settings["llm_settings"]['enable_faq']:
-            llm = LLMFactory.get_instance("faq")(bot, settings["llm_settings"])
-            faqs = asyncio.run(llm.train())
+            llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+            faqs = asyncio.run(llm_processor.train(user=user, invocation='model_training'))
             account = AccountProcessor.get_bot(bot)['account']
             MeteringProcessor.add_metrics(bot=bot, metric_type=MetricType.faq_training.value, account=account, **faqs)
         agent_url = Utility.environment['model']['agent'].get('url')
