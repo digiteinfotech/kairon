@@ -1052,6 +1052,7 @@ class MongoProcessor:
             key for name_mapping in saved_forms for key in name_mapping.keys()
         }
         for form, mappings in forms.items():
+            self.__check_for_form_and_action_existance(bot, form)
             if form not in saved_form_names:
                 yield self.__save_form_logic(
                     form, mappings.get("required_slots") or {}, bot, user
@@ -1116,10 +1117,17 @@ class MongoProcessor:
     def __extract_actions(self, actions, bot: Text, user: Text):
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
+            self.__check_for_form_and_action_existance(bot, action)
             if action.strip().lower() not in saved_actions:
                 new_action = Actions(name=action, bot=bot, user=user)
                 new_action.clean()
                 yield new_action
+
+    def __check_for_form_and_action_existance(self, bot: Text, name: Text):
+        if Utility.is_exist(Actions, raise_error=False, name=name, bot=bot, status=True):
+            raise AppException(f"Action with the name '{name}' already exists")
+        if Utility.is_exist(Forms, raise_error=False, name=name, bot=bot, status=True):
+            raise AppException(f"Form with the name '{name}' already exists")
 
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
@@ -2647,6 +2655,8 @@ class MongoProcessor:
         """
         if Utility.check_empty_string(name):
             raise AppException("Action name cannot be empty or blank spaces")
+
+        self.__check_for_form_and_action_existance(bot, name)
 
         if not name.startswith("utter_") and not Utility.is_exist(
                 Actions,
@@ -6057,6 +6067,9 @@ class MongoProcessor:
     def add_form(self, name: str, path: list, bot: Text, user: Text):
         if Utility.check_empty_string(name):
             raise AppException("Form name cannot be empty or spaces")
+
+        self.__check_for_form_and_action_existance(bot, name)
+
         Utility.is_exist(
             Forms,
             f'Form with name "{name}" exists',
