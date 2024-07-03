@@ -184,15 +184,14 @@ async def add_message_broadcast_event(
 
 @router.post("/broadcast/message/resend/{msg_broadcast_id}", response_model=Response)
 async def resend_message_broadcast_event(
-        request: MessageBroadcastRequest, msg_broadcast_id: str,
+        msg_broadcast_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Resends a scheduled message broadcast.
     """
     event = MessageBroadcastEvent(current_user.get_bot(), current_user.get_user())
-    event.enqueue(EventRequestType.resend_broadcast.value, msg_broadcast_id=msg_broadcast_id,
-                  config=request.dict())
+    event.enqueue(EventRequestType.resend_broadcast.value, msg_broadcast_id=msg_broadcast_id)
     return Response(message="Resending Broadcast!")
 
 

@@ -8,7 +8,7 @@ from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFacto
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.from_config import MessageBroadcastFromConfig
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
-from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, MessageBroadcastType, MetaErrorCodes
+from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, MessageBroadcastType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
@@ -43,35 +43,27 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
     def send(self, recipients: List, **kwargs):
         if self.config["broadcast_type"] == MessageBroadcastType.static.value:
-            self.__send_using_configuration(recipients, **kwargs)
+            self.__send_using_configuration(recipients)
         else:
-            self.__send_using_pyscript(recipients=recipients, **kwargs)
+            self.__send_using_pyscript()
 
     def __send_using_pyscript(self, **kwargs):
-        import re
         from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 
         script = self.config['pyscript']
         timeout = self.config.get('pyscript_timeout', 60)
         channel_client = self.__get_client()
-        is_resend = kwargs.get('is_resend')
-        recipients = kwargs.get('recipients')
-
-        pattern = r"contacts = \[.*?\]"
-
-        script = re.sub(pattern, f"contacts = {str(recipients)}\nis_resend = {is_resend}",
-                        script) if is_resend else script
 
         def send_msg(template_id: Text, recipient, language_code: Text = "en", components: Dict = None, namespace: Text = None):
             response = channel_client.send_template_message(template_id, recipient, language_code, components, namespace)
             status = "Failed" if response.get("error") else "Success"
             raw_template = self.__get_template(template_id, language_code)
 
-            log_type = MessageBroadcastLogType.resend.value if is_resend else MessageBroadcastLogType.send.value
             MessageBroadcastProcessor.add_event_log(
-                self.bot, log_type, self.reference_id, api_response=response,
+                self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                 status=status, recipient=recipient, template_params=components, template=raw_template,
-                event_id=self.event_id, template_name=template_id
+                event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
+                resend_count=0
             )
 
             return response
@@ -93,7 +85,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             event_id=self.event_id, **script_variables
         )
 
-    def __send_using_configuration(self, recipients: List, **kwargs):
+    def __send_using_configuration(self, recipients: List):
         channel_client = self.__get_client()
         total = len(recipients)
 
@@ -102,7 +94,6 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             template_id = template_config["template_id"]
             namespace = template_config.get("namespace")
             lang = template_config["language"]
-            is_resend = kwargs.get('is_resend')
             template_params = self._get_template_parameters(template_config)
             raw_template = self.__get_template(template_id, lang)
 
@@ -117,16 +108,17 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             for recipient, t_params in zip(recipients, template_params):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
-                    response = channel_client.send_template_message(template_id, recipient, lang, t_params, namespace=namespace)
+                    response = channel_client.send_template_message(template_id, recipient, lang, t_params,
+                                                                    namespace=namespace)
                     status = "Failed" if response.get("errors") else "Success"
                     if status == "Failed":
                         failure_cnt = failure_cnt + 1
 
-                    log_type = MessageBroadcastLogType.resend.value if is_resend else MessageBroadcastLogType.send.value
                     MessageBroadcastProcessor.add_event_log(
-                        self.bot, log_type, self.reference_id, api_response=response,
+                        self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                         status=status, recipient=recipient, template_params=t_params, template=raw_template,
-                        event_id=self.event_id, template_name=template_id
+                        event_id=self.event_id, template_name=template_id, language_code=lang, namespace=namespace,
+                        resend_count=0
                     )
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
@@ -134,30 +126,32 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             )
 
     def resend_broadcast(self):
-        from kairon.shared.chat.data_objects import ChannelLogs
+        channel_client = self.__get_client()
 
-        numbers_sent = []
-        numbers_failed = []
-        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(self.reference_id)
-        all_numbers = [log['recipient'] for log in broadcast_logs.values()]
-        message_ids = list(broadcast_logs.keys())
-        channel_logs = ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value)
-        for log in channel_logs:
-            msg_id = log["message_id"]
-            broadcast_log = broadcast_logs[msg_id]
-            if log['errors']:
-                if log['errors'][0].get('code') in [MetaErrorCodes.message_undeliverable.value,
-                                                    MetaErrorCodes.recipient_sender_same.value,
-                                                    MetaErrorCodes.payment_error.value]:
-                    numbers_failed.append(broadcast_log['recipient'])
-            else:
-                numbers_sent.append(broadcast_log['recipient'])
+        message_broadcast_logs, resend_count = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(self.reference_id)
 
-        numbers_to_exclude = numbers_sent + numbers_failed
-        numbers_to_send = [number for number in all_numbers if number not in numbers_to_exclude]
-        numbers_to_send = list(set(numbers_to_send))
+        required_logs = [log for log in message_broadcast_logs.values() if log["errors"]]
+        codes_to_exclude = Utility.environment["channels"]["360dialog"]["error_codes"]
+        required_logs = [log for log in required_logs if log["errors"][0]["code"] not in codes_to_exclude]
 
-        self.send(recipients=numbers_to_send, is_resend=True)
+        for log in required_logs:
+            template_id = log["template_name"]
+            namespace = log["namespace"]
+            language_code = log["language_code"]
+            components = log["template_params"]
+            recipient = log["recipient"]
+            template = log["template"]
+            resend_count = log["resend_count"] + 1
+            response = channel_client.send_template_message(template_id, recipient, language_code, components,
+                                                            namespace)
+            status = "Failed" if response.get("error") else "Success"
+
+            MessageBroadcastProcessor.add_event_log(
+                self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
+                status=status, recipient=recipient, template_params=components, template=template,
+                event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
+                resend_count=resend_count
+            )
 
     def __get_client(self):
         try:
