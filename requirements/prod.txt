@@ -42,7 +42,7 @@ aiohttp-retry==2.8.3
 pqdict==1.4.0
 google-businessmessages==1.0.5
 google-apitools==0.5.32
-orjson==3.10.5
+orjson==3.10.6
 opentelemetry-distro[otlp]==0.46b0
 opentelemetry-sdk-extension-aws==2.0.1
 opentelemetry-propagator-aws-xray==1.0.1
