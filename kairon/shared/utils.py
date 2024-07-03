@@ -2052,7 +2052,7 @@ class Utility:
 
     @staticmethod
     def get_llms():
-        return Utility.system_metadata["llm"].keys()
+        return Utility.system_metadata.get("llm", {}).keys()
 
     @staticmethod
     def get_default_llm_hyperparameters():
