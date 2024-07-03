@@ -49,7 +49,7 @@ class LiveAgentHandler:
             'Content-Type': 'application/json',
             'Authorization': f"Bearer {auth_token}"
         }
-        res, status, _, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
+        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
         if status != 200:
             raise Exception(res.get('message', "Failed to process request"))
         return res.get('data')
@@ -73,7 +73,7 @@ class LiveAgentHandler:
             "channel": LiveAgentHandler.get_channel(userdata),
             "message": userdata.text
         }
-        res, status, _, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
+        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
         if status != 200:
             raise Exception("Failed to process request")
 
@@ -89,7 +89,7 @@ class LiveAgentHandler:
             'Content-Type': 'application/json',
             'Authorization': f"Bearer {auth_token}"
         }
-        res, status, _, _ = await ActionUtility.execute_request_async(url, 'GET', None, headers)
+        res, status, _ = await ActionUtility.execute_request_async(url, 'GET', None, headers)
         if status != 200:
             logger.error(res.get('message', "Failed to process request"))
             return False
@@ -109,7 +109,7 @@ class LiveAgentHandler:
             'Content-Type': 'application/json',
             'Authorization': f"Bearer {auth_token}"
         }
-        res, status, _, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
+        res, status, _ = await ActionUtility.execute_request_async(url, 'POST', data, headers)
         logger.info(res)
         if status != 200:
             if not res:
