@@ -65,8 +65,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             exception = str(e)
         finally:
             time.sleep(5)
-            MessageBroadcastProcessor.insert_status_received_on_channel_webhook(reference_id, config["name"],
-                                                                                is_resend=is_resend)
+            MessageBroadcastProcessor.insert_status_received_on_channel_webhook(reference_id, config["name"])
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, reference_id, status=status, exception=exception
             )
@@ -104,7 +103,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 MessageBroadcastProcessor.delete_task(msg_broadcast_id, self.bot)
             raise AppException(e)
 
-    def _resend_broadcast(self, msg_broadcast_id: Text, config: Dict):
+    def _resend_broadcast(self, msg_broadcast_id: Text):
         try:
             payload = {'bot': self.bot, 'user': self.user,
                        "event_id": msg_broadcast_id, "is_resend": True}
