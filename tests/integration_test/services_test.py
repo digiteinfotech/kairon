@@ -1201,25 +1201,18 @@ def test_default_values():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    expected_default_intents = [
-        "restart", "back", "out_of_scope", "session_start", "nlu_fallback"
-    ]
-    expected_default_action_names = [
-        "action_listen", "action_restart", "action_session_start",
-        "action_default_fallback", "action_deactivate_loop",
-        "action_revert_fallback_events", "action_default_ask_affirmation",
-        "action_default_ask_rephrase", "action_two_stage_fallback",
-        "action_unlikely_intent", "action_back", "...", "action_extract_slots"
-    ]
-    expected_default_slot_names = [
-        "knowledge_base_last_object_type", "session_started_metadata",
-        "knowledge_base_listed_objects", "requested_slot", "knowledge_base_last_object"
+
+    expected_default_names = [
+        "restart", "back", "out_of_scope", "session_start", "nlu_fallback",
+        "action_listen", "action_restart", "action_session_start", "action_default_fallback",
+        "action_deactivate_loop", "action_revert_fallback_events", "action_default_ask_affirmation",
+        "action_default_ask_rephrase", "action_two_stage_fallback", "action_unlikely_intent",
+        "action_back", "...", "action_extract_slots",
+        "requested_slot", "session_started_metadata", "knowledge_base_listed_objects",
+        "knowledge_base_last_object", "knowledge_base_last_object_type"
     ]
 
-    assert sorted(actual["data"]["default_intents"]) == sorted(expected_default_intents)
-    assert sorted(actual["data"]["default_action_names"]) == sorted(expected_default_action_names)
-    assert sorted(actual["data"]["default_slot_names"]) == sorted(expected_default_slot_names)
-
+    assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
 
 @responses.activate
 def test_upload_with_bot_content_only_validate_content_data():

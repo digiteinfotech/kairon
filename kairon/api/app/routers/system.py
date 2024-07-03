@@ -35,9 +35,5 @@ async def get_default_names():
     """
     Fetches the default intents, action names, and slot names.
     """
-    data = {
-        "default_intents": DEFAULT_INTENTS,
-        "default_action_names": DEFAULT_ACTION_NAMES,
-        "default_slot_names": list(DEFAULT_SLOT_NAMES),
-    }
-    return Response(data=data)
+    default_names = DEFAULT_INTENTS + DEFAULT_ACTION_NAMES + list(DEFAULT_SLOT_NAMES)
+    return Response(data={"default_names": default_names})
