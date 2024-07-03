@@ -1136,7 +1136,20 @@ class MongoProcessor:
         :return: list of actions
         """
         actions = Actions.objects(bot=bot, status=status).values_list("name")
-        return list(actions)
+        actions_list = list(actions)
+
+        for story in Stories.objects(bot=bot, status=status):
+            for event in story.events:
+                if event.name == 'action_listen':
+                    if 'action_listen' not in actions_list:
+                        actions_list.append('action_listen')
+
+        for story in MultiflowStories.objects(bot=bot, status=status):
+            for event in story.events:
+                if event.step.name == 'stop_flow_action' and 'stop_flow_action' not in actions_list:
+                    actions_list.append('stop_flow_action')
+
+        return actions_list
 
     def __prepare_training_actions(self, bot: Text):
         actions = self.fetch_actions(bot)
@@ -1697,6 +1710,10 @@ class MongoProcessor:
                 elif event.step_type == StoryStepType.slot.value:
                     story_events.append(
                         SlotSet(key=event.name, value=event.value, timestamp=timestamp)
+                    )
+                elif event.step_type == StoryStepType.stop_flow_action.value:
+                    story_events.append(
+                        ActionExecuted(action_name=ACTION_LISTEN_NAME, timestamp=timestamp)
                     )
                 else:
                     story_events.append(
@@ -3348,6 +3365,9 @@ class MongoProcessor:
                         step["type"] = StoryStepType.web_search_action.value
                     elif event['name'] == 'live_agent_action':
                         step["type"] = StoryStepType.live_agent_action.value
+                    elif event['name'] == 'action_listen':
+                        step["type"] = StoryStepType.stop_flow_action.value
+                        step["name"] = 'stop_flow_action'
                     elif str(event["name"]).startswith("utter_"):
                         step["type"] = StoryStepType.bot.value
                     else:
@@ -4323,6 +4343,25 @@ class MongoProcessor:
             action.pop("bot")
             action.pop("timestamp")
             action.pop("status")
+            yield action
+
+    def list_all_actions(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches all actions from the collection
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of actions.
+        """
+        for action in Actions.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = str(action["_id"])
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("status")
+            action.pop("timestamp")
             yield action
 
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):

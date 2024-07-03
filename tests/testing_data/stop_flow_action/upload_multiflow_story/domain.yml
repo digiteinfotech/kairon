@@ -1,0 +1,164 @@
+version: "3.1"
+intents:
+- bye:
+    use_entities: []
+- get_user:
+    use_entities: []
+- greet:
+    use_entities: []
+actions:
+- api
+- reset
+- stop_flow_action
+slots:
+  apiresponse:
+    initial_value: null
+    value_reset_delay: null
+    values:
+    - Michael
+    - Lindsay
+    type: categorical
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: apiresponse
+  quick_reply:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: quick_reply
+  latitude:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: latitude
+  longitude:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: longitude
+  doc_url:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: doc_url
+  document:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: document
+  video:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: video
+  audio:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: audio
+  image:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: image
+  http_status_code:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: http_status_code
+  flow_reply:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: flow_reply
+  order:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: order
+  kairon_action_response:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: kairon_action_response
+  bot:
+    initial_value: 667548f8f740fc8dc6791e0c
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: bot
+session_config:
+  session_expiration_time: 60
+  carry_over_slots: true
+responses:
+  utter_test:
+  - text: Testing is going on
+  utter_greet:
+  - text: I'm your AI Assistant, ready to assist
+  - text: Let me be your AI Assistant and provide you with service
+  utter_lindsay:
+  - text: This is lindsay
+  utter_default:
+  - text: Sorry I didn't get that. Can you rephrase?
+  utter_bye:
+  - text: Take care, I'm here for you if you need anything.
+  - text: Adieu, always here for you.
+  - text: See you later, I'm here to help.
+  utter_please_rephrase:
+  - text: I'm sorry, I didn't quite understand that. Could you rephrase?
+  utter_michael:
+  - text: This is michael
+entities:
+- bot
+- kairon_action_response
+- order
+- flow_reply
+- http_status_code
+- image
+- audio
+- video
+- document
+- doc_url
+- longitude
+- latitude
+- quick_reply
+- apiresponse

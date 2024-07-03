@@ -1,0 +1,112 @@
+multiflow_story:
+- block_name: multiflow
+  end_checkpoints: []
+  events:
+  - connections:
+    - component_id: 667549adf740fc8dc6791e89
+      name: api
+      node_id: b065e255-33bf-421e-8fe9-55a2ca03381f
+      type: HTTP_ACTION
+    step:
+      component_id: 667549d17f5299a48f5706a6
+      name: get_user
+      node_id: f8f0a842-dac6-4754-bc2f-bc6ffd58de73
+      type: INTENT
+  - connections:
+    - component_id: 65fea24f-4be1-4369-8e8d-9a41cbb6da25
+      name: apiresponse
+      node_id: 65fea24f-4be1-4369-8e8d-9a41cbb6da25
+      type: SLOT
+      value: Michael
+    - component_id: 814c5348-54f9-4e4a-a1da-942c7d53b887
+      name: apiresponse
+      node_id: 814c5348-54f9-4e4a-a1da-942c7d53b887
+      type: SLOT
+      value: Lindsay
+    step:
+      component_id: 667549adf740fc8dc6791e89
+      name: api
+      node_id: b065e255-33bf-421e-8fe9-55a2ca03381f
+      type: HTTP_ACTION
+  - connections:
+    - component_id: 66754a8ea838995a2102e618
+      name: utter_michael
+      node_id: 0d51ee48-2bd4-43db-9802-d091b0790c80
+      type: BOT
+    step:
+      component_id: ''
+      name: apiresponse
+      node_id: 65fea24f-4be1-4369-8e8d-9a41cbb6da25
+      type: SLOT
+      value: Michael
+  - connections:
+    - component_id: 66754a9357c7b9f0ecd227f6
+      name: utter_lindsay
+      node_id: c69bb7d2-1fa7-4f47-824b-553d16ac25fb
+      type: BOT
+    step:
+      component_id: ''
+      name: apiresponse
+      node_id: 814c5348-54f9-4e4a-a1da-942c7d53b887
+      type: SLOT
+      value: Lindsay
+  - connections:
+    - component_id: 66754ac47f5299a48f5706ab
+      name: reset
+      node_id: 6ea2eb12-99c3-4bb4-892f-d8bda800992d
+      type: SLOT_SET_ACTION
+    step:
+      component_id: 66754a8ea838995a2102e618
+      name: utter_michael
+      node_id: 0d51ee48-2bd4-43db-9802-d091b0790c80
+      type: BOT
+  - connections:
+    - component_id: 66756220a838995a2102e63e
+      name: utter_test
+      node_id: 93ae8e47-a423-4997-b042-8c745caf7310
+      type: BOT
+    step:
+      component_id: 66754a9357c7b9f0ecd227f6
+      name: utter_lindsay
+      node_id: c69bb7d2-1fa7-4f47-824b-553d16ac25fb
+      type: BOT
+  - connections:
+    - component_id: 66754ac47f5299a48f570116
+      name: stop_flow_action
+      node_id: 6ea2eb12-99c3-4bb4-892f-d8bda800116d
+      type: STOP_FLOW_ACTION
+    step:
+      component_id: 66754ac47f5299a48f5706ab
+      name: reset
+      node_id: 6ea2eb12-99c3-4bb4-892f-d8bda800992d
+      type: SLOT_SET_ACTION
+  - connections:
+    - component_id: 66754ac47f5299a48f5706ab
+      name: reset
+      node_id: b4a352e5-da75-4fa3-8707-9f299a5161a1
+      type: SLOT_SET_ACTION
+    step:
+      component_id: 66756220a838995a2102e63e
+      name: utter_test
+      node_id: 93ae8e47-a423-4997-b042-8c745caf7310
+      type: BOT
+  - connections: []
+    step:
+      component_id: 66754ac47f5299a48f5706ab
+      name: reset
+      node_id: b4a352e5-da75-4fa3-8707-9f299a5161a1
+      type: SLOT_SET_ACTION
+  - connections: []
+    step:
+      component_id: 66754ac47f5299a48f570116
+      name: stop_flow_action
+      node_id: 6ea2eb12-99c3-4bb4-892f-d8bda800116d
+      type: STOP_FLOW_ACTION
+  metadata:
+  - flow_type: RULE
+    node_id: 6ea2eb12-99c3-4bb4-892f-d8bda800116d
+  - flow_type: STORY
+    node_id: b4a352e5-da75-4fa3-8707-9f299a5161a1
+  start_checkpoints:
+  - STORY_START
+  template_type: CUSTOM
