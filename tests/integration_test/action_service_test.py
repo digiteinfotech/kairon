@@ -1578,7 +1578,10 @@ def test_http_action_execution(aioresponses):
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                   'user_msg': 'get intents', 'http_status_code': 200}
+                   'user_msg': 'get intents', 'http_status_code': 200,
+                   'response_headers': {
+                       'Content-Type': 'application/json'}
+                   }
 
 
 def test_http_action_execution_returns_custom_json(aioresponses):
@@ -1954,7 +1957,8 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Mayank'},
-        {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200}, ]
+        {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200,
+         'response_headers': {'Content-Type': 'application/json'}}]
     assert response_json['responses'][0]['text'] == "Mayank"
 
 
@@ -2189,7 +2193,8 @@ def test_http_action_execution_script_evaluation(aioresponses):
                    'action': 'test_http_action_execution_script_evaluation', 'sender': 'default', 'headers': {},
                    'url': 'http://localhost:8081/mock', 'request_method': 'GET', 'bot_response': 'Mayank',
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                   'user_msg': 'get intents', 'http_status_code': 200}
+                   'user_msg': 'get intents', 'http_status_code': 200, 'response_headers':
+                       "{'Content-Type': 'application/json'}}"}
 
 
 @responses.activate
@@ -2492,7 +2497,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
-                   'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
+                   'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200, 'response_headers':
+                       "{'Content-Type': 'application/json'}}"}
 
 
 @responses.activate
@@ -2641,7 +2647,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                   'user_msg': 'get intents', 'http_status_code': 200}
+                   'user_msg': 'get intents', 'http_status_code': 200, 'response_headers':
+                       "{'Content-Type': 'application/json'}}"}
 
 
 @responses.activate
@@ -2793,7 +2800,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
-                   'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
+                   'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200, 'response_headers':
+                       "{'Content-Type': 'application/json'}}"}
 
 
 @responses.activate
@@ -3525,7 +3533,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
                    'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET',
                    'bot_response': 'I have failed to process your request', 'bot': '5f50fd0a56b698ca10d35d2e',
                    'status': 'FAILURE', 'fail_reason': 'Got non-200 status code:408 http_response:None',
-                   'user_msg': 'get intents', 'time_elapsed': 0, 'http_status_code': 408}
+                   'user_msg': 'get intents', 'time_elapsed': 0, 'http_status_code': 408, 'response_headers': None}
 
 
 def test_http_action_missing_action_name():
