@@ -1552,7 +1552,7 @@ def test_http_action_execution(aioresponses):
                        'response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
                        'bot_response_log': ['evaluation_type: expression',
                                             'expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}',
-                                            "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                            "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                             "response: The value of 2 in red is ['red', 'buggy', 'bumpers']"]},
                       {'type': 'api_call',
                        'headers': {'botid': '**********************2e', 'userid': '****', 'tag': '******ot',
@@ -1561,7 +1561,8 @@ def test_http_action_execution(aioresponses):
                        'payload': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011', 'tag': 'from_bot', 'name': 'udit',
                                    'contact': ''},
                        'response': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                       'status_code': 200}, {'type': 'params_list',
+                       'status_code': 200, 'response_headers':{'Content-Type': 'application/json'}},
+                      {'type': 'params_list',
                                              'request_body': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011',
                                                               'tag': 'from_bot', 'name': 'udit', 'contact': ''},
                                              'request_params': {'bot': '**********************2e', 'user': '1011',
@@ -1569,16 +1570,17 @@ def test_http_action_execution(aioresponses):
                       {'type': 'filled_slots', 'data': {'val_d': "['red', 'buggy', 'bumpers']", 'val_d_0': 'red'},
                        'slot_eval_log': ['initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
                                          'expression: ${data.a.b.d}',
-                                         "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                         "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                          "response: ['red', 'buggy', 'bumpers']", 'Slot: val_d_0',
                                          'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
-                                         "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                         "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                          'response: red']}]
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                   'user_msg': 'get intents', 'http_status_code': 200}
+                   'user_msg': 'get intents', 'http_status_code': 200
+                   }
 
 
 def test_http_action_execution_returns_custom_json(aioresponses):
@@ -1814,6 +1816,7 @@ def test_http_action_execution_return_custom_json_with_script_evaluation(aioresp
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
                                         'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response=data"})]
     )
@@ -1915,6 +1918,7 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
                                         'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']"})]
     )
@@ -1954,7 +1958,7 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Mayank'},
-        {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200}, ]
+        {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200}]
     assert response_json['responses'][0]['text'] == "Mayank"
 
 
@@ -2050,14 +2054,14 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
                        'response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
                        'bot_response_log': ['evaluation_type: expression',
                                             'expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}',
-                                            "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                            "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                             "response: The value of 2 in red is ['red', 'buggy', 'bumpers']"]},
                       {'type': 'api_call',
                        'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
                        'method': 'GET', 'url': 'http://localhost:8081/mock',
                        'payload': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011', 'tag': 'from_bot'},
                        'response': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                       'status_code': 200}, {'type': 'params_list',
+                       'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}, {'type': 'params_list',
                                              'request_body': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011',
                                                               'tag': 'from_bot'},
                                              'request_params': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011',
@@ -2065,10 +2069,10 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
                       {'type': 'filled_slots', 'data': {'val_d': "['red', 'buggy', 'bumpers']", 'val_d_0': 'red'},
                        'slot_eval_log': ['initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
                                          'expression: ${data.a.b.d}',
-                                         "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                         "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                          "response: ['red', 'buggy', 'bumpers']", 'Slot: val_d_0',
                                          'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
-                                         "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                         "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                          'response: red']}]
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default', 'headers': {},
@@ -2127,6 +2131,7 @@ def test_http_action_execution_script_evaluation(aioresponses):
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
                                         'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']"})]
     )
@@ -2177,12 +2182,12 @@ def test_http_action_execution_script_evaluation(aioresponses):
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
-                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                             'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {
         'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'GET',
                                                                              'url': 'http://localhost:8081/mock',
                                                                              'payload': {}, 'response': {'a': 10, 'b': {
-            'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200},
+            'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
                       {'type': 'params_list', 'request_body': {}, 'request_params': {}},
                       {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
     assert log == {'type': 'http_action', 'intent': 'test_run',
@@ -2267,6 +2272,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
                                         'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']"})]
     )
@@ -2317,7 +2323,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
-                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                             'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {
         'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'POST',
                                                                              'url': 'http://localhost:8081/mock',
@@ -2328,7 +2334,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
                                                                                           'b': {'name': 'Mayank',
                                                                                                 'arr': ['red', 'green',
                                                                                                         'hotpink']}},
-                                                                             'status_code': 200},
+                                                                             'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
                       {'type': 'dynamic_params',
                        'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
                        'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
@@ -2418,6 +2424,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
                                         'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']"})]
     )
@@ -2468,7 +2475,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
-                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                             'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {
         'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'GET',
                                                                              'url': 'http://localhost:8081/mock',
@@ -2479,7 +2486,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                                                                                           'b': {'name': 'Mayank',
                                                                                                 'arr': ['red', 'green',
                                                                                                         'hotpink']}},
-                                                                             'status_code': 200},
+                                                                             'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
                       {'type': 'dynamic_params',
                        'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
                        'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
@@ -2570,6 +2577,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
                                         'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data"})]
     )
@@ -2622,12 +2630,12 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
          'evaluation_type': 'script',
          'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}},
          'bot_response_log': ['evaluation_type: script', 'script: bot_response = data',
-                              "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                              "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                               'raise_err_on_failure: True']},
         {'type': 'api_call', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
          'method': 'GET', 'url': 'http://localhost:8081/mock',
          'payload': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
-         'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200},
+         'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
         {'type': 'dynamic_params',
          'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
          'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}, 'slots': {},
@@ -2719,6 +2727,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
                                         'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']"})]
     )
@@ -2769,7 +2778,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
     assert events == [{'type': 'response', 'dispatch_bot_response': False, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
-                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                             'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {
         'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'GET',
                                                                              'url': 'http://localhost:8081/mock',
@@ -2780,7 +2789,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
                                                                                           'b': {'name': 'Mayank',
                                                                                                 'arr': ['red', 'green',
                                                                                                         'hotpink']}},
-                                                                             'status_code': 200},
+                                                                             'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
                       {'type': 'dynamic_params',
                        'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
                        'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
@@ -3069,6 +3078,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
                                         'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']"})]
     )
@@ -3119,7 +3129,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
-                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200}",
+                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                             'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {
         'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'GET',
                                                                              'url': 'http://localhost:8081/mock',
@@ -3130,7 +3140,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
                                                                                           'b': {'name': 'Mayank',
                                                                                                 'arr': ['red', 'green',
                                                                                                         'hotpink']}},
-                                                                             'status_code': 200},
+                                                                             'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
                       {'type': 'dynamic_params',
                        'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
                        'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
@@ -3518,8 +3528,8 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
                        'data': 'The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}', 'evaluation_type': 'expression',
                        'exception': 'I have failed to process your request'},
                       {'type': 'api_call', 'headers': {}, 'method': 'GET', 'url': 'http://localhost:8800/mock',
-                       'payload': {}, 'response': None, 'status_code': 408,
-                       'exception': "Got non-200 status code:408 http_response:{'data': None, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 408}"},
+                       'payload': {}, 'response': None, 'status_code': 408, 'response_headers': None,
+                       'exception': "Got non-200 status code:408 http_response:{'data': None, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 408, 'response_headers': None}"},
                       {'type': 'params_list', 'request_body': {}, 'request_params': {}}, {'type': 'filled_slots'}]
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET',
