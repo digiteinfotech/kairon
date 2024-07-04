@@ -116,7 +116,7 @@ async def add_db_action(
 
 
 @router.get("/db/{action}", response_model=Response)
-async def get_vector_db_action(action: str = Path(description="name", examples=["database_action"]),
+async def get_db_action(action: str = Path(description="name", examples=["database_action"]),
                                current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns configuration set for the VectorDb action

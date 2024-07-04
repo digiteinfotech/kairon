@@ -415,6 +415,7 @@ class HttpActionConfigRequest(BaseModel):
 class PayloadConfig(BaseModel):
     type: DbQueryValueType
     value: Any
+    query_type: DbActionOperationType
 
     @root_validator
     def check(cls, values):
@@ -451,8 +452,7 @@ class PyscriptActionRequest(BaseModel):
 class DatabaseActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     collection: str
-    query_type: DbActionOperationType
-    payload: PayloadConfig
+    payload: List[PayloadConfig]
     response: ActionResponseEvaluation = None
     set_slots: List[SetSlotsUsingActionResponse] = []
 
