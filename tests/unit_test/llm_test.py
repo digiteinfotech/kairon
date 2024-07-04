@@ -43,7 +43,7 @@ class TestLLM:
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret},
                                                    'vector': {'db': "http://kairon:6333", "key": None}}):
-            mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+            mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
@@ -201,7 +201,6 @@ class TestLLM:
                         "input": [json.dumps(test_content.data)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
-            print(mock_embedding.call_args)
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
@@ -225,7 +224,7 @@ class TestLLM:
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         input = {"name": "Ram", "color": "red"}
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
         gpt3 = LLMProcessor(bot, DEFAULT_LLM)
         aioresponses.add(
@@ -286,7 +285,7 @@ class TestLLM:
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         input = {"name": "Ram", "color": "red"}
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = LLMProcessor(bot, DEFAULT_LLM)
 
@@ -354,7 +353,7 @@ class TestLLM:
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
 
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
@@ -419,7 +418,7 @@ class TestLLM:
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
 
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
@@ -504,8 +503,8 @@ class TestLLM:
              'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
@@ -571,8 +570,8 @@ class TestLLM:
              'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
@@ -637,8 +636,10 @@ class TestLLM:
              'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        mock_completion.return_value = litellm.ModelResponse(**{'id': 'chatcmpl-5cde438e-0c93-47d8-bbee-13319b4f2000',
+                                                                'created': 1720090690,
+                                                                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
         with mock.patch.dict(Utility.environment, {'vector': {"key": "test", 'db': "http://localhost:6333"}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
@@ -653,19 +654,21 @@ class TestLLM:
 
             response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [
-                {'messages': [{'role': 'system',
-                               'content': 'You are a personal assistant. Answer the question according to the below context'},
-                              {'role': 'user',
-                               'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
-                 'raw_completion_response': {'choices': [{
-                     'message': {
-                         'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                         'role': 'assistant'}}]},
-                 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
+            assert gpt3.logs == [{'messages': [{'role': 'system',
+                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                               {'role': 'user',
+                                                'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
+                                  'raw_completion_response': {'id': 'chatcmpl-5cde438e-0c93-47d8-bbee-13319b4f2000',
+                                                              'choices': [{'finish_reason': 'stop', 'index': 0,
+                                                                           'message': {
+                                                                               'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                                                                               'role': 'assistant'}}],
+                                                              'created': 1720090690, 'model': None,
+                                                              'object': 'chat.completion', 'system_fingerprint': None,
+                                                              'usage': {}}, 'type': 'answer_query',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                      'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                                  'with_payload': True,
@@ -719,13 +722,17 @@ class TestLLM:
              'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-        mock_completion.side_effect = [{'choices': [
-            {'delta': {'role': 'assistant', 'content': generated_text[0:29]}, 'finish_reason': None, 'index': 0}]},
-                                       {'choices': [{'delta': {'role': 'assistant', 'content': generated_text[29:60]},
-                                                     'finish_reason': None, 'index': 0}]},
-                                       {'choices': [{'delta': {'role': 'assistant', 'content': generated_text[60:]},
-                                                     'finish_reason': 'stop', 'index': 0}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        mock_completion.side_effect = [litellm.ModelResponse(**{'id': 'chatcmpl-79147326-64df-42d6-9765-9f0535e8499d',
+                                                                'created': 1720090691,
+                                                                'choices': [
+            {'delta': {'role': 'assistant', 'content': generated_text[0:29]}, 'finish_reason': None, 'index': 0}]}),
+                                       litellm.ModelResponse(**{'id': 'chatcmpl-79147326-64df-42d6-9765-9f0535e8499d',
+                                                                'created': 1720090691,'choices': [{'delta': {'role': 'assistant', 'content': generated_text[29:60]},
+                                                     'finish_reason': None, 'index': 0}]}),
+                                       litellm.ModelResponse(**{'id': 'chatcmpl-79147326-64df-42d6-9765-9f0535e8499d',
+                                                                'created': 1720090691,'choices': [{'delta': {'role': 'assistant', 'content': generated_text[60:]},
+                                                     'finish_reason': 'stop', 'index': 0}]})
                                        ]
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': key}}):
@@ -741,18 +748,22 @@ class TestLLM:
 
             response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
             assert response['content'] == "Python is dynamically typed, "
-            assert gpt3.logs == [
-                {'messages': [{'role': 'system',
-                               'content': 'You are a personal assistant. Answer the question according to the below context'},
-                              {'role': 'user',
-                               'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
-                 'raw_completion_response': {'choices': [
-                     {'delta': {'role': 'assistant', 'content': generated_text[0:29]}, 'finish_reason': None,
-                      'index': 0}]},
-                 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                     'n': 1, 'stream': True, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
+            assert gpt3.logs == [{'messages': [{'role': 'system',
+                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                               {'role': 'user',
+                                                'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
+                                  'raw_completion_response': {'id': 'chatcmpl-79147326-64df-42d6-9765-9f0535e8499d',
+                                                              'choices': [{'delta': {'role': 'assistant',
+                                                                                     'content': 'Python is dynamically typed, '},
+                                                                           'finish_reason': 'stop', 'index': 0,
+                                                                           'message': {'content': 'default',
+                                                                                       'role': 'assistant'}}],
+                                                              'created': 1720090691, 'model': None,
+                                                              'object': 'chat.completion', 'system_fingerprint': None,
+                                                              'usage': {}}, 'type': 'answer_query',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                      'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                                      'frequency_penalty': 0.0, 'logit_bias': {}, 'stream': True}}]
 
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                                  'with_payload': True,
@@ -829,8 +840,10 @@ class TestLLM:
              'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n[{'name': 'Fahad', 'city': 'Mumbai'}, {'name': 'Hitesh', 'city': 'Mumbai'}]\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: List all the user lives in mumbai city \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        mock_completion.return_value = litellm.ModelResponse(**{'id': 'chatcmpl-836a9b38-dfe9-4ae0-9f94-f431e2e8e8d1',
+                                                                'created': 1720090691,
+                                                                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
         gpt3 = LLMProcessor(bot, DEFAULT_LLM)
         aioresponses.add(
@@ -845,16 +858,20 @@ class TestLLM:
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
         assert response['content'] == generated_text
-        assert gpt3.logs == [{'messages': [{'role': 'system',
+        assert not DeepDiff(gpt3.logs, [{'messages': [{'role': 'system',
                                             'content': 'You are a personal assistant. Answer the question according to the below context'},
                                            {'role': 'user',
                                             'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n[{'name': 'Fahad', 'city': 'Mumbai'}, {'name': 'Hitesh', 'city': 'Mumbai'}]\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: List all the user lives in mumbai city \nA:"}],
-                              'raw_completion_response': {'choices': [{'message': {
-                                  'content': 'Hitesh and Fahad lives in mumbai city.', 'role': 'assistant'}}]},
+                              'raw_completion_response': {'id': 'chatcmpl-836a9b38-dfe9-4ae0-9f94-f431e2e8e8d1',
+                                                          'choices': [{'finish_reason': 'stop', 'index': 0, 'message': {
+                                                              'content': 'Hitesh and Fahad lives in mumbai city.',
+                                                              'role': 'assistant'}}], 'created': 1720090691,
+                                                          'model': None, 'object': 'chat.completion',
+                                                          'system_fingerprint': None, 'usage': {}},
                               'type': 'answer_query',
                               'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                                  'top_p': 0.0, 'n': 1, 'stop': None,
-                                                  'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}}]
+                                                  'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                                  'frequency_penalty': 0.0, 'logit_bias': {}}}], ignore_order=True)
 
         assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                              'with_payload': True,
@@ -905,7 +922,7 @@ class TestLLM:
         def __mock_connection_error(*args, **kwargs):
             raise Exception("Connection reset by peer!")
 
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         mock_completion.side_effect = __mock_connection_error
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
@@ -968,7 +985,7 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         mock_llm_request.side_effect = ClientConnectionError()
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
@@ -1061,8 +1078,8 @@ class TestLLM:
              'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
         ]}
         mock_completion_request.update(hyperparameters)
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-        mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
@@ -1139,9 +1156,9 @@ class TestLLM:
         mock_rephrase_request.update(hyperparameters)
         mock_completion_request.update(hyperparameters)
 
-        mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-        mock_completion.side_effect = {'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}, {
-            'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        mock_completion.side_effect = litellm.ModelResponse(**{'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}), litellm.ModelResponse(**{
+            'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
@@ -1215,7 +1232,6 @@ class TestLLM:
         response = ''
         async for chunk in result:
             content = chunk["choices"][0]["delta"]["content"]
-            print(chunk)
             if content:
                 response += content
 
