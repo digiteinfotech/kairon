@@ -26,7 +26,7 @@ from kairon.shared.actions.models import (
     EvaluationType,
     DispatchType,
     DbQueryValueType,
-    DbActionOperationType, UserMessageType,
+    DbActionOperationType, UserMessageType
 )
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.audit.data_objects import Auditlog
@@ -216,7 +216,9 @@ class DbQuery(EmbeddedDocument):
         required=True, choices=[op_type.value for op_type in DbQueryValueType]
     )
     value = DynamicField(default=None)
-
+    query_type = StringField(
+        required=True, choices=[op_type.value for op_type in DbActionOperationType]
+    )
     def validate(self, clean=True):
         if Utility.check_empty_string(self.type):
             raise ValidationError("payload type is required")
@@ -227,8 +229,7 @@ class DbQuery(EmbeddedDocument):
 class DatabaseAction(Auditlog):
     name = StringField(required=True)
     collection = StringField(required=True)
-    query_type = StringField(required=True, choices=[payload.value for payload in DbActionOperationType])
-    payload = EmbeddedDocumentField(DbQuery, required=True)
+    payload = EmbeddedDocumentListField(DbQuery, required=True)
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
     db_type = StringField(required=True, default="qdrant")

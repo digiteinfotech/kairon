@@ -4041,8 +4041,7 @@ class MongoProcessor:
             name=request_data.get("name"), bot=bot, status=True
         ).get()
         action.collection = request_data['collection']
-        action.query_type = request_data["query_type"]
-        action.payload = DbQuery(**request_data["payload"])
+        action.payload = request_data["payload"]
         action.response = HttpActionResponse(**request_data.get("response", {}))
         action.set_slots = [
             SetSlotsFromResponse(**slot).to_mongo().to_dict()
@@ -4077,8 +4076,7 @@ class MongoProcessor:
             DatabaseAction(
                 name=vector_db_action_config["name"],
                 collection=vector_db_action_config['collection'],
-                query_type=vector_db_action_config.get("query_type"),
-                payload=DbQuery(**vector_db_action_config.get("payload")),
+                payload=vector_db_action_config.get("payload"),
                 response=HttpActionResponse(
                     **vector_db_action_config.get("response", {})
                 ),
