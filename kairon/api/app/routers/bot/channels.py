@@ -191,6 +191,7 @@ async def resend_message_broadcast_event(
     Resends a scheduled message broadcast.
     """
     event = MessageBroadcastEvent(current_user.get_bot(), current_user.get_user())
+    event.validate_retry_broadcast(event_id=msg_broadcast_id)
     event.enqueue(EventRequestType.resend_broadcast.value, msg_broadcast_id=msg_broadcast_id)
     return Response(message="Resending Broadcast!")
 
