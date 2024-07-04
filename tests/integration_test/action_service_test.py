@@ -3795,7 +3795,7 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
                bot="5f50fd0a56b698ca10d75d2e", user="user").save()
     embedding = list(np.random.random(Qdrant.__embedding__))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_test_vectordb_action_execution_faq_embd/points'
     resp_msg = json.dumps(
@@ -11319,8 +11319,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11386,8 +11386,8 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11455,8 +11455,8 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11526,14 +11526,14 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}
     ]
 
-    mock_completion_for_query_prompt = {'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}
+    mock_completion_for_query_prompt = litellm.ModelResponse(**{'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]})
 
-    mock_completion_for_answer = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_completion_for_answer = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     mock_completion.side_effect = [mock_completion_for_query_prompt, mock_completion_for_answer]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11609,8 +11609,8 @@ def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
         payload={
             'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content_two}}]})
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     PromptAction(name=action_name,
                  bot=bot,
@@ -11660,8 +11660,8 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
          }
     ]
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11715,8 +11715,8 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
                        'frequency_penalty': 0.0, 'logit_bias': {}}
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'delta': {'role': 'assistant', 'content': generated_text}, 'finish_reason': None, 'index': 0}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'delta': {'role': 'assistant', 'content': generated_text}, 'finish_reason': None, 'index': 0}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11732,7 +11732,6 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json['events'])
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
     assert response_json['responses'] == [
@@ -11860,7 +11859,7 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
     ]
 
     def mock_completion_for_answer(*args, **kwargs):
-        return {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     def __mock_search_cache(*args, **kwargs):
         return {'result': []}
@@ -11874,8 +11873,8 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
     mock_completion.return_value = mock_completion_for_answer()
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -11975,15 +11974,15 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     ]
 
     def mock_completion_for_answer(*args, **kwargs):
-        return {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     def __mock_fetch_similar(*args, **kwargs):
         return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
 
     mock_completion.return_value = mock_completion_for_answer()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12021,7 +12020,11 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
-    assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
+    excludedRegex = [
+        r"['raw_completion_response']['id']",
+        r"['raw_completion_response']['created']"
+    ]
+    assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\nAction Prompt:\nPython is a scripting language because it uses an interpreter to translate and run its code.\nInstructions on how to use Action Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
                 'metadata': {'user': 'nupur.khare', 'bot': '5u08kd0a56b698ca10d98e6s', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
@@ -12074,11 +12077,11 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     def mock_completion_for_answer(*args, **kwargs):
-        return {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     mock_google_search.side_effect = _run_action
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -12106,7 +12109,11 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
-    assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
+    excludedRegex = [
+        r"['raw_completion_response']['id']",
+        r"['raw_completion_response']['created']"
+    ]
+    assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
                 'metadata': {'user': 'test_user', 'bot': '5u08kd0a56b698ca10hgjgjkhgjks', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
@@ -12171,7 +12178,7 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     ]
 
     def mock_completion_for_answer(*args, **kwargs):
-        return {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     def __mock_fetch_similar(*args, **kwargs):
         return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
@@ -12179,8 +12186,8 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     mock_completion.return_value = mock_completion_for_answer()
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12230,7 +12237,11 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
-    assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
+    excludedRegex = [
+        r"['raw_completion_response']['id']",
+        r"['raw_completion_response']['created']"
+    ]
+    assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
                 'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhj', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
@@ -12266,10 +12277,10 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
     ]
 
     def mock_completion_for_answer(*args, **kwargs):
-        return {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     mock_completion.return_value = mock_completion_for_answer()
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     log1 = ['Slot: api_type', 'evaluation_type: expression', f"data: {generated_text}", 'response: filter']
     log2 = ['Slot: query', 'evaluation_type: expression', f"data: {generated_text}",
             'response: {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}']
@@ -12337,7 +12348,11 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
-    assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
+    excludedRegex = [
+        r"['raw_completion_response']['id']",
+        r"['raw_completion_response']['created']"
+    ]
+    assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': 'Qdrant Prompt:\nConvert user questions into json requests in qdrant such that they will either filter, apply range queries and search the payload in qdrant. Sample payload present in qdrant looks like below with each of the points starting with 1 to 5 is a record in qdrant.1. {"Category (Risk, Issue, Action Item)": "Risk", "Date Added": 1673721000.0,2. {"Category (Risk, Issue, Action Item)": "Action Item", "Date Added": 1673721000.0,For eg: to find category of record created on 15/01/2023, the filter query is:{"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}\nInstructions on how to use Qdrant Prompt:\nCreate qdrant filter query out of user message based on above instructions.\n\n \nQ: category of record created on 15/01/2023? \nA:'}],
                 'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhjhjhj', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
@@ -12373,7 +12388,7 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     ]
 
     def mock_completion_for_answer(*args, **kwargs):
-        return {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     def __mock_fetch_similar(*args, **kwargs):
         return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
@@ -12381,8 +12396,8 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     mock_completion.return_value = mock_completion_for_answer()
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12435,7 +12450,11 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
-    assert not DeepDiff(log['llm_logs'], expected, ignore_order=True)
+    excludedRegex = [
+        r"['raw_completion_response']['id']",
+        r"['raw_completion_response']['created']"
+    ]
+    assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
                 'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2s', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
@@ -12467,7 +12486,7 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
     ]
 
     def mock_completion_for_answer(*args, **kwargs):
-        return {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     def __mock_fetch_similar(*args, **kwargs):
         return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
@@ -12475,8 +12494,8 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
     mock_completion.return_value = mock_completion_for_answer()
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12533,8 +12552,8 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_search, moc
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {'result': []}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12600,8 +12619,8 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = {'data': [{'embedding': embedding}]}
-    mock_completion.return_value = {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()

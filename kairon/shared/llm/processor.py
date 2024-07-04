@@ -131,7 +131,7 @@ class LLMProcessor(LLMBase):
                                              **hyperparameters)
         formatted_response = await self.__parse_completion_response(response,
                                                                     **hyperparameters)
-        return formatted_response, response
+        return formatted_response, response.dict()
 
     async def __get_answer(self, query, system_prompt: Text, context: Text, user, **kwargs):
         use_query_prompt = False
