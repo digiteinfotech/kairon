@@ -52,6 +52,7 @@ class ActionUtility:
         """
         response = None
         http_response = None
+        response_headers = None
         timeout = Utility.environment['action'].get('request_timeout', 1)
         headers = headers if headers else {}
         headers.update({
@@ -63,6 +64,7 @@ class ActionUtility:
         try:
             response = await client.request(request_method, http_url, request_body, headers, **kwargs)
             http_response = await response.json()
+            response_headers = response.headers
         except (ContentTypeError, ValueError) as e:
             logging.error(str(e))
             if response:
@@ -72,7 +74,7 @@ class ActionUtility:
         finally:
             status_code = client.status_code
 
-        return http_response, status_code, client.time_elapsed
+        return http_response, status_code, client.time_elapsed, response_headers
 
     @staticmethod
     def validate_http_response_status(http_response, status_code, raise_err = False):
@@ -964,6 +966,7 @@ class ActionUtility:
         if data.get('context'):
             context = data['context']
             context['data'] = data['data']
+            context['response_headers'] = data['response_headers']
             context['http_status_code'] = data['http_status_code']
         else:
             context = data

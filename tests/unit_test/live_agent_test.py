@@ -69,7 +69,7 @@ def test_is_live_agent_service_available_disabled(mock_environment, bot_id):
 async def test_request_live_agent(mock_environment, bot_id, sender_id, channel):
     with patch.object(Utility, 'environment', mock_environment), \
          patch.object(LiveAgentHandler, 'is_live_agent_service_available', return_value=True), \
-         patch.object(ActionUtility, 'execute_request_async', return_value=({'data': None}, 200, None)):
+         patch.object(ActionUtility, 'execute_request_async', return_value=({'data': None}, 200, None, None)):
         response = await LiveAgentHandler.request_live_agent(bot_id, sender_id, channel)
         assert response is None
 
@@ -86,7 +86,7 @@ async def test_request_live_agent_service_unavailable(mock_environment, bot_id, 
 async def test_process_live_agent(mock_environment, bot_id, user_message):
     with patch.object(Utility, 'environment', mock_environment), \
          patch.object(LiveAgentHandler, 'is_live_agent_service_available', return_value=True), \
-         patch.object(ActionUtility, 'execute_request_async', return_value=({'data': None}, 200, None)):
+         patch.object(ActionUtility, 'execute_request_async', return_value=({'data': None}, 200, None, None)):
         response = await LiveAgentHandler.process_live_agent(bot_id, user_message)
         assert response is None
 
@@ -104,7 +104,7 @@ async def test_process_live_agent_service_unavailable(mock_environment, bot_id, 
 async def test_check_live_agent_active(mock_environment, bot_id, user_message):
     with patch.object(Utility, 'environment', mock_environment), \
          patch.object(LiveAgentHandler, 'is_live_agent_service_available', return_value=True), \
-         patch.object(ActionUtility, 'execute_request_async', return_value=({'data': {'status': True}}, 200, None)):
+         patch.object(ActionUtility, 'execute_request_async', return_value=({'data': {'status': True}}, 200, None, None)):
         response = await LiveAgentHandler.check_live_agent_active(bot_id, user_message)
         assert response is True
 
@@ -114,7 +114,7 @@ async def test_authenticate_agent(mock_environment, bot_id):
     user = 'test_user'
     with patch.object(Utility, 'environment', mock_environment), \
          patch.object(LiveAgentHandler, 'is_live_agent_service_available', return_value=True), \
-         patch.object(ActionUtility, 'execute_request_async', return_value=({'data': 'auth_token'}, 200, None)):
+         patch.object(ActionUtility, 'execute_request_async', return_value=({'data': 'auth_token'}, 200, None, None)):
         response = await LiveAgentHandler.authenticate_agent(user, bot_id)
         assert response == 'auth_token'
 
