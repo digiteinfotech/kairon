@@ -109,16 +109,19 @@ class ActionHTTP(ActionsBase):
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
-            http_response, resp_status_code, time_elapsed = await ActionUtility.execute_request_async(
+            http_response, resp_status_code, time_elapsed, response_headers = await ActionUtility.execute_request_async(
                 headers=headers, http_url=http_url,
                 request_method=request_method, request_body=body,
                 content_type=http_action_config['content_type']
             )
             time_elapsed = time_elapsed if time_elapsed else 0
+            if response_headers:
+                response_headers = dict(response_headers)
             logger.info("http response: " + str(http_response))
+            logger.info("response headers: " + str(response_headers))
             api_call_log.update({"method": request_method, "url": http_url, "payload": body, "response": http_response,
-                                 "status_code": resp_status_code, "time_elapsed": time_elapsed})
-            response_context = self.__add_user_context_to_http_response(http_response, resp_status_code, tracker_data)
+                                 "status_code": resp_status_code, "time_elapsed": time_elapsed, "response_headers": response_headers})
+            response_context = self.__add_user_context_to_http_response(http_response, resp_status_code, response_headers,  tracker_data)
             bot_response, bot_resp_log, time_taken_compose_response = ActionUtility.compose_response(http_action_config['response'], response_context)
             response_log.update({"response": bot_response, "bot_response_log": bot_resp_log, "time_elapsed": time_taken_compose_response})
             self.__response = bot_response
@@ -167,8 +170,9 @@ class ActionHTTP(ActionsBase):
         return filled_slots
 
     @staticmethod
-    def __add_user_context_to_http_response(http_response, response_status_code, tracker_data):
-        response_context = {"data": http_response, 'context': tracker_data, 'http_status_code': response_status_code}
+    def __add_user_context_to_http_response(http_response, response_status_code, response_headers, tracker_data):
+        response_context = {"data": http_response, 'context': tracker_data, 'http_status_code': response_status_code,
+                            "response_headers": response_headers}
         return response_context
 
     @property

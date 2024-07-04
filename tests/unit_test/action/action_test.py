@@ -1595,7 +1595,7 @@ class TestActions:
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
-        mock_execute_request_async.return_value = http_response, 200, 5
+        mock_execute_request_async.return_value = http_response, 200, 5, None
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.http_action.value}
@@ -2002,6 +2002,7 @@ class TestActions:
                                                                'text': 'get intents'},
                                             'sender_id': 'default_sender', 'session_started': None,
                                             'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                            'response_headers': {'Content-Type': 'application/json'},
                                             'user_message': 'get intents'},
                      'source_code': "bot_response=data"} )],
         )
@@ -2107,6 +2108,7 @@ class TestActions:
                                                                'text': 'get intents'},
                                             'sender_id': 'default_sender', 'session_started': None,
                                             'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
+                                            'response_headers': {'Content-Type': 'application/json'},
                                             'user_message': 'get intents'},
                      'source_code': "bot_response = data['b']['name']"})]
         )
