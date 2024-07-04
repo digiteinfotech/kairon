@@ -85,6 +85,7 @@ class MessageBroadcastProcessor:
         is_resend = kwargs.pop("is_resend", False)
         event_completion_states = [] if is_resend else [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]
         is_new_log = log_type in {MessageBroadcastLogType.send.value,
+                                  MessageBroadcastLogType.resend.value,
                                   MessageBroadcastLogType.self.value} or kwargs.pop("is_new_log", None)
         try:
             if is_new_log and not is_resend:
@@ -117,20 +118,12 @@ class MessageBroadcastProcessor:
         return log.reference_id
 
     @staticmethod
-    def get_recent_broadcasting_logs(message_broadcast_logs):
-        recent_logs, max_resend_count = [], 0
-        if message_broadcast_logs:
-            max_resend_count = max(log["resend_count"] for log in message_broadcast_logs)
-            recent_logs = [log for log in message_broadcast_logs if log["resend_count"] == max_resend_count]
+    def extract_message_ids_from_broadcast_logs(reference_id: Text, retry_count: int = 0):
+        log_type = MessageBroadcastLogType.resend.value if retry_count > 0 else MessageBroadcastLogType.send.value
+        message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
+                                                              log_type=log_type,
+                                                              retry_count=retry_count)
 
-        return recent_logs, max_resend_count
-
-    @staticmethod
-    def extract_message_ids_from_broadcast_logs(reference_id: Text):
-        broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
-                                                      log_type=MessageBroadcastLogType.send.value)
-
-        message_broadcast_logs, resend_count = MessageBroadcastProcessor.get_recent_broadcasting_logs(broadcast_logs)
         broadcast_logs = {
             message['id']: log
             for log in message_broadcast_logs
@@ -138,7 +131,7 @@ class MessageBroadcastProcessor:
             for message in log.api_response['messages']
             if message['id']
         }
-        return broadcast_logs, resend_count
+        return broadcast_logs
 
     @staticmethod
     def get_db_client(bot: Text):
@@ -166,7 +159,7 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def __add_broadcast_logs_status_and_errors(reference_id: Text, campaign_name: Text,
-                                               broadcast_logs: Dict[Text, Document], resend_count: int = 0):
+                                               broadcast_logs: Dict[Text, Document], retry_count: int = 0):
         message_ids = list(broadcast_logs.keys())
         channel_logs = ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value)
         for log in channel_logs:
@@ -188,15 +181,29 @@ class MessageBroadcastProcessor:
             )
 
         ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(
-            campaign_id=reference_id, campaign_name=campaign_name, resend_count=resend_count
+            campaign_id=reference_id, campaign_name=campaign_name, retry_count=retry_count
         )
 
     @staticmethod
-    def insert_status_received_on_channel_webhook(reference_id: Text, broadcast_name: Text):
-        broadcast_logs, resend_count = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
+    def update_retry_count(notification_id: Text, bot: Text, user: Text, retry_count: int = 0):
+        try:
+            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=False).get()
+            settings.retry_count = retry_count
+            settings.user = user
+            settings.timestamp = datetime.utcnow()
+            settings.save()
+            return settings.to_mongo().to_dict()
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Notification settings not found!")
+
+    @staticmethod
+    def insert_status_received_on_channel_webhook(reference_id: Text, broadcast_name: Text, retry_count: int = 0):
+        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id,
+                                                                                           retry_count)
         if broadcast_logs:
             MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_name,
-                                                                             broadcast_logs, resend_count)
+                                                                             broadcast_logs, retry_count)
 
     @staticmethod
     def get_channel_metrics(channel_type: Text, bot: Text):

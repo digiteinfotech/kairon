@@ -63,7 +63,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                 status=status, recipient=recipient, template_params=components, template=raw_template,
                 event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
-                resend_count=0
+                retry_count=0
             )
 
             return response
@@ -118,7 +118,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                         self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                         status=status, recipient=recipient, template_params=t_params, template=raw_template,
                         event_id=self.event_id, template_name=template_id, language_code=lang, namespace=namespace,
-                        resend_count=0
+                        retry_count=0
                     )
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
@@ -126,13 +126,18 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             )
 
     def resend_broadcast(self):
-        channel_client = self.__get_client()
+        config = MessageBroadcastProcessor.get_settings(self.event_id, self.bot, is_resend=True)
+        retry_count = config["retry_count"]
 
-        message_broadcast_logs, resend_count = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(self.reference_id)
+        message_broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(
+            self.reference_id, retry_count=retry_count
+        )
 
         required_logs = [log for log in message_broadcast_logs.values() if log["errors"]]
         codes_to_exclude = Utility.environment["channels"]["360dialog"]["error_codes"]
         required_logs = [log for log in required_logs if log["errors"][0]["code"] not in codes_to_exclude]
+        channel_client = self.__get_client()
+        retry_count += 1
 
         for log in required_logs:
             template_id = log["template_name"]
@@ -141,17 +146,20 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             components = log["template_params"]
             recipient = log["recipient"]
             template = log["template"]
-            resend_count = log["resend_count"] + 1
             response = channel_client.send_template_message(template_id, recipient, language_code, components,
                                                             namespace)
             status = "Failed" if response.get("error") else "Success"
 
             MessageBroadcastProcessor.add_event_log(
-                self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
+                self.bot, MessageBroadcastLogType.resend.value, self.reference_id, api_response=response,
                 status=status, recipient=recipient, template_params=components, template=template,
                 event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
-                resend_count=resend_count
+                retry_count=retry_count,
             )
+        config = MessageBroadcastProcessor.update_retry_count(self.event_id, self.bot, self.user,
+                                                              retry_count=retry_count)
+
+        return config
 
     def __get_client(self):
         try:
