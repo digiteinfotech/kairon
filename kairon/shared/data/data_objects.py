@@ -933,6 +933,7 @@ class BotSettings(Auditlog):
         default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value]
     )
     notification_scheduling_limit = IntField(default=4)
+    retry_broadcasting_limit = IntField(default=3)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

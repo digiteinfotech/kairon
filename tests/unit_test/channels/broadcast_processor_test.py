@@ -209,23 +209,23 @@ class TestMessageBroadcastProcessor:
         settings[0].pop("timestamp")
         settings[1].pop("timestamp")
         assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
-                             "broadcast_type": "dynamic",
+                             "broadcast_type": "dynamic", 'retry_count': 0,
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *',
                                                   "timezone": "Asia/Kolkata"},
                              "pyscript": "send_msg('template_name', '9876543210')", "template_config": [],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True},
                             {'name': 'second_scheduler', 'connector_type': 'slack',
-                            'recipients_config': {'recipients': '918958030541,'},
+                            'recipients_config': {'recipients': '918958030541,'}, 'retry_count': 0,
                              "broadcast_type": "static", 'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
 
         setting = MessageBroadcastProcessor.get_settings(config_id, bot)
         assert isinstance(setting.pop("_id"), str)
         setting.pop("timestamp")
-        assert setting == {'name': 'second_scheduler', 'connector_type': 'slack',
-                             'recipients_config': {'recipients': '918958030541,'}, 'broadcast_type': 'static',
-                             'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
-                             'bot': 'test_achedule', 'user': 'test_user', 'status': True}
+        assert setting == {'name': 'second_scheduler', 'connector_type': 'slack', 'retry_count': 0,
+                           'recipients_config': {'recipients': '918958030541,'}, 'broadcast_type': 'static',
+                           'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
+                           'bot': 'test_achedule', 'user': 'test_user', 'status': True}
 
     def test_get_settings_not_found(self):
         bot = "test_schedule"
@@ -245,7 +245,7 @@ class TestMessageBroadcastProcessor:
         settings[0].pop("timestamp")
         assert settings == [{'name': 'second_scheduler', 'connector_type': 'slack',
                              "broadcast_type": "static",
-                             'recipients_config': {'recipients': '918958030541,'},
+                             'recipients_config': {'recipients': '918958030541,'}, 'retry_count': 0,
                              'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
 
@@ -256,7 +256,7 @@ class TestMessageBroadcastProcessor:
         assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
                              "broadcast_type": "dynamic", "template_config": [],
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *', "timezone": "Asia/Kolkata"},
-                             "pyscript": "send_msg('template_name', '9876543210')",
+                             "pyscript": "send_msg('template_name', '9876543210')", 'retry_count': 0,
                              'bot': 'test_achedule', 'user': 'test_user', 'status': False}]
 
     def test_delete_schedule_not_exists(self):

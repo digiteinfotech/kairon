@@ -2100,6 +2100,7 @@ def test_add_broadcast_message(mock_event_server):
         "name": "test_broadcast",
         "broadcast_type": "static",
         "connector_type": "whatsapp",
+        "status": False,
         "recipients_config": {"recipients": "919876543210,919012345678"},
         "template_config": [
             {
@@ -2122,6 +2123,12 @@ def test_add_broadcast_message(mock_event_server):
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_resend_broadcast_message(mock_event_server):
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
+
+    settings = MessageBroadcastSettings.objects(id=pytest.broadcast_msg_id, bot=pytest.bot, status=True).get()
+    settings.status = False
+    settings.save()
+
     config = {
         "name": "test_broadcast",
         "broadcast_type": "static",
@@ -2144,6 +2151,43 @@ def test_resend_broadcast_message(mock_event_server):
     assert actual["message"] == "Resending Broadcast!"
 
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_resend_broadcast_message_with_retry_limit_exceeded(mock_event_server, monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True),
+                           retry_broadcasting_limit=3)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
+
+    settings = MessageBroadcastSettings.objects(id=pytest.broadcast_msg_id, bot=pytest.bot, status=False).get()
+    settings.retry_count = 3
+    settings.save()
+
+    config = {
+        "name": "test_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "919876543210,919012345678"},
+        "template_config": [
+            {
+                "template_id": "sales_template",
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/resend/{pytest.broadcast_msg_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Retry Broadcasting limit reached!"
+
+
 def test_list_broadcast():
     response = client.get(
         f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
@@ -2160,12 +2204,12 @@ def test_list_broadcast():
                 "_id": pytest.broadcast_msg_id,
                 "name": "test_broadcast",
                 "connector_type": "whatsapp",
-
                 "broadcast_type": "static",
                 "recipients_config": {"recipients": "919876543210,919012345678"},
+                "retry_count": 3,
                 "template_config": [{"template_id": "sales_template", "language": "en"}],
                 "bot": pytest.bot,
-                "status": True,
+                "status": False,
             }
         ]
     }
@@ -2173,6 +2217,12 @@ def test_list_broadcast():
 
 @patch("kairon.shared.utils.Utility.delete_scheduled_event", autospec=True)
 def test_delete_message_broadcast(mock_event_server):
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
+
+    settings = MessageBroadcastSettings.objects(id=pytest.broadcast_msg_id, bot=pytest.bot, status=False).get()
+    settings.status = True
+    settings.save()
+
     response = client.delete(
         f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.broadcast_msg_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -20982,6 +21032,7 @@ def test_list_broadcast_config():
                     "schedule": "21 11 * * *",
                     "timezone": "Asia/Kolkata",
                 },
+                "retry_count": 0,
                 "pyscript": "send_msg('template_name', '9876543210')",
                 "status": True,
                 "template_config": [],
@@ -20991,6 +21042,7 @@ def test_list_broadcast_config():
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
                 "recipients_config": {"recipients": "918958030541,"},
+                "retry_count": 0,
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
                 "status": True,
             },
@@ -21037,9 +21089,9 @@ def test_list_broadcast_():
                 "_id": pytest.one_time_schedule_id,
                 "name": "one_time_schedule",
                 "connector_type": "whatsapp",
-
                 "broadcast_type": "static",
                 "recipients_config": {"recipients": "918958030541,"},
+                "retry_count": 0,
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
                 "bot": pytest.bot,
                 "status": True,
@@ -21203,6 +21255,8 @@ def test_get_bot_settings():
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3}
+                              'integrations_per_user_limit':3,
+                              'retry_broadcasting_limit': 3}
 
 
 def test_update_analytics_settings_with_empty_value():
@@ -21281,6 +21335,8 @@ def test_update_analytics_settings():
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3}
+                              'integrations_per_user_limit':3,
+                              'retry_broadcasting_limit': 3}
 
 
 def test_delete_channels_config():
@@ -24431,8 +24487,8 @@ def test_trigger_widget():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 2
     assert not actual["message"]
-    
-    
+
+
 def test_get_llm_logs():
     from kairon.shared.llm.logger import LiteLLMLogger
     import litellm

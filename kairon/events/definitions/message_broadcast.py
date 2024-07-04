@@ -42,6 +42,13 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 len(list(MessageBroadcastProcessor.list_settings(self.bot, timestamp__gt=date_today))):
             raise AppException("Notification scheduling limit reached!")
 
+    def validate_retry_broadcast(self, event_id: Text):
+        bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
+        config = MessageBroadcastProcessor.get_settings(event_id, self.bot, is_resend=True)
+
+        if bot_settings['retry_broadcasting_limit'] <= config["retry_count"]:
+            raise AppException("Retry Broadcasting limit reached!")
+
     def execute(self, event_id: Text, **kwargs):
         """
         Execute the event.
@@ -53,9 +60,10 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         is_resend = kwargs.get('is_resend', False)
         try:
             config, reference_id = self.__retrieve_config(event_id, is_resend)
-            broadcast = MessageBroadcastFactory.get_instance(config["connector_type"]).from_config(config, event_id, reference_id)
+            broadcast = MessageBroadcastFactory.get_instance(config["connector_type"]).from_config(config, event_id,
+                                                                                                   reference_id)
             if is_resend:
-                broadcast.resend_broadcast()
+                config = broadcast.resend_broadcast()
             else:
                 recipients = broadcast.get_recipients()
                 broadcast.send(recipients)
@@ -65,7 +73,8 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             exception = str(e)
         finally:
             time.sleep(5)
-            MessageBroadcastProcessor.insert_status_received_on_channel_webhook(reference_id, config["name"])
+            MessageBroadcastProcessor.insert_status_received_on_channel_webhook(reference_id, config["name"],
+                                                                                config["retry_count"])
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, reference_id, status=status, exception=exception
             )
