@@ -9770,7 +9770,7 @@ class TestMongoProcessor:
             "with_payload": True,
             "with_vector": True
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         schema = {
             "metadata": [
                 {"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True}],
@@ -9788,8 +9788,7 @@ class TestMongoProcessor:
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_op_embedding_search',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
         processor_two.add_db_action(vectordb_action_config.dict(), user, bot)
@@ -9797,9 +9796,9 @@ class TestMongoProcessor:
         assert actual_vectordb_action is not None
         assert Actions.objects(name=action, status=True, bot=bot).get()
         assert actual_vectordb_action['name'] == action
-        assert actual_vectordb_action['payload']['type'] == 'from_value'
-        assert actual_vectordb_action['payload']['value'] == {'ids': [0], 'with_payload': True, 'with_vector': True}
-        assert actual_vectordb_action['query_type'] == 'embedding_search'
+        assert actual_vectordb_action['payload'][0]['type'] == 'from_value'
+        assert actual_vectordb_action['payload'][0]['value'] == {'ids': [0], 'with_payload': True, 'with_vector': True}
+        assert actual_vectordb_action['payload'][0]['query_type'] == 'embedding_search'
         assert actual_vectordb_action['response']['value'] == '0'
         with pytest.raises(AppException,
                            match='Cannot remove collection test_add_vector_embedding_action_config_op_embedding_search linked to action "test_vectordb_action_op_embedding_search"!'):
@@ -9842,7 +9841,7 @@ class TestMongoProcessor:
                 ]
             }
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         CognitionSchema(
             metadata=[{"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
@@ -9856,8 +9855,7 @@ class TestMongoProcessor:
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_op_payload_search',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
         processor.add_db_action(vectordb_action_config.dict(), user, bot)
@@ -9865,9 +9863,9 @@ class TestMongoProcessor:
         assert actual_vectordb_action is not None
         assert Actions.objects(name=action, status=True, bot=bot).get()
         assert actual_vectordb_action['name'] == action
-        assert actual_vectordb_action['payload']['type'] == 'from_value'
-        assert actual_vectordb_action['payload']['value'] == payload_body
-        assert actual_vectordb_action['query_type'] == 'payload_search'
+        assert actual_vectordb_action['payload'][0]['type'] == 'from_value'
+        assert actual_vectordb_action['payload'][0]['value'] == payload_body
+        assert actual_vectordb_action['payload'][0]['query_type'] == 'payload_search'
         assert actual_vectordb_action['response']['value'] == '1'
 
     def test_add_vector_embedding_action_config_op_embedding_search_from_slot(self):
@@ -9877,7 +9875,7 @@ class TestMongoProcessor:
         action = 'test_vectordb_action_op_embedding_search_from_slot'
         response = 'nupur.khare'
         query_type = 'embedding_search'
-        payload = {'type': 'from_slot', 'value': 'email'}
+        payload = {'type': 'from_slot', 'value': 'email', 'query_type': query_type,}
         processor.add_slot({"name": "email", "type": "text", "initial_value": "nupur.khare@digite.com",
                             "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
@@ -9893,8 +9891,7 @@ class TestMongoProcessor:
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_op_embedding_search_from_slot',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response),
             set_slots=[SetSlotsUsingActionResponse(name="age", value="${data.age}", evaluation_type="expression")]
         )
@@ -9905,9 +9902,9 @@ class TestMongoProcessor:
         assert actual_vectordb_action['name'] == action
         assert actual_vectordb_action[
                    'collection'] == 'test_add_vector_embedding_action_config_op_embedding_search_from_slot'
-        assert actual_vectordb_action['payload']['type'] == 'from_slot'
-        assert actual_vectordb_action['payload']['value'] == 'email'
-        assert actual_vectordb_action['query_type'] == 'embedding_search'
+        assert actual_vectordb_action['payload'][0]['type'] == 'from_slot'
+        assert actual_vectordb_action['payload'][0]['value'] == 'email'
+        assert actual_vectordb_action['payload'][0]['query_type'] == 'embedding_search'
         assert actual_vectordb_action['response']['value'] == 'nupur.khare'
 
     def test_add_vector_embedding_action_config_op_embedding_search_from_slot_does_not_exists(self):
@@ -9917,13 +9914,12 @@ class TestMongoProcessor:
         action = 'test_vectordb_action_slot'
         response = 'nupur.khare'
         query_type = 'embedding_search'
-        payload = {'type': 'from_slot', 'value': 'cuisine'}
+        payload = {'type': 'from_slot', 'value': 'cuisine', 'query_type': query_type,}
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_op_embedding_search_from_slot_does_not_exists',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response),
             set_slots=[SetSlotsUsingActionResponse(name="age", value="${data.age}", evaluation_type="expression")]
         )
@@ -9945,12 +9941,11 @@ class TestMongoProcessor:
                 ]
             }
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_collection_does_not_exists',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response),
         )
         with pytest.raises(AppException, match="Collection does not exist!"):
@@ -9970,12 +9965,11 @@ class TestMongoProcessor:
             "with_payload": True,
             "with_vector": True
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_existing_name',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
         with pytest.raises(AppException, match="Action exists"):
@@ -9995,7 +9989,7 @@ class TestMongoProcessor:
             "with_payload": True,
             "with_vector": True
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
@@ -10009,8 +10003,7 @@ class TestMongoProcessor:
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_empty_payload_values',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
         vectordb_action = vectordb_action_config.dict()
@@ -10020,12 +10013,11 @@ class TestMongoProcessor:
         vectordb_action_config_two = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_empty_payload_values',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
         vectordb_action_two = vectordb_action_config_two.dict()
-        vectordb_action_two['payload']['type'] = ''
+        vectordb_action_two['payload'][0]['type'] = ''
         with pytest.raises(ValidationError, match="payload type is required"):
             processor.add_db_action(vectordb_action_two, user, bot)
 
@@ -10043,7 +10035,7 @@ class TestMongoProcessor:
             "with_payload": True,
             "with_vector": True
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
@@ -10057,8 +10049,7 @@ class TestMongoProcessor:
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_empty_operation_values',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
         vectordb_action = vectordb_action_config.dict()
@@ -10068,12 +10059,11 @@ class TestMongoProcessor:
         vectordb_action_config_two = DatabaseActionRequest(
             name=action,
             collection='test_add_vector_embedding_action_config_empty_operation_values',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
         vectordb_action_two = vectordb_action_config_two.dict()
-        vectordb_action_two['query_type'] = ''
+        vectordb_action_two['payload'][0]['query_type'] = ''
         with pytest.raises(ValidationError, match="query type is required"):
             processor.add_db_action(vectordb_action_two, user, bot)
 
@@ -10085,7 +10075,7 @@ class TestMongoProcessor:
         response = 'nupur.khare'
 
         query_type = 'embedding_search'
-        payload = {'type': 'from_slot', 'value': 'email'}
+        payload = {'type': 'from_slot', 'value': 'email', 'query_type': query_type,}
         CognitionSchema(
             metadata=[{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
             collection_name="test_get_vector_embedding_action",
@@ -10098,8 +10088,7 @@ class TestMongoProcessor:
         DatabaseAction(
             name=action,
             collection='test_get_vector_embedding_action',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=HttpActionResponse(value=response),
             set_slots=[SetSlotsFromResponse(name="email", value="${data.email}", evaluation_type="expression")],
             bot=bot,
@@ -10108,8 +10097,7 @@ class TestMongoProcessor:
         actual = processor.get_db_action_config(bot=bot, action=action)
         assert actual is not None
         assert actual['name'] == action
-        assert actual['query_type'] == 'embedding_search'
-        assert actual['payload'] == {'type': 'from_slot', 'value': 'email'}
+        assert actual['payload'][0] == {'type': 'from_slot', 'value': 'email', 'query_type': 'embedding_search'}
         assert actual['collection'] == 'test_get_vector_embedding_action'
         assert actual['response'] == {'value': 'nupur.khare', 'dispatch': True, 'evaluation_type': 'expression',
                                       'dispatch_type': 'text'}
@@ -10124,12 +10112,11 @@ class TestMongoProcessor:
         response = 'nupur.khare'
 
         query_type = 'embedding_search'
-        payload = {'type': 'from_slot', 'value': 'email'}
+        payload = {'type': 'from_slot', 'value': 'email', 'query_type': query_type,}
         DatabaseAction(
             name=action,
             collection='test_get_vector_embedding_action_does_not_exists',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=HttpActionResponse(value=response),
             set_slots=[SetSlotsFromResponse(name="email", value="${data.email}", evaluation_type="expression")],
             bot=bot,
@@ -10163,7 +10150,7 @@ class TestMongoProcessor:
                 ]
             }
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         CognitionSchema(
             metadata=[{"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True},
@@ -10178,8 +10165,7 @@ class TestMongoProcessor:
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_update_vector_embedding_action',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
         processor.add_db_action(vectordb_action_config.dict(), user, bot)
@@ -10187,18 +10173,17 @@ class TestMongoProcessor:
         assert actual is not None
         assert actual['name'] == action
         assert actual['response']['value'] == '15'
-        assert actual['payload']['value'] == {'filter': {
+        assert actual['payload'][0]['value'] == {'filter': {
             'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
         response_two = 'nimble'
         processor.add_slot({"name": "name", "type": "text", "initial_value": "nupur",
                             "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
-        payload_two = {'type': 'from_value', 'value': 'name'}
+        payload_two = {'type': 'from_value', 'value': 'name', 'query_type': query_type}
         vectordb_action_config_updated = DatabaseActionRequest(
             name=action,
             collection='test_update_vector_embedding_action',
-            query_type=query_type,
-            payload=payload_two,
+            payload=[payload_two],
             response=ActionResponseEvaluation(value=response_two),
             set_slots=[SetSlotsUsingActionResponse(name="name", value="${data.name}", evaluation_type="expression")]
         )
@@ -10207,7 +10192,7 @@ class TestMongoProcessor:
         assert actual_two is not None
         assert actual_two['name'] == action
         assert actual_two['response']['value'] == 'nimble'
-        assert actual_two['payload']['value'] == 'name'
+        assert actual_two['payload'][0]['value'] == 'name'
 
     def test_update_vector_embedding_action_does_not_exists(self):
         processor = MongoProcessor()
@@ -10223,12 +10208,11 @@ class TestMongoProcessor:
             "with_payload": True,
             "with_vector": True
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         vectordb_action_config = DatabaseActionRequest(
             name=action,
             collection='test_update_vector_embedding_action_does_not_exists',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
         with pytest.raises(AppException,
@@ -10249,13 +10233,12 @@ class TestMongoProcessor:
             "with_payload": True,
             "with_vector": True
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         Actions(name=action, type=ActionType.database_action.value, bot=bot, user=user).save()
         DatabaseAction(
             name=action,
             collection='test_delete_vector_embedding_action_config',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=HttpActionResponse(value=response),
             bot=bot,
             user=user
@@ -10282,12 +10265,11 @@ class TestMongoProcessor:
             "with_payload": True,
             "with_vector": True
         }
-        payload = {'type': 'from_value', 'value': payload_body}
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type,}
         DatabaseAction(
             name=action,
             collection='test_delete_vector_embedding_action_config_non_existing',
-            query_type=query_type,
-            payload=payload,
+            payload=[payload],
             response=HttpActionResponse(value=response),
             bot=bot,
             user=user
