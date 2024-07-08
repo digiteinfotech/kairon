@@ -340,7 +340,7 @@ class HttpActionParameters(BaseModel):
         return values
 
 
-class SetSlotsUsingActionResponse(BaseModel):
+class SetSlotsUsingActionResponse(BaseModel, use_enum_values=True):
     name: str
     value: str
     evaluation_type: EvaluationType = EvaluationType.expression
@@ -1029,7 +1029,7 @@ class PromptHyperparameters(BaseModel):
         return values
 
 
-class LlmPromptRequest(BaseModel):
+class LlmPromptRequest(BaseModel, use_enum_values=True):
     name: str
     hyperparameters: PromptHyperparameters = None
     data: str = None
@@ -1090,19 +1090,7 @@ class PromptActionConfigRequest(BaseModel):
     def validate_llm_hyperparameters(cls, v, values, **kwargs):
         if values.get('llm_type'):
             Utility.validate_llm_hyperparameters(v, values['llm_type'], ValueError)
-
-    @root_validator
-    def check(cls, values):
-        from kairon.shared.utils import Utility
-
-        if values.get("llm_type"):
-            if not values.get("hyperparameters"):
-                values["hyperparameters"] = {}
-
-            for key, value in Utility.get_llm_hyperparameters(values.get("llm_type")).items():
-                if key not in values["hyperparameters"]:
-                    values["hyperparameters"][key] = value
-        return values
+        return v
 
 
 class ColumnMetadata(BaseModel):

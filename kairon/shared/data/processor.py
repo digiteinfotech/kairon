@@ -7269,7 +7269,8 @@ class MongoProcessor:
         Utility.is_valid_action_name(request_data.get("name"), bot, PromptAction)
         request_data["bot"] = bot
         request_data["user"] = user
-        prompt_action_id = PromptAction(**request_data).save().id.__str__()
+        prompt_action = PromptAction(**request_data)
+        prompt_action_id = prompt_action.save().id.__str__()
         self.add_action(
             request_data["name"],
             bot,

@@ -138,7 +138,6 @@ llm:
               type: "string"
           - type: "integer"
           - type: "null"
-
         type:
           - "string"
           - "array"

@@ -24703,6 +24703,78 @@ def test_download_faq(monkeypatch):
     assert response.content
 
 
+def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
+    temp = Utility.get_default_llm_hyperparameters().copy()
+    temp['stop'] = 'abc'
+    temp['temperature'] = 1.0
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    action = {
+        "name": "test_add_prompt_action_with_stop_hyperparameters", 'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Similarity Prompt",
+                "data": "Bot_collection",
+                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                "type": "user",
+                "source": "bot_content",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "If there is no specific query, assume that user is aking about java programming.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": temp
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    
+    from kairon.shared.actions.data_objects import PromptAction
+    
+    action = PromptAction.objects(bot=pytest.bot).get(id=actual["data"]["_id"])
+    assert action.hyperparameters['stop'] == 'abc'
+    assert action.hyperparameters['temperature'] == 1.0
+
+
 @responses.activate
 def test_idp_provider_fields():
     response = client.get(
