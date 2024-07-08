@@ -29,7 +29,7 @@ dramatiq==1.17.0
 dramatiq-mongodb==0.8.3
 nlpaug==1.1.11
 keybert==0.8.4
-pyTelegramBotAPI==4.19.1
+pyTelegramBotAPI==4.21.0
 APScheduler==3.9.1.post1
 croniter==2.0.5
 faiss-cpu==1.8.0
