@@ -7459,7 +7459,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'user'
-        with pytest.raises(AppException, match='Form with name "restaurant_form" exists'):
+        with pytest.raises(AppException, match="Form with the name 'restaurant_form' already exists"):
             processor.add_form('restaurant_form', [], bot, user)
 
     def test_add_form_name_empty(self):

@@ -244,8 +244,8 @@ actions:
 - utter_feedback
 - utter_good_feedback
 - utter_bad_feedback
-- ticket_attributes_form
-- ticket_file_form
+- ticket_attributes_form_action
+- ticket_file_form_action
 forms:
   ticket_attributes_form:
     required_slots:

@@ -26,7 +26,7 @@ stories:
     - intent: affirm
     - intent: affirm_attachment
   - action: action_clear_file
-  - action: ticket_file_form
+  - action: ticket_file_form_action
   - slot_was_set:
     - priority: High
   - active_loop: ticket_file_form
@@ -49,12 +49,12 @@ stories:
   - action: utter_ticket_attributes
   - intent: deny
   - action: action_clear_priority
-  - action: ticket_attributes_form
+  - action: ticket_attributes_form_action
   - active_loop: ticket_attributes_form
   - action: utter_attachment_upload
   - intent: affirm
   - action: action_clear_file
-  - action: ticket_file_form
+  - action: ticket_file_form_action
   - active_loop: ticket_file_form
   - action: action_log_ticket
   - action: action_restart
@@ -65,7 +65,7 @@ stories:
   - action: utter_ticket_attributes
   - intent: deny
   - action: action_clear_priority
-  - action: ticket_attributes_form
+  - action: ticket_attributes_form_action
   - active_loop: ticket_attributes_form
   - action: utter_attachment_upload
   - intent: deny

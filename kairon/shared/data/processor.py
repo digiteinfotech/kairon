@@ -1052,7 +1052,6 @@ class MongoProcessor:
             key for name_mapping in saved_forms for key in name_mapping.keys()
         }
         for form, mappings in forms.items():
-            self.__check_for_form_and_action_existance(bot, form)
             if form not in saved_form_names:
                 yield self.__save_form_logic(
                     form, mappings.get("required_slots") or {}, bot, user
@@ -1067,6 +1066,7 @@ class MongoProcessor:
             ).get()
             form_validation_action.type = ActionType.form_validation_action.value
             form_validation_action.save()
+        self.__check_for_form_and_action_existance(bot, name)
         form = Forms(name=name, required_slots=slots, bot=bot, user=user)
         form.clean()
         return form
@@ -1117,8 +1117,8 @@ class MongoProcessor:
     def __extract_actions(self, actions, bot: Text, user: Text):
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
-            self.__check_for_form_and_action_existance(bot, action)
             if action.strip().lower() not in saved_actions:
+                self.__check_for_form_and_action_existance(bot, action)
                 new_action = Actions(name=action, bot=bot, user=user)
                 new_action.clean()
                 yield new_action
@@ -7863,3 +7863,4 @@ class MongoProcessor:
         if not check_in_utils:
             return True
         return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)
+
