@@ -1121,6 +1121,7 @@ class MongoProcessor:
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
             if action.strip().lower() not in saved_actions:
+                self.__check_for_form_and_action_existance(bot, action)
                 new_action = Actions(name=action, bot=bot, user=user)
                 new_action.clean()
                 yield new_action
