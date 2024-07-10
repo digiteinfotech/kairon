@@ -2329,33 +2329,80 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Success',
+            status='sent',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de2",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de2",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de2",
             bot=bot,
             user=user
         ).save()
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Success',
+            status='sent',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de2",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de2",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de2",
             bot=bot,
             user=user
         ).save()
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Failed',
+            status='failed',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AA==',
+            campaign_id="667bed955bfdaf3466b19de2",
             errors=[
                 {
                     "code": 130472,
@@ -2402,9 +2449,30 @@ class TestEventExecution:
             'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
+        logs[0][3].pop("timestamp")
+        logs[0][3].get("config").pop("timestamp")
+        reference_id = logs[0][3].get("reference_id")
+        logged_config = logs[0][3]
+        assert logged_config == {
+            'reference_id': reference_id, 'log_type': 'common',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values',
+            'status': 'Completed', 'user': 'test_user', 'event_id': event_id,
+            'recipients': ['919876543210', '919012345678'],
+            'config': {'_id': event_id, 'name': 'test_broadcast', 'connector_type': 'whatsapp',
+                       'broadcast_type': 'static', 'recipients_config': {'recipients': '919876543210,919012345678'},
+                       'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}], 'retry_count': 0,
+                       'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values',
+                       'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
+            'resend_count_1': 1, 'skipped_count_1': 0}
+
         assert ChannelLogs.objects(
-            bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB=='
+            bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
         ).get().campaign_id == reference_id
+
+        result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
+        assert result == [{'campaign_id': reference_id,
+                           'status': {'delivered': 1, 'delivered_1': 1, 'failed': 1,
+                                      'read': 1, 'read_1': 1, 'sent': 1, 'sent_1': 1}}]
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -2607,33 +2675,80 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Success',
+            status='sent',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de1",
             bot=bot,
             user=user
         ).save()
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Success',
+            status='sent',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de1",
             bot=bot,
             user=user
         ).save()
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Failed',
+            status='failed',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AA==',
+            campaign_id="667bed955bfdaf3466b19de1",
             errors=[
                 {
                     "code": 130472,
@@ -2680,9 +2795,30 @@ class TestEventExecution:
             'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
+        logs[0][3].pop("timestamp")
+        logs[0][3].get("config").pop("timestamp")
+        reference_id = logs[0][3].get("reference_id")
+        logged_config = logs[0][3]
+        assert logged_config == {
+            'reference_id': reference_id, 'log_type': 'common',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values', 'status': 'Completed',
+            'user': 'test_user', 'event_id': event_id,
+            'recipients': ['919876543210', '919012345678'],
+            'config': {'_id': event_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
+                       'broadcast_type': 'dynamic', 'template_config': [],
+                       'pyscript': '\ncontacts = [\'919876543210\',\'919012345678\']\n\ncomponents = components = [{\'type\': \'header\', \'parameters\': [{\'type\': \'document\', \'document\': {\n                          \'link\': \'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\',\n                          \'filename\': \'Brochure.pdf\'}}]}]\nfor contact in contacts:\n    resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")\n\n    log(contact=contact,whatsapp_response=resp)            \n',
+                       'retry_count': 0,
+                       'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values',
+                       'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
+            'resend_count_1': 1, 'skipped_count_1': 0}
         assert ChannelLogs.objects(
-            bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB=='
+            bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
         ).get().campaign_id == reference_id
+
+        result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
+        assert result == [{'campaign_id': reference_id,
+                           'status': {'delivered': 1, 'delivered_1': 1, 'failed': 1, 'read': 1,
+                                      'read_1': 1, 'sent': 1, 'sent_1': 1}}]
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -2704,7 +2840,7 @@ class TestEventExecution:
             "name": "test_broadcast", "broadcast_type": "static",
             "connector_type": "whatsapp",
             "recipients_config": {
-                "recipients": "919876543210,919012345678"
+                "recipients": "919876543210,919012345678,919012341234"
             },
             "template_config": [
                 {
@@ -2773,7 +2909,7 @@ class TestEventExecution:
                 "status": "Completed",
                 "user": "test_user",
                 "event_id": msg_broadcast_id,
-                "recipients": ["919876543210", "919012345678"],
+                "recipients": ["919876543210", "919012345678", "919012341234"],
                 "timestamp": timestamp,
 
             }
@@ -2936,33 +3072,80 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Success',
+            status='sent',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de3",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de3",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de3",
             bot=bot,
             user=user
         ).save()
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Success',
+            status='sent',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de3",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de3",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de3",
             bot=bot,
             user=user
         ).save()
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Failed',
+            status='failed',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AA==',
+            campaign_id="667bed955bfdaf3466b19de3",
             errors=[
                 {
                     "code": 130472,
@@ -2980,11 +3163,12 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Failed',
+            status='failed',
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
             message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AB==',
+            campaign_id="667bed955bfdaf3466b19de3",
             errors=[
                 {
                     "code": 131021,
@@ -3033,6 +3217,568 @@ class TestEventExecution:
             'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
+        logs[0][4].pop("timestamp")
+        logs[0][4].get("config").pop("timestamp")
+        reference_id = logs[0][4].get("reference_id")
+        logged_config = logs[0][4]
+        assert logged_config == {
+            'reference_id': reference_id, 'log_type': 'common',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_meta_error_codes_to_skip',
+            'status': 'Completed', 'user': 'test_user', 'event_id': event_id,
+            'recipients': ['919876543210', '919012345678', '919012341234'],
+            'config': {'_id': event_id, 'name': 'test_broadcast',
+                       'connector_type': 'whatsapp', 'broadcast_type': 'static',
+                       'recipients_config': {'recipients': '919876543210,919012345678,919012341234'},
+                       'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}], 'retry_count': 0,
+                       'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_meta_error_codes_to_skip',
+                       'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
+            'resend_count_1': 1, 'skipped_count_1': 1}
+
         assert ChannelLogs.objects(
-            bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB=='
+            bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
         ).get().campaign_id == reference_id
+
+        result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
+        assert result == [{'campaign_id': reference_id,
+                           'status': {'delivered': 1, 'delivered_1': 1, 'failed': 2,
+                                      'read': 1, 'read_1': 1, 'sent': 1, 'sent_1': 1}}]
+
+    @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_resend_broadcast_multiple_times(
+            self, mock_is_exist, mock_channel_config, mock_get_bot_settings, mock_send,
+            mock_get_partner_auth_token
+    ):
+        from datetime import datetime, timedelta
+        from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, MessageBroadcastLogs
+
+        bot = 'test_execute_message_broadcast_with_resend_broadcast_multiple_times'
+        user = 'test_user'
+        config = {
+            "name": "test_broadcast", "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipients": "919876543210,919012345678,919012341234"
+            },
+            "template_config": [
+                {
+                    'language': 'hi',
+                    "template_id": "brochure_pdf",
+                }
+            ],
+            "status": False,
+            "retry_count": 1,
+            "bot": bot,
+            "user": user
+        }
+        template = [
+            {
+                "format": "TEXT",
+                "text": "Kisan Suvidha Program Follow-up",
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            },
+            {
+                "buttons": [
+                    {
+                        "text": "Connect to Agronomist",
+                        "type": "QUICK_REPLY"
+                    }
+                ],
+                "type": "BUTTONS"
+            }
+        ]
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
+                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
+                                  "messages": [{"id": 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+                                                "message_status": 'accepted'}]}
+        mock_get_partner_auth_token.return_value = None
+
+        msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
+        timestamp = datetime.utcnow()
+        MessageBroadcastLogs(
+            **{
+                "reference_id": "667bed955bfdaf3466b19de4",
+                "log_type": "common",
+                "bot": bot,
+                "status": "Completed",
+                "user": "test_user",
+                "total": 3,
+                "resend_count_1": 2,
+                "skipped_count_1": 0,
+                "event_id": msg_broadcast_id,
+                "recipients": ["919876543210", "919012345678", "919012341234"],
+                "timestamp": timestamp,
+
+            }
+        ).save()
+        timestamp = timestamp + timedelta(minutes=2)
+        MessageBroadcastLogs(
+            **{
+                "reference_id": "667bed955bfdaf3466b19de4",
+                "log_type": "send",
+                "bot": bot,
+                "status": "Success",
+                "template_name": "brochure_pdf",
+                "template": template,
+                "namespace": "54500467_f322_4595_becd_419af88spm4",
+                "language_code": "hi",
+                "errors": [],
+                "api_response": {
+                    "messaging_product": "whatsapp",
+                    "contacts": [
+                        {
+                            "input": "919012345678",
+                            "wa_id": "919012345678"
+                        }
+                    ],
+                    "messages": [
+                        {
+                            "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ"
+                        }
+                    ]
+                },
+                "recipient": "919012345678",
+                "template_params": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                    "filename": "Brochure.pdf",
+                                },
+                            }
+                        ],
+                    }
+                ],
+                "timestamp": timestamp,
+                "retry_count": 0
+            }
+        ).save()
+        timestamp = timestamp + timedelta(minutes=2)
+        MessageBroadcastLogs(
+            **{
+                "reference_id": "667bed955bfdaf3466b19de4",
+                "log_type": "send",
+                "bot": bot,
+                "status": "Success",
+                "template_name": "brochure_pdf",
+                "template": template,
+                "namespace": "54500467_f322_4595_becd_419af88spm4",
+                "language_code": "hi",
+                "errors": [
+                    {
+                        "code": 130472,
+                        "title": "User's number is part of an experiment",
+                        "message": "User's number is part of an experiment",
+                        "error_data": {
+                            "details": "Failed to send message because this user's phone number is part of an experiment"
+                        },
+                        "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                    }
+                ],
+                "api_response": {
+                    "messaging_product": "whatsapp",
+                    "contacts": [
+                        {
+                            "input": "919876543210",
+                            "wa_id": "919876543210"
+                        }
+                    ],
+                    "messages": [
+                        {
+                            "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AA=="
+                        }
+                    ]
+                },
+                "recipient": "919876543210",
+                "template_params": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                    "filename": "Brochure.pdf",
+                                },
+                            }
+                        ],
+                    }
+                ],
+                "timestamp": timestamp,
+                "retry_count": 0
+            }
+        ).save()
+
+        MessageBroadcastLogs(
+            **{
+                "reference_id": "667bed955bfdaf3466b19de4",
+                "log_type": "send",
+                "bot": bot,
+                "status": "Success",
+                "template_name": "brochure_pdf",
+                "template": template,
+                "namespace": "54500467_f322_4595_becd_419af88spm4",
+                "language_code": "hi",
+                "errors": [
+                    {
+                        "code": 131026,
+                        "title": "Sender and recipient phone number is the same.",
+                        "message": "Sender and recipient phone number is the same.",
+                        "error_data": {
+                            "details": "Send a message to a phone number different from the sender."
+                        },
+                        "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                    }
+                ],
+                "api_response": {
+                    "messaging_product": "whatsapp",
+                    "contacts": [
+                        {
+                            "input": "919876543210",
+                            "wa_id": "919876543210"
+                        }
+                    ],
+                    "messages": [
+                        {
+                            "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AB=="
+                        }
+                    ]
+                },
+                "recipient": "919876543210",
+                "template_params": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                    "filename": "Brochure.pdf",
+                                },
+                            }
+                        ],
+                    }
+                ],
+                "timestamp": timestamp,
+                "retry_count": 0
+            }
+        ).save()
+
+        MessageBroadcastLogs(
+            **{
+                "reference_id": "667bed955bfdaf3466b19de4",
+                "log_type": "resend",
+                "bot": bot,
+                "status": "Success",
+                "template_name": "brochure_pdf",
+                "template": template,
+                "namespace": "54500467_f322_4595_becd_419af88spm4",
+                "language_code": "hi",
+                "errors": [
+                    {
+                        "code": 130472,
+                        "title": "User's number is part of an experiment",
+                        "message": "User's number is part of an experiment",
+                        "error_data": {
+                            "details": "Failed to send message because this user's phone number is part of an experiment"
+                        },
+                        "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                    }
+                ],
+                "api_response": {
+                    "messaging_product": "whatsapp",
+                    "contacts": [
+                        {
+                            "input": "919876543210",
+                            "wa_id": "919876543210"
+                        }
+                    ],
+                    "messages": [
+                        {
+                            "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AB=="
+                        }
+                    ]
+                },
+                "recipient": "919876543210",
+                "template_params": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                    "filename": "Brochure.pdf",
+                                },
+                            }
+                        ],
+                    }
+                ],
+                "timestamp": timestamp,
+                "retry_count": 1
+            }
+        ).save()
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='sent',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de4",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de4",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de4",
+            bot=bot,
+            user=user
+        ).save()
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='sent',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de4",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de4",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de4",
+            bot=bot,
+            user=user
+        ).save()
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='failed',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AA==',
+            campaign_id="667bed955bfdaf3466b19de4",
+            errors=[
+                {
+                    "code": 130472,
+                    "title": "User's number is part of an experiment",
+                    "message": "User's number is part of an experiment",
+                    "error_data": {
+                        "details": "Failed to send message because this user's phone number is part of an experiment"
+                    },
+                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                }
+            ],
+            bot=bot,
+            user=user
+        ).save()
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='failed',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AB==',
+            campaign_id="667bed955bfdaf3466b19de4",
+            errors=[
+                {
+                    "code": 131021,
+                    "title": "Sender and recipient phone number is the same.",
+                    "message": "Sender and recipient phone number is the same.",
+                    "error_data": {
+                        "details": "Send a message to a phone number different from the sender."
+                    },
+                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                }
+            ],
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='failed',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4ABC==',
+            campaign_id="667bed955bfdaf3466b19de4",
+            retry_count=1,
+            errors=[
+                {
+                    "code": 131021,
+                    "title": "Sender and recipient phone number is the same.",
+                    "message": "Sender and recipient phone number is the same.",
+                    "error_data": {
+                        "details": "Send a message to a phone number different from the sender."
+                    },
+                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                }
+            ],
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='sent',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBBD==',
+            campaign_id="667bed955bfdaf3466b19de4",
+            retry_count=1,
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBBD==',
+            campaign_id="667bed955bfdaf3466b19de4",
+            retry_count=1,
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBBD==',
+            campaign_id="667bed955bfdaf3466b19de4",
+            retry_count=1,
+            bot=bot,
+            user=user
+        ).save()
+
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.resend_broadcast.value,
+                                     msg_broadcast_id=msg_broadcast_id)
+            event.execute(event_id, is_resend=True)
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 6
+        logs[0][4].pop("timestamp")
+        reference_id = logs[0][4].get("reference_id")
+        logged_config = logs[0][4]
+        assert logged_config == {
+            'reference_id': reference_id, 'log_type': 'resend',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_multiple_times',
+            'status': 'Success',
+            'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
+                             'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+                                           'message_status': 'accepted'}]},
+            'recipient': '919876543210', 'template_params': [
+                {'type': 'header',
+                 'parameters': [{'type': 'document', 'document': {'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                                                  'filename': 'Brochure.pdf'}}]}],
+            'template': [{'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'},
+                         {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
+                         {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
+                         {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
+            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 2, 'errors': []}
+
+        logs[0][5].pop("timestamp")
+        logs[0][5].get("config").pop("timestamp")
+        reference_id = logs[0][5].get("reference_id")
+        logged_config = logs[0][5]
+        assert logged_config == {
+            'reference_id': reference_id, 'log_type': 'common',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_multiple_times', 'status': 'Completed',
+            'user': 'test_user', 'total': 3, 'resend_count_1': 2, 'skipped_count_1': 0, 'event_id': event_id,
+            'recipients': ['919876543210', '919012345678', '919012341234'],
+            'config': {'_id': event_id, 'name': 'test_broadcast',
+                       'connector_type': 'whatsapp', 'broadcast_type': 'static',
+                       'recipients_config': {'recipients': '919876543210,919012345678,919012341234'},
+                       'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
+                       'retry_count': 1, 'bot': 'test_execute_message_broadcast_with_resend_broadcast_multiple_times',
+                       'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
+            'resend_count_2': 1, 'skipped_count_2': 0}
+
+        assert ChannelLogs.objects(
+            bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
+        ).get().campaign_id == reference_id
+
+        result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
+        assert result == [
+            {'campaign_id': reference_id,
+             'status': {'delivered': 1, 'delivered_1': 1, 'delivered_2': 1, 'failed': 2, 'failed_1': 1,
+                        'read': 1, 'read_1': 1, 'read_2': 1, 'sent': 1, 'sent_1': 1, 'sent_2': 1}}]
+
