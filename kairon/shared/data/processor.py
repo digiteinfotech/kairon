@@ -2665,7 +2665,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Action name cannot be empty or blank spaces")
 
-        self.__check_for_form_and_action_existance(bot, name, action_type)
+        self.__check_for_form_and_action_existance(bot, name)
 
         if not name.startswith("utter_") and not Utility.is_exist(
                 Actions,
@@ -3832,30 +3832,28 @@ class MongoProcessor:
                 .to_mongo()
                 .to_dict()
             )
-            params_list = [
-                HttpActionRequestBody(**param)
-                for param in request_data.get("params_list") or []
-            ]
-            headers = [
-                HttpActionRequestBody(**param)
-                for param in request_data.get("headers") or []
-            ]
+            params_list = Utility.build_http_request_data_object(
+                request_data.get("params_list", [])
+            )
+            headers = Utility.build_http_request_data_object(
+                request_data.get("headers", [])
+            )
             set_slots = [
                 SetSlotsFromResponse(**slot).to_mongo().to_dict()
                 for slot in request_data.get("set_slots")
             ]
-            http_action.http_url = request_data["http_url"]
-            http_action.request_method = request_data["request_method"]
-            http_action.dynamic_params = request_data.get("dynamic_params")
-            http_action.content_type = content_type
-            http_action.params_list = params_list
-            http_action.headers = headers
-            http_action.response = HttpActionResponse(**request_data.get("response", {}))
-            http_action.set_slots = set_slots
-            http_action.user = user
-            http_action.timestamp = datetime.utcnow()
-            http_action.save()
-
+            http_action.update(
+                set__http_url=request_data["http_url"],
+                set__request_method=request_data["request_method"],
+                set__dynamic_params=request_data.get("dynamic_params"),
+                set__content_type=content_type,
+                set__params_list=params_list,
+                set__headers=headers,
+                set__response=response,
+                set__set_slots=set_slots,
+                set__user=user,
+                set__timestamp=datetime.utcnow(),
+            )
             return http_action.id.__str__()
 
     def add_http_action_config(self, http_action_config: Dict, user: str, bot: str):
@@ -4008,12 +4006,12 @@ class MongoProcessor:
         action = PyscriptActionConfig.objects(
             name=request_data.get("name"), bot=bot, status=True
         ).get()
-        action.source_code = request_data["source_code"]
-        action.dispatch_response = request_data["dispatch_response"]
-        action.user = user
-        action.timestamp = datetime.utcnow()
-        action.save()
-
+        action.update(
+            source_code=request_data["source_code"],
+            set__dispatch_response=request_data["dispatch_response"],
+            set__user=user,
+            set__timestamp=datetime.utcnow(),
+        )
         return action.id.__str__()
 
     def list_pyscript_actions(self, bot: str, with_doc_id: bool = True):
@@ -4062,7 +4060,8 @@ class MongoProcessor:
             name=request_data.get("name"), bot=bot, status=True
         ).get()
         action.collection = request_data['collection']
-        action.payload = [DbQuery(**item) for item in request_data["payload"]]
+        action.query_type = request_data["query_type"]
+        action.payload = DbQuery(**request_data["payload"])
         action.response = HttpActionResponse(**request_data.get("response", {}))
         action.set_slots = [
             SetSlotsFromResponse(**slot).to_mongo().to_dict()
@@ -4097,7 +4096,8 @@ class MongoProcessor:
             DatabaseAction(
                 name=vector_db_action_config["name"],
                 collection=vector_db_action_config['collection'],
-                payload=vector_db_action_config.get("payload"),
+                query_type=vector_db_action_config.get("query_type"),
+                payload=DbQuery(**vector_db_action_config.get("payload")),
                 response=HttpActionResponse(
                     **vector_db_action_config.get("response", {})
                 ),
@@ -4118,13 +4118,12 @@ class MongoProcessor:
         return action_id
 
     def __validate_payload(self, payload, bot: Text):
-        for item in payload:
-            if item.get("type") == DbQueryValueType.from_slot.value:
-                slot = item.get("value")
-                if not Utility.is_exist(
-                        Slots, raise_error=False, name=slot, bot=bot, status=True
-                ):
-                    raise AppException(f"Slot with name {slot} not found!")
+        if payload.get("type") == DbQueryValueType.from_slot.value:
+            slot = payload.get("value")
+            if not Utility.is_exist(
+                    Slots, raise_error=False, name=slot, bot=bot, status=True
+            ):
+                raise AppException(f"Slot with name {slot} not found!")
 
     def get_db_action_config(self, bot: str, action: str):
         """
@@ -6540,7 +6539,7 @@ class MongoProcessor:
                 Utility.hard_delete_document(
                     [PyscriptActionConfig], name__iexact=name, bot=bot
                 )
-            action.delete(user=user)
+            action.delete()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
 
