@@ -1066,6 +1066,7 @@ class MongoProcessor:
             ).get()
             form_validation_action.type = ActionType.form_validation_action.value
             form_validation_action.save()
+        self.__check_for_form_and_action_existance(bot, name)
         form = Forms(name=name, required_slots=slots, bot=bot, user=user)
         form.clean()
         return form
@@ -1117,9 +1118,20 @@ class MongoProcessor:
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
             if action.strip().lower() not in saved_actions:
+                self.__check_for_form_and_action_existance(bot, action)
                 new_action = Actions(name=action, bot=bot, user=user)
                 new_action.clean()
                 yield new_action
+
+    def __check_for_form_and_action_existance(self, bot: Text, name: Text):
+        Utility.is_exist(Actions,
+                        raise_error=True,
+                        exp_message=f"Action with the name '{name}' already exists",
+                        name=name, bot=bot, status=True)
+        Utility.is_exist(Forms,
+                         raise_error=True,
+                         exp_message=f"Form with the name '{name}' already exists",
+                         name=name, bot=bot, status=True)
 
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
@@ -2647,6 +2659,8 @@ class MongoProcessor:
         """
         if Utility.check_empty_string(name):
             raise AppException("Action name cannot be empty or blank spaces")
+
+        self.__check_for_form_and_action_existance(bot, name)
 
         if not name.startswith("utter_") and not Utility.is_exist(
                 Actions,
@@ -6057,6 +6071,9 @@ class MongoProcessor:
     def add_form(self, name: str, path: list, bot: Text, user: Text):
         if Utility.check_empty_string(name):
             raise AppException("Form name cannot be empty or spaces")
+
+        self.__check_for_form_and_action_existance(bot, name)
+
         Utility.is_exist(
             Forms,
             f'Form with name "{name}" exists',
@@ -7850,3 +7867,4 @@ class MongoProcessor:
         if not check_in_utils:
             return True
         return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)
+

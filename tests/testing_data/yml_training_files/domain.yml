@@ -358,7 +358,7 @@ actions:
 - utter_bad_feedback
 - utter_delete
 - validate_ticket_attributes_form
-- ticket_file_form
+- ticket_file_form_action
 - utter_query
 - utter_more_info
 - action_performanceUser1001@digite.com

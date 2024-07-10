@@ -43,7 +43,7 @@ actions:
 - utter_query
 - utter_more_info
 - utter_performance
-- job_apply
+- job_apply_action
 - reset slots
 - utter_slot_details
 - google_search_action
