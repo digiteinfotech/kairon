@@ -209,10 +209,29 @@ class MessageBroadcastProcessor:
     def get_channel_metrics(channel_type: Text, bot: Text):
         result = list(ChannelLogs.objects.aggregate([
             {'$match': {'bot': bot, 'type': channel_type}},
-            {'$group': {'_id': {'campaign_id': '$campaign_id', 'status': '$status'}, 'count': {'$sum': 1}}},
-            {'$group': {'_id': '$_id.campaign_id', 'status': {'$push': {'k': '$_id.status', 'v': '$count'}}}},
+            {'$group': {'_id': {'campaign_id': '$campaign_id', 'status': '$status', 'retry_count': {'$ifNull': ['$retry_count', 0]}}, 'count': {'$sum': 1}}},
+            {'$group': {'_id': '$_id.campaign_id', 'status': {'$push': {'status': '$_id.status', 'count': '$count', 'retry_count': '$_id.retry_count'}}}},
+            {'$addFields': {
+                'status': {
+                    '$map': {
+                        'input': '$status',
+                        'as': 's',
+                        'in': {
+                            'k': {
+                                '$cond': {
+                                    'if': {'$eq': ['$$s.retry_count', 0]},
+                                    'then': '$$s.status',
+                                    'else': {'$concat': ['$$s.status', '_', {'$toString': '$$s.retry_count'}]}
+                                }
+                            },
+                            'v': '$$s.count'
+                        }
+                    }
+                }
+            }},
             {'$project': {'campaign_id': '$_id', 'status': {'$arrayToObject': '$status'}, '_id': 0}}
         ]))
+
         return result
 
     @staticmethod
