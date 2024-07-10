@@ -1124,10 +1124,14 @@ class MongoProcessor:
                 yield new_action
 
     def __check_for_form_and_action_existance(self, bot: Text, name: Text):
-        if Utility.is_exist(Actions, raise_error=False, name=name, bot=bot, status=True):
-            raise AppException(f"Action with the name '{name}' already exists")
-        if Utility.is_exist(Forms, raise_error=False, name=name, bot=bot, status=True):
-            raise AppException(f"Form with the name '{name}' already exists")
+        Utility.is_exist(Actions,
+                        raise_error=True,
+                        exp_message=f"Action with the name '{name}' already exists",
+                        name=name, bot=bot, status=True)
+        Utility.is_exist(Forms,
+                         raise_error=True,
+                         exp_message=f"Form with the name '{name}' already exists",
+                         name=name, bot=bot, status=True)
 
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
