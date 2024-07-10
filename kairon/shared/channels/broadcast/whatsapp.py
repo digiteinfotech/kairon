@@ -133,11 +133,14 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             self.reference_id, retry_count=retry_count
         )
 
-        required_logs = [log for log in message_broadcast_logs.values() if log["errors"]]
+        broadcast_logs = [log for log in message_broadcast_logs.values() if log["errors"]]
         codes_to_exclude = Utility.environment["channels"]["360dialog"]["error_codes"]
-        required_logs = [log for log in required_logs if log["errors"][0]["code"] not in codes_to_exclude]
+        required_logs = [log for log in broadcast_logs if log["errors"][0]["code"] not in codes_to_exclude]
         channel_client = self.__get_client()
         retry_count += 1
+        failure_cnt = 0
+        total = len(required_logs)
+        skipped_count = len(broadcast_logs) - total
 
         for log in required_logs:
             template_id = log["template_name"]
@@ -149,6 +152,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             response = channel_client.send_template_message(template_id, recipient, language_code, components,
                                                             namespace)
             status = "Failed" if response.get("error") else "Success"
+            if status == "Failed":
+                failure_cnt = failure_cnt + 1
 
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.resend.value, self.reference_id, api_response=response,
@@ -156,6 +161,13 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
                 retry_count=retry_count,
             )
+        kwargs = {
+            f"resend_count_{retry_count}": total,
+            f"skipped_count_{retry_count}": skipped_count
+        }
+        MessageBroadcastProcessor.add_event_log(
+            self.bot, MessageBroadcastLogType.common.value, self.reference_id, **kwargs
+        )
         config = MessageBroadcastProcessor.update_retry_count(self.event_id, self.bot, self.user,
                                                               retry_count=retry_count)
 
