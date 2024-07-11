@@ -1,5 +1,4 @@
 from abc import ABC
-from builtins import type
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 
