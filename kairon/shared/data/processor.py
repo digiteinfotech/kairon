@@ -4055,8 +4055,7 @@ class MongoProcessor:
             name=request_data.get("name"), bot=bot, status=True
         ).get()
         action.collection = request_data['collection']
-        action.query_type = request_data["query_type"]
-        action.payload = DbQuery(**request_data["payload"])
+        action.payload = [DbQuery(**item) for item in request_data["payload"]]
         action.response = HttpActionResponse(**request_data.get("response", {}))
         action.set_slots = [
             SetSlotsFromResponse(**slot).to_mongo().to_dict()
@@ -4091,8 +4090,7 @@ class MongoProcessor:
             DatabaseAction(
                 name=vector_db_action_config["name"],
                 collection=vector_db_action_config['collection'],
-                query_type=vector_db_action_config.get("query_type"),
-                payload=DbQuery(**vector_db_action_config.get("payload")),
+                payload=vector_db_action_config.get("payload"),
                 response=HttpActionResponse(
                     **vector_db_action_config.get("response", {})
                 ),
@@ -4113,12 +4111,13 @@ class MongoProcessor:
         return action_id
 
     def __validate_payload(self, payload, bot: Text):
-        if payload.get("type") == DbQueryValueType.from_slot.value:
-            slot = payload.get("value")
-            if not Utility.is_exist(
-                    Slots, raise_error=False, name=slot, bot=bot, status=True
-            ):
-                raise AppException(f"Slot with name {slot} not found!")
+        for item in payload:
+            if item.get("type") == DbQueryValueType.from_slot.value:
+                slot = item.get("value")
+                if not Utility.is_exist(
+                        Slots, raise_error=False, name=slot, bot=bot, status=True
+                ):
+                    raise AppException(f"Slot with name {slot} not found!")
 
     def get_db_action_config(self, bot: str, action: str):
         """

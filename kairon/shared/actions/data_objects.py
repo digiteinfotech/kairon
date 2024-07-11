@@ -26,7 +26,7 @@ from kairon.shared.actions.models import (
     EvaluationType,
     DispatchType,
     DbQueryValueType,
-    DbActionOperationType, UserMessageType,
+    DbActionOperationType, UserMessageType
 )
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.audit.data_objects import Auditlog
@@ -56,8 +56,8 @@ class HttpActionRequestBody(EmbeddedDocument):
         from .utils import ActionUtility
 
         if (
-            self.parameter_type == ActionParameterType.slot.value
-            and not ActionUtility.is_empty(self.value)
+                self.parameter_type == ActionParameterType.slot.value
+                and not ActionUtility.is_empty(self.value)
         ):
             self.value = self.value.lower()
 
@@ -73,22 +73,22 @@ class HttpActionRequestBody(EmbeddedDocument):
         if ActionUtility.is_empty(self.key):
             raise ValidationError("key in http action parameters cannot be empty")
         if (
-            self.parameter_type == ActionParameterType.slot.value
-            and ActionUtility.is_empty(self.value)
+                self.parameter_type == ActionParameterType.slot.value
+                and ActionUtility.is_empty(self.value)
         ):
             raise ValidationError("Provide name of the slot as value")
         if (
-            self.parameter_type == ActionParameterType.key_vault.value
-            and ActionUtility.is_empty(self.value)
+                self.parameter_type == ActionParameterType.key_vault.value
+                and ActionUtility.is_empty(self.value)
         ):
             raise ValidationError("Provide key from key vault as value")
 
     def __eq__(self, other):
         return (
-            isinstance(other, self.__class__)
-            and self.key == other.key
-            and self.parameter_type == other.parameter_type
-            and self.value == other.value
+                isinstance(other, self.__class__)
+                and self.key == other.key
+                and self.parameter_type == other.parameter_type
+                and self.value == other.value
         )
 
 
@@ -196,16 +196,16 @@ class HttpActionConfig(Auditlog):
 
         for param in document.headers:
             if (
-                param.encrypt is True
-                and param.parameter_type == ActionParameterType.value.value
+                    param.encrypt is True
+                    and param.parameter_type == ActionParameterType.value.value
             ):
                 if not ActionUtility.is_empty(param.value):
                     param.value = Utility.encrypt_message(param.value)
 
         for param in document.params_list:
             if (
-                param.encrypt is True
-                and param.parameter_type == ActionParameterType.value.value
+                    param.encrypt is True
+                    and param.parameter_type == ActionParameterType.value.value
             ):
                 if not ActionUtility.is_empty(param.value):
                     param.value = Utility.encrypt_message(param.value)
@@ -216,10 +216,15 @@ class DbQuery(EmbeddedDocument):
         required=True, choices=[op_type.value for op_type in DbQueryValueType]
     )
     value = DynamicField(default=None)
+    query_type = StringField(
+        required=True, choices=[op_type.value for op_type in DbActionOperationType]
+    )
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.type):
             raise ValidationError("payload type is required")
+        if not self.query_type or self.query_type is None:
+            raise ValidationError("query type is required")
 
 
 @auditlogger.log
@@ -227,8 +232,7 @@ class DbQuery(EmbeddedDocument):
 class DatabaseAction(Auditlog):
     name = StringField(required=True)
     collection = StringField(required=True)
-    query_type = StringField(required=True, choices=[payload.value for payload in DbActionOperationType])
-    payload = EmbeddedDocumentField(DbQuery, required=True)
+    payload = ListField(EmbeddedDocumentField(DbQuery), required=True)
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
     db_type = StringField(required=True, default="qdrant")
@@ -244,10 +248,9 @@ class DatabaseAction(Auditlog):
 
         if self.name is None or not self.name.strip():
             raise ValidationError("Action name cannot be empty")
-        if not self.query_type or self.query_type is None:
-            raise ValidationError("query type is required")
         self.response.validate()
-        self.payload.validate()
+        for item in self.payload:
+            item.validate()
 
 
 class ActionServerLogs(DynamicDocument):
@@ -312,10 +315,10 @@ class SetSlots(EmbeddedDocument):
 
     def __eq__(self, other):
         return (
-            isinstance(other, self.__class__)
-            and self.name == other.name
-            and self.type == other.type
-            and self.value == other.value
+                isinstance(other, self.__class__)
+                and self.name == other.name
+                and self.type == other.type
+                and self.value == other.value
         )
 
 
@@ -448,7 +451,8 @@ class EmailActionConfig(Auditlog):
         elif self.to_email.parameter_type == "slot" and ActionUtility.is_empty(self.to_email.value):
             raise ValidationError("Provide name of the slot as value")
 
-        if self.custom_text and self.custom_text.parameter_type not in {ActionParameterType.value, ActionParameterType.slot}:
+        if self.custom_text and self.custom_text.parameter_type not in {ActionParameterType.value,
+                                                                        ActionParameterType.slot}:
             raise ValidationError("custom_text can only be of type value or slot!")
 
     def clean(self):
@@ -759,8 +763,8 @@ class LlmPrompt(EmbeddedDocument):
 
     def validate(self, clean=True):
         if (
-            self.type == LlmPromptType.system.value
-            and self.source != LlmPromptSource.static.value
+                self.type == LlmPromptType.system.value
+                and self.source != LlmPromptSource.static.value
         ):
             raise ValidationError("System prompt must have static source!")
         if self.hyperparameters:
@@ -899,5 +903,3 @@ class LiveAgentActionConfig(Auditlog):
             raise ValidationError("Action name cannot be empty or blank spaces")
         if self.name.startswith("utter_"):
             raise ValidationError("Action name cannot start with utter_")
-
-

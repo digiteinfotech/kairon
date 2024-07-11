@@ -38,6 +38,7 @@ from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESS
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.vector_embeddings.db.qdrant import Qdrant
+from kairon.shared.llm.processor import LLMProcessor
 
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -1561,12 +1562,12 @@ def test_http_action_execution(aioresponses):
                        'payload': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011', 'tag': 'from_bot', 'name': 'udit',
                                    'contact': ''},
                        'response': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                       'status_code': 200, 'response_headers':{'Content-Type': 'application/json'}},
+                       'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
                       {'type': 'params_list',
-                                             'request_body': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011',
-                                                              'tag': 'from_bot', 'name': 'udit', 'contact': ''},
-                                             'request_params': {'bot': '**********************2e', 'user': '1011',
-                                                                'tag': '******ot', 'name': '****', 'contact': None}},
+                       'request_body': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011',
+                                        'tag': 'from_bot', 'name': 'udit', 'contact': ''},
+                       'request_params': {'bot': '**********************2e', 'user': '1011',
+                                          'tag': '******ot', 'name': '****', 'contact': None}},
                       {'type': 'filled_slots', 'data': {'val_d': "['red', 'buggy', 'bumpers']", 'val_d_0': 'red'},
                        'slot_eval_log': ['initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
                                          'expression: ${data.a.b.d}',
@@ -2061,11 +2062,12 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
                        'method': 'GET', 'url': 'http://localhost:8081/mock',
                        'payload': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011', 'tag': 'from_bot'},
                        'response': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
-                       'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}, {'type': 'params_list',
-                                             'request_body': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011',
-                                                              'tag': 'from_bot'},
-                                             'request_params': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011',
-                                                                'tag': '******ot'}},
+                       'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
+                      {'type': 'params_list',
+                       'request_body': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011',
+                                        'tag': 'from_bot'},
+                       'request_params': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011',
+                                          'tag': '******ot'}},
                       {'type': 'filled_slots', 'data': {'val_d': "['red', 'buggy', 'bumpers']", 'val_d_0': 'red'},
                        'slot_eval_log': ['initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
                                          'expression: ${data.a.b.d}',
@@ -2187,7 +2189,8 @@ def test_http_action_execution_script_evaluation(aioresponses):
         'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'GET',
                                                                              'url': 'http://localhost:8081/mock',
                                                                              'payload': {}, 'response': {'a': 10, 'b': {
-            'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
+            'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200, 'response_headers': {
+            'Content-Type': 'application/json'}},
                       {'type': 'params_list', 'request_body': {}, 'request_params': {}},
                       {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
     assert log == {'type': 'http_action', 'intent': 'test_run',
@@ -2334,7 +2337,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
                                                                                           'b': {'name': 'Mayank',
                                                                                                 'arr': ['red', 'green',
                                                                                                         'hotpink']}},
-                                                                             'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
+                                                                             'status_code': 200, 'response_headers': {
+            'Content-Type': 'application/json'}},
                       {'type': 'dynamic_params',
                        'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
                        'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
@@ -2486,7 +2490,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                                                                                           'b': {'name': 'Mayank',
                                                                                                 'arr': ['red', 'green',
                                                                                                         'hotpink']}},
-                                                                             'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
+                                                                             'status_code': 200, 'response_headers': {
+            'Content-Type': 'application/json'}},
                       {'type': 'dynamic_params',
                        'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
                        'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
@@ -2635,7 +2640,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
         {'type': 'api_call', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
          'method': 'GET', 'url': 'http://localhost:8081/mock',
          'payload': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
-         'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
+         'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200,
+         'response_headers': {'Content-Type': 'application/json'}},
         {'type': 'dynamic_params',
          'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
          'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}, 'slots': {},
@@ -2789,7 +2795,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
                                                                                           'b': {'name': 'Mayank',
                                                                                                 'arr': ['red', 'green',
                                                                                                         'hotpink']}},
-                                                                             'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
+                                                                             'status_code': 200, 'response_headers': {
+            'Content-Type': 'application/json'}},
                       {'type': 'dynamic_params',
                        'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
                        'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
@@ -3140,7 +3147,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
                                                                                           'b': {'name': 'Mayank',
                                                                                                 'arr': ['red', 'green',
                                                                                                         'hotpink']}},
-                                                                             'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}},
+                                                                             'status_code': 200, 'response_headers': {
+            'Content-Type': 'application/json'}},
                       {'type': 'dynamic_params',
                        'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
                        'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
@@ -3618,13 +3626,14 @@ def test_vectordb_action_execution_payload_search_from_user_message():
     action_name = "test_vectordb_action_execution_payload_search_from_user_message"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
             user="user").save()
-    payload_body = json.dumps({"filter": {
-        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})
+    payload = {"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}
+    payload_body = json.dumps(payload)
     DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_execution_payload_search_from_user_message',
-        query_type=DbActionOperationType.payload_search.value,
-        payload=DbQuery(type=DbQueryValueType.from_user_message.value),
+        payload=[DbQuery(query_type=DbActionOperationType.payload_search.value,
+                         type=DbQueryValueType.from_user_message.value)],
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
         bot="5f50md0a56b698ca10d35d2e",
@@ -3634,12 +3643,13 @@ def test_vectordb_action_execution_payload_search_from_user_message():
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
                bot="5f50md0a56b698ca10d35d2e", user="user").save()
 
-    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_user_message_faq_embd/points/scroll'
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_user_message_faq_embd/points/query'
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
-    json_params_matcher = {'text': json.dumps({"filter": {
-        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})}
+    json_params_matcher = payload.copy()
+    json_params_matcher['with_payload'] = True
+    json_params_matcher['limit'] = 10
     responses.add(
         method=responses.POST,
         url=http_url,
@@ -3698,14 +3708,15 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
     action_name = "test_vectordb_action_execution_payload_search_from_user_message_in_slot"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2f",
             user="user").save()
-    payload_body = json.dumps({"filter": {
-        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})
+    payload = {"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}
+    payload_body = json.dumps(payload)
     user_msg = '/user_story{"kairon_user_msg": {"filter": {"should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}}'
     DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_execution_payload_search_from_user_message_in_slot',
-        query_type=DbActionOperationType.payload_search.value,
-        payload=DbQuery(type=DbQueryValueType.from_user_message.value),
+        payload=[DbQuery(query_type=DbActionOperationType.payload_search.value,
+                         type=DbQueryValueType.from_user_message.value)],
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
         bot="5f50md0a56b698ca10d35d2f",
@@ -3715,12 +3726,14 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
                bot="5f50md0a56b698ca10d35d2f", user="user").save()
 
-    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2f_test_vectordb_action_execution_payload_search_from_user_message_in_slot_faq_embd/points/scroll'
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2f_test_vectordb_action_execution_payload_search_from_user_message_in_slot_faq_embd/points/query'
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
-    json_params_matcher = {"text": json.dumps({"filter": {
-        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}})}
+    json_params_matcher = payload.copy()
+    json_params_matcher.update(
+        **{'with_payload': True, 'limit': 10}
+    )
     responses.add(
         method=responses.POST,
         url=http_url,
@@ -3774,18 +3787,20 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
 
 
 @responses.activate
-@mock.patch.object(Qdrant, "_Qdrant__get_embedding", autospec=True)
+@mock.patch.object(litellm, "aembedding", autospec=True)
 def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56b698ca10d75d2e",
             user="user").save()
-    payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
+    payload_body = "Hi"
     DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_execution',
-        query_type=DbActionOperationType.embedding_search.value,
-        payload=DbQuery(type="from_value", value=payload_body),
+        payload=[
+            DbQuery(query_type=DbActionOperationType.embedding_search.value, type="from_value", value=payload_body)],
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
         bot="5f50fd0a56b698ca10d75d2e",
@@ -3797,7 +3812,7 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
     embedding = list(np.random.random(Qdrant.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
-    http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_test_vectordb_action_execution_faq_embd/points'
+    http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_test_vectordb_action_execution_faq_embd/points/query'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -3818,7 +3833,9 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
         url=http_url,
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(payload_body)],
+        match=[responses.matchers.json_params_matcher({'query': embedding,
+                                                       'score_threshold': 0.7,
+                                                       'with_payload': True, 'limit': 10})],
     )
 
     request_object = {
@@ -3861,6 +3878,12 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56b698ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
+    expected = {"model": "text-embedding-3-small",
+                "input": [payload_body],
+                'metadata': {'user': 'default', 'bot': '5f50fd0a56b698ca10d75d2e', 'invocation': 'db_action_qdrant'},
+                "api_key": 'key_value',
+                "num_retries": 3}
+    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
 
 @responses.activate
@@ -3869,13 +3892,13 @@ def test_vectordb_action_execution_payload_search_from_value():
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2z",
             user="user").save()
-    payload_body = json.dumps({'filter': {
-        'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}})
+    payload = {'filter': {
+        'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+    payload_body = json.dumps(payload)
     DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_execution_payload_search_from_value',
-        query_type=DbActionOperationType.payload_search.value,
-        payload=DbQuery(type="from_value", value=payload_body),
+        payload=[DbQuery(query_type=DbActionOperationType.payload_search.value, type="from_value", value=payload_body)],
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
         bot="5f50md0a56b698ca10d35d2z",
@@ -3885,12 +3908,14 @@ def test_vectordb_action_execution_payload_search_from_value():
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
                bot="5f50md0a56b698ca10d35d2z", user="user").save()
 
-    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2z_test_vectordb_action_execution_payload_search_from_value_faq_embd/points/scroll'
+    http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2z_test_vectordb_action_execution_payload_search_from_value_faq_embd/points/query'
     resp_msg = json.dumps(
         [{"id": 2, "city": "London", "color": "red"}]
     )
-    json_params_matcher = {'filter': {
-        'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+    json_params_matcher = payload.copy()
+    json_params_matcher.update(
+        **{'with_payload': True, 'limit': 10}
+    )
     responses.add(
         method=responses.POST,
         url=http_url,
@@ -3952,8 +3977,7 @@ def test_vectordb_action_execution_payload_search_from_value_json_decode_error()
     DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_execution_payload_search_from_value',
-        query_type=DbActionOperationType.payload_search.value,
-        payload=DbQuery(type="from_value", value=payload_body),
+        payload=[DbQuery(query_type=DbActionOperationType.payload_search.value, type="from_value", value=payload_body)],
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
         bot="5f50md0a56b698ca10d35d2e",
@@ -4003,20 +4027,21 @@ def test_vectordb_action_execution_payload_search_from_value_json_decode_error()
 
 
 @responses.activate
-def test_vectordb_action_execution_payload_search_from_slot():
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fx0a56b698ca10d35d2e",
             user="user").save()
     slot = 'name'
     Slots(name=slot, type='text', bot='5f50fx0a56b698ca10d35d2e', user='user').save()
-    payload_body = json.dumps({'filter': {
-        'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}})
+    payload = "Hi"
     DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_execution_embedding_search_from_slot',
-        query_type=DbActionOperationType.embedding_search.value,
-        payload=DbQuery(type="from_slot", value='name'),
+        payload=[DbQuery(query_type=DbActionOperationType.embedding_search.value, type="from_slot", value='name')],
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
         bot="5f50fx0a56b698ca10d35d2e",
@@ -4026,7 +4051,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
                bot="5f50fx0a56b698ca10d35d2e", user="user").save()
 
-    http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_test_vectordb_action_execution_embedding_search_from_slot_faq_embd/points'
+    http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_test_vectordb_action_execution_embedding_search_from_slot_faq_embd/points/query'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -4047,6 +4072,9 @@ def test_vectordb_action_execution_payload_search_from_slot():
         url=http_url,
         body=resp_msg,
         status=200,
+        match=[responses.matchers.json_params_matcher({'query': embedding,
+                                                       'score_threshold': 0.7,
+                                                       'with_payload': True, 'limit': 10})],
     )
 
     request_object = {
@@ -4054,7 +4082,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fx0a56b698ca10d35d2e", "name": payload_body},
+            "slots": {"bot": "5f50fx0a56b698ca10d35d2e", "name": payload},
             "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
@@ -4089,20 +4117,29 @@ def test_vectordb_action_execution_payload_search_from_slot():
     log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56b698ca10d35d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
+    expected = {"model": "text-embedding-3-small",
+                "input": [payload],
+                'metadata': {'user': 'default', 'bot': '5f50fx0a56b698ca10d35d2e', 'invocation': 'db_action_qdrant'},
+                "api_key": 'key_value',
+                "num_retries": 3}
+    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
 
 @responses.activate
-def test_vectordb_action_execution_no_response_dispatch():
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_embedding):
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution_no_response_dispatch"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56v098ca10d75d2e",
             user="user").save()
-    payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
+    payload_body = "Milk"
     DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_execution_no_response_dispatch',
-        query_type=DbActionOperationType.embedding_search.value,
-        payload=DbQuery(type="from_value", value=payload_body),
+        payload=[DbQuery(query_type=DbActionOperationType.embedding_search.value,
+                         type="from_value", value=payload_body)],
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
                                     dispatch=False),
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -4113,7 +4150,7 @@ def test_vectordb_action_execution_no_response_dispatch():
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
                bot="5f50fd0a56v098ca10d75d2e", user="user").save()
 
-    http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_test_vectordb_action_execution_no_response_dispatch_faq_embd/points'
+    http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_test_vectordb_action_execution_no_response_dispatch_faq_embd/points/query'
     resp_msg = json.dumps(
         {
             "time": 0,
@@ -4134,7 +4171,9 @@ def test_vectordb_action_execution_no_response_dispatch():
         url=http_url,
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(payload_body)],
+        match=[responses.matchers.json_params_matcher({'query': embedding,
+                                                       'score_threshold': 0.7,
+                                                       'with_payload': True, 'limit': 10})],
     )
 
     request_object = {
@@ -4177,6 +4216,12 @@ def test_vectordb_action_execution_no_response_dispatch():
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56v098ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
+    expected = {"model": "text-embedding-3-small",
+                "input": [payload_body],
+                'metadata': {'user': 'default', 'bot': '5f50fd0a56v098ca10d75d2e', 'invocation': 'db_action_qdrant'},
+                "api_key": 'key_value',
+                "num_retries": 3}
+    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
 
 def test_vectordb_action_execution_invalid_operation_type():
@@ -4187,8 +4232,8 @@ def test_vectordb_action_execution_invalid_operation_type():
     DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_execution_invalid_operation_type',
-        query_type="vector_search",
-        payload=DbQuery(type="from_value", value=payload_body),
+        payload=[DbQuery(query_type="vector_search",
+                         type="from_value", value=payload_body)],
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
                                     dispatch=False),
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -4248,8 +4293,8 @@ def test_vectordb_action_failed_execution(mock_action_config, mock_action):
     action_config = DatabaseAction(
         name=action_name,
         collection='test_vectordb_action_failed_execution',
-        query_type=DbActionOperationType.embedding_search.value,
-        payload=DbQuery(type="from_value", value=payload_body),
+        payload=[DbQuery(query_type=DbActionOperationType.embedding_search.value,
+                         type="from_value", value=payload_body)],
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector"),
         bot="5f50fd0a56b697ca10d35d2e",
         user="user"
@@ -11320,7 +11365,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11352,7 +11398,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
+        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l', 'invocation': 'prompt_action'},
+        'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
         'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -11387,7 +11434,8 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11419,7 +11467,8 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2k', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
+        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2k', 'invocation': 'prompt_action'},
+        'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
         'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -11456,7 +11505,8 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11489,7 +11539,8 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
-        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b678ca10d35d2k', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
+        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b678ca10d35d2k', 'invocation': 'prompt_action'},
+        'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
         'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -11526,9 +11577,11 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}
     ]
 
-    mock_completion_for_query_prompt = litellm.ModelResponse(**{'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]})
+    mock_completion_for_query_prompt = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]})
 
-    mock_completion_for_answer = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion_for_answer = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     mock_completion.side_effect = [mock_completion_for_query_prompt, mock_completion_for_answer]
 
@@ -11610,7 +11663,8 @@ def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
             'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content_two}}]})
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     PromptAction(name=action_name,
                  bot=bot,
@@ -11661,7 +11715,8 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
     ]
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11716,7 +11771,8 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'delta': {'role': 'assistant', 'content': generated_text}, 'finish_reason': None, 'index': 0}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'delta': {'role': 'assistant', 'content': generated_text}, 'finish_reason': None, 'index': 0}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11740,7 +11796,8 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
     ]
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
-                'metadata': {'user': 'udit.pandeyy', 'bot': '5f50k90a56b698ca10d35d2e', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
+                'metadata': {'user': 'udit.pandeyy', 'bot': '5f50k90a56b698ca10d35d2e', 'invocation': 'prompt_action'},
+                'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                 'stream': True, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args.kwargs, expected, ignore_order=True)
@@ -11874,7 +11931,8 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -11982,7 +12040,8 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     mock_completion.return_value = mock_completion_for_answer()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12027,7 +12086,8 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\nAction Prompt:\nPython is a scripting language because it uses an interpreter to translate and run its code.\nInstructions on how to use Action Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-                'metadata': {'user': 'nupur.khare', 'bot': '5u08kd0a56b698ca10d98e6s', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
+                'metadata': {'user': 'nupur.khare', 'bot': '5u08kd0a56b698ca10d98e6s', 'invocation': 'prompt_action'},
+                'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -12079,7 +12139,8 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     def mock_completion_for_answer(*args, **kwargs):
         return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     mock_google_search.side_effect = _run_action
@@ -12116,7 +12177,8 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
-                'metadata': {'user': 'test_user', 'bot': '5u08kd0a56b698ca10hgjgjkhgjks', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
+                'metadata': {'user': 'test_user', 'bot': '5u08kd0a56b698ca10hgjgjkhgjks',
+                             'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -12187,7 +12249,8 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12244,7 +12307,8 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
-                'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhj', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
+                'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhj',
+                             'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -12280,7 +12344,8 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
         return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     mock_completion.return_value = mock_completion_for_answer()
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     log1 = ['Slot: api_type', 'evaluation_type: expression', f"data: {generated_text}", 'response: filter']
     log2 = ['Slot: query', 'evaluation_type: expression', f"data: {generated_text}",
             'response: {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}']
@@ -12355,7 +12420,8 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': 'Qdrant Prompt:\nConvert user questions into json requests in qdrant such that they will either filter, apply range queries and search the payload in qdrant. Sample payload present in qdrant looks like below with each of the points starting with 1 to 5 is a record in qdrant.1. {"Category (Risk, Issue, Action Item)": "Risk", "Date Added": 1673721000.0,2. {"Category (Risk, Issue, Action Item)": "Action Item", "Date Added": 1673721000.0,For eg: to find category of record created on 15/01/2023, the filter query is:{"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}\nInstructions on how to use Qdrant Prompt:\nCreate qdrant filter query out of user message based on above instructions.\n\n \nQ: category of record created on 15/01/2023? \nA:'}],
-                'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhjhjhj', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
+                'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhjhjhj',
+                             'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -12397,7 +12463,8 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12457,7 +12524,8 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
     expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
-                'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2s', 'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
+                'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2s', 'invocation': 'prompt_action'},
+                'api_key': 'keyvalue',
                 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
@@ -12495,7 +12563,8 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12553,7 +12622,8 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_search, moc
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {'result': []}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12620,7 +12690,8 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    mock_completion.return_value = litellm.ModelResponse(
+        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     mock_search.return_value = {
         'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -12656,3 +12727,114 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
         'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
+
+
+@responses.activate
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    bot = '5f50fx0a56b698ca10d35d2f'
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    action_name = "test_vectordb_action_execution_embedding_payload_search"
+    Actions(name=action_name, type=ActionType.database_action.value, bot=bot,
+            user="user").save()
+    slot = 'name'
+    Slots(name=slot, type='text', bot=bot, user='user').save()
+    payload = {"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}
+    payload_body = json.dumps(payload)
+    user_msg = '/user_story{"kairon_user_msg": {"filter": {"should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}}'
+    DatabaseAction(
+        name=action_name,
+        collection=action_name,
+        payload=[DbQuery(query_type=DbActionOperationType.embedding_search.value, type="from_slot", value='name'),
+                 DbQuery(query_type=DbActionOperationType.embedding_search.value, type="from_value",
+                         value='How are you'),
+                 DbQuery(query_type=DbActionOperationType.payload_search.value,
+                         type=DbQueryValueType.from_user_message.value)
+                 ],
+        response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
+        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
+        bot=bot,
+        user="user"
+    ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot=bot, user="user").save()
+
+    http_url = f'http://localhost:6333/collections/{bot}_{action_name}_faq_embd/points/query'
+    resp_msg = json.dumps(
+        {
+            "time": 0,
+            "status": "ok",
+            "result": [
+                {
+                    "id": 15,
+                    "payload": {},
+                    "vector": [
+                        15
+                    ]
+                }
+            ]
+        }
+    )
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        body=resp_msg,
+        status=200,
+        match=[responses.matchers.json_params_matcher({'with_payload': True,
+                                                       'limit': 10,
+                                                       'query': embedding,
+                                                       'score_threshold': 0.7,
+                                                       **payload}, strict_match=False)],
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": bot, "name": "Hi"},
+            "latest_message": {'text': user_msg, 'intent_ranking': [{'name': 'user_story'}],
+                               "entities": [{"value": payload_body, "entity": KAIRON_USER_MSG_ENTITY}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "How are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": bot, "name": None},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[15]'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 15 is [15]'}]
+    assert response_json['responses'][0]['text'] == "The value of 15 is [15]"
+    log = ActionServerLogs.objects(action=action_name, bot=bot).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    expected = {"model": "text-embedding-3-small",
+                "input": ["Hi How are you"],
+                'metadata': {'user': 'default', 'bot': bot, 'invocation': 'db_action_qdrant'},
+                "api_key": 'key_value',
+                "num_retries": 3}
+    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)

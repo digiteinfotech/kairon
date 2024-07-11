@@ -1280,7 +1280,6 @@ def test_upload_with_bot_content_only_validate_content_data():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
 
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -1382,7 +1381,6 @@ def test_upload_with_bot_content_valifdate_payload_data():
 
     )
     actual = response.json()
-    print(actual)
 
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -1652,7 +1650,6 @@ def test_enable_live_agent():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual["message"] == 'Live Agent Action enabled!'
     assert actual["success"]
@@ -1668,7 +1665,6 @@ def test_get_live_agent_after_enabled_no_bot_settings_enabled():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["data"] == []
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -1685,7 +1681,6 @@ def test_get_live_agent_after_enabled():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["data"] == {'name': 'live_agent_action', 'bot_response': 'connecting to live agent',
                               'agent_connect_response': 'Connected to live agent',
                               'agent_disconnect_response': 'Agent has closed the conversation',
@@ -1741,7 +1736,6 @@ def test_get_live_agent_after_updated():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["data"] == {'name': 'live_agent_action',
                               'bot_response': 'connecting to different live agent...',
                               'agent_connect_response': 'Connected to live agent',
@@ -1794,7 +1788,6 @@ def test_get_live_agent_after_disabled():
     )
 
     actual = response.json()
-    print(actual)
     assert not actual["data"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -5661,7 +5654,6 @@ def test_delete_slots():
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    print(response.json())
 
     response = client.delete(
         f"/api/bot/{pytest.bot}/slots/color",
@@ -11171,11 +11163,11 @@ def test_add_vectordb_action_empty_name():
     request_body = {
         "name": "",
         "collection": 'test_add_vectordb_action_empty_name',
-        "query_type": "embedding_search",
-        "payload": {
+        "payload": [{
             "type": "from_value",
             "value": {"ids": [0], "with_payload": True, "with_vector": True},
-        },
+            "query_type": "embedding_search",
+        }],
         "response": {"value": "0"},
     }
     response = client.post(
@@ -11197,8 +11189,7 @@ def test_add_vectordb_action_empty_collection_name():
     request_body = {
         "name": 'test_add_vectordb_action_empty_collection_name',
         "collection": '',
-        "query_type": "embedding_search",
-        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "payload": [{"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}, "query_type": "embedding_search",}],
         "response": {"value": "0"}
     }
     response = client.post(
@@ -11219,8 +11210,7 @@ def test_add_vectordb_action_empty_operation_value():
     request_body = {
         "name": 'action_test_empty_operation_value',
         "collection": 'test_add_vectordb_action_empty_operation_value',
-        "query_type": "",
-        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "payload": [{"query_type": "", "type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}}],
         "response": {"value": "0"}
     }
     response = client.post(
@@ -11232,7 +11222,7 @@ def test_add_vectordb_action_empty_operation_value():
     actual = response.json()
 
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', 'query_type'],
+    assert actual["message"] == [{'loc': ['body', 'payload', 0, 'query_type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search'",
                                   'type': 'type_error.enum',
                                   'ctx': {'enum_values': ['payload_search', 'embedding_search']}}]
@@ -11243,11 +11233,11 @@ def test_add_vectordb_action_empty_payload_type():
     request_body = {
         "name": "test_add_vectordb_action_empty_payload_type",
         "collection": 'test_add_vectordb_action_empty_payload_type',
-        "query_type": "payload_search",
-        "payload": {
+        "payload": [{
+            "query_type": "payload_search",
             "type": "",
             "value": {"ids": [0], "with_payload": True, "with_vector": True},
-        },
+        }],
         "response": {"value": "0"},
     }
     response = client.post(
@@ -11259,19 +11249,12 @@ def test_add_vectordb_action_empty_payload_type():
     actual = response.json()
 
     assert actual["error_code"] == 422
-    assert actual["message"] == [
-        {
-            "loc": ["body", "payload", "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'from_value', 'from_slot', 'from_user_message'",
-            "type": "type_error.enum",
-            "ctx": {"enum_values": ["from_value", "from_slot", "from_user_message"]},
-        },
-        {
-            "loc": ["body", "payload", "__root__"],
-            "msg": "type is required",
-            "type": "value_error",
-        },
-    ]
+    assert actual["message"] == [{'loc': ['body', 'payload', 0, 'type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'from_value', 'from_slot', 'from_user_message'",
+                                  'type': 'type_error.enum',
+                                  'ctx': {'enum_values': ['from_value', 'from_slot', 'from_user_message']}},
+                                 {'loc': ['body', 'payload', 0, '__root__'], 'msg': 'type is required',
+                                  'type': 'value_error'}]
     assert not actual["success"]
 
 
@@ -11279,15 +11262,14 @@ def test_add_vectordb_action_without_enable_faq():
     request_body = {
         "name": "vectordb_action_test",
         "collection": 'test_add_vectordb_action_collection_does_not_exists',
-        "query_type": "payload_search",
-        "payload": {"type": "from_value", "value": {
+        "payload": [{"query_type": "payload_search","type": "from_value", "value": {
             "filter": {
                 "should": [
                     {"key": "city", "match": {"value": "London"}},
                     {"key": "color", "match": {"value": "red"}}
                 ]
             }
-        }},
+        }}],
         "response": {"value": "0"}
     }
     response = client.post(
@@ -11310,15 +11292,14 @@ def test_add_vectordb_action_collection_does_not_exists(monkeypatch):
     request_body = {
         "name": "vectordb_action_test",
         "collection": 'test_add_vectordb_action_collection_does_not_exists',
-        "query_type": "payload_search",
-        "payload": {"type": "from_value", "value": {
+        "payload": [{"query_type": "payload_search","type": "from_value", "value": {
             "filter": {
                 "should": [
                     {"key": "city", "match": {"value": "London"}},
                     {"key": "color", "match": {"value": "red"}}
                 ]
             }
-        }},
+        }}],
         "response": {"value": "0"}
     }
     response = client.post(
@@ -11364,8 +11345,8 @@ def test_add_vectordb_action(monkeypatch):
     request_body = {
         "name": 'vectordb_action_test',
         "collection": 'test_add_vectordb_action',
-        "query_type": "payload_search",
-        "payload": {
+        "payload": [{
+            "query_type": "payload_search",
             "type": "from_value",
             "value": {
                 "filter": {
@@ -11375,7 +11356,7 @@ def test_add_vectordb_action(monkeypatch):
                     ]
                 }
             },
-        },
+        }],
         "response": {"value": "0"},
     }
     response = client.post(
@@ -11411,8 +11392,8 @@ def test_add_vectordb_action_case_insensitivity(monkeypatch):
     request_body = {
         "name": "VECTORDB_ACTION_CASE_INSENSITIVE",
         "collection": 'test_add_vectordb_action',
-        "query_type": "payload_search",
-        "payload": {
+        "payload": [{
+            "query_type": "payload_search",
             "type": "from_value",
             "value": {
                 "filter": {
@@ -11422,7 +11403,7 @@ def test_add_vectordb_action_case_insensitivity(monkeypatch):
                     ]
                 }
             },
-        },
+        }],
         "response": {"value": "0"},
     }
 
@@ -11464,11 +11445,11 @@ def test_add_vectordb_action_existing(monkeypatch):
     request_body = {
         "name": 'test_add_vectordb_action_existing',
         "collection": 'test_add_vectordb_action',
-        "query_type": "embedding_search",
-        "payload": {
+        "payload": [{
+            "query_type": "embedding_search",
             "type": "from_value",
             "value": {"ids": [0], "with_payload": True, "with_vector": True},
-        },
+        }],
         "response": {"value": "0"},
         "set_slots": [
             {"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}
@@ -11522,8 +11503,8 @@ def test_add_vectordb_action_with_slots(monkeypatch):
     request_body = {
         "name": "test_add_vectordb_action_with_slots",
         "collection": 'test_add_vectordb_action',
-        "query_type": "payload_search",
-        "payload": {"type": "from_slot", "value": "vectordb"},
+
+        "payload": [{"query_type": "payload_search", "type": "from_slot", "value": "vectordb"}],
         "response": {"value": "0"},
     }
     response = client.post(
@@ -11539,16 +11520,13 @@ def test_add_vectordb_action_with_slots(monkeypatch):
     assert actual["success"]
 
 
-def test_update_vectordb_action(monkeypatch):
+def test_add_vectordb_action_payload_and_embedding_search(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    request_body = {
-        "name": "test_update_vectordb_action",
-        "collection": 'test_add_vectordb_action',
-        "query_type": "payload_search",
-        "payload": {
+    payload = [{
+            "query_type": "payload_search",
             "type": "from_value",
             "value": {
                 "filter": {
@@ -11559,6 +11537,123 @@ def test_update_vectordb_action(monkeypatch):
                 }
             },
         },
+        {
+            "query_type": "embedding_search",
+            "type": "from_value",
+            "value": "Hi"
+        },
+        {
+            "query_type": "embedding_search",
+            "type": "from_value",
+            "value": "How are you"
+        }]
+    request_body = {
+        "name": "vectordb_action_payload_and_embedding_search",
+        "collection": 'test_add_vectordb_action',
+        "payload": payload,
+        "response": {"value": "0"},
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/db/vectordb_action_payload_and_embedding_search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["error_code"] == 0
+    assert actual["data"]['name'] == 'vectordb_action_payload_and_embedding_search'
+    assert not DeepDiff(actual["data"]['payload'], payload, ignore_order=True)
+    assert actual["success"]
+
+
+def test_add_vectordb_action_payload_search_mutiple_error(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    payload = [{
+            "query_type": "payload_search",
+            "type": "from_value",
+            "value": {
+                "filter": {
+                    "should": [
+                        {"key": "city", "match": {"value": "London"}},
+                        {"key": "color", "match": {"value": "red"}},
+                    ]
+                }
+            },
+        },{
+            "query_type": "payload_search",
+            "type": "from_value",
+            "value": {
+                "filter": {
+                    "should": [
+                        {"key": "city", "match": {"value": "Canada"}},
+                        {"key": "color", "match": {"value": "blue"}},
+                    ]
+                }
+            },
+        },
+        {
+            "query_type": "embedding_search",
+            "type": "from_value",
+            "value": "Hi"
+        },
+        {
+            "query_type": "embedding_search",
+            "type": "from_value",
+            "value": "How are you"
+        }]
+    request_body = {
+        "name": "vectordb_action_payload_and_embedding_search",
+        "collection": 'test_add_vectordb_action',
+        "payload": payload,
+        "response": {"value": "0"},
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'payload'], 'msg': 'Only One payload_search is allowed!', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_vectordb_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    request_body = {
+        "name": "test_update_vectordb_action",
+        "collection": 'test_add_vectordb_action',
+        "payload": [{
+            "query_type": "payload_search",
+            "type": "from_value",
+            "value": {
+                "filter": {
+                    "should": [
+                        {"key": "city", "match": {"value": "London"}},
+                        {"key": "color", "match": {"value": "red"}},
+                    ]
+                }
+            },
+        }],
         "response": {"value": "0"},
     }
 
@@ -11573,11 +11668,11 @@ def test_update_vectordb_action(monkeypatch):
     request_body = {
         "name": "test_update_vectordb_action",
         "collection": 'test_add_vectordb_action',
-        "query_type": "embedding_search",
-        "payload": {
+        "payload": [{
+            "query_type": "embedding_search",
             "type": "from_value",
             "value": {"ids": [0], "with_payload": True, "with_vector": True},
-        },
+        }],
         "response": {"value": "0"},
         "set_slots": [
             {"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}
@@ -11610,11 +11705,11 @@ def test_update_vectordb_action_non_existing(monkeypatch):
     request_body = {
         "name": "test_update_vectordb_action_non_existing",
         "collection": 'test_add_vectordb_action',
-        "query_type": "embedding_search",
-        "payload": {
+        "payload": [{
+            "query_type": "embedding_search",
             "type": "from_value",
             "value": {"ids": [6], "with_payload": True, "with_vector": True},
-        },
+        }],
         "response": {"value": "15"},
         "set_slots": [
             {"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}
@@ -11630,11 +11725,11 @@ def test_update_vectordb_action_non_existing(monkeypatch):
     request_body = {
         "name": "test_update_vectordb_action_non_existing_new",
         "collection": 'test_add_vectordb_action',
-        "query_type": "embedding_search",
-        "payload": {
+        "payload": [{
+            "query_type": "embedding_search",
             "type": "from_value",
             "value": {"ids": [6], "with_payload": True, "with_vector": True},
-        },
+        }],
         "response": {"value": "15"},
         "set_slots": [
             {"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}
@@ -11660,11 +11755,11 @@ def test_update_vector_action_wrong_parameter(monkeypatch):
     request_body = {
         "name": "test_update_vector_action_1",
         "collection": 'test_add_vectordb_action',
-        "query_type": "embedding_search",
-        "payload": {
+        "payload": [{
+            "query_type": "embedding_search",
             "type": "from_value",
             "value": {"ids": [8], "with_payload": True, "with_vector": True},
-        },
+        }],
         "response": {"value": "15"},
         "set_slots": [
             {"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}
@@ -11682,11 +11777,11 @@ def test_update_vector_action_wrong_parameter(monkeypatch):
     request_body = {
         "name": "test_update_vector_action_1",
         "collection": 'test_add_vectordb_action',
-        "query_type": "embedding_search",
-        "payload": {
+        "payload": [{
+            "query_type": "embedding_search",
             "type": "from_val",
             "value": {"ids": [81], "with_payload": True, "with_vector": True},
-        },
+        }],
         "response": {"value": "nupur"},
         "set_slots": [
             {"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}
@@ -11745,8 +11840,8 @@ def test_delete_vectordb_action(monkeypatch):
     request_body = {
         "name": "test_delete_vectordb_action",
         "collection": 'test_add_vectordb_action',
-        "query_type": "payload_search",
-        "payload": {
+        "payload": [{
+            "query_type": "payload_search",
             "type": "from_value",
             "value": {
                 "filter": {
@@ -11756,7 +11851,7 @@ def test_delete_vectordb_action(monkeypatch):
                     ]
                 }
             },
-        },
+        }],
         "response": {"value": "30"},
         "set_slots": [],
     }
@@ -11785,8 +11880,8 @@ def test_delete_vectordb_action_non_existing(monkeypatch):
     request_body = {
         "name": "test_delete_vectordb_action_non_existing",
         "collection": 'test_add_vectordb_action',
-        "query_type": "payload_search",
-        "payload": {
+        "payload": [{
+            "query_type": "payload_search",
             "type": "from_value",
             "value": {
                 "filter": {
@@ -11796,7 +11891,7 @@ def test_delete_vectordb_action_non_existing(monkeypatch):
                     ]
                 }
             },
-        },
+        }],
         "response": {"value": "1"},
     }
 
@@ -12801,14 +12896,15 @@ def test_list_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
-    assert actual['data'] == {'actions': ['action_greet'],
+    assert not DeepDiff(actual['data'], {'actions': ['action_greet'],
                               'database_action': ['vectordb_action_test', 'vectordb_action_case_insensitive',
                                                   'test_add_vectordb_action_existing',
                                                   'test_add_vectordb_action_with_slots',
                                                   'test_update_vectordb_action',
                                                   'test_update_vectordb_action_non_existing',
                                                   'test_update_vector_action_1',
-                                                  'test_delete_vectordb_action_non_existing'],
+                                                  'test_delete_vectordb_action_non_existing',
+                                                  'vectordb_action_payload_and_embedding_search'],
                               'http_action': ['test_add_http_action_no_token',
                                               'test_add_http_action_with_valid_dispatch_type',
                                               'test_add_http_action_with_dynamic_params',
@@ -12828,7 +12924,7 @@ def test_list_actions():
                               'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
                               'prompt_action': [],
-                              'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []}
+                              'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []}, ignore_order=True)
 
     assert actual["success"]
 
@@ -24334,7 +24430,6 @@ def test_get_llm_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 1
@@ -24767,9 +24862,9 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    
+
     from kairon.shared.actions.data_objects import PromptAction
-    
+
     action = PromptAction.objects(bot=pytest.bot).get(id=actual["data"]["_id"])
     assert action.hyperparameters['stop'] == 'abc'
     assert action.hyperparameters['temperature'] == 1.0

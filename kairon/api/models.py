@@ -415,6 +415,7 @@ class HttpActionConfigRequest(BaseModel):
 class PayloadConfig(BaseModel):
     type: DbQueryValueType
     value: Any
+    query_type: DbActionOperationType
 
     @root_validator
     def check(cls, values):
@@ -451,8 +452,7 @@ class PyscriptActionRequest(BaseModel):
 class DatabaseActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     collection: str
-    query_type: DbActionOperationType
-    payload: PayloadConfig
+    payload: List[PayloadConfig]
     response: ActionResponseEvaluation = None
     set_slots: List[SetSlotsUsingActionResponse] = []
 
@@ -470,6 +470,16 @@ class DatabaseActionRequest(BaseModel):
 
         if Utility.check_empty_string(v):
             raise ValueError("collection is required")
+        return v
+
+    @validator("payload")
+    def validate_payload(cls, v, values, **kwargs):
+        count_payload_search = 0
+        for item in v:
+            if item.query_type == DbActionOperationType.payload_search:
+                count_payload_search += 1
+            if count_payload_search > 1:
+                raise ValueError(f"Only One {DbActionOperationType.payload_search} is allowed!")
         return v
 
 

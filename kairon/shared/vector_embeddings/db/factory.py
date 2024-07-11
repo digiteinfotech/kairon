@@ -3,7 +3,7 @@ from kairon.shared.constants import VectorEmbeddingsDatabases
 from kairon.shared.vector_embeddings.db.qdrant import Qdrant
 
 
-class VectorEmbeddingsDbFactory:
+class DatabaseFactory:
 
     __implementations = {
         VectorEmbeddingsDatabases.qdrant.value: Qdrant
@@ -11,6 +11,6 @@ class VectorEmbeddingsDbFactory:
 
     @staticmethod
     def get_instance(db_type):
-        if db_type not in VectorEmbeddingsDbFactory.__implementations.keys():
+        if db_type not in DatabaseFactory.__implementations.keys():
             raise AppException("Database not yet implemented!")
-        return VectorEmbeddingsDbFactory.__implementations[db_type]
+        return DatabaseFactory.__implementations[db_type]

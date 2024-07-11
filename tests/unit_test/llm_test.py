@@ -121,8 +121,9 @@ class TestLLM:
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
-        mock_embedding.side_effect = {'data': [{'embedding': embedding}]}, {'data': [{'embedding': embedding}]}, {
-            'data': [{'embedding': embedding}]}
+        mock_embedding.side_effect = (litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}),
+                                      litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}),
+                                      litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}))
         gpt3 = LLMProcessor(bot, DEFAULT_LLM)
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             aioresponses.add(
@@ -1024,10 +1025,9 @@ class TestLLM:
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
             "hyperparameters": hyperparameters
         }
-        mock_embedding.side_effect = [Exception("Connection reset by peer!"), {'data': [{'embedding': embedding}]}]
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
-        mock_embedding.side_effect = [Exception("Connection reset by peer!"), embedding]
+        mock_embedding.side_effect = [Exception("Connection reset by peer!"), litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})]
 
         response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
         assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
