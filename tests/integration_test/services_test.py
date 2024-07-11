@@ -24862,9 +24862,9 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    
+
     from kairon.shared.actions.data_objects import PromptAction
-    
+
     action = PromptAction.objects(bot=pytest.bot).get(id=actual["data"]["_id"])
     assert action.hyperparameters['stop'] == 'abc'
     assert action.hyperparameters['temperature'] == 1.0
