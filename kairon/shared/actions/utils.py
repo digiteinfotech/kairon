@@ -19,7 +19,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
 from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType, DispatchType, \
-    DbQueryValueType
+    DbQueryValueType, DbActionOperationType
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
@@ -614,27 +614,34 @@ class ActionUtility:
         return slot_values
 
     @staticmethod
-    def get_payload(payload: Dict, tracker: Tracker):
-        if payload.get('type') == DbQueryValueType.from_slot.value:
-            rqst_payload = tracker.get_slot(payload.get('value'))
-        elif payload.get('type') == DbQueryValueType.from_user_message.value:
-            rqst_payload = tracker.latest_message.get('text')
-            if not ActionUtility.is_empty(rqst_payload) and rqst_payload.startswith("/"):
-                msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
-                if not ActionUtility.is_empty(msg):
-                    rqst_payload = {"text": msg}
+    def get_payload(payload: List[Dict], tracker: Tracker):
+        request_payload = {}
+        for item in payload:
+            query_type = item.get('query_type')
+            if item.get('type') == DbQueryValueType.from_slot.value:
+                value = tracker.get_slot(item.get('value'))
+            elif item.get('type') == DbQueryValueType.from_user_message.value:
+                value = tracker.latest_message.get('text')
+                if not ActionUtility.is_empty(value) and value.startswith("/"):
+                    msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
+                    if not ActionUtility.is_empty(msg):
+                        value = msg
             else:
-                rqst_payload = {"text": rqst_payload}
-        else:
-            rqst_payload = payload.get('value')
+                value = item.get('value')
 
-        try:
-            if isinstance(rqst_payload, str):
-                rqst_payload = json.loads(rqst_payload)
-        except json.JSONDecodeError as e:
-            logger.debug(e)
-            raise ActionFailure(f"Error converting payload to JSON: {rqst_payload}")
-        return rqst_payload
+            if query_type == DbActionOperationType.payload_search:
+                try:
+                    if isinstance(value, str):
+                        request_payload[DbActionOperationType.payload_search] = json.loads(value)
+                except json.JSONDecodeError as e:
+                    logger.debug(e)
+                    raise ActionFailure(f"Error converting payload to JSON: {value}")
+            else:
+                if DbActionOperationType.embedding_search not in request_payload:
+                    request_payload[DbActionOperationType.embedding_search] = value
+                else:
+                    request_payload[DbActionOperationType.embedding_search] += f" {value}"
+        return request_payload
 
     @staticmethod
     def run_pyscript(source_code: Text, context: dict):

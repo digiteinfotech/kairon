@@ -11520,6 +11520,120 @@ def test_add_vectordb_action_with_slots(monkeypatch):
     assert actual["success"]
 
 
+def test_add_vectordb_action_payload_and_embedding_search(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    payload = [{
+            "query_type": "payload_search",
+            "type": "from_value",
+            "value": {
+                "filter": {
+                    "should": [
+                        {"key": "city", "match": {"value": "London"}},
+                        {"key": "color", "match": {"value": "red"}},
+                    ]
+                }
+            },
+        },
+        {
+            "query_type": "embedding_search",
+            "type": "from_value",
+            "value": "Hi"
+        },
+        {
+            "query_type": "embedding_search",
+            "type": "from_value",
+            "value": "How are you"
+        }]
+    request_body = {
+        "name": "vectordb_action_payload_and_embedding_search",
+        "collection": 'test_add_vectordb_action',
+        "payload": payload,
+        "response": {"value": "0"},
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/db/vectordb_action_payload_and_embedding_search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["error_code"] == 0
+    assert actual["data"]['name'] == 'vectordb_action_payload_and_embedding_search'
+    assert not DeepDiff(actual["data"]['payload'], payload, ignore_order=True)
+    assert actual["success"]
+
+
+def test_add_vectordb_action_payload_search_mutiple_error(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    payload = [{
+            "query_type": "payload_search",
+            "type": "from_value",
+            "value": {
+                "filter": {
+                    "should": [
+                        {"key": "city", "match": {"value": "London"}},
+                        {"key": "color", "match": {"value": "red"}},
+                    ]
+                }
+            },
+        },{
+            "query_type": "payload_search",
+            "type": "from_value",
+            "value": {
+                "filter": {
+                    "should": [
+                        {"key": "city", "match": {"value": "Canada"}},
+                        {"key": "color", "match": {"value": "blue"}},
+                    ]
+                }
+            },
+        },
+        {
+            "query_type": "embedding_search",
+            "type": "from_value",
+            "value": "Hi"
+        },
+        {
+            "query_type": "embedding_search",
+            "type": "from_value",
+            "value": "How are you"
+        }]
+    request_body = {
+        "name": "vectordb_action_payload_and_embedding_search",
+        "collection": 'test_add_vectordb_action',
+        "payload": payload,
+        "response": {"value": "0"},
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'payload'], 'msg': 'Only One payload_search is allowed!', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
 def test_update_vectordb_action(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
@@ -12782,14 +12896,15 @@ def test_list_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
-    assert actual['data'] == {'actions': ['action_greet'],
+    assert not DeepDiff(actual['data'], {'actions': ['action_greet'],
                               'database_action': ['vectordb_action_test', 'vectordb_action_case_insensitive',
                                                   'test_add_vectordb_action_existing',
                                                   'test_add_vectordb_action_with_slots',
                                                   'test_update_vectordb_action',
                                                   'test_update_vectordb_action_non_existing',
                                                   'test_update_vector_action_1',
-                                                  'test_delete_vectordb_action_non_existing'],
+                                                  'test_delete_vectordb_action_non_existing',
+                                                  'vectordb_action_payload_and_embedding_search'],
                               'http_action': ['test_add_http_action_no_token',
                                               'test_add_http_action_with_valid_dispatch_type',
                                               'test_add_http_action_with_dynamic_params',
@@ -12809,7 +12924,7 @@ def test_list_actions():
                               'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
                               'prompt_action': [],
-                              'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []}
+                              'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []}, ignore_order=True)
 
     assert actual["success"]
 

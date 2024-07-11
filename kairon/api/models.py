@@ -472,6 +472,16 @@ class DatabaseActionRequest(BaseModel):
             raise ValueError("collection is required")
         return v
 
+    @validator("payload")
+    def validate_payload(cls, v, values, **kwargs):
+        count_payload_search = 0
+        for item in v:
+            if item.query_type == DbActionOperationType.payload_search:
+                count_payload_search += 1
+            if count_payload_search > 1:
+                raise ValueError(f"Only One {DbActionOperationType.payload_search} is allowed!")
+        return v
+
 
 class LiveAgentActionRequest(BaseModel):
     bot_response: str = 'Connecting to live agent'

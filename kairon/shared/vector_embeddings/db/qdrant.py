@@ -1,16 +1,18 @@
 from abc import ABC
+from builtins import type
 from typing import Text, Dict, List
 from urllib.parse import urljoin
-from tiktoken import get_encoding
 
 from kairon import Utility
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.data.constant import DEFAULT_LLM
-from kairon.shared.vector_embeddings.db.base import VectorEmbeddingsDbBase
+from kairon.shared.vector_embeddings.db.base import DatabaseBase
+from kairon.shared.actions.models import DbActionOperationType
+from kairon.shared.actions.exception import ActionFailure
 
 
-class Qdrant(VectorEmbeddingsDbBase, ABC):
+class Qdrant(DatabaseBase, ABC):
     __embedding__ = 1536
 
     def __init__(self, bot: Text, collection_name: Text, llm_settings: dict, db_url: Text = None):
@@ -24,28 +26,31 @@ class Qdrant(VectorEmbeddingsDbBase, ABC):
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.llm_settings = llm_settings
         self.llm = LLMProcessor(self.bot, DEFAULT_LLM)
-        self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
 
     async def __get_embedding(self, text: Text, user: str, **kwargs) -> List[float]:
         return await self.llm.get_embedding(text, user=user, invocation='db_action_qdrant')
 
-    async def embedding_search(self, request_body: Dict, user: str, **kwargs):
-        url = urljoin(self.db_url, f"/collections/{self.collection_name}/points")
-        if request_body.get("text"):
-            url = urljoin(self.db_url, f"/collections/{self.collection_name}/points/search")
-            user_msg = request_body.get("text")
-            vector = await self.__get_embedding(user_msg, user, **kwargs)
-            request_body = {'vector': vector, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
-        embedding_search_result = ActionUtility.execute_http_request(http_url=url,
-                                                                     request_method='POST',
-                                                                     headers=self.headers,
-                                                                     request_body=request_body)
-        return embedding_search_result
+    async def perform_operation(self, data: Dict, user: str, **kwargs):
+        request = {}
+        url = urljoin(self.db_url, f"/collections/{self.collection_name}/points/query")
+        if DbActionOperationType.embedding_search in data:
+            user_msg = data.get(DbActionOperationType.embedding_search)
+            if user_msg and isinstance(user_msg, str):
+                vector = await self.__get_embedding(user_msg, user, **kwargs)
+                request['query'] = vector
+                request['score_threshold'] = 0.70
 
-    async def payload_search(self, request_body: Dict, user, **kwargs):
-        url = urljoin(self.db_url, f"/collections/{self.collection_name}/points/scroll")
-        payload_filter_result = ActionUtility.execute_http_request(http_url=url,
-                                                                   request_method='POST',
-                                                                   request_body=request_body)
-        return payload_filter_result
+        if DbActionOperationType.payload_search in data:
+            payload = data.get(DbActionOperationType.payload_search)
+            if payload:
+                request.update(**data.get(DbActionOperationType.payload_search))
+
+        if request:
+            request.update(**{'with_payload': True, 'limit': 10})
+            result = ActionUtility.execute_http_request(http_url=url,
+                                                        request_method='POST',
+                                                        request_body=request)
+        else:
+            raise ActionFailure('No Operation to perform')
+        return result

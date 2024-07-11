@@ -11,7 +11,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
-from kairon.shared.vector_embeddings.db.factory import VectorEmbeddingsDbFactory
+from kairon.shared.vector_embeddings.db.factory import DatabaseFactory
 
 
 class ActionDatabase(ActionsBase):
@@ -76,14 +76,13 @@ class ActionDatabase(ActionsBase):
             failure_response = vector_action_config['failure_response']
             collection_name = f"{self.bot}_{vector_action_config['collection']}{self.suffix}"
             db_type = vector_action_config['db_type']
-            vector_db = VectorEmbeddingsDbFactory.get_instance(db_type)(self.bot, collection_name,
-                                                                        bot_settings["llm_settings"])
-            operation_type = vector_action_config['query_type']
+            vector_db = DatabaseFactory.get_instance(db_type)(self.bot, collection_name,
+                                                              bot_settings["llm_settings"])
             payload = vector_action_config['payload']
             request_body = ActionUtility.get_payload(payload, tracker)
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)
-            response = await vector_db.perform_operation(operation_type, request_body, user=tracker.sender_id)
+            response = await vector_db.perform_operation(request_body, user=tracker.sender_id)
             logger.info("response: " + str(response))
             response_context = self.__add_user_context_to_http_response(response, tracker_data)
             bot_response, bot_resp_log, _ = ActionUtility.compose_response(vector_action_config['response'], response_context)
