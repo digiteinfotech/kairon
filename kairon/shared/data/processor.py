@@ -6536,7 +6536,7 @@ class MongoProcessor:
                 Utility.hard_delete_document(
                     [PyscriptActionConfig], name__iexact=name, bot=bot
                 )
-            action.delete()
+            action.delete(user=user)
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
 
