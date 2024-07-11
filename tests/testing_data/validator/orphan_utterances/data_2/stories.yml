@@ -15,5 +15,5 @@ stories:
   steps:
     - intent: apply
     - action: reset slots
-    - action: job_apply
+    - action: job_apply_action
     - action: utter_slot_details

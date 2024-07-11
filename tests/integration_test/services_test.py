@@ -5289,7 +5289,7 @@ def test_get_data_importer_logs():
                                                      {'type': 'pyscript_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'bot_content': {'count': 0, 'data': []},
-                                         'user_actions': {'count': 7, 'data': []},
+                                         'user_actions': {'count': 9, 'data': []},
                                          'exception': '',
                                          'is_data_uploaded': True,
                                          'status': 'Success', 'event_status': 'Completed'}
