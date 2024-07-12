@@ -57,9 +57,10 @@ class AuditDataProcessor:
             action = AuditlogActions.SOFT_DELETE.value
 
         attribute = AuditDataProcessor.get_attributes(document)
+        user = kwargs.get("user") or document.user
 
         audit_log = AuditLogData(attributes=attribute,
-                                 user=document.user,
+                                 user=user,
                                  action=action,
                                  entity=name,
                                  data=document.to_mongo().to_dict())

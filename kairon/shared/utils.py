@@ -1866,25 +1866,6 @@ class Utility:
         return False
 
     @staticmethod
-    def build_http_request_data_object(params: list):
-        from kairon.shared.actions.data_objects import HttpActionRequestBody
-
-        request = []
-        for param in params or []:
-            Utility.encrypt_action_parameter(param)
-            request.append(HttpActionRequestBody(**param).to_mongo().to_dict())
-        return request
-
-    @staticmethod
-    def encrypt_action_parameter(param: Dict):
-        if (
-            param["encrypt"] is True
-            and param["parameter_type"] == ActionParameterType.value.value
-        ):
-            if not Utility.check_empty_string(param["value"]):
-                param["value"] = Utility.encrypt_message(param["value"])
-
-    @staticmethod
     def decrypt_action_parameter(param: Dict):
         if (
             param["encrypt"] is True

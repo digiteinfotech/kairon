@@ -3827,28 +3827,30 @@ class MongoProcessor:
                 .to_mongo()
                 .to_dict()
             )
-            params_list = Utility.build_http_request_data_object(
-                request_data.get("params_list", [])
-            )
-            headers = Utility.build_http_request_data_object(
-                request_data.get("headers", [])
-            )
+            params_list = [
+                HttpActionRequestBody(**param)
+                for param in request_data.get("params_list") or []
+            ]
+            headers = [
+                HttpActionRequestBody(**param)
+                for param in request_data.get("headers") or []
+            ]
             set_slots = [
                 SetSlotsFromResponse(**slot).to_mongo().to_dict()
                 for slot in request_data.get("set_slots")
             ]
-            http_action.update(
-                set__http_url=request_data["http_url"],
-                set__request_method=request_data["request_method"],
-                set__dynamic_params=request_data.get("dynamic_params"),
-                set__content_type=content_type,
-                set__params_list=params_list,
-                set__headers=headers,
-                set__response=response,
-                set__set_slots=set_slots,
-                set__user=user,
-                set__timestamp=datetime.utcnow(),
-            )
+            http_action.http_url = request_data["http_url"]
+            http_action.request_method = request_data["request_method"]
+            http_action.dynamic_params = request_data.get("dynamic_params")
+            http_action.content_type = content_type
+            http_action.params_list = params_list
+            http_action.headers = headers
+            http_action.response = HttpActionResponse(**request_data.get("response", {}))
+            http_action.set_slots = set_slots
+            http_action.user = user
+            http_action.timestamp = datetime.utcnow()
+            http_action.save()
+
             return http_action.id.__str__()
 
     def add_http_action_config(self, http_action_config: Dict, user: str, bot: str):
@@ -4001,12 +4003,12 @@ class MongoProcessor:
         action = PyscriptActionConfig.objects(
             name=request_data.get("name"), bot=bot, status=True
         ).get()
-        action.update(
-            source_code=request_data["source_code"],
-            set__dispatch_response=request_data["dispatch_response"],
-            set__user=user,
-            set__timestamp=datetime.utcnow(),
-        )
+        action.source_code = request_data["source_code"]
+        action.dispatch_response = request_data["dispatch_response"]
+        action.user = user
+        action.timestamp = datetime.utcnow()
+        action.save()
+
         return action.id.__str__()
 
     def list_pyscript_actions(self, bot: str, with_doc_id: bool = True):
@@ -6533,7 +6535,7 @@ class MongoProcessor:
                 Utility.hard_delete_document(
                     [PyscriptActionConfig], name__iexact=name, bot=bot
                 )
-            action.delete()
+            action.delete(user=user)
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
 
