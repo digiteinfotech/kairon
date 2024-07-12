@@ -14876,7 +14876,8 @@ class TestMongoProcessor:
                 {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
                 {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True},
                 {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "gender", "data_type": "str", "enable_search": True, "create_embeddings": True}
+                {"column_name": "gender", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "experience", "data_type": "str", "enable_search": True, "create_embeddings": True}
             ],
             "collection_name": "test_save_payload_metadata_column_limit_exceeded",
             "bot": bot,

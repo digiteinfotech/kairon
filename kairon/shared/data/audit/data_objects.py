@@ -66,10 +66,10 @@ class Auditlog(Document):
         document_instances = cls.objects.insert(doc_or_docs, load_bulk=True)
         auditlog.send(cls, document=document_instances, action=AuditlogActions.BULK_INSERT.value)
 
-    def delete(self, signal_kwargs=None, event_url=None, **write_concern):
+    def delete(self, signal_kwargs=None, event_url=None, user=None, **write_concern):
         super().delete(signal_kwargs, **write_concern)
         auditlog.send(self.__class__, document=self, action=AuditlogActions.DELETE.value,
-                      event_url=event_url)
+                      event_url=event_url, user=user)
 
     def update(self, event_url=None, **kwargs):
         obj = super().update(**kwargs)

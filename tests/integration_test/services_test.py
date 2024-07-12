@@ -2256,7 +2256,8 @@ def test_metadata_upload_api_column_limit_exceeded():
                 {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
                 {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True},
                 {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "gender", "data_type": "str", "enable_search": True, "create_embeddings": True}
+                {"column_name": "gender", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "experience", "data_type": "str", "enable_search": True, "create_embeddings": True}
             ],
             "collection_name": "test_metadata_upload_api_column_limit_exceeded"
         },
