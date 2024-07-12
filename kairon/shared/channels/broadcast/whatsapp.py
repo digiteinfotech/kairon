@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import ujson as json
 from typing import List, Text, Dict
 
@@ -163,7 +165,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             )
         kwargs = {
             f"resend_count_{retry_count}": total,
-            f"skipped_count_{retry_count}": skipped_count
+            f"skipped_count_{retry_count}": skipped_count,
+            f"retry_{retry_count}_timestamp": datetime.utcnow()
         }
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, **kwargs

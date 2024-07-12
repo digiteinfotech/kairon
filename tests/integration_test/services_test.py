@@ -2251,6 +2251,218 @@ def test_delete_message_broadcast(mock_event_server):
     assert actual["message"] == "Broadcast removed!"
 
 
+def test_get_broadcast_logs_with_resend_broadcasts():
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
+
+    ref_id = ObjectId().__str__()
+    timestamp = datetime.utcnow()
+    MessageBroadcastLogs(
+        **{
+            "reference_id": ref_id,
+            "log_type": "common",
+            "bot": pytest.bot,
+            "status": "Completed",
+            "user": "test_user",
+            "broadcast_id": pytest.broadcast_msg_id,
+            "recipients": ["919876543210", "918958030541"],
+            "timestamp": timestamp,
+        }
+    ).save()
+    timestamp = timestamp + timedelta(minutes=2)
+    MessageBroadcastLogs(
+        **{
+            "reference_id": ref_id,
+            "log_type": "resend",
+            "bot": pytest.bot,
+            "status": "Success",
+            "api_response": {
+                "contacts": [
+                    {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
+                ]
+            },
+            "recipient": "919876543210",
+            "template_params": [
+                {
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "document",
+                            "document": {
+                                "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                "filename": "Brochure.pdf",
+                            },
+                        }
+                    ],
+                }
+            ],
+            "timestamp": timestamp,
+            "retry_count": 1
+        }
+    ).save()
+    MessageBroadcastLogs(
+        **{
+            "reference_id": ref_id,
+            "log_type": "resend",
+            "bot": pytest.bot,
+            "status": "Success",
+            "api_response": {
+                "contacts": [
+                    {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
+                ]
+            },
+            "recipient": "918958030541",
+            "template_params": [
+                {
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "document",
+                            "document": {
+                                "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                "filename": "Brochure.pdf",
+                            },
+                        }
+                    ],
+                }
+            ],
+            "timestamp": timestamp,
+            "retry_count": 2
+        }
+    ).save()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs?log_type=resend&retry_count=1&reference_id={ref_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["logs"][0].pop("timestamp")
+    assert actual["data"]["logs"] == [
+        {
+            'reference_id': ref_id,
+            'log_type': 'resend',
+            'bot': pytest.bot,
+            'status': 'Success',
+            'api_response': {
+                'contacts': [
+                    {
+                        'input': '+55123456789',
+                        'status': 'valid',
+                        'wa_id': '55123456789'
+                    }
+                ]
+            },
+            'recipient': '919876543210',
+            'template_params': [
+                {
+                    'type': 'header',
+                    'parameters': [
+                        {
+                            'type': 'document',
+                            'document': {
+                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                'filename': 'Brochure.pdf'
+                            }
+                        }
+                    ]
+                }
+            ],
+            'retry_count': 1
+        }
+    ]
+    assert actual["data"]["total_count"] == 1
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs?reference_id={ref_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["logs"][0].pop("timestamp")
+    actual["data"]["logs"][1].pop("timestamp")
+    actual["data"]["logs"][2].pop("timestamp")
+    assert actual["data"] == {
+        'logs': [
+            {
+                'reference_id': ref_id,
+                'log_type': 'resend',
+                'bot': pytest.bot,
+                'status': 'Success',
+                'api_response': {
+                    'contacts': [
+                        {
+                            'input': '+55123456789',
+                            'status': 'valid',
+                            'wa_id': '55123456789'
+                        }
+                    ]
+                },
+                'recipient': '919876543210',
+                'template_params': [
+                    {
+                        'type': 'header',
+                        'parameters': [
+                            {
+                                'type': 'document',
+                                'document': {
+                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                    'filename': 'Brochure.pdf'
+                                }
+                            }
+                        ]
+                    }
+                ],
+                'retry_count': 1
+            },
+            {
+                'reference_id': ref_id,
+                'log_type': 'resend',
+                'bot': pytest.bot,
+                'status': 'Success',
+                'api_response': {
+                    'contacts': [
+                        {
+                            'input': '+55123456789',
+                            'status': 'valid',
+                            'wa_id': '55123456789'
+                        }
+                    ]
+                },
+                'recipient': '918958030541',
+                'template_params': [
+                    {
+                        'type': 'header',
+                        'parameters': [
+                            {
+                                'type': 'document',
+                                'document': {
+                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                    'filename': 'Brochure.pdf'
+                                }
+                            }
+                        ]
+                    }
+                ],
+                'retry_count': 2
+            },
+            {
+                'reference_id': ref_id,
+                'log_type': 'common',
+                'bot': pytest.bot,
+                'status': 'Completed',
+                'user': 'test_user',
+                'broadcast_id': pytest.broadcast_msg_id,
+                'recipients': [
+                    '919876543210',
+                    '918958030541'
+                ]
+            }
+        ],
+        'total_count': 3
+    }
+
+
 def test_list_available_actions():
     script = """
     data = [1, 2, 3, 4, 5, 6]
@@ -20680,7 +20892,17 @@ def test_get_channel_logs():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == [{'campaign_id': '6779002886649302', 'status': {'delivered': 1, 'read': 1, 'sent': 1}}]
+    assert actual["data"] == [
+        {
+            'campaign_metrics': [
+                {
+                    'retry_count': 0,
+                    'statuses': {'delivered': 1, 'read': 1, 'sent': 1}
+                }
+            ],
+            'campaign_id': '6779002886649302'
+        }
+    ]
 
 
 @responses.activate
