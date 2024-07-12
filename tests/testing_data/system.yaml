@@ -195,7 +195,7 @@ channels:
     partner_id: ${360_DIALOG_PARTNER_ID}
     partner_username: ${360_DIALOG_PARTNER_USERNAME}
     partner_password: ${360DIALOG_PARTNER_PASSWORD}
-    error_codes: ${ERROR_CODES:[131021,131047,131052]}
+    error_codes: ${ERROR_CODES:[131021,131052]}
   instagram:
     static_comment_reply: ${INSTA_STATIC_COMMENT_REPLY:Thanks for reaching us, please check your inbox}
 
