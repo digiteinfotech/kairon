@@ -49,7 +49,7 @@ class CognitionDataProcessor:
         """
         bot_settings = MongoProcessor.get_bot_settings(bot, user)
         bot_settings = bot_settings.to_mongo().to_dict()
-        return len(metadata) >= bot_settings["cognition_columns_per_collection_limit"]
+        return len(metadata) > bot_settings["cognition_columns_per_collection_limit"]
 
     @staticmethod
     def is_same_column_in_metadata(metadata):
