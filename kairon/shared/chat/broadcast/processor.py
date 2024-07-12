@@ -104,6 +104,8 @@ class MessageBroadcastProcessor:
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
         kwargs["bot"] = bot
+        if "retry_count" in kwargs:
+            kwargs["retry_count"] = int(kwargs["retry_count"])
         start_idx = int(start_idx)
         page_size = int(page_size)
         query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp")
@@ -209,27 +211,42 @@ class MessageBroadcastProcessor:
     def get_channel_metrics(channel_type: Text, bot: Text):
         result = list(ChannelLogs.objects.aggregate([
             {'$match': {'bot': bot, 'type': channel_type}},
-            {'$group': {'_id': {'campaign_id': '$campaign_id', 'status': '$status', 'retry_count': {'$ifNull': ['$retry_count', 0]}}, 'count': {'$sum': 1}}},
-            {'$group': {'_id': '$_id.campaign_id', 'status': {'$push': {'status': '$_id.status', 'count': '$count', 'retry_count': '$_id.retry_count'}}}},
-            {'$addFields': {
-                'status': {
-                    '$map': {
-                        'input': '$status',
-                        'as': 's',
-                        'in': {
-                            'k': {
-                                '$cond': {
-                                    'if': {'$eq': ['$$s.retry_count', 0]},
-                                    'then': '$$s.status',
-                                    'else': {'$concat': ['$$s.status', '_', {'$toString': '$$s.retry_count'}]}
-                                }
-                            },
-                            'v': '$$s.count'
+            {'$group': {
+                '_id': {
+                    'campaign_id': '$campaign_id',
+                    'status': '$status',
+                    'retry_count': {'$ifNull': ['$retry_count', 0]}
+                },
+                'count': {'$sum': 1}
+            }},
+            {'$group': {
+                '_id': {
+                    'campaign_id': '$_id.campaign_id',
+                    'retry_count': '$_id.retry_count'
+                },
+                'statuses': {
+                    '$push': {
+                        'k': '$_id.status',
+                        'v': '$count'
+                    }
+                }
+            }},
+            {'$group': {
+                '_id': '$_id.campaign_id',
+                'campaign_metrics': {
+                    '$push': {
+                        'retry_count': '$_id.retry_count',
+                        'statuses': {
+                            '$arrayToObject': '$statuses'
                         }
                     }
                 }
             }},
-            {'$project': {'campaign_id': '$_id', 'status': {'$arrayToObject': '$status'}, '_id': 0}}
+            {'$project': {
+                '_id': 0,
+                'campaign_id': '$_id',
+                'campaign_metrics': 1
+            }}
         ]))
 
         return result

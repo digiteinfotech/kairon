@@ -1293,7 +1293,17 @@ class TestEventExecution:
         assert ChannelLogs.objects(bot=bot,
                                    message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ').get().campaign_id == reference_id
         result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
-        assert result == [{'campaign_id': reference_id, 'status': {'Failed': 1}}]
+        assert result == [
+            {
+                'campaign_metrics': [
+                    {
+                        'retry_count': 0,
+                        'statuses': {'Failed': 1}
+                    }
+                ],
+                'campaign_id': reference_id
+            }
+        ]
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -2453,6 +2463,7 @@ class TestEventExecution:
         logs[0][3].get("config").pop("timestamp")
         reference_id = logs[0][3].get("reference_id")
         logged_config = logs[0][3]
+        logs[0][3].pop("retry_1_timestamp")
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values',
@@ -2470,9 +2481,20 @@ class TestEventExecution:
         ).get().campaign_id == reference_id
 
         result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
-        assert result == [{'campaign_id': reference_id,
-                           'status': {'delivered': 1, 'delivered_1': 1, 'failed': 1,
-                                      'read': 1, 'read_1': 1, 'sent': 1, 'sent_1': 1}}]
+        assert result == [
+            {
+                'campaign_metrics': [
+                    {
+                        'retry_count': 0,
+                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
+                    },
+                    {
+                        'retry_count': 1,
+                        'statuses': {'delivered': 1, 'read': 1, 'sent': 1}
+                    }
+                ], 'campaign_id': reference_id
+            }
+        ]
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -2798,6 +2820,7 @@ class TestEventExecution:
         logs[0][3].pop("timestamp")
         logs[0][3].get("config").pop("timestamp")
         reference_id = logs[0][3].get("reference_id")
+        logs[0][3].pop("retry_1_timestamp")
         logged_config = logs[0][3]
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'common',
@@ -2816,9 +2839,21 @@ class TestEventExecution:
         ).get().campaign_id == reference_id
 
         result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
-        assert result == [{'campaign_id': reference_id,
-                           'status': {'delivered': 1, 'delivered_1': 1, 'failed': 1, 'read': 1,
-                                      'read_1': 1, 'sent': 1, 'sent_1': 1}}]
+        assert result == [
+            {
+                'campaign_metrics': [
+                    {
+                        'retry_count': 0,
+                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
+                    },
+                    {
+                        'retry_count': 1,
+                        'statuses': {'delivered': 1, 'read': 1, 'sent': 1}
+                    }
+                ],
+                'campaign_id': reference_id
+            }
+        ]
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -3220,6 +3255,7 @@ class TestEventExecution:
         logs[0][4].pop("timestamp")
         logs[0][4].get("config").pop("timestamp")
         reference_id = logs[0][4].get("reference_id")
+        logs[0][4].pop("retry_1_timestamp")
         logged_config = logs[0][4]
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'common',
@@ -3239,9 +3275,22 @@ class TestEventExecution:
         ).get().campaign_id == reference_id
 
         result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
-        assert result == [{'campaign_id': reference_id,
-                           'status': {'delivered': 1, 'delivered_1': 1, 'failed': 2,
-                                      'read': 1, 'read_1': 1, 'sent': 1, 'sent_1': 1}}]
+        assert result == [
+            {
+                'campaign_metrics': [
+                    {
+                        'retry_count': 0,
+                        'statuses': {'delivered': 1, 'failed': 2, 'read': 1, 'sent': 1}
+                    },
+                    {
+                        'retry_count': 1,
+                        'statuses': {'delivered': 1, 'read': 1, 'sent': 1}
+                    }
+                ],
+                'campaign_id': reference_id
+            }
+        ]
+
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -3758,6 +3807,7 @@ class TestEventExecution:
         logs[0][5].pop("timestamp")
         logs[0][5].get("config").pop("timestamp")
         reference_id = logs[0][5].get("reference_id")
+        logs[0][5].pop("retry_2_timestamp")
         logged_config = logs[0][5]
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'common',
@@ -3778,7 +3828,22 @@ class TestEventExecution:
 
         result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
         assert result == [
-            {'campaign_id': reference_id,
-             'status': {'delivered': 1, 'delivered_1': 1, 'delivered_2': 1, 'failed': 2, 'failed_1': 1,
-                        'read': 1, 'read_1': 1, 'read_2': 1, 'sent': 1, 'sent_1': 1, 'sent_2': 1}}]
+            {
+                'campaign_metrics': [
+                    {
+                        'retry_count': 0,
+                        'statuses': {'delivered': 1, 'failed': 2, 'read': 1, 'sent': 1}
+                    },
+                    {
+                        'retry_count': 1,
+                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
+                    },
+                    {
+                        'retry_count': 2,
+                        'statuses': {'delivered': 1, 'read': 1, 'sent': 1}
+                     }
+                ],
+                'campaign_id': reference_id
+            }
+        ]
 
