@@ -11284,6 +11284,7 @@ def test_add_vectordb_action_with_utter():
         }],
         "response": {"value": "0"},
     }
+
     response = client.post(
         url=f"/api/bot/{pytest.bot}/action/db",
         json=request_body,
