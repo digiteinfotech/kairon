@@ -475,11 +475,14 @@ class DatabaseActionRequest(BaseModel):
     @validator("payload")
     def validate_payload(cls, v, values, **kwargs):
         count_payload_search = 0
-        for item in v:
-            if item.query_type == DbActionOperationType.payload_search:
-                count_payload_search += 1
-            if count_payload_search > 1:
-                raise ValueError(f"Only One {DbActionOperationType.payload_search} is allowed!")
+        if v:
+            for item in v:
+                if item.query_type == DbActionOperationType.payload_search:
+                    count_payload_search += 1
+                if count_payload_search > 1:
+                    raise ValueError(f"Only One {DbActionOperationType.payload_search} is allowed!")
+        else:
+            raise ValueError("payload is required")
         return v
 
 
