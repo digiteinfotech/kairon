@@ -279,6 +279,17 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="top_results should not be greater than 30"):
             processor.add_prompt_action(request, bot, user)
 
+    def test_add_prompt_action_with_utter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'name': 'utter_test_add_prompt_action',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(AppException, match='Action name cannot start with utter_'):
+            processor.add_prompt_action(request, bot, user)
+
     def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(self):
         processor = MongoProcessor()
         bot = 'bot'
@@ -1242,6 +1253,28 @@ class TestMongoProcessor:
         pyscript_config_dict = pyscript_config.dict()
         pyscript_config_dict['source_code'] = ''
         with pytest.raises(ValidationError, match="Source code cannot be empty"):
+            processor.add_pyscript_action(pyscript_config_dict, user, bot)
+
+    def test_add_pyscript_action_with_utter(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action_empty_name"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        pyscript_config_dict = pyscript_config.dict()
+        pyscript_config_dict['name'] = "utter_add_pyscript_action_empty_name"
+        with pytest.raises(AppException, match="Action name cannot start with utter_"):
             processor.add_pyscript_action(pyscript_config_dict, user, bot)
 
     def test_add_pyscript_action(self):
@@ -10135,6 +10168,30 @@ class TestMongoProcessor:
         actions = list(processor.list_db_actions(bot, True))
         assert len(actions) == 3
 
+    def test_add_vector_embedding_action_with_utter(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'utter_test_vectordb_action_op_embedding_search'
+        response = '0'
+        query_type = 'embedding_search'
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body, 'query_type': query_type, }
+        vectordb_action_config = DatabaseActionRequest(
+            name=action,
+            collection='test_add_vector_embedding_action_config_existing_name',
+            payload=[payload],
+            response=ActionResponseEvaluation(value=response)
+        )
+        with pytest.raises(AppException, match="Action name cannot start with utter_"):
+            processor.add_db_action(vectordb_action_config.dict(), user, bot)
+
     def test_update_vector_embedding_action(self):
         processor = MongoProcessor()
         bot = 'test_update_vectordb_action_bot'
@@ -10282,6 +10339,26 @@ class TestMongoProcessor:
         except AppException as e:
             assert str(e).__contains__(
                 'Action with name "test_delete_vector_embedding_action_config_non_existing_non_existing" not found')
+
+    def test_add_http_action_config_with_utter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'utter_test_action'
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        params = [HttpActionParameters(key="key", value="value", parameter_type="slot")]
+
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=ActionResponseEvaluation(value=response),
+            http_url=http_url,
+            request_method=request_method,
+            params_list=params
+        )
+        with pytest.raises(AppException, match="Action name cannot start with utter_"):
+            processor.add_http_action_config(http_action_config.dict(), user, bot)
 
     def test_add_http_action_config(self):
         processor = MongoProcessor()

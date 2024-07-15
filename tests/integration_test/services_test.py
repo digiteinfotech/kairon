@@ -1845,6 +1845,31 @@ def test_add_pyscript_action_empty_source_code():
     assert not actual["success"]
 
 
+def test_add_pyscript_action_with_utter():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": "utter_pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action name cannot start with utter_"
+    assert not actual["success"]
+
+
 def test_add_pyscript_action():
     script = """
     data = [1, 2, 3, 4, 5]
@@ -3132,6 +3157,68 @@ def test_get_kairon_faq_action_with_no_actions():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["data"] == []
+
+
+def test_add_prompt_action_with_utter(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    action = {
+        "name": "utter_test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Similarity Prompt",
+                "data": "Bot_collection",
+                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                "type": "user",
+                "source": "bot_content",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "If there is no specific query, assume that user is aking about java programming.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Action name cannot start with utter_"
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
 
 
 def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
@@ -11186,6 +11273,29 @@ def test_add_vectordb_action_empty_name():
     assert not actual["success"]
 
 
+def test_add_vectordb_action_with_utter():
+    request_body = {
+        "name": "utter_add_vectordb_action",
+        "collection": 'test_add_vectordb_action_empty_name',
+        "payload": [{
+            "type": "from_value",
+            "value": {"ids": [0], "with_payload": True, "with_vector": True},
+            "query_type": "embedding_search",
+        }],
+        "response": {"value": "0"},
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action name cannot start with utter_"
+    assert not actual["success"]
+
+
 def test_add_vectordb_action_empty_collection_name():
     request_body = {
         "name": 'test_add_vectordb_action_empty_collection_name',
@@ -12000,6 +12110,29 @@ def test_add_http_action_no_action_name():
     actual = response.json()
     assert actual["error_code"] == 422
     assert actual["message"]
+    assert not actual["success"]
+
+
+def test_add_http_action_with_utter():
+    request_body = {
+        "action_name": "utter_test_add_http_action_no_token",
+        "response": {"value": "string"},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [
+            {"key": "testParam1", "parameter_type": "value", "value": "testValue1"}
+        ],
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action name cannot start with utter_"
     assert not actual["success"]
 
 
