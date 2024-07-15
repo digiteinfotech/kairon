@@ -11,7 +11,7 @@ from kairon.shared.models import CognitionMetadataType, CognitionDataType
 class ColumnMetadata(EmbeddedDocument):
     column_name = StringField(required=True)
     data_type = StringField(required=True, default=CognitionMetadataType.str.value,
-                            choices=[CognitionMetadataType.str.value, CognitionMetadataType.int.value])
+                            choices=[CognitionMetadataType.str.value, CognitionMetadataType.int.value, CognitionMetadataType.float.value])
     enable_search = BooleanField(default=True)
     create_embeddings = BooleanField(default=True)
 
@@ -20,8 +20,8 @@ class ColumnMetadata(EmbeddedDocument):
 
         if clean:
             self.clean()
-        if self.data_type not in [CognitionMetadataType.str.value, CognitionMetadataType.int.value]:
-            raise ValidationError("Only str and int data types are supported")
+        if self.data_type not in [CognitionMetadataType.str.value, CognitionMetadataType.int.value, CognitionMetadataType.float.value]:
+            raise ValidationError("Only str,int and float data types are supported")
         if Utility.check_empty_string(self.column_name):
             raise ValidationError("Column name cannot be empty")
 
