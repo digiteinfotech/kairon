@@ -1920,6 +1920,8 @@ class Utility:
 
         if Utility.is_reserved_keyword(name):
             raise AppException(f"{name} is a reserved keyword")
+        if name.startswith("utter_"):
+            raise AppException("Action name cannot start with utter_")
         q_filter = {
             "name__iexact": name,
             "bot": bot,
