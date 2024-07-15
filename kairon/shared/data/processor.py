@@ -4687,7 +4687,7 @@ class MongoProcessor:
             ActionType.web_search_action.value: WebSearchAction,
             ActionType.razorpay_action.value: RazorpayAction,
             ActionType.pyscript_action.value: PyscriptActionConfig,
-            # ActionType.database_action.value: DatabaseAction
+            ActionType.database_action.value: DatabaseAction
         }
         saved_actions = set(
             Actions.objects(bot=bot, status=True, type__ne=None).values_list("name")
