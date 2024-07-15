@@ -11247,6 +11247,28 @@ def test_get_secret_2():
     assert actual["success"]
 
 
+def test_add_vectordb_action_empty_payload():
+    request_body = {
+        "name": "add_vectordb_action_empty_payload",
+        "collection": 'test_add_vectordb_action_empty_name',
+        "payload": [],
+        "response": {"value": "0"},
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {"loc": ["body", "payload"], "msg": "payload is required", "type": "value_error"}
+    ]
+    assert not actual["success"]
+
+
 def test_add_vectordb_action_empty_name():
     request_body = {
         "name": "",
