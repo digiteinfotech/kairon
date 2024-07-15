@@ -1084,9 +1084,12 @@ class MongoProcessor:
             if slot_mapping and slot_name in slots_name_list:
                 if slot_name not in existing_slot_mappings:
                     for mapping in slot_mapping:
+                        form_name = None
+                        if mapping.get("conditions"):
+                            form_name = mapping["conditions"][0]["active_loop"]
                         mapping_to_save.append(
                             SlotMapping(
-                                slot=slot_name, mapping=mapping, bot=bot, user=user
+                                slot=slot_name, mapping=mapping, bot=bot, user=user, form_name=form_name
                             )
                         )
         if mapping_to_save:
@@ -4684,7 +4687,7 @@ class MongoProcessor:
             ActionType.web_search_action.value: WebSearchAction,
             ActionType.razorpay_action.value: RazorpayAction,
             ActionType.pyscript_action.value: PyscriptActionConfig,
-            ActionType.database_action.value: DatabaseAction
+            # ActionType.database_action.value: DatabaseAction
         }
         saved_actions = set(
             Actions.objects(bot=bot, status=True, type__ne=None).values_list("name")
@@ -6331,7 +6334,7 @@ class MongoProcessor:
 
         :param bot: bot id
         :param form: retrieve slot mappings for a particular form
-        :return: list of slot mappings
+        # :return: list of slot mappings
         """
         filter = {"bot": bot, "status": True}
         if form:
