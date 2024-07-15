@@ -229,6 +229,11 @@ class CognitionDataProcessor:
                     return int(data[column_name])
                 except ValueError:
                     raise AppException("Invalid data type!")
+            elif column_name in data and data[column_name] and data_type == CognitionMetadataType.float.value:
+                try:
+                    return float(data[column_name])
+                except ValueError:
+                    raise AppException("Invalid data type!")
             else:
                 return data[column_name]
 

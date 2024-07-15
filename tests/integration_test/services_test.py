@@ -2303,10 +2303,10 @@ def test_metadata_upload_invalid_data_type():
     )
     actual = response.json()
     assert actual["message"] == [{'loc': ['body', 'metadata', 0, 'data_type'],
-                                  'msg': "value is not a valid enumeration member; permitted: 'str', 'int'",
-                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['str', 'int']}},
+                                  'msg': "value is not a valid enumeration member; permitted: 'str', 'int', 'float'",
+                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['str', 'int', 'float']}},
                                  {'loc': ['body', 'metadata', 0, '__root__'],
-                                  'msg': 'Only str and int data types are supported', 'type': 'value_error'}]
+                                  'msg': 'Only str, int and float data types are supported', 'type': 'value_error'}]
     assert not actual["data"]
     assert actual["error_code"] == 422
 

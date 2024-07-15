@@ -113,3 +113,4 @@ class CognitionDataType(str, Enum):
 class CognitionMetadataType(str, Enum):
     str = "str"
     int = "int"
+    float = "float"
