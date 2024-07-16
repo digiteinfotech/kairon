@@ -94,11 +94,10 @@ class KaironMessageProcessor(MessageProcessor):
         while should_predict_another_action and self._should_handle_message(tracker):
             # this actually just calls the policy's method by the same name
             try:
-                if should_predict_another_action:
-                    if predicted_action_count >= self.max_number_of_predictions:
-                        raise ActionLimitReached(
-                            "The limit of actions to predict has been reached."
-                        )
+                if predicted_action_count >= self.max_number_of_predictions:
+                    raise ActionLimitReached(
+                        "The limit of actions to predict has been reached."
+                    )
 
                 action, prediction = self.predict_next_with_tracker_if_should(tracker)
                 actions_predicted.append(
