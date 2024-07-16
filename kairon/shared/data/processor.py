@@ -6,7 +6,7 @@ from collections import ChainMap
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Text, Dict, List, Any
+from typing import Text, Dict, List, Any, Optional
 from urllib.parse import urljoin, urlparse
 from loguru import logger
 
@@ -1121,16 +1121,17 @@ class MongoProcessor:
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
             if action.strip().lower() not in saved_actions:
-                self.__check_for_form_and_action_existance(bot, action)
                 new_action = Actions(name=action, bot=bot, user=user)
                 new_action.clean()
                 yield new_action
 
-    def __check_for_form_and_action_existance(self, bot: Text, name: Text):
+    def __check_for_form_and_action_existance(self, bot: Text, name: Text, action_type: Optional[ActionType] = None):
+        if action_type == ActionType.form_validation_action.value:
+            return
         Utility.is_exist(Actions,
-                        raise_error=True,
-                        exp_message=f"Action with the name '{name}' already exists",
-                        name=name, bot=bot, status=True)
+                         raise_error=True,
+                         exp_message=f"Action with the name '{name}' already exists",
+                         name=name, bot=bot, status=True)
         Utility.is_exist(Forms,
                          raise_error=True,
                          exp_message=f"Form with the name '{name}' already exists",
@@ -2663,7 +2664,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Action name cannot be empty or blank spaces")
 
-        self.__check_for_form_and_action_existance(bot, name)
+        self.__check_for_form_and_action_existance(bot, name, action_type)
 
         if not name.startswith("utter_") and not Utility.is_exist(
                 Actions,
