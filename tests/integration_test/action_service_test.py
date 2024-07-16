@@ -3619,6 +3619,87 @@ def test_http_action_doesnotexist():
     assert response.status_code == 200
     assert response_json == {'events': [], 'responses': []}
 
+@responses.activate
+def test_vectordb_action_execution_payload_search_from_slot():
+    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    action_name = "test_vectordb_action_execution_payload_search_from_slot"
+    bot = '5f50md0a56b698ca10d35e2e'
+    Actions(name=action_name, type=ActionType.database_action.value, bot=bot,
+            user="user").save()
+    payload = {"filter": {
+        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}
+    DatabaseAction(
+        name=action_name,
+        collection='test_vectordb_action_execution_payload_search_from_slot',
+        payload=[DbQuery(query_type=DbActionOperationType.payload_search.value,
+                         type=DbQueryValueType.from_slot.value,
+                         value="search")],
+        response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+        set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+        bot=bot,
+        user="user"
+    ).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user="user").save()
+    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
+               bot=bot, user="user").save()
+
+    http_url = f'http://localhost:6333/collections/{bot}_test_vectordb_action_execution_payload_search_from_slot_faq_embd/points/query'
+    resp_msg = json.dumps(
+        [{"id": 2, "city": "London", "color": "red"}]
+    )
+    json_params_matcher = payload.copy()
+    json_params_matcher['with_payload'] = True
+    json_params_matcher['limit'] = 10
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        body=resp_msg,
+        status=200,
+        match=[responses.matchers.json_params_matcher(json_params_matcher)],
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": bot, "search": payload},
+            "latest_message": {'text': "Hi", 'intent_ranking': [{'name': 'user_story'}],
+                               "entities": []},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": bot},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'The value of London with color red is 2'}]
+    assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
+    log = ActionServerLogs.objects(action=action_name, bot=bot).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
 
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_user_message():

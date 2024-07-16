@@ -43,7 +43,7 @@ class Qdrant(DatabaseBase, ABC):
         if DbActionOperationType.payload_search in data:
             payload = data.get(DbActionOperationType.payload_search)
             if payload:
-                request.update(**data.get(DbActionOperationType.payload_search))
+                request.update(**payload)
 
         if request:
             request.update(**{'with_payload': True, 'limit': 10})

@@ -633,6 +633,8 @@ class ActionUtility:
                 try:
                     if isinstance(value, str):
                         request_payload[DbActionOperationType.payload_search] = json.loads(value)
+                    else:
+                        request_payload[DbActionOperationType.payload_search] = value
                 except json.JSONDecodeError as e:
                     logger.debug(e)
                     raise ActionFailure(f"Error converting payload to JSON: {value}")
