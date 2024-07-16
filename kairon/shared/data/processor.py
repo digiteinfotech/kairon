@@ -1084,9 +1084,12 @@ class MongoProcessor:
             if slot_mapping and slot_name in slots_name_list:
                 if slot_name not in existing_slot_mappings:
                     for mapping in slot_mapping:
+                        form_name = None
+                        if mapping.get("conditions"):
+                            form_name = mapping["conditions"][0]["active_loop"]
                         mapping_to_save.append(
                             SlotMapping(
-                                slot=slot_name, mapping=mapping, bot=bot, user=user
+                                slot=slot_name, mapping=mapping, bot=bot, user=user, form_name=form_name
                             )
                         )
         if mapping_to_save:
