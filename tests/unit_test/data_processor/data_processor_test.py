@@ -4918,6 +4918,29 @@ class TestMongoProcessor:
         assert Utterances.objects(bot=bot).count() == 27
 
     @pytest.mark.asyncio
+    async def test_save_training_data_all_overwrite_slot_mapping(self, get_training_data, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com',
+                'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        path = 'tests/testing_data/yml_training_files'
+        bot = 'test'
+        user = 'test'
+        nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config = await get_training_data(
+            path)
+        domain.slots[0].mappings[0]['conditions'] = [{"active_loop": "ticket_attributes_form", "requested_slot": "date_time"}]
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
+                                           chat_client_config, True)
+
+        slot_mapping = SlotMapping.objects(form_name="ticket_attributes_form").get()
+        assert slot_mapping.slot == "date_time"
+
+    @pytest.mark.asyncio
     async def test_save_training_data_all_overwrite(self, get_training_data, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
             return {
