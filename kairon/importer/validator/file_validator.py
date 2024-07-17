@@ -709,6 +709,7 @@ class TrainingDataValidator(Validator):
 
     @staticmethod
     def __validate_database_actions(database_actions: list):
+        from ordered_set import OrderedSet
         data_error = []
         actions_present = set()
         required_fields = {k for k, v in DatabaseAction._fields.items() if
@@ -716,12 +717,13 @@ class TrainingDataValidator(Validator):
         for action in database_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
-                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    data_error.append(f'Required fields {list(required_fields)} not found: {action.get("name")}')
                     continue
-                if action['query_type'] not in [qtype.value for qtype in DbActionOperationType]:
-                    data_error.append(f"Unknown query_type found: {action['query_type']}")
-                if not action['payload'].get('type') or not action['payload'].get('value'):
-                    data_error.append(f"Payload must contain fields 'type' and 'value'!")
+                for idx, item in enumerate(action.get('payload', [])):
+                    if not item.get('query_type') or not item.get('type') or not item.get('value'):
+                        data_error.append(f"Payload {idx} must contain fields 'query_type', 'type' and 'value'!")
+                    if item.get('query_type') not in [qtype.value for qtype in DbActionOperationType]:
+                        data_error.append(f"Unknown query_type found: {item['query_type']} in payload {idx}")
                 if action['name'] in actions_present:
                     data_error.append(f'Duplicate action found: {action["name"]}')
                 actions_present.add(action["name"])
