@@ -118,7 +118,6 @@ class TestQdrant:
         called_args = mock_http_request.call_args
         called_payload = called_args.kwargs['request_body']
         assert called_payload == {'query': embedding,
-                                  'score_threshold': 0.7,
                                   'with_payload': True,
                                   'limit': 10}
         assert called_args.kwargs['http_url'] == 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2g/points/query'
