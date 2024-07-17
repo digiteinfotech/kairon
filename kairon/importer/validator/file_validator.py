@@ -709,7 +709,6 @@ class TrainingDataValidator(Validator):
 
     @staticmethod
     def __validate_database_actions(database_actions: list):
-        from ordered_set import OrderedSet
         data_error = []
         actions_present = set()
         required_fields = {k for k, v in DatabaseAction._fields.items() if
