@@ -853,18 +853,12 @@
       {
          "name": "db_action1",
          "collection": "db_collection_1",
-         "query_type": "embedding_search",
          "db_type": "qdrant",
-         "payload": {
+         "payload": [{
+            "query_type": "embedding_search",
             "type": "from_value",
-            "value": {
-               "ids": [
-                  0
-               ],
-               "with_payload": true,
-               "with_vector": true
-            }
-         },
+            "value": "Hi"
+         }],
          "response": {
             "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",
             "dispatch": true,
@@ -875,34 +869,22 @@
       {
          "name": "db_action2",
          "collection": "db_collection_1",
-         "query_type": "embedding_search",
          "db_type": "qdrant",
-         "payload": {
+         "payload": [{
+            "query_type": "embedding_search",
             "type": "from_value",
-            "value": {
-               "ids": [
-                  0
-               ],
-               "with_payload": true,
-               "with_vector": true
-            }
-         },
+            "value": "Hi"
+         }],
          "response": "${RESPONSE}"
       },
       {
          "name": "db_action5",
-         "query_type": "embedding_search",
          "db_type": "qdrant",
-         "payload": {
+         "payload": [{
+            "query_type": "embedding_search",
             "type": "from_value",
-            "value": {
-               "ids": [
-                  0
-               ],
-               "with_payload": true,
-               "with_vector": true
-            }
-         },
+            "value": "Hi"
+         }],
          "response": {
             "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",
             "dispatch": true,
@@ -913,18 +895,12 @@
       {
          "name": "db_action1",
          "collection": "db_collection_1",
-         "query_type": "undefined_search",
          "db_type": "qdrant",
-         "payload": {
+         "payload": [{
+            "query_type": "undefined_search",
             "type": "from_value",
-            "value": {
-               "ids": [
-                  0
-               ],
-               "with_payload": true,
-               "with_vector": true
-            }
-         },
+            "value": "Hi"
+         }],
          "response": {
             "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",
             "dispatch": true,
@@ -935,8 +911,8 @@
        {
          "name": "db_action3",
          "collection": "db_collection_1",
-         "query_type": "undefined_search",
          "db_type": "qdrant",
+         "payload": [{"query_type": "undefined_search"}],
          "response": {
             "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",
             "dispatch": true,
@@ -945,19 +921,20 @@
          }
       },
       {
+
          "name": "db_action4",
          "collection": "db_collection_1",
-         "query_type": "embedding_search",
          "db_type": "qdrant",
-         "payload": {
+         "payload": [{
+            "query_type": "embedding_search",
             "type": "from_value"
-         },
+         }],
          "response": "${RESPONSE}"
       },
       [{
          "name": "db_action3",
          "collection": "db_collection_1",
-         "query_type": "undefined_search",
+         "payload": [{"query_type": "undefined_search"}],
          "db_type": "qdrant",
          "response": {
             "value": "The value of ${data.result.0.id} is ${data.result.0.vector}",

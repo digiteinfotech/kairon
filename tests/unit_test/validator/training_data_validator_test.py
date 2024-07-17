@@ -802,7 +802,7 @@ class TestTrainingDataValidator:
         assert len(error_summary['prompt_actions']) == 36
         assert len(error_summary['razorpay_actions']) == 3
         assert len(error_summary['pyscript_actions']) == 3
-        assert len(error_summary['database_actions']) == 6
+        assert len(error_summary['database_actions']) == 7
         expected_errors = ['top_results should not be greater than 30 and of type int!',
                            'similarity_threshold should be within 0.3 and 1.0 and of type int or float!',
                            'Collection is required for bot content prompts!', 'System prompt is required',
@@ -827,6 +827,14 @@ class TestTrainingDataValidator:
                            'Only one system prompt can be present', 'Only one system prompt can be present',
                            'Only one system prompt can be present', 'Only one history source can be present']
         assert not DeepDiff(error_summary['prompt_actions'], expected_errors, ignore_order=True)
+        expected_errors = ["Required fields ['name', 'db_type', 'payload', 'collection'] not found: db_action5",
+                           'Unknown query_type found: undefined_search in payload 0',
+                           'Duplicate action found: db_action1',
+                           "Payload 0 must contain fields 'query_type', 'type' and 'value'!",
+                           'Unknown query_type found: undefined_search in payload 0',
+                           "Payload 0 must contain fields 'query_type', 'type' and 'value'!",
+                           'Invalid action configuration format. Dictionary expected.']
+        assert not DeepDiff(error_summary['database_actions'][1:], expected_errors[1:], ignore_order=True)
         assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 9,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
                                    'zendesk_actions': 4, 'pipedrive_leads_actions': 5, 'prompt_actions': 8,
