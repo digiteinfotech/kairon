@@ -38,7 +38,6 @@ class Qdrant(DatabaseBase, ABC):
             if user_msg and isinstance(user_msg, str):
                 vector = await self.__get_embedding(user_msg, user, **kwargs)
                 request['query'] = vector
-                request['score_threshold'] = 0.70
 
         if DbActionOperationType.payload_search in data:
             payload = data.get(DbActionOperationType.payload_search)

@@ -3915,7 +3915,6 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
         body=resp_msg,
         status=200,
         match=[responses.matchers.json_params_matcher({'query': embedding,
-                                                       'score_threshold': 0.7,
                                                        'with_payload': True, 'limit': 10})],
     )
 
@@ -4154,7 +4153,6 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
         body=resp_msg,
         status=200,
         match=[responses.matchers.json_params_matcher({'query': embedding,
-                                                       'score_threshold': 0.7,
                                                        'with_payload': True, 'limit': 10})],
     )
 
@@ -4253,7 +4251,6 @@ def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_em
         body=resp_msg,
         status=200,
         match=[responses.matchers.json_params_matcher({'query': embedding,
-                                                       'score_threshold': 0.7,
                                                        'with_payload': True, 'limit': 10})],
     )
 
@@ -12868,7 +12865,6 @@ def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
         match=[responses.matchers.json_params_matcher({'with_payload': True,
                                                        'limit': 10,
                                                        'query': embedding,
-                                                       'score_threshold': 0.7,
                                                        **payload}, strict_match=False)],
     )
 
