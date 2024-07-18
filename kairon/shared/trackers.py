@@ -97,6 +97,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                 "conversation_id": conversation_id,
                 "data": {},
             }
+            insert_flattened = False
             actions_predicted = []
             bot_responses = []
             data = []
@@ -123,6 +124,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                         "intent"
                     ]["confidence"]
                     metadata = event.get("metadata")
+                    insert_flattened = True
                 elif event["event"] == "action":
                     actions_predicted.append(event.get("name"))
                 elif event["event"] == "bot":
@@ -132,7 +134,8 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             flattened_conversation["data"]["action"] = actions_predicted
             flattened_conversation["data"]["bot_response"] = bot_responses
             flattened_conversation["metadata"] = metadata
-            data.append(flattened_conversation)
+            if insert_flattened:
+                data.append(flattened_conversation)
             if data:
                 self.conversations.insert_many(data)
                 logger.info(f"db: {self.db.name}, collection: {self.collection}, env: {Utility.environment['env']}")
