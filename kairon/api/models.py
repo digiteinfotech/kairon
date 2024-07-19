@@ -26,7 +26,7 @@ from ..shared.actions.models import (
 )
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
-from pydantic import BaseModel, validator, SecretStr, root_validator, constr
+from pydantic import BaseModel, validator, SecretStr, root_validator, constr, Field
 from ..shared.models import (
     StoryStepType,
     StoryType,
