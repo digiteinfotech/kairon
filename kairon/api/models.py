@@ -1116,8 +1116,8 @@ class ColumnMetadata(BaseModel):
     def check(cls, values):
         from kairon.shared.utils import Utility
 
-        if values.get('data_type') not in [CognitionMetadataType.str.value, CognitionMetadataType.int.value]:
-            raise ValueError("Only str and int data types are supported")
+        if values.get('data_type') not in [CognitionMetadataType.str.value, CognitionMetadataType.int.value, CognitionMetadataType.float.value]:
+            raise ValueError("Only str, int and float data types are supported")
         if Utility.check_empty_string(values.get('column_name')):
             raise ValueError("Column name cannot be empty")
         return values

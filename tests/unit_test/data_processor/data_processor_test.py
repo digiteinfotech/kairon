@@ -15025,7 +15025,7 @@ class TestMongoProcessor:
             "bot": bot,
             "user": user
         }
-        with pytest.raises(ValidationError, match="Only str and int data types are supported"):
+        with pytest.raises(ValidationError, match="Only str,int and float data types are supported"):
             CognitionSchema(**schema).save()
 
     def test_get_payload_metadata(self):
