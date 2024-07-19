@@ -8564,7 +8564,8 @@ class TestMongoProcessor:
                           'source': 'action',
                           'is_enabled': True}],
             llm_type=DEFAULT_LLM,
-            hyperparameters=Utility.get_default_llm_hyperparameters()
+            hyperparameters=Utility.get_default_llm_hyperparameters(),
+            bot=bot
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         processor.add_prompt_action(prompt_action_config.dict(), bot, user)

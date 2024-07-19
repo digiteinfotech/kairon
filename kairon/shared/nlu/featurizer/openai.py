@@ -50,8 +50,8 @@ class OpenAIFeaturizer(DenseFeaturizer, GraphComponent, ABC):
     def load_api_key(self, bot_id: Text):
         if bot_id:
             from kairon.shared.admin.processor import Sysadmin
-            from kairon.shared.admin.constants import BotSecretType
-            self.api_key = Sysadmin.get_bot_secret(bot_id, BotSecretType.gpt_key.value, raise_err=True)
+            llm_secret = Sysadmin.get_llm_secret("openai", bot_id)
+            self.api_key = llm_secret.get('api_key')
         elif os.environ.get("OPENAI_API_KEY"):
             self.api_key = os.environ.get("OPENAI_API_KEY")
         else:

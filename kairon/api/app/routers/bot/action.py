@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Path, Security
+from fastapi import APIRouter, Path, Security, Depends
 
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
@@ -485,8 +485,8 @@ async def update_two_stage_fallback_action(
 
 @router.post("/prompt", response_model=Response)
 async def add_prompt_action(
-        request_data: PromptActionConfigRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        request_data: PromptActionConfigRequest = Depends(Utility.validate_prompt_request),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Stores Kairon FAQ Action
