@@ -2053,16 +2053,31 @@ class Utility:
         raise AppException(f"Could not find any hyperparameters for {llm_type} LLM.")
 
     @staticmethod
-    def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, exception_class):
+    def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, bot: str, exception_class):
         from jsonschema_rs import JSONSchema, ValidationError as JValidationError
+        from .admin.data_objects import LLMSecret
         schema = Utility.system_metadata["llm"][llm_type]
+        if bot is not None:
+            llm_secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
+            if llm_secret:
+                models_list = llm_secret.models
+                schema["properties"]["model"]["enum"] = models_list
         try:
             validator = JSONSchema(schema)
             validator.validate(hyperparameters)
         except JValidationError as e:
-            message = f"{e.instance_path}: {e.message}"
+            message = f"{e.instance_path}: {e.message} for bot {bot}"
             raise exception_class(message)
 
+    @staticmethod
+    async def validate_prompt_request(req: Request):
+        from kairon.api.models import PromptActionConfigRequest
+
+        bot = req.path_params.get("bot")
+        body_obj = await req.json()
+        body_obj["bot"] = bot
+
+        return PromptActionConfigRequest(**body_obj)
 
     @staticmethod
     def create_uuid_from_string(val: str):

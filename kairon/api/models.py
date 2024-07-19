@@ -26,7 +26,7 @@ from ..shared.actions.models import (
 )
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
-from pydantic import BaseModel, validator, SecretStr, root_validator, constr
+from pydantic import BaseModel, validator, SecretStr, root_validator, constr, Field
 from ..shared.models import (
     StoryStepType,
     StoryType,
@@ -1077,6 +1077,7 @@ class PromptActionConfigRequest(BaseModel):
     instructions: List[str] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
     dispatch_response: bool = True
+    bot: str
 
     @validator("llm_prompts")
     def validate_llm_prompts(cls, v, values, **kwargs):
@@ -1099,11 +1100,16 @@ class PromptActionConfigRequest(BaseModel):
             raise ValueError("Invalid llm type")
         return v
 
-    @validator("hyperparameters")
-    def validate_llm_hyperparameters(cls, v, values, **kwargs):
-        if values.get('llm_type'):
-            Utility.validate_llm_hyperparameters(v, values['llm_type'], ValueError)
-        return v
+    @root_validator(pre=True)
+    def validate_llm_hyperparameters(cls, values):
+        bot = values.get('bot')
+        if not bot:
+            raise ValueError("bot field is missing")
+
+        if values.get('llm_type') and values.get('hyperparameters'):
+            Utility.validate_llm_hyperparameters(values.get('hyperparameters'), values.get('llm_type'), bot, ValueError)
+
+        return values
 
 
 class ColumnMetadata(BaseModel):
