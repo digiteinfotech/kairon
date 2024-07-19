@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import ujson as json
 from typing import List, Text, Dict
 
@@ -47,7 +49,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         else:
             self.__send_using_pyscript()
 
-    def __send_using_pyscript(self):
+    def __send_using_pyscript(self, **kwargs):
         from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 
         script = self.config['pyscript']
@@ -62,7 +64,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                 status=status, recipient=recipient, template_params=components, template=raw_template,
-                event_id=self.event_id, template_name=template_id
+                event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
+                retry_count=0
             )
 
             return response
@@ -107,7 +110,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             for recipient, t_params in zip(recipients, template_params):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
-                    response = channel_client.send_template_message(template_id, recipient, lang, t_params, namespace=namespace)
+                    response = channel_client.send_template_message(template_id, recipient, lang, t_params,
+                                                                    namespace=namespace)
                     status = "Failed" if response.get("errors") else "Success"
                     if status == "Failed":
                         failure_cnt = failure_cnt + 1
@@ -115,12 +119,62 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                     MessageBroadcastProcessor.add_event_log(
                         self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                         status=status, recipient=recipient, template_params=t_params, template=raw_template,
-                        event_id=self.event_id, template_name=template_id
+                        event_id=self.event_id, template_name=template_id, language_code=lang, namespace=namespace,
+                        retry_count=0
                     )
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
                 event_id=self.event_id, **evaluation_log
             )
+
+    def resend_broadcast(self):
+        config = MessageBroadcastProcessor.get_settings(self.event_id, self.bot, is_resend=True)
+        retry_count = config["retry_count"]
+
+        message_broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(
+            self.reference_id, retry_count=retry_count
+        )
+
+        broadcast_logs = [log for log in message_broadcast_logs.values() if log["errors"]]
+        codes_to_exclude = Utility.environment["channels"]["360dialog"]["error_codes"]
+        required_logs = [log for log in broadcast_logs if log["errors"][0]["code"] not in codes_to_exclude]
+        channel_client = self.__get_client()
+        retry_count += 1
+        failure_cnt = 0
+        total = len(required_logs)
+        skipped_count = len(broadcast_logs) - total
+
+        for log in required_logs:
+            template_id = log["template_name"]
+            namespace = log["namespace"]
+            language_code = log["language_code"]
+            components = log["template_params"]
+            recipient = log["recipient"]
+            template = log["template"]
+            response = channel_client.send_template_message(template_id, recipient, language_code, components,
+                                                            namespace)
+            status = "Failed" if response.get("error") else "Success"
+            if status == "Failed":
+                failure_cnt = failure_cnt + 1
+
+            MessageBroadcastProcessor.add_event_log(
+                self.bot, MessageBroadcastLogType.resend.value, self.reference_id, api_response=response,
+                status=status, recipient=recipient, template_params=components, template=template,
+                event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
+                retry_count=retry_count,
+            )
+        kwargs = {
+            f"resend_count_{retry_count}": total,
+            f"skipped_count_{retry_count}": skipped_count,
+            f"retry_{retry_count}_timestamp": datetime.utcnow()
+        }
+        MessageBroadcastProcessor.add_event_log(
+            self.bot, MessageBroadcastLogType.common.value, self.reference_id, **kwargs
+        )
+        config = MessageBroadcastProcessor.update_retry_count(self.event_id, self.bot, self.user,
+                                                              retry_count=retry_count)
+
+        return config
 
     def __get_client(self):
         try:

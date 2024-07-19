@@ -2077,6 +2077,392 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual["data"][0]["dispatch_response"]
 
 
+def test_initiate_bsp_onboarding_for_broadcast(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(whatsapp="360dialog", bot=pytest.bot, user="test_user")
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    monkeypatch.setitem(
+        Utility.environment["model"]["agent"], "url", "http://kairon-api.digite.com"
+    )
+    monkeypatch.setitem(
+        Utility.environment["channels"]["360dialog"], "partner_id", "f167CmPA"
+    )
+
+    with patch(
+            "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account"
+    ) as mock_get_account:
+        mock_get_account.return_value = "dfghj5678"
+        with patch(
+                "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key"
+        ) as mock_generate_waba_key:
+            mock_generate_waba_key.return_value = "dfghjk5678"
+            response = client.post(
+                f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?clientId=kairon&client=sdfgh5678&channels=['sdfghjk678']",
+                headers={
+                    "Authorization": pytest.token_type + " " + pytest.access_token
+                },
+            )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Channel added"
+    assert actual["data"].startswith(
+        f"http://kairon-api.digite.com/api/bot/whatsapp/{pytest.bot}/e"
+    )
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message(mock_event_server):
+    config = {
+        "name": "test_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "status": False,
+        "recipients_config": {"recipients": "919876543210,919012345678"},
+        "template_config": [
+            {
+                "template_id": "sales_template",
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.broadcast_msg_id = actual["data"]["msg_broadcast_id"]
+    assert pytest.broadcast_msg_id
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_resend_broadcast_message(mock_event_server):
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
+
+    settings = MessageBroadcastSettings.objects(id=pytest.broadcast_msg_id, bot=pytest.bot, status=True).get()
+    settings.status = False
+    settings.save()
+
+    config = {
+        "name": "test_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "919876543210,919012345678"},
+        "template_config": [
+            {
+                "template_id": "sales_template",
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/resend/{pytest.broadcast_msg_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Resending Broadcast!"
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_resend_broadcast_message_with_retry_limit_exceeded(mock_event_server, monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True),
+                           retry_broadcasting_limit=3)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
+
+    settings = MessageBroadcastSettings.objects(id=pytest.broadcast_msg_id, bot=pytest.bot, status=False).get()
+    settings.retry_count = 3
+    settings.save()
+
+    config = {
+        "name": "test_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "919876543210,919012345678"},
+        "template_config": [
+            {
+                "template_id": "sales_template",
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/resend/{pytest.broadcast_msg_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Retry Broadcasting limit reached!"
+
+
+def test_list_broadcast():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["schedules"][0].pop("timestamp")
+    actual["data"]["schedules"][0].pop("user")
+    assert actual["data"] == {
+        "schedules": [
+            {
+                "_id": pytest.broadcast_msg_id,
+                "name": "test_broadcast",
+                "connector_type": "whatsapp",
+                "broadcast_type": "static",
+                "recipients_config": {"recipients": "919876543210,919012345678"},
+                "retry_count": 3,
+                "template_config": [{"template_id": "sales_template", "language": "en"}],
+                "bot": pytest.bot,
+                "status": False,
+            }
+        ]
+    }
+
+
+@patch("kairon.shared.utils.Utility.delete_scheduled_event", autospec=True)
+def test_delete_message_broadcast(mock_event_server):
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
+
+    settings = MessageBroadcastSettings.objects(id=pytest.broadcast_msg_id, bot=pytest.bot, status=False).get()
+    settings.status = True
+    settings.save()
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.broadcast_msg_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast removed!"
+
+
+def test_get_broadcast_logs_with_resend_broadcasts():
+    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
+
+    ref_id = ObjectId().__str__()
+    timestamp = datetime.utcnow()
+    MessageBroadcastLogs(
+        **{
+            "reference_id": ref_id,
+            "log_type": "common",
+            "bot": pytest.bot,
+            "status": "Completed",
+            "user": "test_user",
+            "broadcast_id": pytest.broadcast_msg_id,
+            "recipients": ["919876543210", "918958030541"],
+            "timestamp": timestamp,
+        }
+    ).save()
+    timestamp = timestamp + timedelta(minutes=2)
+    MessageBroadcastLogs(
+        **{
+            "reference_id": ref_id,
+            "log_type": "resend",
+            "bot": pytest.bot,
+            "status": "Success",
+            "api_response": {
+                "contacts": [
+                    {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
+                ]
+            },
+            "recipient": "919876543210",
+            "template_params": [
+                {
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "document",
+                            "document": {
+                                "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                "filename": "Brochure.pdf",
+                            },
+                        }
+                    ],
+                }
+            ],
+            "timestamp": timestamp,
+            "retry_count": 1
+        }
+    ).save()
+    MessageBroadcastLogs(
+        **{
+            "reference_id": ref_id,
+            "log_type": "resend",
+            "bot": pytest.bot,
+            "status": "Success",
+            "api_response": {
+                "contacts": [
+                    {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
+                ]
+            },
+            "recipient": "918958030541",
+            "template_params": [
+                {
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "document",
+                            "document": {
+                                "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                "filename": "Brochure.pdf",
+                            },
+                        }
+                    ],
+                }
+            ],
+            "timestamp": timestamp,
+            "retry_count": 2
+        }
+    ).save()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs?log_type=resend&retry_count=1&reference_id={ref_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["logs"][0].pop("timestamp")
+    assert actual["data"]["logs"] == [
+        {
+            'reference_id': ref_id,
+            'log_type': 'resend',
+            'bot': pytest.bot,
+            'status': 'Success',
+            'api_response': {
+                'contacts': [
+                    {
+                        'input': '+55123456789',
+                        'status': 'valid',
+                        'wa_id': '55123456789'
+                    }
+                ]
+            },
+            'recipient': '919876543210',
+            'template_params': [
+                {
+                    'type': 'header',
+                    'parameters': [
+                        {
+                            'type': 'document',
+                            'document': {
+                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                'filename': 'Brochure.pdf'
+                            }
+                        }
+                    ]
+                }
+            ],
+            'retry_count': 1
+        }
+    ]
+    assert actual["data"]["total_count"] == 1
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs?reference_id={ref_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["logs"][0].pop("timestamp")
+    actual["data"]["logs"][1].pop("timestamp")
+    actual["data"]["logs"][2].pop("timestamp")
+    assert actual["data"] == {
+        'logs': [
+            {
+                'reference_id': ref_id,
+                'log_type': 'resend',
+                'bot': pytest.bot,
+                'status': 'Success',
+                'api_response': {
+                    'contacts': [
+                        {
+                            'input': '+55123456789',
+                            'status': 'valid',
+                            'wa_id': '55123456789'
+                        }
+                    ]
+                },
+                'recipient': '919876543210',
+                'template_params': [
+                    {
+                        'type': 'header',
+                        'parameters': [
+                            {
+                                'type': 'document',
+                                'document': {
+                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                    'filename': 'Brochure.pdf'
+                                }
+                            }
+                        ]
+                    }
+                ],
+                'retry_count': 1
+            },
+            {
+                'reference_id': ref_id,
+                'log_type': 'resend',
+                'bot': pytest.bot,
+                'status': 'Success',
+                'api_response': {
+                    'contacts': [
+                        {
+                            'input': '+55123456789',
+                            'status': 'valid',
+                            'wa_id': '55123456789'
+                        }
+                    ]
+                },
+                'recipient': '918958030541',
+                'template_params': [
+                    {
+                        'type': 'header',
+                        'parameters': [
+                            {
+                                'type': 'document',
+                                'document': {
+                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                    'filename': 'Brochure.pdf'
+                                }
+                            }
+                        ]
+                    }
+                ],
+                'retry_count': 2
+            },
+            {
+                'reference_id': ref_id,
+                'log_type': 'common',
+                'bot': pytest.bot,
+                'status': 'Completed',
+                'user': 'test_user',
+                'broadcast_id': pytest.broadcast_msg_id,
+                'recipients': [
+                    '919876543210',
+                    '918958030541'
+                ]
+            }
+        ],
+        'total_count': 3
+    }
+
+
 def test_list_available_actions():
     script = """
     data = [1, 2, 3, 4, 5, 6]
@@ -20506,7 +20892,17 @@ def test_get_channel_logs():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == [{'campaign_id': '6779002886649302', 'status': {'delivered': 1, 'read': 1, 'sent': 1}}]
+    assert actual["data"] == [
+        {
+            'campaign_metrics': [
+                {
+                    'retry_count': 0,
+                    'statuses': {'delivered': 1, 'read': 1, 'sent': 1}
+                }
+            ],
+            'campaign_id': '6779002886649302'
+        }
+    ]
 
 
 @responses.activate
@@ -21111,6 +21507,7 @@ def test_list_broadcast_config():
                     "schedule": "21 11 * * *",
                     "timezone": "Asia/Kolkata",
                 },
+                "retry_count": 0,
                 "pyscript": "send_msg('template_name', '9876543210')",
                 "status": True,
                 "template_config": [],
@@ -21120,6 +21517,7 @@ def test_list_broadcast_config():
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
                 "recipients_config": {"recipients": "918958030541,"},
+                "retry_count": 0,
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
                 "status": True,
             },
@@ -21166,9 +21564,9 @@ def test_list_broadcast_():
                 "_id": pytest.one_time_schedule_id,
                 "name": "one_time_schedule",
                 "connector_type": "whatsapp",
-
                 "broadcast_type": "static",
                 "recipients_config": {"recipients": "918958030541,"},
+                "retry_count": 0,
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
                 "bot": pytest.bot,
                 "status": True,
@@ -21331,7 +21729,8 @@ def test_get_bot_settings():
                               'whatsapp': 'meta',
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
-                              'integrations_per_user_limit': 3}
+                              'integrations_per_user_limit': 3,
+                              'retry_broadcasting_limit': 3}
 
 
 def test_update_analytics_settings_with_empty_value():
@@ -21409,7 +21808,8 @@ def test_update_analytics_settings():
                               'live_agent_enabled': False,
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
-                              'integrations_per_user_limit': 3}
+                              'integrations_per_user_limit': 3,
+                              'retry_broadcasting_limit': 3}
 
 
 def test_delete_channels_config():
@@ -24560,8 +24960,8 @@ def test_trigger_widget():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 2
     assert not actual["message"]
-    
-    
+
+
 def test_get_llm_logs():
     from kairon.shared.llm.logger import LiteLLMLogger
     import litellm

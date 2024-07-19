@@ -15,7 +15,8 @@ class ScheduledEventsBase(EventsBase, ABC):
         request_implementation = {
             EventRequestType.trigger_async.value: self._trigger_async,
             EventRequestType.add_schedule.value: self._add_schedule,
-            EventRequestType.update_schedule.value: self._update_schedule
+            EventRequestType.update_schedule.value: self._update_schedule,
+            EventRequestType.resend_broadcast.value: self._resend_broadcast
         }
         if event_request_type not in request_implementation.keys():
             raise AppException(f"'{event_request_type}' is not a valid event server request!")
@@ -32,6 +33,10 @@ class ScheduledEventsBase(EventsBase, ABC):
 
     @abstractmethod
     def _update_schedule(self, msg_broadcast_id: Text, config: Dict):
+        raise NotImplementedError("Provider not implemented")
+
+    @abstractmethod
+    def _resend_broadcast(self, msg_broadcast_id: Text):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod

@@ -2699,7 +2699,8 @@ class TestActions:
                                 'cognition_collections_limit': 3,
                                 'cognition_columns_per_collection_limit': 5,
                                 'integrations_per_user_limit': 3,
-                                'live_agent_enabled': False}
+                                'live_agent_enabled': False,
+                                'retry_broadcasting_limit': 3}
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3931,8 +3932,9 @@ class TestActions:
                                 'whatsapp': 'meta',
                                 'cognition_collections_limit': 3,
                                 'cognition_columns_per_collection_limit': 5,
-                                'integrations_per_user_limit':3 ,
-                                'live_agent_enabled': False}
+                                'integrations_per_user_limit': 3,
+                                'live_agent_enabled': False,
+                                'retry_broadcasting_limit': 3}
 
     def test_get_prompt_action_config_2(self):
         bot = "test_bot_action_test"

@@ -18,9 +18,10 @@ from kairon.shared.data.constant import EVENT_STATUS
 class MessageBroadcastProcessor:
 
     @staticmethod
-    def get_settings(notification_id: Text, bot: Text):
+    def get_settings(notification_id: Text, bot: Text, **kwargs):
         try:
-            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=True).get()
+            status = not kwargs.get("is_resend", False)
+            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=status).get()
             settings = settings.to_mongo().to_dict()
             settings["_id"] = settings["_id"].__str__()
             return settings
@@ -81,10 +82,13 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def add_event_log(bot: Text, log_type: Text, reference_id: Text = None, status: Text = None, **kwargs):
-        event_completion_states = [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]
-        is_new_log = log_type in {MessageBroadcastLogType.send.value, MessageBroadcastLogType.self.value} or kwargs.pop("is_new_log", None)
+        is_resend = kwargs.pop("is_resend", False)
+        event_completion_states = [] if is_resend else [EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value]
+        is_new_log = log_type in {MessageBroadcastLogType.send.value,
+                                  MessageBroadcastLogType.resend.value,
+                                  MessageBroadcastLogType.self.value} or kwargs.pop("is_new_log", None)
         try:
-            if is_new_log:
+            if is_new_log and not is_resend:
                 raise DoesNotExist()
             log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type,
                                                status__nin=event_completion_states).get()
@@ -100,6 +104,8 @@ class MessageBroadcastProcessor:
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
         kwargs["bot"] = bot
+        if "retry_count" in kwargs:
+            kwargs["retry_count"] = int(kwargs["retry_count"])
         start_idx = int(start_idx)
         page_size = int(page_size)
         query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp")
@@ -109,9 +115,17 @@ class MessageBroadcastProcessor:
         return logs, total_count
 
     @staticmethod
-    def extract_message_ids_from_broadcast_logs(reference_id: Text):
+    def get_reference_id_from_broadcasting_logs(event_id):
+        log = MessageBroadcastLogs.objects(event_id=event_id, log_type=MessageBroadcastLogType.common.value).get()
+        return log.reference_id
+
+    @staticmethod
+    def extract_message_ids_from_broadcast_logs(reference_id: Text, retry_count: int = 0):
+        log_type = MessageBroadcastLogType.resend.value if retry_count > 0 else MessageBroadcastLogType.send.value
         message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
-                                                              log_type=MessageBroadcastLogType.send.value)
+                                                              log_type=log_type,
+                                                              retry_count=retry_count)
+
         broadcast_logs = {
             message['id']: log
             for log in message_broadcast_logs
@@ -146,7 +160,8 @@ class MessageBroadcastProcessor:
         })
 
     @staticmethod
-    def __add_broadcast_logs_status_and_errors(reference_id: Text, campaign_name: Text, broadcast_logs: Dict[Text, Document]):
+    def __add_broadcast_logs_status_and_errors(reference_id: Text, campaign_name: Text,
+                                               broadcast_logs: Dict[Text, Document], retry_count: int = 0):
         message_ids = list(broadcast_logs.keys())
         channel_logs = ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value)
         for log in channel_logs:
@@ -155,9 +170,11 @@ class MessageBroadcastProcessor:
             client = MessageBroadcastProcessor.get_db_client(broadcast_log['bot'])
             if log['errors']:
                 status = "Failed"
-                broadcast_log.update(errors=log['errors'], status="Failed")
+                errors = log['errors']
             else:
                 status = "Success"
+                errors = []
+            broadcast_log.update(errors=errors, status=status)
 
             MessageBroadcastProcessor.log_broadcast_in_conversation_history(
                 template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
@@ -165,22 +182,73 @@ class MessageBroadcastProcessor:
                 status=status, mongo_client=client
             )
 
-        ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(campaign_id=reference_id, campaign_name=campaign_name)
+        ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(
+            campaign_id=reference_id, campaign_name=campaign_name, retry_count=retry_count
+        )
 
     @staticmethod
-    def insert_status_received_on_channel_webhook(reference_id: Text, broadcast_name: Text):
-        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id)
+    def update_retry_count(notification_id: Text, bot: Text, user: Text, retry_count: int = 0):
+        try:
+            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=False).get()
+            settings.retry_count = retry_count
+            settings.user = user
+            settings.timestamp = datetime.utcnow()
+            settings.save()
+            return settings.to_mongo().to_dict()
+        except DoesNotExist as e:
+            logger.exception(e)
+            raise AppException("Notification settings not found!")
+
+    @staticmethod
+    def insert_status_received_on_channel_webhook(reference_id: Text, broadcast_name: Text, retry_count: int = 0):
+        broadcast_logs = MessageBroadcastProcessor.extract_message_ids_from_broadcast_logs(reference_id,
+                                                                                           retry_count)
         if broadcast_logs:
-            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_name, broadcast_logs)
+            MessageBroadcastProcessor.__add_broadcast_logs_status_and_errors(reference_id, broadcast_name,
+                                                                             broadcast_logs, retry_count)
 
     @staticmethod
     def get_channel_metrics(channel_type: Text, bot: Text):
         result = list(ChannelLogs.objects.aggregate([
             {'$match': {'bot': bot, 'type': channel_type}},
-            {'$group': {'_id': {'campaign_id': '$campaign_id', 'status': '$status'}, 'count': {'$sum': 1}}},
-            {'$group': {'_id': '$_id.campaign_id', 'status': {'$push': {'k': '$_id.status', 'v': '$count'}}}},
-            {'$project': {'campaign_id': '$_id', 'status': {'$arrayToObject': '$status'}, '_id': 0}}
+            {'$group': {
+                '_id': {
+                    'campaign_id': '$campaign_id',
+                    'status': '$status',
+                    'retry_count': {'$ifNull': ['$retry_count', 0]}
+                },
+                'count': {'$sum': 1}
+            }},
+            {'$group': {
+                '_id': {
+                    'campaign_id': '$_id.campaign_id',
+                    'retry_count': '$_id.retry_count'
+                },
+                'statuses': {
+                    '$push': {
+                        'k': '$_id.status',
+                        'v': '$count'
+                    }
+                }
+            }},
+            {'$group': {
+                '_id': '$_id.campaign_id',
+                'campaign_metrics': {
+                    '$push': {
+                        'retry_count': '$_id.retry_count',
+                        'statuses': {
+                            '$arrayToObject': '$statuses'
+                        }
+                    }
+                }
+            }},
+            {'$project': {
+                '_id': 0,
+                'campaign_id': '$_id',
+                'campaign_metrics': 1
+            }}
         ]))
+
         return result
 
     @staticmethod
