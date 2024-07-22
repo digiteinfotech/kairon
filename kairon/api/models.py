@@ -26,7 +26,7 @@ from ..shared.actions.models import (
 )
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
-from pydantic import BaseModel, validator, SecretStr, root_validator, constr, Field
+from pydantic import BaseModel, validator, SecretStr, root_validator, constr
 from ..shared.models import (
     StoryStepType,
     StoryType,
@@ -1079,6 +1079,12 @@ class PromptActionConfigRequest(BaseModel):
     dispatch_response: bool = True
     bot: str
 
+    @validator("llm_type", pre=True, always=True)
+    def validate_llm_type(cls, v, values, **kwargs):
+        if v not in Utility.get_llms():
+            raise ValueError("Invalid llm type")
+        return v
+
     @validator("llm_prompts")
     def validate_llm_prompts(cls, v, values, **kwargs):
         from kairon.shared.utils import Utility
@@ -1094,21 +1100,19 @@ class PromptActionConfigRequest(BaseModel):
             raise ValueError("num_bot_responses should not be greater than 5")
         return v
 
-    @validator("llm_type")
-    def validate_llm_type(cls, v, values, **kwargs):
-        if v not in Utility.get_llms():
-            raise ValueError("Invalid llm type")
+    @validator("hyperparameters")
+    def validate_hyperparameters(cls, v, values, **kwargs):
+        bot = values.get('bot')
+        llm_type = values.get('llm_type')
+        if llm_type and v:
+            Utility.validate_llm_hyperparameters(v, llm_type, bot, ValueError)
         return v
 
     @root_validator(pre=True)
-    def validate_llm_hyperparameters(cls, values):
+    def validate_required_fields(cls, values):
         bot = values.get('bot')
         if not bot:
             raise ValueError("bot field is missing")
-
-        if values.get('llm_type') and values.get('hyperparameters'):
-            Utility.validate_llm_hyperparameters(values.get('hyperparameters'), values.get('llm_type'), bot, ValueError)
-
         return values
 
 

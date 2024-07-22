@@ -4163,8 +4163,6 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fx0a56b698ca10d35d2e", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50fx0a56b698ca10d35d2e", user="user").save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key="key_value",
@@ -10852,8 +10850,7 @@ def test_bot_response_action_rephrase_enabled():
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key="uditpandey",
-        models=["model1", "model2"],
-        api_base_url="https://api.example.com",
+        models=["gpt-3.5-turbo"],
         bot=bot,
         user=user
     )
@@ -11011,8 +11008,7 @@ def test_bot_response_action_rephrase_failure():
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key="uditpandey",
-        models=["model1", "model2"],
-        api_base_url="https://api.example.com",
+        models=["gpt-3.5-turbo"],
         bot=bot,
         user=user
     )
@@ -11147,8 +11143,6 @@ def test_bot_response_action_rephrase_failure():
     ]
     assert len(responses.calls._calls) == 1
 
-    secret.value = ""
-    secret.save()
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
@@ -11158,7 +11152,7 @@ def test_bot_response_action_rephrase_failure():
         {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
          'response': 'utter_greet', 'image': None, 'attachment': None}
     ]
-    assert len(responses.calls._calls) == 1
+    assert len(responses.calls._calls) == 2
 
 
 def test_bot_response_action_failure():
@@ -11518,7 +11512,14 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
                  user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"] = {"bot": bot, "prompt_question": user_msg}
@@ -11586,8 +11587,14 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
-
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["next_action"] = action_name
@@ -11658,7 +11665,14 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
                  instructions=instructions).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -11737,7 +11751,14 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -11816,7 +11837,14 @@ def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
                  user=user,
                  llm_prompts=llm_prompts).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -11867,7 +11895,14 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, instructions=instructions).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -11923,7 +11958,14 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12082,7 +12124,14 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12191,7 +12240,14 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12255,7 +12311,14 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                        num_results=3,
                        set_slot="google_response").save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
     generated_text = 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.'
 
     def _run_action(*args, **kwargs):
@@ -12400,7 +12463,14 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12503,7 +12573,14 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
                      SetSlotsFromResponse(name="api_type", value="${data['api_type']}", evaluation_type="script"),
                      SetSlotsFromResponse(name="query", value="${data['filter']}",
                                           evaluation_type="script")]).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12614,7 +12691,14 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12714,7 +12798,14 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12773,7 +12864,14 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_search, moc
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12842,7 +12940,14 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12905,9 +13010,15 @@ def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot=bot, user="user").save()
-
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot=bot,
+        user="user"
+    )
+    llm_secret.save()
     http_url = f'http://localhost:6333/collections/{bot}_{action_name}_faq_embd/points/query'
     resp_msg = json.dumps(
         {

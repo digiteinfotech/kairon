@@ -506,7 +506,7 @@ async def add_prompt_action(
 @router.put("/prompt/{faq_action_id}", response_model=Response)
 async def update_prompt_action(
         faq_action_id: str,
-        request_data: PromptActionConfigRequest,
+        request_data: PromptActionConfigRequest = Depends(Utility.validate_prompt_request),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
