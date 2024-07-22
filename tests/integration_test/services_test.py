@@ -1743,7 +1743,7 @@ def test_get_live_agent_after_updated():
                               'agent_not_available_response': 'No agents available at this moment. An agent will reply to you shortly.',
                               'dispatch_bot_response': True,
                               'dispatch_agent_connect_response': True,
-                              'dispatch_agent_disconnect_response': True,+
+                              'dispatch_agent_disconnect_response': True,
                               'dispatch_agent_not_available_response': True}
     assert actual["error_code"] == 0
     assert not actual["message"]
