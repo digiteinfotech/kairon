@@ -490,12 +490,11 @@ class LiveAgentActionRequest(BaseModel):
     bot_response: str = 'Connecting to live agent'
     agent_connect_response: str = 'Connected to live agent'
     agent_disconnect_response: str = 'Agent has closed the conversation'
-    agent_not_available_response: str = 'No agents available at this moment. An agent will reply you shortly.'
+    agent_not_available_response: str = 'No agents available at this moment. An agent will reply to you shortly.'
     dispatch_bot_response: bool = True
     dispatch_agent_connect_response: bool = True
     dispatch_agent_disconnect_response: bool = True
     dispatch_agent_not_available_response: bool = True
-
 
 
 class TrainingData(BaseModel):
