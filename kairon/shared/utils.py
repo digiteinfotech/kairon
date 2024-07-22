@@ -32,6 +32,7 @@ from botocore.exceptions import ClientError
 from bson import InvalidDocument
 from dateutil import tz
 from fastapi import File, UploadFile, Request
+from fastapi.exceptions import RequestValidationError
 from jwt import encode, decode, PyJWTError
 from loguru import logger
 from mongoengine.document import BaseDocument, Document
@@ -65,7 +66,7 @@ from urllib3.util import parse_url
 from validators import email as mail_check
 from validators.utils import ValidationError as ValidationFailure
 from websockets import connect
-
+from pydantic import ValidationError as PValidationError
 from .actions.models import ActionParameterType
 from .constants import EventClass, UserActivityType
 from .constants import (
@@ -2060,13 +2061,13 @@ class Utility:
         if bot is not None:
             llm_secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
             if llm_secret:
-                models_list = llm_secret.models
+                models_list = list(llm_secret.models)
                 schema["properties"]["model"]["enum"] = models_list
         try:
             validator = JSONSchema(schema)
             validator.validate(hyperparameters)
         except JValidationError as e:
-            message = f"{e.instance_path}: {e.message} for bot {bot}"
+            message = f"{e.instance_path}: {e.message}"
             raise exception_class(message)
 
     @staticmethod
@@ -2077,7 +2078,13 @@ class Utility:
         body_obj = await req.json()
         body_obj["bot"] = bot
 
-        return PromptActionConfigRequest(**body_obj)
+
+        try:
+            prompt_config = PromptActionConfigRequest(**body_obj)
+            return prompt_config
+        except PValidationError as e:
+            from fastapi._compat import _regenerate_error_with_loc
+            raise RequestValidationError(_regenerate_error_with_loc(errors=e.errors(), loc_prefix= ("body",)), body=body_obj)
 
     @staticmethod
     def create_uuid_from_string(val: str):
