@@ -31,7 +31,7 @@ from kairon.shared.actions.models import ActionType, ActionParameterType, Dispat
     DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
-from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, FORM_SLOT_SET_TYPE
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, GPT_LLM_FAQ, \
     DEFAULT_NLU_FALLBACK_RESPONSE
@@ -3640,8 +3640,15 @@ def test_vectordb_action_execution_payload_search_from_slot():
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot=bot, user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot=bot,
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = f'http://localhost:6333/collections/{bot}_test_vectordb_action_execution_payload_search_from_slot_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -3721,8 +3728,15 @@ def test_vectordb_action_execution_payload_search_from_user_message():
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2e", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50md0a56b698ca10d35d2e", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50md0a56b698ca10d35d2e",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_user_message_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -3804,8 +3818,15 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2f", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50md0a56b698ca10d35d2f", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50md0a56b698ca10d35d2f",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2f_test_vectordb_action_execution_payload_search_from_user_message_in_slot_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -3888,8 +3909,15 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56b698ca10d75d2e", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50fd0a56b698ca10d75d2e", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50fd0a56b698ca10d75d2e",
+        user="user"
+    )
+    llm_secret.save()
     embedding = list(np.random.random(Qdrant.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
@@ -3985,8 +4013,15 @@ def test_vectordb_action_execution_payload_search_from_value():
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2z", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50md0a56b698ca10d35d2z", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50md0a56b698ca10d35d2z",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2z_test_vectordb_action_execution_payload_search_from_value_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -4130,6 +4165,15 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fx0a56b698ca10d35d2e", user="user").save()
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
                bot="5f50fx0a56b698ca10d35d2e", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50fx0a56b698ca10d35d2e",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_test_vectordb_action_execution_embedding_search_from_slot_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -4226,8 +4270,15 @@ def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_em
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56v098ca10d75d2e", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50fd0a56v098ca10d75d2e", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50fd0a56v098ca10d75d2e",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_test_vectordb_action_execution_no_response_dispatch_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -10798,7 +10849,15 @@ def test_bot_response_action_rephrase_enabled():
     bot = "5f50fd0a56b698ca10d35d2h"
     user = "test_user"
     BotSettings(rephrase_response=True, bot=bot, user=user).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="uditpandey",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
     gpt_prompt = open("./template/rephrase-prompt.txt").read()
     gpt_prompt = f"{gpt_prompt}hi\noutput:"
     gpt_response = {'id': 'cmpl-6Hh86Qkqq0PJih2YSl9JaNkPEuy4Y', 'object': 'text_completion', 'created': 1669675386,
@@ -10949,7 +11008,15 @@ def test_bot_response_action_rephrase_failure():
     bot = "5f50fd0a56b698ca10d35d2i"
     user = "test_user"
     BotSettings(rephrase_response=True, bot=bot, user=user).save()
-    secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="uditpandey",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
     gpt_prompt = open("./template/rephrase-prompt.txt").read()
     gpt_prompt = f"{gpt_prompt}hi\noutput:"
     gpt_response = {
