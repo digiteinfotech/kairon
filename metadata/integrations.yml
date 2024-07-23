@@ -115,7 +115,7 @@ llm:
       model:
         type: string
         default: "gpt-3.5-turbo"
-        enum: ["gpt-3.5-turbo", "gpt-3.5-turbo-instruct"]
+        enum: ["gpt-3.5-turbo", "gpt-3.5-turbo-instruct", "gpt-4o-mini"]
         description: "The model hyperparameter is the ID of the model to use such as gpt-2, gpt-3, or a custom model that you have trained or fine-tuned."
       top_p:
         type: number
