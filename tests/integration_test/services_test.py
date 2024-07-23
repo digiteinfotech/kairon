@@ -1684,7 +1684,7 @@ def test_get_live_agent_after_enabled():
     assert actual["data"] == {'name': 'live_agent_action', 'bot_response': 'connecting to live agent',
                               'agent_connect_response': 'Connected to live agent',
                               'agent_disconnect_response': 'Agent has closed the conversation',
-                              'agent_not_available_response': 'No agents available at this moment. An agent will reply you shortly.',
+                              'agent_not_available_response': 'No agents available at this moment. An agent will reply to you shortly.',
                               'dispatch_bot_response': False, 'dispatch_agent_connect_response': True,
                               'dispatch_agent_disconnect_response': True, 'dispatch_agent_not_available_response': True}
     assert actual["error_code"] == 0
@@ -1740,7 +1740,7 @@ def test_get_live_agent_after_updated():
                               'bot_response': 'connecting to different live agent...',
                               'agent_connect_response': 'Connected to live agent',
                               'agent_disconnect_response': 'Agent has closed the conversation',
-                              'agent_not_available_response': 'No agents available at this moment. An agent will reply you shortly.',
+                              'agent_not_available_response': 'No agents available at this moment. An agent will reply to you shortly.',
                               'dispatch_bot_response': True,
                               'dispatch_agent_connect_response': True,
                               'dispatch_agent_disconnect_response': True,
