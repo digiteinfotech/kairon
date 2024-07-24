@@ -66,8 +66,6 @@ class ActionKaironBotResponse(ActionsBase):
             text_response = random.choice(static_response)
             text_response = text_response.get('text')
             if static_response and bot_settings['rephrase_response'] and not ActionUtility.is_empty(text_response):
-                # faq_action_config = ActionUtility.get_faq_action_config(self.bot, self.name)
-                # llm_type = faq_action_config.get('llm_type', DEFAULT_LLM)
                 raw_resp, rephrased_message = ActionUtility.trigger_rephrase(self.bot, DEFAULT_LLM, text_response)
                 if rephrased_message:
                     is_rephrased = True

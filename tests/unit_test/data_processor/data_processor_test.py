@@ -49,7 +49,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
-from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
+from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
