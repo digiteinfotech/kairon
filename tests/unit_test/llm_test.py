@@ -667,7 +667,7 @@ class TestLLM:
                                                               'created': 1720090690, 'model': None,
                                                               'object': 'chat.completion', 'system_fingerprint': None,
                                                               'usage': {}}, 'type': 'answer_query',
-                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
                                                       'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                                       'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
@@ -762,7 +762,7 @@ class TestLLM:
                                                               'created': 1720090691, 'model': None,
                                                               'object': 'chat.completion', 'system_fingerprint': None,
                                                               'usage': {}}, 'type': 'answer_query',
-                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
                                                       'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                                       'frequency_penalty': 0.0, 'logit_bias': {}, 'stream': True}}]
 
@@ -870,7 +870,7 @@ class TestLLM:
                                                           'model': None, 'object': 'chat.completion',
                                                           'system_fingerprint': None, 'usage': {}},
                               'type': 'answer_query',
-                              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
                                                   'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                                   'frequency_penalty': 0.0, 'logit_bias': {}}}], ignore_order=True)
 
@@ -957,7 +957,7 @@ class TestLLM:
                                   'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}],
                     'metadata': {'user': 'test', 'bot': 'test_gpt3_faq_embedding_predict_completion_connection_error', 'invocation': None},
                     'api_key': 'test', 'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300,
-                    'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1, 'stop': None,
+                    'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1, 'stop': None,
                     'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
         assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
@@ -1200,19 +1200,19 @@ class TestLLM:
         expected = "Hi, How may i help you?"
 
         result = await litellm.acompletion(messages=messages,
-                                           model="gpt-3.5-turbo",
+                                           model="gpt-4o-mini",
                                            mock_response=expected,
                                            metadata={'user': user, 'bot': bot, 'invocation': None})
         assert result['choices'][0]['message']['content'] == expected
 
         result = litellm.completion(messages=messages,
-                                    model="gpt-3.5-turbo",
+                                    model="gpt-4o-mini",
                                     mock_response=expected,
                                     metadata={'user': user, 'bot': bot, 'invocation': None})
         assert result['choices'][0]['message']['content'] == expected
 
         result = litellm.completion(messages=messages,
-                                    model="gpt-3.5-turbo",
+                                    model="gpt-4o-mini",
                                     mock_response=expected,
                                     stream=True,
                                     metadata={'user': user, 'bot': bot, 'invocation': None})
@@ -1225,7 +1225,7 @@ class TestLLM:
         assert response == expected
 
         result = await litellm.acompletion(messages=messages,
-                                           model="gpt-3.5-turbo",
+                                           model="gpt-4o-mini",
                                            mock_response=expected,
                                            stream=True,
                                            metadata={'user': user, 'bot': bot, 'invocation': None})
@@ -1239,7 +1239,7 @@ class TestLLM:
 
         with pytest.raises(Exception) as e:
             await litellm.acompletion(messages=messages,
-                                       model="gpt-3.5-turbo",
+                                       model="gpt-4o-mini",
                                        mock_response=Exception("Authentication error"),
                                        metadata={'user': user, 'bot': bot, 'invocation': None})
 
@@ -1247,7 +1247,7 @@ class TestLLM:
 
         with pytest.raises(Exception) as e:
             litellm.completion(messages=messages,
-                                model="gpt-3.5-turbo",
+                                model="gpt-4o-mini",
                                 mock_response=Exception("Authentication error"),
                                 metadata={'user': user, 'bot': bot, 'invocation': None})
 
@@ -1255,7 +1255,7 @@ class TestLLM:
 
         with pytest.raises(Exception) as e:
             await litellm.acompletion(messages=messages,
-                                       model="gpt-3.5-turbo",
+                                       model="gpt-4o-mini",
                                        mock_response=Exception("Authentication error"),
                                        stream=True,
                                        metadata={'user': user, 'bot': bot, 'invocation': None})
