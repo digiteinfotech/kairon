@@ -45,7 +45,9 @@ class Qdrant(DatabaseBase, ABC):
                 request.update(**payload)
 
         if request:
-            request.update(**{'with_payload': True, 'limit': 10})
+            request.update(**{'with_payload': True})
+            if 'limit' not in request:
+                request['limit'] = 10
             result = ActionUtility.execute_http_request(http_url=url,
                                                         request_method='POST',
                                                         request_body=request)

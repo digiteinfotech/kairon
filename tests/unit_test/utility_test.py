@@ -2958,7 +2958,7 @@ class TestUtility:
         assert hyperparameters == {
             "temperature": 0.0,
             "max_tokens": 300,
-            "model": "gpt-3.5-turbo",
+            "model": "gpt-4o-mini",
             "top_p": 0.0,
             "n": 1,
             "stop": None,
