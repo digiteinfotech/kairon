@@ -2629,6 +2629,7 @@ class MongoProcessor:
         """
         try:
             entity = Entities.objects(name=name, bot=bot, status=True).get()
+            entity.user = user
             entity.delete()
         except DoesNotExist:
             if raise_exc_if_not_exists:
@@ -3287,6 +3288,7 @@ class MongoProcessor:
             raise AppException("Invalid type")
         try:
             document = data_class.objects(bot=bot, status=True).get(id=story_id)
+            document.user = user
             document.delete()
         except DoesNotExist:
             raise AppException("Flow does not exists")
@@ -3752,7 +3754,7 @@ class MongoProcessor:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
 
-    def delete_utterance(self, utterance: str, bot: str, validate_form: bool = True):
+    def delete_utterance(self, utterance: str, bot: str, user: str, validate_form: bool = True):
         if not (utterance and utterance.strip()):
             raise AppException("Utterance cannot be empty or spaces")
         try:
@@ -3770,12 +3772,13 @@ class MongoProcessor:
 
             MongoProcessor.get_attached_flows(bot, utterance_name, "action")
             Utility.hard_delete_document([Responses], bot=bot, name=utterance_name)
+            utterance.user = user
             utterance.delete()
         except DoesNotExist as e:
             logging.info(e)
             raise AppException("Utterance does not exists")
 
-    def delete_response(self, utterance_id: str, bot: str):
+    def delete_response(self, utterance_id: str, bot: str, user: str):
         if not (utterance_id and utterance_id.strip()):
             raise AppException("Response Id cannot be empty or spaces")
         try:
@@ -3794,6 +3797,7 @@ class MongoProcessor:
                 )
             if len(responses) <= 1:
                 self.delete_utterance_name(name=utterance_name, bot=bot, raise_exc=True)
+            response.user = user
             response.delete()
         except DoesNotExist as e:
             raise AppException(e)
@@ -4492,6 +4496,7 @@ class MongoProcessor:
                     f'Slot is attached to multi-flow story: {[story["block_name"] for story in multi_stories]}'
                 )
 
+            slot.user = user
             slot.delete()
             self.delete_entity(slot_name, bot, user, False)
         except DoesNotExist as custEx:
@@ -5356,27 +5361,30 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Synonym value does not exist!")
 
-    def delete_synonym(self, id: str, bot: str):
+    def delete_synonym(self, id: str, bot: str, user: str):
         """
         delete the synonym and its values
         :param id: synonym id
         :param bot: bot id
+        :param user: user id
         """
         try:
             synonym = Synonyms.objects(bot=bot, status=True).get(id=id)
             Utility.hard_delete_document(
                 [EntitySynonyms], bot=bot, status=True, name__iexact=synonym.name
             )
+            synonym.user = user
             synonym.delete()
         except DoesNotExist as e:
             raise AppException(e)
 
-    def delete_synonym_value(self, synonym_name: str, value_id: str, bot: str):
+    def delete_synonym_value(self, synonym_name: str, value_id: str, bot: str, user: str):
         """
         delete particular synonym value
         :param synonym_name: name of synonym
         :param value_id: value id
         :param bot: bot_id
+        :param user: user_id
         """
         if not (synonym_name and synonym_name.strip()):
             raise AppException("Synonym cannot be empty or spaces")
@@ -5384,6 +5392,7 @@ class MongoProcessor:
             synonym_value = EntitySynonyms.objects(
                 bot=bot, status=True, name__exact=synonym_name
             ).get(id=value_id)
+            synonym_value.user = user
             synonym_value.delete()
         except DoesNotExist as e:
             raise AppException(e)
@@ -5790,6 +5799,7 @@ class MongoProcessor:
             regex = RegexFeatures.objects(
                 name__iexact=regex_name, bot=bot, status=True
             ).get()
+            regex.user = user
             regex.delete()
         except DoesNotExist:
             raise AppException("Regex name does not exist.")
@@ -5953,11 +5963,12 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Lookup value does not exist!")
 
-    def delete_lookup(self, lookup_id: str, bot: str):
+    def delete_lookup(self, lookup_id: str, bot: str, user: str):
         """
         delete lookup and its value
         :param lookup_id: lookup ID
         :param bot: bot id
+        :param user: user id
         """
         if not (lookup_id and lookup_id.strip()):
             raise AppException("Lookup Id cannot be empty or spaces")
@@ -5966,16 +5977,18 @@ class MongoProcessor:
             Utility.hard_delete_document(
                 [LookupTables], bot=bot, name__exact=lookup.name
             )
+            lookup.user = user
             lookup.delete()
         except DoesNotExist:
             raise AppException("Invalid lookup!")
 
-    def delete_lookup_value(self, lookup_value_id: str, lookup_name: str, bot: str):
+    def delete_lookup_value(self, lookup_value_id: str, lookup_name: str, bot: str, user: str):
         """
         delete a lookup value
         :param lookup_value_id: value ID
         :param lookup_name: lookup name
         :param bot: bot ID
+        :param user: user ID
         """
         if not (lookup_value_id and lookup_value_id.strip()):
             raise AppException("Lookup value Id cannot be empty or spaces")
@@ -5983,6 +5996,7 @@ class MongoProcessor:
             lookup_value = LookupTables.objects(
                 bot=bot, status=True, name__iexact=lookup_name
             ).get(id=lookup_value_id)
+            lookup_value.user = user
             lookup_value.delete()
         except DoesNotExist as e:
             raise AppException(e)
@@ -6186,7 +6200,7 @@ class MongoProcessor:
 
             for slot in slots_to_remove:
                 try:
-                    self.delete_utterance(f"utter_ask_{name}_{slot}", bot, False)
+                    self.delete_utterance(f"utter_ask_{name}_{slot}", bot, user, False)
                 except AppException:
                     pass
 
@@ -6215,9 +6229,10 @@ class MongoProcessor:
             for slot in form.required_slots:
                 try:
                     utterance_name = f"utter_ask_{name}_{slot}"
-                    self.delete_utterance(utterance_name, bot, False)
+                    self.delete_utterance(utterance_name, bot, user, False)
                 except Exception as e:
                     logging.info(str(e))
+            form.user = user
             form.delete()
             if Utility.is_exist(
                     FormValidationAction,
@@ -6539,7 +6554,8 @@ class MongoProcessor:
                 Utility.hard_delete_document(
                     [PyscriptActionConfig], name__iexact=name, bot=bot
                 )
-            action.delete(user=user)
+            action.user = user
+            action.delete()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
 
@@ -7643,7 +7659,7 @@ class MongoProcessor:
                     error_summary["utterances"].append(str(e))
                     self.delete_intent(intent, bot, user, False)
                 if is_response_added:
-                    self.delete_utterance(action, bot)
+                    self.delete_utterance(action, bot, user)
         return component_count, error_summary
 
     def delete_all_faq(self, bot: Text):

@@ -164,7 +164,6 @@ class MessageBroadcastProcessor:
                                                broadcast_logs: Dict[Text, Document], retry_count: int = 0):
         message_ids = list(broadcast_logs.keys())
         channel_logs = ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value)
-        logged_msg_ids = []
         for log in channel_logs:
             msg_id = log["message_id"]
             broadcast_log = broadcast_logs[msg_id]
@@ -177,13 +176,11 @@ class MessageBroadcastProcessor:
                 errors = []
             broadcast_log.update(errors=errors, status=status)
 
-            if msg_id not in logged_msg_ids:
-                MessageBroadcastProcessor.log_broadcast_in_conversation_history(
-                    template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
-                    template_params=broadcast_log['template_params'], template=broadcast_log['template'],
-                    status=status, mongo_client=client
-                )
-                logged_msg_ids.append(msg_id)
+            MessageBroadcastProcessor.log_broadcast_in_conversation_history(
+                template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
+                template_params=broadcast_log['template_params'], template=broadcast_log['template'],
+                status=status, mongo_client=client
+            )
 
         ChannelLogs.objects(message_id__in=message_ids, type=ChannelTypes.WHATSAPP.value).update(
             campaign_id=reference_id, campaign_name=campaign_name, retry_count=retry_count

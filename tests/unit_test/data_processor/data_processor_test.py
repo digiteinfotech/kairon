@@ -3879,11 +3879,11 @@ class TestMongoProcessor:
         utter_intentA_2_id = processor.add_response({"text": "demo_response2"}, utterance, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 2
-        processor.delete_response(utter_intentA_1_id, bot)
+        processor.delete_response(utter_intentA_1_id, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 1
         assert Utterances.objects(name=utterance, bot=bot, status=True).get()
-        processor.delete_response(utter_intentA_2_id, bot)
+        processor.delete_response(utter_intentA_2_id, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 0
         with pytest.raises(DoesNotExist):
@@ -3892,12 +3892,12 @@ class TestMongoProcessor:
     def test_delete_response_non_existing(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_response("0123456789ab0123456789ab", "testBot")
+            processor.delete_response("0123456789ab0123456789ab", "testBot", "testUser")
 
     def test_delete_response_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_response(" ", "testBot")
+            processor.delete_response(" ", "testBot", "testUser")
 
     def test_delete_utterance(self):
         processor = MongoProcessor()
@@ -6340,19 +6340,20 @@ class TestMongoProcessor:
         processor.add_synonym_values({"name": "bot", "value": ["exp"]}, bot, user)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 2
-        processor.delete_synonym_value("bot", response[0]["_id"], bot)
+        processor.delete_synonym_value("bot", response[0]["_id"], bot, user)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 1
 
     def test_delete_synonym_value_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_synonym_value(" ", "df", "ff")
+            processor.delete_synonym_value(" ", "df", "ff", "test")
 
     def test_delete_non_existent_synonym(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_synonym_value(value_id="0123456789ab0123456789ab", synonym_name="df", bot="ff")
+            processor.delete_synonym_value(value_id="0123456789ab0123456789ab",
+                                           synonym_name="df", bot="ff", user="test")
 
     def test_delete_synonym_name(self):
         processor = MongoProcessor()
@@ -6365,7 +6366,7 @@ class TestMongoProcessor:
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 1
 
-        processor.delete_synonym(synonym_id, bot)
+        processor.delete_synonym(synonym_id, bot, "test")
         response = list(processor.fetch_synonyms(bot))
         assert len(response) == 0
 
@@ -6375,12 +6376,12 @@ class TestMongoProcessor:
     def test_delete_synonym_name_empty(self):
         processor = MongoProcessor()
         with pytest.raises(ValidationError):
-            processor.delete_synonym(" ", "df")
+            processor.delete_synonym(" ", "df", "test")
 
     def test_delete_non_existent_synonym_name(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_synonym(id="0123456789ab0123456789ab", bot="df")
+            processor.delete_synonym(id="0123456789ab0123456789ab", bot="df", user="test")
 
     def test_add_empty_synonym(self):
         processor = MongoProcessor()
@@ -6885,19 +6886,19 @@ class TestMongoProcessor:
         processor.add_lookup_values({"name": "number", "value": ["one"]}, bot, user)
         response = list(processor.get_lookup_values("number", bot))
         assert len(response) == 2
-        processor.delete_lookup_value(response[0]["_id"], "number", bot)
+        processor.delete_lookup_value(response[0]["_id"], "number", bot, user)
         response = list(processor.get_lookup_values("number", bot))
         assert len(response) == 1
 
     def test_delete_lookup_value_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup_value(" ", "df", "test")
+            processor.delete_lookup_value(" ", "df", "test", "test")
 
     def test_delete_non_existent_lookup(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup_value("0123456789ab0123456789ab", "df", "test")
+            processor.delete_lookup_value("0123456789ab0123456789ab", "df", "test", "test")
 
     def test_delete_lookup_name(self):
         processor = MongoProcessor()
@@ -6907,7 +6908,7 @@ class TestMongoProcessor:
         processor.add_lookup_value("bot", "exp", bot, user)
         assert len(list(processor.get_lookups(bot))) == 1
         assert len(list(processor.get_lookup_values("bot", bot))) == 1
-        processor.delete_lookup(lookup_id, bot)
+        processor.delete_lookup(lookup_id, bot, user)
         response = list(processor.get_lookups(bot))
         assert len(response) == 0
         response = list(processor.get_lookup_values("bot", bot))
@@ -6916,12 +6917,12 @@ class TestMongoProcessor:
     def test_delete_lookup_name_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup(" ", "df")
+            processor.delete_lookup(" ", "df", "test")
 
     def test_delete_non_existent_lookup_name(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup("0123456789ab0123456789ab", "df")
+            processor.delete_lookup("0123456789ab0123456789ab", "df", "test")
 
     def test_add_empty_lookup(self):
         processor = MongoProcessor()
@@ -7166,7 +7167,7 @@ class TestMongoProcessor:
         assert resp[0].text.text == 'what is your occupation?'
         assert resp[1].text.text == 'occupation?'
         assert resp[2].text.text == 'your occupation?'
-        assert not processor.delete_response(str(resp[2].id), bot)
+        assert not processor.delete_response(str(resp[2].id), bot, user)
 
     def test_add_utterance_to_form_not_exists(self):
         bot = 'test'
@@ -8166,7 +8167,7 @@ class TestMongoProcessor:
         response = Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         with pytest.raises(AppException,
                            match='Utterance cannot be deleted as it is linked to form: restaurant_form'):
-            processor.delete_response(str(response.id), bot)
+            processor.delete_response(str(response.id), bot, user)
         assert Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         assert Responses.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
 
@@ -8183,7 +8184,7 @@ class TestMongoProcessor:
     def test_delete_response_linked_to_form_validation_false(self):
         processor = MongoProcessor()
         bot = 'test'
-        processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, False)
+        processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, "test", False)
         with pytest.raises(DoesNotExist):
             Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         with pytest.raises(DoesNotExist):
