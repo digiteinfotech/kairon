@@ -4915,7 +4915,7 @@ def test_get_prompt_action():
         {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'failure_message': 'updated_failure_message',
          'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
          'llm_type': 'openai',
-         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
                              'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                              'logit_bias': {}}, 'llm_prompts': [
             {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
@@ -5010,7 +5010,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
         'llm_type': 'openai',
-        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
                             'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                             'logit_bias': {}},
         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -5102,7 +5102,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
         'llm_type': 'openai',
-        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
                             'stop': None, 'presence_penalty': 0.0,
                             'frequency_penalty': 0.0, 'logit_bias': {}},
         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -5197,7 +5197,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
         'llm_type': 'openai',
-        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
                             'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                             'logit_bias': {}},
         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -25050,7 +25050,7 @@ def test_get_llm_logs():
     expected = "Hi, How may i help you?"
 
     result = loop.run_until_complete(litellm.acompletion(messages=messages,
-                                                         model="gpt-3.5-turbo",
+                                                         model="gpt-4o-mini",
                                                          mock_response=expected,
                                                          metadata={'user': user, 'bot': pytest.bot}))
     assert result['choices'][0]['message']['content'] == expected
