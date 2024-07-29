@@ -1,0 +1,12 @@
+version: "3.1"
+stories:
+- story: greet
+  steps:
+  - intent: greet
+  - action: google_search_action
+  - action: kairon_faq_action
+- story: goodbye
+  steps:
+  - intent: goodbye
+  - action: google_search_action
+  - action: kairon_faq_action

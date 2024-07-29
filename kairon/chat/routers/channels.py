@@ -34,7 +34,6 @@ async def get_agent_response_for_channel(
         channel: ChannelTypes = Path(description="Channel name",
                                      examples=[ChannelTypes.WHATSAPP.value, ChannelTypes.SLACK.value]),
         bot: Text = Path(description="Bot id"),
-        token: Text = Path(description="Token generated from api server"),
         current_user: User = Security(Authentication.authenticate_token_in_path_param, scopes=CHAT_ACCESS)
 ):
     """

@@ -1,0 +1,26 @@
+language: en
+pipeline:
+- name: WhitespaceTokenizer
+- name: RegexFeaturizer
+- name: LexicalSyntacticFeaturizer
+- name: CountVectorsFeaturizer
+- analyzer: char_wb
+  max_ngram: 4
+  min_ngram: 1
+  name: CountVectorsFeaturizer
+- epochs: 100
+  name: DIETClassifier
+- name: FallbackClassifier
+  threshold: 0.3
+- name: EntitySynonymMapper
+- epochs: 100
+  name: ResponseSelector
+policies:
+- name: MemoizationPolicy
+- epochs: 100
+  max_history: 5
+  name: TEDPolicy
+- core_fallback_action_name: action_default_fallback
+  core_fallback_threshold: 0.3
+  name: RulePolicy
+assistant_id: 20240131-142622-stable-museum
