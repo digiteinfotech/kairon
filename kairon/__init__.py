@@ -35,7 +35,7 @@ Usage:
         kairon generate-data <botid> <userid> --from-document
         
     Message broadcast:
-        kairon broadcast <botid> <userid> <eventid>
+        kairon broadcast <botid> <userid> <eventid> <is_resend>
     
     Delete audit logs:
         kairon delete-logs
