@@ -1,0 +1,68 @@
+version: "3.1"
+config:
+  store_entities_as_slots: true
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+intents:
+- greet:
+    use_entities: []
+- goodbye:
+    use_entities: []
+- nlu_fallback:
+    use_entities: []
+entities:
+- bot
+- kairon_action_response
+- image
+- audio
+- video
+- document
+- doc_url
+slots:
+  doc_url:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    influence_conversation: true
+    mappings: []
+  document:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    influence_conversation: true
+    mappings: []
+  video:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    influence_conversation: true
+    mappings: []
+  audio:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    influence_conversation: true
+    mappings: []
+  image:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    influence_conversation: true
+    mappings: []
+  kairon_action_response:
+    type: any
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+  google_search_result:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    influence_conversation: false
+    mappings: []
+  bot:
+    type: any
+    initial_value: 64bdf3ff0a2ff4923faa83ee
+    influence_conversation: false
+    mappings: []
+responses: {}
+actions:
+- kairon_faq_action
+- google_search_action
+forms: {}
+e2e_actions: []

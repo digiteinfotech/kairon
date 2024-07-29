@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-from typing import Optional, Text, List, Dict, Tuple, Any
 import copy
+from typing import Optional, Text, List, Dict, Tuple
+
 import rasa
-from rasa.plugin import plugin_manager
+import structlog
 from rasa.core.actions.action import (
     Action,
     ActionRetrieveResponse,
     ActionEndToEndResponse,
-    RemoteAction,
     default_actions,
     ActionBotResponse,
     ActionExtractSlots,
 )
-from rasa.core.actions.forms import FormAction
 from rasa.core.actions.action import is_retrieval_action
+from rasa.core.actions.forms import FormAction
 from rasa.core.channels import UserMessage, OutputChannel, CollectingOutputChannel
 from rasa.core.policies.policy import PolicyPrediction
 from rasa.core.processor import MessageProcessor, logger
 from rasa.exceptions import ActionLimitReached
+from rasa.plugin import plugin_manager
 from rasa.shared.constants import DOCS_URL_POLICIES, UTTER_PREFIX
 from rasa.shared.core.constants import (
     ACTION_EXTRACT_SLOTS,
@@ -30,19 +31,14 @@ from rasa.shared.core.events import (
     SlotSet,
     UserUttered,
 )
-from rasa.shared.core.slots import ListSlot
 from rasa.shared.core.trackers import DialogueStateTracker
 from rasa.shared.data import TrainingType
-from rasa.shared.nlu.constants import (
-    ENTITY_ATTRIBUTE_TYPE,
-    ENTITY_ATTRIBUTE_ROLE,
-    ENTITY_ATTRIBUTE_GROUP,
-)
 from rasa.utils.endpoints import EndpointConfig
 
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
-import structlog
+from kairon.chat.actions import KRemoteAction
+from rasa.shared.utils.io import raise_warning
 
 structlogger = structlog.get_logger()
 
@@ -176,7 +172,7 @@ class KaironMessageProcessor(MessageProcessor):
 
         if self.model_metadata.training_type == TrainingType.NLU:
             await self.save_tracker(tracker)
-            rasa.shared.utils.io.raise_warning(
+            raise_warning(
                 "No core model. Skipping action prediction and execution.",
                 docs=DOCS_URL_POLICIES,
             )
@@ -366,7 +362,7 @@ class KaironMessageProcessor(MessageProcessor):
         if is_form and not user_overrode_form_action:
             return FormAction(action_name_or_text, action_endpoint)
 
-        return RemoteAction(action_name_or_text, action_endpoint)
+        return KRemoteAction(action_name_or_text, action_endpoint)
 
     def action_for_index(
         self, index: int, domain: Domain, action_endpoint: Optional[EndpointConfig]
