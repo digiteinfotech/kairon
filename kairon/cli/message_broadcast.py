@@ -14,11 +14,13 @@ def send_notifications(args):
     bot = args.bot
     user = args.user
     event_id = args.event_id
+    is_resend = args.is_resend
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
     logger.info("event_id: {}", args.event_id)
+    logger.info("is_resend: {}", args.is_resend)
     try:
-        MessageBroadcastEvent(bot, user).execute(event_id=event_id)
+        MessageBroadcastEvent(bot, user).execute(event_id=event_id, is_resend=is_resend)
     finally:
         ActorFactory.stop_all()
 
@@ -40,4 +42,9 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
     notifier.add_argument('event_id',
                           type=str,
                           help="Broadcast config document id or broadcast log reference id", action='store')
+    notifier.add_argument('is_resend',
+                          type=bool,
+                          default=False,
+                          help="Specify if the broadcast is a resend (True) or a normal broadcast (False).",
+                          action='store')
     notifier.set_defaults(func=send_notifications)
