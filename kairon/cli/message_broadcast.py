@@ -44,6 +44,7 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                           help="Broadcast config document id or broadcast log reference id", action='store')
     notifier.add_argument('is_resend',
                           type=bool,
+                          default=False,
                           help="Specify if the broadcast is a resend (True) or a normal broadcast (False).",
                           action='store')
     notifier.set_defaults(func=send_notifications)
