@@ -1,0 +1,52 @@
+email_action: []
+form_validation_action: []
+web_search_action:
+- name: google_search_action
+  website: ''
+  failure_response: I have failed to process your request.
+  topn: 1
+  dispatch_response: false
+  set_slot: google_search_result
+google_search_action: []
+http_action: []
+jira_action: []
+pipedrive_leads_action: []
+prompt_action:
+- dispatch_response: true
+  failure_message: Kindly share more details so I can assist you effectively.
+  hyperparameters:
+    frequency_penalty: 0
+    logit_bias: {}
+    max_tokens: 300
+    model: gpt-4o-mini
+    n: 1
+    presence_penalty: 0
+    stop: null
+    stream: false
+    temperature: 0
+    top_p: 0
+  instructions: []
+  llm_prompts:
+  - data: 'You are a helpful personal assistant. Answer the question based on the
+      context below. '
+    instructions: ''
+    is_enabled: true
+    name: System Context
+    source: static
+    type: system
+  - data: google_search_result
+    instructions: Make sure that your answers are relevant to the question that the
+      user has asked. You can be creative with your answers and crack jokes too but
+      don't make things up. Your answer must be in the same language in which the
+      user asked the question.
+    is_enabled: true
+    name: Google search context
+    source: slot
+    type: user
+  name: kairon_faq_action
+  num_bot_responses: 5
+  set_slots: []
+  status: true
+slot_set_action: []
+two_stage_fallback: []
+zendesk_action: []

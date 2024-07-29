@@ -1,16 +1,17 @@
 import itertools
-from typing import Any, Dict, Iterable, List, Optional, Text, Iterator
+from typing import Any, Dict, Iterable, List, Optional, Text
 
+from loguru import logger
 from pymongo import IndexModel, ASCENDING, DESCENDING
 from pymongo.collection import Collection
 from rasa.core.brokers.broker import EventBroker
+from rasa.core.tracker_store import SerializedTrackerAsText
 from rasa.core.tracker_store import TrackerStore
 from rasa.shared.core.domain import Domain
 from rasa.shared.core.trackers import DialogueStateTracker, EventVerbosity
 from uuid6 import uuid7
+
 from kairon.shared.utils import Utility
-from rasa.core.tracker_store import SerializedTrackerAsText
-from loguru import logger
 
 
 class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
@@ -26,9 +27,8 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         event_broker: Optional[EventBroker] = None,
         **kwargs: Dict[Text, Any],
     ) -> None:
-
         if Utility.environment.get("env") == "test":
-            from mongomock import MongoClient, Database
+            from mongomock import MongoClient
 
             self.client = MongoClient(
                 host,
@@ -37,9 +37,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                 authSource=auth_source,
                 connect=False,
             )
-            self.db = self.client.get_database(db)
         else:
-            from pymongo.database import Database
             from pymongo import MongoClient
 
             self.client = MongoClient(
@@ -51,7 +49,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                 connect=False,
             )
 
-            self.db = Database(self.client, db)
+        self.db = self.client.get_database(db)
         self.collection = collection
         super().__init__(domain, event_broker, **kwargs)
 
@@ -85,57 +83,65 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
 
     async def save(self, tracker: DialogueStateTracker):
         """Saves the current conversation state."""
-        await self.stream_events(tracker)
+        if len(tracker.events):
+            await self.stream_events(tracker)
 
-        additional_events = self._additional_events(tracker)
-        if additional_events:
-            sender_id = tracker.sender_id
-            conversation_id = uuid7().hex
-            flattened_conversation = {
-                "type": "flattened",
-                "sender_id": sender_id,
-                "conversation_id": conversation_id,
-                "data": {},
-            }
-            actions_predicted = []
-            bot_responses = []
-            data = []
-            metadata = {}
-            for event in additional_events:
-                event = event.as_dict()
-                if not event.get("metadata"):
-                    event["metadata"] = {}
-                event["metadata"].update(metadata)
-                data.append(
-                    {
-                        "sender_id": sender_id,
-                        "conversation_id": conversation_id,
-                        "event": event,
-                    }
-                )
-                if event["event"] == "user":
-                    flattened_conversation["timestamp"] = event.get("timestamp")
-                    flattened_conversation["data"]["user_input"] = event.get("text")
-                    flattened_conversation["data"]["intent"] = event["parse_data"][
-                        "intent"
-                    ]["name"]
-                    flattened_conversation["data"]["confidence"] = event["parse_data"][
-                        "intent"
-                    ]["confidence"]
-                    metadata = event.get("metadata")
-                elif event["event"] == "action":
-                    actions_predicted.append(event.get("name"))
-                elif event["event"] == "bot":
-                    bot_responses.append(
-                        {"text": event.get("text"), "data": event.get("data")}
+            additional_events = self._additional_events(tracker)
+            if additional_events:
+                sender_id = tracker.sender_id
+                conversation_id = uuid7().hex
+                flattened_conversation = {
+                    "type": "flattened",
+                    "sender_id": sender_id,
+                    "conversation_id": conversation_id,
+                    "data": {},
+                }
+                actions_predicted = []
+                bot_responses = []
+                data = []
+                metadata = {}
+                for event in additional_events:
+                    event = event.as_dict()
+                    if not event.get("metadata"):
+                        event["metadata"] = {}
+                    event["metadata"].update(metadata)
+                    data.append(
+                        {
+                            "sender_id": sender_id,
+                            "conversation_id": conversation_id,
+                            "event": event,
+                            "tag": "tracker_store",
+                            "type": "bot",
+                        }
                     )
-            flattened_conversation["data"]["action"] = actions_predicted
-            flattened_conversation["data"]["bot_response"] = bot_responses
-            flattened_conversation["metadata"] = metadata
-            data.append(flattened_conversation)
-            if data:
-                self.conversations.insert_many(data)
-                logger.info(f"db: {self.db.name}, collection: {self.collection}, env: {Utility.environment['env']}")
+                    if event["event"] == "user":
+                        flattened_conversation["timestamp"] = event.get("timestamp")
+                        flattened_conversation["data"]["user_input"] = event.get("text")
+                        flattened_conversation["data"]["intent"] = event["parse_data"][
+                            "intent"
+                        ]["name"]
+                        flattened_conversation["data"]["confidence"] = event["parse_data"][
+                            "intent"
+                        ]["confidence"]
+                        metadata = event.get("metadata")
+                    elif event["event"] == "action":
+                        actions_predicted.append(event.get("name"))
+                    elif event["event"] == "bot":
+                        bot_responses.append(
+                            {
+                                "text": event.get("text"),
+                                "data": event.get("data"),
+                                "utter_action": event.get("metadata", {}).get('utter_action')
+                            }
+                        )
+                flattened_conversation["data"]["action"] = actions_predicted
+                flattened_conversation["data"]["bot_response"] = bot_responses
+                flattened_conversation["metadata"] = metadata
+                flattened_conversation["tag"] = "tracker_store"
+                data.append(flattened_conversation)
+                if data:
+                    records = self.conversations.insert_many(data)
+                    logger.info(f"db: {self.db.name}, collection: {self.collection}, env: {Utility.environment['env']}, records: {len(records.inserted_ids)}")
 
     async def _retrieve(
         self, sender_id: Text, fetch_events_from_all_sessions: bool
@@ -183,7 +189,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         return [c["sender_id"] for c in self.conversations.distinct(key="sender_id")]
 
     def get_stored_events(self, sender_id: Text, fetch_events_from_all_sessions: bool):
-        filter_query = {"sender_id": sender_id}
+        filter_query = {"sender_id": sender_id, "type": "bot"}
 
         if not fetch_events_from_all_sessions:
             last_session = list(
@@ -193,6 +199,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                             "$match": {
                                 "sender_id": sender_id,
                                 "event.event": "session_started",
+                                "type": "bot"
                             }
                         },
                         {"$sort": {"event.timestamp": 1}},
@@ -222,7 +229,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         return stored[0]["events"]
 
     def get_latest_session_events_count(self, sender_id: Text):
-        filter_query = {"sender_id": sender_id}
+        filter_query = {"sender_id": sender_id, 'type': 'bot'}
 
         last_session = list(
             self.conversations.aggregate(
@@ -231,6 +238,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                         "$match": {
                             "sender_id": sender_id,
                             "event.event": "session_started",
+                            "type": 'bot'
                         }
                     },
                     {"$sort": {"event.timestamp": 1}},
@@ -260,12 +268,12 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         else:
             return None
 
-    def _additional_events(self, tracker: DialogueStateTracker) -> Iterator:
+    def _additional_events(self, tracker: DialogueStateTracker) -> List:
         count = self.get_latest_session_events_count(tracker.sender_id)
         total_events = len(tracker.events)
         logger.debug(tracker.events)
         logger.debug(f"tracker existing events : {count}")
         logger.debug(f"tracker total events : {total_events}")
         if count:
-            return itertools.islice(tracker.events, count, total_events)
+            return list(itertools.islice(tracker.events, count, total_events))
         return tracker.events

@@ -1,11 +1,17 @@
 import asyncio
+
+import bson.int64
 import ujson as json
 import os
 import time
 from datetime import datetime, timedelta
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
+
+from rasa.utils.endpoints import EndpointConfig
+
 from kairon.shared.utils import Utility
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ["ASYNC_TEST_TIMEOUT"] = "3600"
 Utility.load_environment()
@@ -14,12 +20,9 @@ Utility.load_system_metadata()
 
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
 
-
-
-
 import pytest
 import responses
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from mongoengine import connect
 from slack_sdk.web.slack_response import SlackResponse
 from starlette.exceptions import HTTPException
@@ -47,6 +50,7 @@ from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.train import start_training
 from deepdiff import DeepDiff
+from kairon.shared.concurrency.actors.factory import ActorFactory
 
 connect(**Utility.mongoengine_connection())
 
@@ -93,10 +97,10 @@ loop.run_until_complete(
         ).dict()
     )
 )
-AccountProcessor.add_bot("Hi-Hello", AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")["account"], "test@chat.com")[
+AccountProcessor.add_bot("Hi-Hello", AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")["account"],
+                         "test@chat.com")[
     "_id"
 ].__str__()
-
 
 token, _, _, _ = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
@@ -106,7 +110,7 @@ bot = AccountProcessor.add_bot("Hi-Hello", user["account"], "test@chat.com")[
 ].__str__()
 loop.run_until_complete(
     MongoProcessor().save_from_path(
-        "./tests/testing_data/use-cases/Hi-Hello", bot, user="test@chat.com"
+        "./tests/testing_data/use-cases/Hi-Hello-GPT", bot, user="test@chat.com"
     )
 )
 bot_account = user["account"]
@@ -211,7 +215,7 @@ def __mock_endpoint(*args):
 
 
 with patch(
-    "kairon.shared.data.utils.DataUtility.get_channel_endpoint", __mock_endpoint
+        "kairon.shared.data.utils.DataUtility.get_channel_endpoint", __mock_endpoint
 ):
     ChatDataProcessor.save_channel_config(
         {
@@ -265,7 +269,6 @@ ChatDataProcessor.save_channel_config({"connector_type": "instagram",
                                        }
                                        },
                                       bot, user="test@chat.com")
-
 
 ChatDataProcessor.save_channel_config(
     {
@@ -455,15 +458,17 @@ def test_line_invalid_auth():
         f"/api/bot/line/{bot}/123",
         json={
             'destination': 'U9585aa48237a7eac0eec0d9fd1e44048',
-                'events': [{'type': 'message', 'message': {
-                        'type': 'text',
-                        'id': '497795501991919946',
-                        'quoteToken': '7J9IwpN5coZ5HB0dVeUwR-lBU38c9ZPrvwzEfuXAGw6xkaJa2bZQji910C8QsdbNt9_w0Zw_24k2UVntqqBWy15U4-ofAMQFRqyKFnYqupwSqdm25gavGt0NcyqG8VJZ5E_ukYZqjidnE7h63FIj0g',
-                        'text': 'Hi'},
-                    'webhookEventId': '01HR48X46ZZ3JD7FXNF79042NB',
-                    'deliveryContext': {'isRedelivery': False}, 'timestamp': 1709540544694, 'source': {'type': 'user', 'userId': 'Uff93a1d599dc8355a7460f5b12b42791'}, 'replyToken': '4b8a93c704fe42a792ff69058ecf3ec5', 'mode': 'active'}]
-            }
-        )
+            'events': [{'type': 'message', 'message': {
+                'type': 'text',
+                'id': '497795501991919946',
+                'quoteToken': '7J9IwpN5coZ5HB0dVeUwR-lBU38c9ZPrvwzEfuXAGw6xkaJa2bZQji910C8QsdbNt9_w0Zw_24k2UVntqqBWy15U4-ofAMQFRqyKFnYqupwSqdm25gavGt0NcyqG8VJZ5E_ukYZqjidnE7h63FIj0g',
+                'text': 'Hi'},
+                        'webhookEventId': '01HR48X46ZZ3JD7FXNF79042NB',
+                        'deliveryContext': {'isRedelivery': False}, 'timestamp': 1709540544694,
+                        'source': {'type': 'user', 'userId': 'Uff93a1d599dc8355a7460f5b12b42791'},
+                        'replyToken': '4b8a93c704fe42a792ff69058ecf3ec5', 'mode': 'active'}]
+        }
+    )
     actual = response.json()
     assert actual == {
         "data": None,
@@ -472,7 +477,10 @@ def test_line_invalid_auth():
         "message": 'Webhook url is not updated, please check. Url on line still refer old hashtoken',
     }
 
+
 token_hash = '-9172378783378268257'
+
+
 @patch("kairon.chat.handlers.channels.line.LineHandler.is_validate_hash")
 @patch("kairon.chat.handlers.channels.line.LineHandler.validate_message_authenticity")
 def test_line_no_header(
@@ -484,15 +492,17 @@ def test_line_no_header(
         f"/api/bot/line/{bot}/{token_hash}",
         json={
             'destination': 'U9585aa48237a7eac0eec0d9fd1e44048',
-                'events': [{'type': 'message', 'message': {
-                        'type': 'text',
-                        'id': '497795501991919946',
-                        'quoteToken': '7J9IwpN5coZ5HB0dVeUwR-lBU38c9ZPrvwzEfuXAGw6xkaJa2bZQji910C8QsdbNt9_w0Zw_24k2UVntqqBWy15U4-ofAMQFRqyKFnYqupwSqdm25gavGt0NcyqG8VJZ5E_ukYZqjidnE7h63FIj0g',
-                        'text': 'Hi'},
-                    'webhookEventId': '01HR48X46ZZ3JD7FXNF79042NB',
-                    'deliveryContext': {'isRedelivery': False}, 'timestamp': 1709540544694, 'source': {'type': 'user', 'userId': 'Uff93a1d599dc8355a7460f5b12b42791'}, 'replyToken': '4b8a93c704fe42a792ff69058ecf3ec5', 'mode': 'active'}]
-            }
-        )
+            'events': [{'type': 'message', 'message': {
+                'type': 'text',
+                'id': '497795501991919946',
+                'quoteToken': '7J9IwpN5coZ5HB0dVeUwR-lBU38c9ZPrvwzEfuXAGw6xkaJa2bZQji910C8QsdbNt9_w0Zw_24k2UVntqqBWy15U4-ofAMQFRqyKFnYqupwSqdm25gavGt0NcyqG8VJZ5E_ukYZqjidnE7h63FIj0g',
+                'text': 'Hi'},
+                        'webhookEventId': '01HR48X46ZZ3JD7FXNF79042NB',
+                        'deliveryContext': {'isRedelivery': False}, 'timestamp': 1709540544694,
+                        'source': {'type': 'user', 'userId': 'Uff93a1d599dc8355a7460f5b12b42791'},
+                        'replyToken': '4b8a93c704fe42a792ff69058ecf3ec5', 'mode': 'active'}]
+        }
+    )
     actual = response.json()
     assert actual == 'success'
     validate_message_authenticity.assert_not_called()
@@ -508,19 +518,22 @@ def test_line_wrong_signature(
         f"/api/bot/line/{bot}/{token_hash}",
         json={
             'destination': 'U9585aa48237a7eac0eec0d9fd1e44048',
-                'events': [{'type': 'message', 'message': {
-                        'type': 'text',
-                        'id': '497795501991919946',
-                        'quoteToken': '7J9IwpN5coZ5HB0dVeUwR-lBU38c9ZPrvwzEfuXAGw6xkaJa2bZQji910C8QsdbNt9_w0Zw_24k2UVntqqBWy15U4-ofAMQFRqyKFnYqupwSqdm25gavGt0NcyqG8VJZ5E_ukYZqjidnE7h63FIj0g',
-                        'text': 'Hi'},
-                    'webhookEventId': '01HR48X46ZZ3JD7FXNF79042NB',
-                    'deliveryContext': {'isRedelivery': False}, 'timestamp': 1709540544694, 'source': {'type': 'user', 'userId': 'Uff93a1d599dc8355a7460f5b12b42791'}, 'replyToken': '4b8a93c704fe42a792ff69058ecf3ec5', 'mode': 'active'}]
-            },
+            'events': [{'type': 'message', 'message': {
+                'type': 'text',
+                'id': '497795501991919946',
+                'quoteToken': '7J9IwpN5coZ5HB0dVeUwR-lBU38c9ZPrvwzEfuXAGw6xkaJa2bZQji910C8QsdbNt9_w0Zw_24k2UVntqqBWy15U4-ofAMQFRqyKFnYqupwSqdm25gavGt0NcyqG8VJZ5E_ukYZqjidnE7h63FIj0g',
+                'text': 'Hi'},
+                        'webhookEventId': '01HR48X46ZZ3JD7FXNF79042NB',
+                        'deliveryContext': {'isRedelivery': False}, 'timestamp': 1709540544694,
+                        'source': {'type': 'user', 'userId': 'Uff93a1d599dc8355a7460f5b12b42791'},
+                        'replyToken': '4b8a93c704fe42a792ff69058ecf3ec5', 'mode': 'active'}]
+        },
         headers={"X-Line-Signature": "wrong_signature"}
-        )
+    )
     actual = response.json()
     assert actual == 'success'
     process_message.assert_not_called()
+
 
 def test_business_messages_invalid_auth():
     response = client.post(
@@ -573,14 +586,14 @@ def test_business_messages_with_secret():
 )
 @patch("businessmessages.businessmessages_v1_client.BusinessmessagesV1")
 def test_business_messages_with_exception(
-    mock_business_messages, mock_process_message, mock_check_message_create_time
+        mock_business_messages, mock_process_message, mock_check_message_create_time
 ):
     mock_check_message_create_time.return_value = True
     mock_business_messages.return_value = {}
     mock_process_message.side_effect = Exception("invalid user message")
     with pytest.raises(
-        Exception,
-        match="Exception when trying to handle webhook for business message: invalid user message",
+            Exception,
+            match="Exception when trying to handle webhook for business message: invalid user message",
     ):
         client.post(
             f"/api/bot/business_messages/{bot}/{token}",
@@ -644,7 +657,7 @@ def test_business_messages_with_invalid_create_time():
     "kairon.chat.handlers.channels.business_messages.BusinessMessages.process_message"
 )
 def test_business_messages_without_message(
-    mock_process_message, mock_check_message_create_time
+        mock_process_message, mock_check_message_create_time
 ):
     mock_check_message_create_time.return_value = True
     mock_process_message.return_value = {"response": [{"text": None}]}
@@ -684,11 +697,11 @@ def test_business_messages_without_message(
 @patch("oauth2client.service_account.ServiceAccountCredentials.from_json_keyfile_dict")
 @patch("businessmessages.businessmessages_v1_client.BusinessmessagesV1")
 def test_business_messages_with_valid_data(
-    mock_business_messages,
-    mock_credentials,
-    mock_get_agent,
-    mock_reload,
-    mock_check_message_create_time,
+        mock_business_messages,
+        mock_credentials,
+        mock_get_agent,
+        mock_reload,
+        mock_check_message_create_time,
 ):
     mock_check_message_create_time.return_value = True
     mock_get_agent.return_value = KaironAgent
@@ -739,9 +752,9 @@ def test_messenger_with_quick_reply():
                      'recipient': {'id': '19357777855505'},
                      'timestamp': 174739433964,
                      'message': {
-                        'mid': 'm_l5_0QHbTfskfIL-rZjh_PJsdksjdlkj6VRBodfud98dXFD3-XljmN-sRqfXnAGA99uu42alStBFiOjujUog',
-                        'text': '+919876543210',
-                        'quick_reply': {'payload': '+919876543210'}}}]}]}
+                         'mid': 'm_l5_0QHbTfskfIL-rZjh_PJsdksjdlkj6VRBodfud98dXFD3-XljmN-sRqfXnAGA99uu42alStBFiOjujUog',
+                         'text': '+919876543210',
+                         'quick_reply': {'payload': '+919876543210'}}}]}]}
             )
             actual = response.json()
             assert actual == "success"
@@ -794,11 +807,12 @@ def test_chat():
     assert len(data["logs"]) == data["total"]
     assert data["logs"][0]["account"] == bot_account
     assert (
-        MeteringProcessor.get_metric_count(
-            bot_account, metric_type=MetricType.test_chat, channel_type="chat_client"
-        )
-        > 0
+            MeteringProcessor.get_metric_count(
+                bot_account, metric_type=MetricType.test_chat, channel_type="chat_client"
+            )
+            > 0
     )
+
 
 def test_chat_verification():
     response = client.get(
@@ -839,10 +853,10 @@ def test_chat_with_user():
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
     assert (
-        MeteringProcessor.get_metric_count(
-            bot_account, metric_type=MetricType.test_chat, channel_type="chat_client"
-        )
-        >= 2
+            MeteringProcessor.get_metric_count(
+                bot_account, metric_type=MetricType.test_chat, channel_type="chat_client"
+            )
+            >= 2
     )
 
 
@@ -916,7 +930,7 @@ def test_chat_string_with_blank_spaces():
 
 def test_chat_with_user_with_metadata():
     with patch.object(
-        KaironMessageProcessor, "handle_message"
+            KaironMessageProcessor, "handle_message"
     ) as mocked_handle_message:
         mocked_handle_message.return_value = {
             "nlu": "intent_prediction",
@@ -1110,10 +1124,10 @@ def test_chat_with_limited_access():
     assert len(data["logs"]) > 0
     assert len(data["logs"]) == data["total"]
     assert (
-        MeteringProcessor.get_metric_count(
-            bot_account, metric_type=MetricType.prod_chat, channel_type="chat_client"
-        )
-        > 0
+            MeteringProcessor.get_metric_count(
+                bot_account, metric_type=MetricType.prod_chat, channel_type="chat_client"
+            )
+            > 0
     )
 
     response = client.post(
@@ -1764,7 +1778,7 @@ def test_whatsapp_invalid_hub_signature():
         return False
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         response = client.post(
             f"/api/bot/whatsapp/{bot}/{token}",
@@ -1808,6 +1822,7 @@ def test_whatsapp_invalid_hub_signature():
     actual = response.json()
     assert actual == "not validated"
 
+
 @pytest.mark.asyncio
 async def _mock_check_live_agent_active(*args, **kwargs):
     return False
@@ -1820,11 +1835,9 @@ def test_whatsapp_valid_text_message_request():
 
     responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
 
-
     with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
-
         with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+                MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
         ):
             response = client.post(
                 f"/api/bot/whatsapp/{bot}/{token}",
@@ -1870,10 +1883,10 @@ def test_whatsapp_valid_text_message_request():
         actual = response.json()
         assert actual == "success"
         assert (
-            MeteringProcessor.get_metric_count(
-                user["account"], metric_type=MetricType.prod_chat, channel_type="whatsapp"
-            )
-            > 0
+                MeteringProcessor.get_metric_count(
+                    user["account"], metric_type=MetricType.prod_chat, channel_type="whatsapp"
+                )
+                > 0
         )
 
 
@@ -1882,7 +1895,7 @@ def test_whatsapp_valid_text_message_request():
     "kairon.chat.handlers.channels.whatsapp.Whatsapp.process_message", autospec=True
 )
 def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(
-    mock_process_message,
+        mock_process_message,
 ):
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1890,7 +1903,7 @@ def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(
     responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
     mock_process_message.side_effect = Exception
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         response = client.post(
             f"/api/bot/whatsapp/{bot}/{token}",
@@ -1939,14 +1952,15 @@ def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(
 def test_whatsapp_valid_button_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
+
     responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         with mock.patch(
-            "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-            autospec=True,
+                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                autospec=True,
         ) as whatsapp_msg_handler:
             response = client.post(
                 f"/api/bot/whatsapp/{bot}/{token}",
@@ -2019,14 +2033,15 @@ def test_whatsapp_valid_button_message_request():
 def test_whatsapp_valid_button_message_request_without_payload_value():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
+
     responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         with mock.patch(
-            "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-            autospec=True,
+                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                autospec=True,
         ) as whatsapp_msg_handler:
             response = client.post(
                 f"/api/bot/whatsapp/{bot}/{token}",
@@ -2100,88 +2115,69 @@ def test_whatsapp_valid_button_message_request_without_payload_value():
     assert whatsapp_msg_handler.call_args[0][4] == bot
 
 
-# @responses.activate
-# def test_whatsapp_valid_button_message_request_without_payload_key():
-#     def _mock_validate_hub_signature(*args, **kwargs):
-#         return True
-#     responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
-#
-#     with patch.object(
-#         MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-#     ):
-#         with mock.patch(
-#             "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-#             autospec=True,
-#         ) as whatsapp_msg_handler:
-#             response = client.post(
-#                 f"/api/bot/whatsapp/{bot}/{token}",
-#                 headers={"hub.verify_token": "valid"},
-#                 json={
-#                     "object": "whatsapp_business_account",
-#                     "entry": [
-#                         {
-#                             "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-#                             "changes": [
-#                                 {
-#                                     "value": {
-#                                         "messaging_product": "whatsapp",
-#                                         "metadata": {
-#                                             "display_phone_number": "910123456789",
-#                                             "phone_number_id": "12345678",
-#                                         },
-#                                         "contacts": [
-#                                             {
-#                                                 "profile": {"name": "udit"},
-#                                                 "wa_id": "wa-123456789",
-#                                             }
-#                                         ],
-#                                         "messages": [
-#                                             {
-#                                                 "context": {
-#                                                     "from": "910123456789",
-#                                                     "id": "wamid.HBgMOTE4MDk1MTAzMDIyFQIAERgSMDA3RkQTQxN0RBMDZEAA=="
-#                                                 },
-#                                                 "from": "910123456789",
-#                                                 "id": "wappmsg.ID",
-#                                                 "timestamp": "21-09-2022 12:05:00",
-#                                                 "button": {
-#                                                     "text": "buy now",
-#                                                 },
-#                                                 "type": "button",
-#                                             }
-#                                         ],
-#                                     },
-#                                     "field": "messages",
-#                                 }
-#                             ],
-#                         }
-#                     ],
-#                 },
-#             )
-#     actual = response.json()
-#     assert actual == "success"
-#     time.sleep(5)
-#     assert len(whatsapp_msg_handler.call_args[0]) == 5
-#     assert whatsapp_msg_handler.call_args[0][1] == 'buy now'
-#     assert whatsapp_msg_handler.call_args[0][2] == "910123456789"
-#     metadata = whatsapp_msg_handler.call_args[0][3]
-#     metadata.pop("timestamp")
-#     assert metadata == {
-#         "context": {"from": "910123456789", "id": "wamid.HBgMOTE4MDk1MTAzMDIyFQIAERgSMDA3RkQTQxN0RBMDZEAA=="},
-#         "from": "910123456789",
-#         "id": "wappmsg.ID",
-#         "button": {"text": "buy now"},
-#         "type": "button",
-#         "is_integration_user": True,
-#         "bot": bot,
-#         "account": 1,
-#         "channel_type": "whatsapp",
-#         "tabname": "default",
-#         "bsp_type": "meta",
-#         "display_phone_number": "910123456789",
-#         "phone_number_id": "12345678",
-#     }
-#     assert whatsapp_msg_handler.call_args[0][4] == bot
+@responses.activate
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_button_message_request_without_payload_key(mock_validate, mock_actor):
+    responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "910123456789",
+                                "phone_number_id": "12345678",
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "udit"},
+                                    "wa_id": "wa-123456789",
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "context": {
+                                        "from": "910123456789",
+                                        "id": "wamid.HBgMOTE4MDk1MTAzMDIyFQIAERgSMDA3RkQTQxN0RBMDZEAA=="
+                                    },
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "button": {
+                                        "text": "buy now",
+                                    },
+                                    "type": "button",
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+    actual = response.json()
+    assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
+
 
 @responses.activate
 def test_whatsapp_valid_attachment_message_request():
@@ -2200,11 +2196,11 @@ def test_whatsapp_valid_attachment_message_request():
     )
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         with mock.patch(
-            "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-            autospec=True,
+                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                autospec=True,
         ) as whatsapp_msg_handler:
             response = client.post(
                 f"/api/bot/whatsapp/{bot}/{token}",
@@ -2249,8 +2245,8 @@ def test_whatsapp_valid_attachment_message_request():
     assert actual == "success"
     assert len(whatsapp_msg_handler.call_args[0]) == 5
     assert (
-        whatsapp_msg_handler.call_args[0][1]
-        == '/k_multimedia_msg{"document": "sdfghj567"}'
+            whatsapp_msg_handler.call_args[0][1]
+            == '/k_multimedia_msg{"document": "sdfghj567"}'
     )
     assert whatsapp_msg_handler.call_args[0][2] == "910123456789"
     metadata = whatsapp_msg_handler.call_args[0][3]
@@ -2278,11 +2274,11 @@ def test_whatsapp_valid_order_message_request():
         return True
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         with mock.patch(
-            "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-            autospec=True,
+                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                autospec=True,
         ) as whatsapp_msg_handler:
             response = client.post(
                 f"/api/bot/whatsapp/{bot}/{token}",
@@ -2344,8 +2340,8 @@ def test_whatsapp_valid_order_message_request():
     time.sleep(5)
     assert len(whatsapp_msg_handler.call_args[0]) == 5
     assert (
-        whatsapp_msg_handler.call_args[0][1]
-        == '/k_order_msg{"order": {"catalog_id": "538971028364699", "product_items": [{"product_retailer_id": "akuba13e44", "quantity": 1, "item_price": 200, "currency": "INR"}, {"product_retailer_id": "0z10aj0bmq", "quantity": 1, "item_price": 600, "currency": "INR"}]}}'
+            whatsapp_msg_handler.call_args[0][1]
+            == '/k_order_msg{"order": {"catalog_id": "538971028364699", "product_items": [{"product_retailer_id": "akuba13e44", "quantity": 1, "item_price": 200, "currency": "INR"}, {"product_retailer_id": "0z10aj0bmq", "quantity": 1, "item_price": 600, "currency": "INR"}]}}'
     )
     assert whatsapp_msg_handler.call_args[0][2] == "919876543210"
     metadata = whatsapp_msg_handler.call_args[0][3]
@@ -2389,11 +2385,11 @@ def test_whatsapp_valid_flows_message_request():
         return True
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         with mock.patch(
-            "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-            autospec=True,
+                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                autospec=True,
         ) as whatsapp_msg_handler:
             request_json = {
                 "object": "whatsapp_business_account",
@@ -2450,8 +2446,8 @@ def test_whatsapp_valid_flows_message_request():
     assert actual == "success"
     assert len(whatsapp_msg_handler.call_args[0]) == 5
     assert (
-        whatsapp_msg_handler.call_args[0][1]
-        == '/k_interactive_msg{"flow_reply": {"flow_token": "AQBBBBBCS5FpgQ_cAAAAAD0QI3s.", "firstName": "Mahesh ", "lastName": "Sattala ", "pincode": "523456", "district": "Bangalore ", "houseNumber": "5-6", "dateOfBirth": "1703257240046", "source": "SOCIAL_MEDIA", "landmark": "HSR Layout ", "email": "maheshsattala@gmail.com", "type": "nfm_reply"}}'
+            whatsapp_msg_handler.call_args[0][1]
+            == '/k_interactive_msg{"flow_reply": {"flow_token": "AQBBBBBCS5FpgQ_cAAAAAD0QI3s.", "firstName": "Mahesh ", "lastName": "Sattala ", "pincode": "523456", "district": "Bangalore ", "houseNumber": "5-6", "dateOfBirth": "1703257240046", "source": "SOCIAL_MEDIA", "landmark": "HSR Layout ", "email": "maheshsattala@gmail.com", "type": "nfm_reply"}}'
     )
     assert whatsapp_msg_handler.call_args[0][2] == "919515991111"
     metadata = whatsapp_msg_handler.call_args[0][3]
@@ -2492,7 +2488,7 @@ def test_whatsapp_valid_statuses_with_sent_request():
         return True
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         response = client.post(
             f"/api/bot/whatsapp/{bot}/{token}",
@@ -2570,7 +2566,7 @@ def test_whatsapp_valid_statuses_with_delivered_request():
         return True
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         response = client.post(
             f"/api/bot/whatsapp/{bot}/{token}",
@@ -2648,7 +2644,7 @@ def test_whatsapp_valid_statuses_with_read_request():
         return True
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         response = client.post(
             f"/api/bot/whatsapp/{bot}/{token}",
@@ -2730,7 +2726,7 @@ def test_whatsapp_valid_statuses_with_errors_request():
         return True
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         response = client.post(
             f"/api/bot/whatsapp/{bot}/{token}",
@@ -2810,7 +2806,7 @@ def test_whatsapp_valid_unsupported_message_request():
     responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
 
     with patch.object(
-        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
     ):
         response = client.post(
             f"/api/bot/whatsapp/{bot}/{token}",
@@ -3099,7 +3095,7 @@ def add_live_agent_config(bot_id, email):
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")
 def test_chat_with_chatwoot_agent_fallback(
-    mock_validatebusinesshours, mock_getbusinesshrs, mock_tracker
+        mock_validatebusinesshours, mock_getbusinesshrs, mock_tracker
 ):
     add_live_agent_config(bot, user["email"])
     mock_tracker.return_value = {
@@ -3220,10 +3216,10 @@ def test_chat_with_chatwoot_agent_fallback(
         assert len(data["logs"]) > 0
         assert len(data["logs"]) == data["total"]
         assert (
-            MeteringProcessor.get_metric_count(
-                user["account"], metric_type=MetricType.agent_handoff
-            )
-            > 0
+                MeteringProcessor.get_metric_count(
+                    user["account"], metric_type=MetricType.agent_handoff
+                )
+                > 0
         )
 
 
@@ -3232,7 +3228,7 @@ def test_chat_with_chatwoot_agent_fallback(
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
 @patch.object(KaironAgent, "handle_message")
 def test_chat_with_chatwoot_agent_fallback_existing_contact(
-    mock_agent, mock_businesshours, mock_tracker
+        mock_agent, mock_businesshours, mock_tracker
 ):
     mock_agent.side_effect = mock_agent_response
     mock_businesshours.side_effect = __mock_getbusinessdata_workingdisabled
@@ -3347,10 +3343,10 @@ def test_chat_with_chatwoot_agent_fallback_existing_contact(
     assert len(data["logs"]) > 0
     assert len(data["logs"]) == data["total"]
     assert (
-        MeteringProcessor.get_metric_count(
-            user["account"], metric_type=MetricType.agent_handoff
-        )
-        == 2
+            MeteringProcessor.get_metric_count(
+                user["account"], metric_type=MetricType.agent_handoff
+            )
+            == 2
     )
 
 
@@ -3518,8 +3514,8 @@ def test_chat_with_chatwoot_agent_fallback_failed_to_initiate(mock_agent):
     assert len(data["logs"]) == 3
     assert len(data["logs"]) == data["total"]
     assert (
-        data["logs"][0]["exception"]
-        == "Failed to create conversation: Service Unavailable"
+            data["logs"][0]["exception"]
+            == "Failed to create conversation: Service Unavailable"
     )
 
 
@@ -3651,7 +3647,6 @@ def test_get_chat_history():
 
 
 def test_get_chat_history_empty():
-
     response = client.get(
         f"/api/bot/{bot}/conversation",
         headers={"Authorization": token_type + " " + token},
@@ -3714,7 +3709,7 @@ def test_get_chat_history_http_error(monkeypatch):
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")
 @patch.object(KaironAgent, "handle_message")
 def test_chat_with_chatwoot_agent_outof_workinghours(
-    mock_agent, mock_validatebusiness, mock_getbusiness
+        mock_agent, mock_validatebusiness, mock_getbusiness
 ):
     add_live_agent_config(bot, user["email"])
     responses.add(
@@ -3792,9 +3787,10 @@ def test_chat_with_chatwoot_agent_outof_workinghours(
     )
     actual = response.json()
     assert (
-        actual["data"]["agent_handoff"]["businessworking"]
-        == "We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 ."
+            actual["data"]["agent_handoff"]["businessworking"]
+            == "We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 ."
     )
+
 
 @responses.activate
 def test_instagram_comment():
@@ -3804,12 +3800,13 @@ def test_instagram_comment():
     message = "@kairon_user_123 Thanks for reaching us, please check your inbox"
     access_token = "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD"
     responses.add(
-        "POST", f"https://graph.facebook.com/v2.12/18009764417219041/replies?message={message}&access_token={access_token}", json={}
+        "POST",
+        f"https://graph.facebook.com/v2.12/18009764417219041/replies?message={message}&access_token={access_token}",
+        json={}
     )
     responses.add(
         "POST", f"https://graph.facebook.com/v2.12/me/messages?access_token={access_token}", json={}
     )
-
 
     with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
         with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
@@ -3856,7 +3853,6 @@ def test_instagram_comment_with_parent_comment():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-
     with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
         with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
             responses.add(
@@ -3897,7 +3893,6 @@ def test_instagram_comment_with_parent_comment():
                     "object": "instagram"
                 })
 
-
             actual = response.json()
             print(f"Actual response for instagram is {actual}")
             assert actual == 'success'
@@ -3928,23 +3923,21 @@ def test_chat_when_botownerchanged():
     assert not actual["message"]
 
 
-
 @pytest.mark.asyncio
 async def _mock_check_live_agent_active_true(*args, **kwargs):
     return True
-
 
 
 @responses.activate
 def test_channel_chat_when_live_agent_disabled():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
+
     Utility.environment['live_agent']['enable'] = False
     with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active_true):
-        with mock.patch('kairon.shared.live_agent.live_agent.LiveAgentHandler.process_live_agent') as mock_process_live_agent:
+        with mock.patch(
+                'kairon.shared.live_agent.live_agent.LiveAgentHandler.process_live_agent') as mock_process_live_agent:
             with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
-
-
                 response = client.post(
                     f"/api/bot/instagram/{bot}/{token}",
                     headers={"hub.verify_token": "valid"},
@@ -3976,7 +3969,31 @@ def test_channel_chat_when_live_agent_disabled():
                         "object": "instagram"
                     })
 
-
                 actual = response.json()
 
                 mock_process_live_agent.assert_not_called()
+
+@pytest.mark.asyncio
+@patch.object(EndpointConfig, "request")
+async def test_chat_with_action(mock_action):
+    from kairon.chat.agent_processor import AgentProcessor
+    from kairon.chat.utils import ChatUtils
+    from rasa.core.channels import UserMessage
+
+    response_text = "Kairon is a Gen AI Platform"
+    mock_action.return_value = {"event": [], "responses": [{"text": response_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+         'response': None, 'image': None, 'attachment': None}]}
+
+    user_id = "test_action"
+    model = AgentProcessor.get_agent(bot)
+    metadata = ChatUtils.get_metadata(user["account"], bot, False, {})
+    msg = UserMessage("Kairon", sender_id=user_id, metadata=metadata)
+    response = await model.handle_message(msg)
+    assert response
+    events = await model.tracker_store._tracker_store._retrieve(user_id, False)
+    assert events
+    for event in events:
+        if event['event'] == 'bot':
+            assert event['text'] == response_text
+            assert event['metadata']['utter_action'] == 'google_search_action'
+            break

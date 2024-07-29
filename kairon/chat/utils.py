@@ -30,7 +30,7 @@ class ChatUtils:
         metadata: Dict = None,
     ):
         model = AgentProcessor.get_agent(bot)
-        metadata = ChatUtils.__get_metadata(account, bot, is_integration_user, metadata)
+        metadata = ChatUtils.get_metadata(account, bot, is_integration_user, metadata)
         msg = UserMessage(data, sender_id=user, metadata=metadata)
         chat_response = await AgentProcessor.handle_channel_message(bot, msg)
         if not chat_response:
@@ -187,16 +187,16 @@ class ChatUtils:
         message = None
 
         try:
-            host = Utility.environment["database"]["url"]
-            db = Utility.environment["database"]["test_db"]
-            client = Utility.create_mongo_client(host)
+            config = Utility.get_local_db()
+            client = Utility.create_mongo_client(config['host'])
             with client as client:
-                db = client.get_database(db)
+                db = client.get_database(config['db'])
                 conversations = db.get_collection(bot)
                 logger.debug(
-                    f"Loading db:{db.name}, collection: {bot},env: {Utility.environment['env']}"
+                    f"Loading host: {config['host']}, db:{db.name}, collection: {bot},env: {Utility.environment['env']}"
                 )
                 last_session = ChatUtils.get_last_session(conversations, sender_id)
+                print(last_session)
                 logger.debug(f"last session: {last_session}")
                 if not last_session:
                     return events, message
@@ -261,7 +261,7 @@ class ChatUtils:
         return last_session[0] if last_session else None
 
     @staticmethod
-    def __get_metadata(
+    def get_metadata(
         account: int,
         bot: Text,
         is_integration_user: bool = False,

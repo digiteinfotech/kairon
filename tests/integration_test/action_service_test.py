@@ -172,14 +172,12 @@ def test_live_agent_action_execution(aioresponses):
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response.status_code == 200
     assert len(response_json['responses']) == 1
     assert response_json['responses'][0]['text'] == 'Connecting to live agent'
     log = ActionServerLogs.objects(action="live_agent_action").get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    print(log)
     assert log == {'type': 'live_agent_action', 'intent': 'live_agent_action', 'action': 'live_agent_action',
                    'sender': 'default', 'headers': {}, 'bot_response': 'Connecting to live agent', 'messages': [],
                    'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS', 'user_msg': 'get intents'}
@@ -276,7 +274,6 @@ def test_live_agent_action_execution_no_agent_available(aioresponses):
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response.status_code == 200
     assert len(response_json['responses']) == 1
     assert response_json['responses'][0]['text'] == 'live agent is not available'
@@ -386,7 +383,6 @@ def test_live_agent_action_execution_with_exception(aioresponses):
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response.status_code == 200
     assert len(response_json['responses']) == 1
     assert response_json['responses'][0]['text'] == 'Connecting to live agent'
@@ -499,7 +495,6 @@ def test_live_agent_action_execution_with_exception(aioresponses):
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response.status_code == 200
     assert len(response_json['responses']) == 1
     assert response_json['responses'][0]['text'] == 'Connecting to live agent'
@@ -1543,7 +1538,6 @@ def test_http_action_execution(aioresponses):
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    print(events)
     assert events == [{'type': 'slots', 'data': [
         {'name': 'val_d', 'value': '${data.a.b.d}', 'evaluation_type': 'expression', 'slot_value': None},
         {'name': 'val_d_0', 'value': '${data.a.b.d.0}', 'evaluation_type': 'expression', 'slot_value': None}]},
@@ -2045,7 +2039,6 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    print(events)
     assert events == [{'type': 'slots', 'data': [
         {'name': 'val_d', 'value': '${data.a.b.d}', 'evaluation_type': 'expression', 'slot_value': None},
         {'name': 'val_d_0', 'value': '${data.a.b.d.0}', 'evaluation_type': 'expression', 'slot_value': None}]},
@@ -2180,7 +2173,6 @@ def test_http_action_execution_script_evaluation(aioresponses):
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    print(events)
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
@@ -2322,7 +2314,6 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    print(events)
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
@@ -2475,7 +2466,6 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    print(events)
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
@@ -2629,7 +2619,6 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    print(events)
     assert events == [
         {'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'json', 'data': 'bot_response = data',
          'evaluation_type': 'script',
@@ -2780,7 +2769,6 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    print(events)
     assert events == [{'type': 'response', 'dispatch_bot_response': False, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
@@ -3132,7 +3120,6 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    print(events)
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
@@ -3255,7 +3242,6 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponse
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    print(response_json)
     assert len(response_json['events']) == 2
     assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                                         'value': 'I have failed to process your request'},
@@ -3531,7 +3517,6 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    print(events)
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': 'The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}', 'evaluation_type': 'expression',
                        'exception': 'I have failed to process your request'},
@@ -6806,7 +6791,6 @@ def test_email_action_execution_with_invalid_to_email(mock_smtp, mock_action_con
          'value': "I have failed to process your request"}]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    print(logs.to_mongo().to_dict())
     assert logs.status == "FAILURE"
     assert logs.exception == "Invalid 'to_email' type. It must be of type str or list."
 
@@ -11780,7 +11764,6 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    print(mock_completion.call_args.kwargs['messages'])
     assert mock_completion.call_args.kwargs['messages'] == [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user',

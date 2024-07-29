@@ -22,6 +22,7 @@ from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 from pymongo.errors import ServerSelectionTimeoutError
+from rasa.shared.core.trackers import DialogueStateTracker
 
 
 class TestChat:
@@ -705,3 +706,57 @@ class TestChat:
         dbcode = line_2["meta_config"]["secrethash"]
         assert second_hashcode == dbcode
 
+    @pytest.mark.asyncio
+    async def test_mongotracker_save(self):
+        from rasa.shared.core.events import SlotSet, SessionStarted, ActionExecuted, UserUttered, BotUttered, \
+            DefinePrevUserUtteredFeaturization
+        from rasa.shared.core.domain import Domain
+        from kairon.shared.trackers import KMongoTrackerStore
+
+        domain = Domain.load("./tests/testing_data/use-cases/Hi-Hello/domain.yml")
+        sender_id = "test"
+        bot="test_tracker"
+        config = Utility.get_local_db()
+        store = KMongoTrackerStore(domain=domain,
+                                   host=config['host'],
+                                   db=config['db'],
+                                   collection=bot)
+
+        tracker = DialogueStateTracker.from_events(sender_id=sender_id, evts=[], domain=domain)
+        await store.save(tracker)
+
+        data = list(store.client.get_database(config['db']).get_collection(bot).find({'type': 'bot'}))
+        assert len(data) == 0
+        data = list(store.client.get_database(config['db']).get_collection(bot).find({'type': 'flattened'}))
+        assert len(data) == 0
+
+        events = [
+            SlotSet(key='session_started_metadata',
+                    value={'tabname': 'default', 'is_integration_user': False, 'bot': '66a3595f6dbf82316083281b',
+                           'account': 1, 'channel_type': 'chat_client'}),
+            ActionExecuted(action_name='action_session_start', policy=None, confidence=1.0),
+            SessionStarted(),
+            SlotSet(key='session_started_metadata',
+                    value={'tabname': 'default', 'is_integration_user': False, 'bot': '66a3595f6dbf82316083281b',
+                           'account': 1, 'channel_type': 'chat_client'}),
+            ActionExecuted(action_name='action_listen', policy=None, confidence=None),
+            UserUttered(text='Hi', parse_data={'intent': {'name': "greet", 'confidence': 1.0}}),
+            DefinePrevUserUtteredFeaturization(True),
+            ActionExecuted(action_name='utter_please_rephrase', policy='RulePolicy', confidence=1.0),
+            BotUttered('Sorry I didn\'t get that. Can you rephrase?',
+                       {"elements": None, "quick_replies": None, "buttons": None, "attachment": None, "image": None,
+                        "custom": None},
+                       {"utter_action": "utter_please_rephrase", "model_id": "eda8e1b80fe04701a68c9a914f881eaf",
+                        "assistant_id": "66a3595f6dbf82316083281b"}, 1721981387.4540014),
+            ActionExecuted(action_name='action_listen', policy='RulePolicy', confidence=1.0)]
+        tracker = DialogueStateTracker.from_events(sender_id=sender_id, evts=events, domain=domain)
+        await store.save(tracker)
+
+        data = list(store.client.get_database(config['db']).get_collection(bot).find({'type': 'bot'}))
+        assert len(data) == len(events)
+        assert data[0]['tag'] == 'tracker_store'
+        assert data[0]['type'] == 'bot'
+        data = list(store.client.get_database(config['db']).get_collection(bot).find({'type': 'flattened'}))
+        assert len(data) == 1
+        assert data[0]['tag'] == 'tracker_store'
+        assert data[0]['type'] == 'flattened'
