@@ -2433,7 +2433,7 @@ class TestEventExecution:
             event.validate()
             event_id = event.enqueue(EventRequestType.resend_broadcast.value,
                                      msg_broadcast_id=msg_broadcast_id)
-            event.execute(event_id, is_resend=True)
+            event.execute(event_id, is_resend="True")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 4
@@ -2791,7 +2791,7 @@ class TestEventExecution:
             event.validate()
             event_id = event.enqueue(EventRequestType.resend_broadcast.value,
                                      msg_broadcast_id=msg_broadcast_id)
-            event.execute(event_id, is_resend=True)
+            event.execute(event_id, is_resend="True")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 4
@@ -3224,7 +3224,7 @@ class TestEventExecution:
             event.validate()
             event_id = event.enqueue(EventRequestType.resend_broadcast.value,
                                      msg_broadcast_id=msg_broadcast_id)
-            event.execute(event_id, is_resend=True)
+            event.execute(event_id, is_resend="True")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 5
@@ -3778,7 +3778,7 @@ class TestEventExecution:
             event.validate()
             event_id = event.enqueue(EventRequestType.resend_broadcast.value,
                                      msg_broadcast_id=msg_broadcast_id)
-            event.execute(event_id, is_resend=True)
+            event.execute(event_id, is_resend="True")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 6
@@ -4333,7 +4333,7 @@ class TestEventExecution:
             event.validate()
             event_id = event.enqueue(EventRequestType.resend_broadcast.value,
                                      msg_broadcast_id=msg_broadcast_id)
-            event.execute(event_id, is_resend=True)
+            event.execute(event_id, is_resend="True")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 6
