@@ -398,7 +398,7 @@ class TestMessageBroadcastCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=send_notifications, bot="test_cli", user="testUser",
-                                                event_id="65432123456789876543", is_resend=True))
+                                                event_id="65432123456789876543", is_resend="True"))
     def test_message_broadcast_all_arguments(self, mock_namespace):
         with mock.patch('kairon.events.definitions.message_broadcast.MessageBroadcastEvent.execute', autospec=True):
 
