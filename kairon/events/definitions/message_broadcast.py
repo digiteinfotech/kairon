@@ -57,7 +57,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         reference_id = None
         status = EVENT_STATUS.FAIL.value
         exception = None
-        is_resend = bool(kwargs.get('is_resend', False))
+        is_resend = kwargs.get('is_resend', "False") == "True"
         try:
             config, reference_id = self.__retrieve_config(event_id, is_resend)
             broadcast = MessageBroadcastFactory.get_instance(config["connector_type"]).from_config(config, event_id,
