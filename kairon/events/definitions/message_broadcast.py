@@ -85,7 +85,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         msg_broadcast_id = None
         try:
             msg_broadcast_id = MessageBroadcastProcessor.add_scheduled_task(self.bot, self.user, config)
-            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id}
+            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id, "is_resend": "False"}
             Utility.request_event_server(EventClass.message_broadcast, payload)
             return msg_broadcast_id
         except Exception as e:
@@ -102,7 +102,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             msg_broadcast_id = MessageBroadcastProcessor.add_scheduled_task(self.bot, self.user, config)
             cron_exp = config["scheduler_config"]["schedule"]
             timezone = config["scheduler_config"]["timezone"]
-            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id}
+            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id, "is_resend": "False"}
             Utility.request_event_server(EventClass.message_broadcast, payload, is_scheduled=True, cron_exp=cron_exp,
                                          timezone=timezone)
             return msg_broadcast_id
@@ -133,7 +133,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             settings_updated = True
             cron_exp = config["scheduler_config"]["schedule"]
             timezone = config["scheduler_config"]["timezone"]
-            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id}
+            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id, "is_resend": "False"}
             Utility.request_event_server(EventClass.message_broadcast, payload, method="PUT", is_scheduled=True,
                                          cron_exp=cron_exp, timezone=timezone)
         except Exception as e:
