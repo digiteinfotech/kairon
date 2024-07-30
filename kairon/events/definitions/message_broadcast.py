@@ -57,7 +57,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         reference_id = None
         status = EVENT_STATUS.FAIL.value
         exception = None
-        is_resend = kwargs.get('is_resend', False)
+        is_resend = bool(kwargs.get('is_resend', False))
         try:
             config, reference_id = self.__retrieve_config(event_id, is_resend)
             broadcast = MessageBroadcastFactory.get_instance(config["connector_type"]).from_config(config, event_id,
@@ -115,7 +115,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
     def _resend_broadcast(self, msg_broadcast_id: Text):
         try:
             payload = {'bot': self.bot, 'user': self.user,
-                       "event_id": msg_broadcast_id, "is_resend": True}
+                       "event_id": msg_broadcast_id, "is_resend": "True"}
             Utility.request_event_server(EventClass.message_broadcast, payload)
             return msg_broadcast_id
         except Exception as e:
