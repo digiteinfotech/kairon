@@ -1267,7 +1267,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
@@ -1378,7 +1378,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
@@ -1491,7 +1491,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         print(logs)
@@ -1587,7 +1587,7 @@ class TestEventExecution:
         event = MessageBroadcastEvent(bot, user)
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -1643,7 +1643,7 @@ class TestEventExecution:
         event = MessageBroadcastEvent(bot, user)
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -1690,7 +1690,7 @@ class TestEventExecution:
                 "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
 
-        event.execute(event_id)
+        event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -1813,7 +1813,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 
@@ -1960,7 +1960,7 @@ class TestEventExecution:
             event = MessageBroadcastEvent(bot, user)
             event.validate()
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-            event.execute(event_id)
+            event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 
@@ -2063,7 +2063,7 @@ class TestEventExecution:
         event = MessageBroadcastEvent(bot, user)
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -2122,7 +2122,7 @@ class TestEventExecution:
         event = MessageBroadcastEvent(bot, user)
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
+        event.execute(event_id, is_resend="False")
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
