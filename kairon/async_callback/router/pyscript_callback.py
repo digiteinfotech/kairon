@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter, Request
 
+from loguru import logger
 from kairon.api.models import Response
 from kairon.async_callback.processor import process_async_callback_request
 from kairon.exceptions import AppException
@@ -24,6 +25,7 @@ async def process_router_message(bot: str, name: str, dynamic_param, req_type: s
         try:
             req_data = await request.json()
         except Exception as e:
+            logger.exception(e)
             req_data = await request.body()
             req_data = req_data.decode('utf-8') if len(req_data) > 0 else None
         if req_data:

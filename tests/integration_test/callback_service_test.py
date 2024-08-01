@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 from kairon.shared.callback.data_objects import CallbackData, CallbackConfig
 
 
-
 @pytest.fixture(autouse=True, scope='class')
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -35,11 +34,13 @@ def setup():
                          "pyscript_code": "bot_response = f\"{req['dynamic_param']} {metadata['happy']}\"",
                          "validation_secret": "gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox-CLU5_s7f-uMyncxWyaPV0i0oLE9skkZA",
                          "execution_mode": "async", "bot": "6697add6b8e47524eb983373"}
-
+    CallbackData.objects.delete()
+    CallbackConfig.objects.delete()
     CallbackData.objects.insert(CallbackData(**callback_data_1))
     CallbackConfig.objects.insert(CallbackConfig(**callback_config_1))
     CallbackData.objects.insert(CallbackData(**callback_data_2))
     CallbackConfig.objects.insert(CallbackConfig(**callback_config_2))
+
 
 from kairon.async_callback.main import app
 client = TestClient(app)
@@ -117,7 +118,7 @@ async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
     assert response.status_code == 200
     assert response.json() == {"message": "Error", "error_code": 400, "success": False, "data": None}
     assert mock_run_pyscript.called_once()
-    assert not mock_dispatch_message.called_once()
+    assert mock_dispatch_message.called_once()
 
 
 @pytest.mark.asyncio

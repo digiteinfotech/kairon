@@ -5,9 +5,8 @@ from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, LiveAgentActionConfig, CallbackActionConfig
+from kairon.shared.actions.data_objects import ActionServerLogs, CallbackActionConfig
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
