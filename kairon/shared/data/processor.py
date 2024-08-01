@@ -8045,7 +8045,6 @@ class MongoProcessor:
         async_callback_action.pop("timestamp")
         return async_callback_action
 
-
     def delete_callback_action(self, bot: Text, name: Text):
         """
         Delete async callback action config.
@@ -8055,7 +8054,3 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([Actions], bot, name__iexact=name)
         Utility.hard_delete_document([CallbackActionConfig], bot=bot, name__iexact=name)
-
-
-
-
