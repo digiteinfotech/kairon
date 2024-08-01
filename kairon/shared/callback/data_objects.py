@@ -4,12 +4,12 @@ from typing import Any
 
 from uuid6 import uuid7
 
-from mongoengine import StringField, DictField, DateTimeField, BooleanField, Document, DynamicField
+from mongoengine import StringField, DictField, DateTimeField, Document, DynamicField
 
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.audit.data_objects import Auditlog
-from kairon.shared.data.signals import push_notification, auditlogger
+from kairon.shared.data.signals import push_notification
 from fernet import Fernet
 
 

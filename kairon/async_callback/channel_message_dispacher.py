@@ -1,7 +1,6 @@
 import time
 from typing import Any
 
-from fbmessenger import MessengerClient
 from uuid6 import uuid7
 
 from kairon.chat.handlers.channels.messenger import MessengerClient, MessengerBot
@@ -98,7 +97,6 @@ class ChannelMessageDispatcher:
             })
         else:
             await ChannelMessageDispatcher.handle_default(bot, None, sender, message)
-            pass
 
 
 

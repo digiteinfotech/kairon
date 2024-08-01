@@ -3,6 +3,7 @@ import functools
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Any, Text
 
+from loguru import logger
 from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
 from kairon.evaluator.processor import EvaluatorProcessor
@@ -30,6 +31,7 @@ def run_pyscript(script: str, predefined_objects: dict):
                 err = lambda_response['Payload'].get('body') or lambda_response
                 raise AppException(f"{err}")
             result = lambda_response["Payload"].get('body')
+            return result.get('bot_response')
 
         response = EvaluatorProcessor.evaluate_pyscript(source_code=script, predefined_objects=predefined_objects)
 
@@ -83,6 +85,7 @@ async def async_callback(obj: dict, ent: dict, cb: dict, c_src: str, bot_id: str
         else:
             raise AppException("No response received from callback script")
     except Exception as e:
+        logger.exception(e)
         CallbackLog.create_failure_entry(name=ent.get("action_name"),
                                          bot=bot_id,
                                          identifier=ent.get("identifier"),
