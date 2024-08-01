@@ -24,6 +24,7 @@ from ..shared.actions.models import (
     DbQueryValueType,
     DbActionOperationType, UserMessageType
 )
+from ..shared.callback.data_objects import CallbackExecutionMode
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
@@ -1232,3 +1233,19 @@ class IDPConfig(BaseModel):
         if not v or Utility.check_empty_string(v):
             raise ValueError("Organization can not be empty")
         return v
+
+
+class CallbackConfigRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    pyscript_code: str
+    validation_secret: str = None
+    execution_mode: str = CallbackExecutionMode.ASYNC.value
+
+
+class CallbackActionConfigRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    callback_name: str
+    dynamic_url_slot_name: Optional[str]
+    metadata_list: list[HttpActionParameters]
+    bot_response: Optional[str]
+    dispatch_bot_response: bool = True
