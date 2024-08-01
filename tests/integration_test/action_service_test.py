@@ -11499,7 +11499,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo","gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -11574,7 +11574,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -11652,7 +11652,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -11738,7 +11738,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -11823,7 +11823,7 @@ def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -11881,7 +11881,7 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -11944,7 +11944,7 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -12110,7 +12110,7 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -12226,7 +12226,7 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -12297,7 +12297,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -12449,7 +12449,7 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -12559,7 +12559,7 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -12677,7 +12677,7 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -12784,7 +12784,7 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -12850,7 +12850,7 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_search, moc
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -12926,7 +12926,7 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
