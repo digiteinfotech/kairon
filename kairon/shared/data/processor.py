@@ -49,6 +49,7 @@ from rasa.shared.nlu.constants import TEXT
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
+from uuid6 import uuid7
 from werkzeug.utils import secure_filename
 
 from kairon.api import models
@@ -81,7 +82,7 @@ from kairon.shared.actions.data_objects import (
     PyscriptActionConfig,
     WebSearchAction,
     UserQuestion, CustomActionParameters,
-    LiveAgentActionConfig,
+    LiveAgentActionConfig, CallbackActionConfig,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -156,6 +157,7 @@ from .data_objects import (
     Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
 )
 from .utils import DataUtility
+from ..callback.data_objects import CallbackConfig
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
@@ -1121,7 +1123,6 @@ class MongoProcessor:
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
             if action.strip().lower() not in saved_actions:
-                self.__check_for_form_and_action_existance(bot, action)
                 new_action = Actions(name=action, bot=bot, user=user)
                 new_action.clean()
                 yield new_action
@@ -1616,8 +1617,13 @@ class MongoProcessor:
             StoryStepType.web_search_action.value: dict(
                 WebSearchAction.objects(bot=bot, status=True).values_list("name", "id")
             ),
-            StoryStepType.two_stage_fallback_action.value: dict(
+            StoryStepType.live_agent_action.value: dict(
                 LiveAgentActionConfig.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
+            ),
+            StoryStepType.callback_action.value: dict(
+                CallbackActionConfig.objects(bot=bot, status=True).values_list(
                     "name", "id"
                 )
             ),
@@ -3318,6 +3324,7 @@ class MongoProcessor:
         prompt_actions = set(PromptAction.objects(bot=bot, status=True).values_list('name'))
         database_actions = set(DatabaseAction.objects(bot=bot, status=True).values_list('name'))
         web_search_actions = set(WebSearchAction.objects(bot=bot, status=True).values_list('name'))
+        callback_actions = set(CallbackActionConfig.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -3384,6 +3391,8 @@ class MongoProcessor:
                         step["type"] = StoryStepType.web_search_action.value
                     elif event['name'] == 'live_agent_action':
                         step["type"] = StoryStepType.live_agent_action.value
+                    elif event['name'] in callback_actions:
+                        step["type"] = StoryStepType.callback_action.value
                     elif event['name'] == 'action_listen':
                         step["type"] = StoryStepType.stop_flow_action.value
                         step["name"] = 'stop_flow_action'
@@ -7872,4 +7881,181 @@ class MongoProcessor:
         if not check_in_utils:
             return True
         return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)
+
+    def add_callback(self, request_data: dict, bot: Text):
+        """
+        Add callback config.
+
+        :param request_data: request config for callback
+        :param bot: bot id
+        """
+        name = request_data.get("name")
+        pyscript_code = request_data.get("pyscript_code")
+        validation_secret = request_data.get("validation_secret")
+        execution_mode = request_data.get("execution_mode")
+        if not validation_secret:
+            validation_secret = str(uuid7().hex)
+        config = CallbackConfig.create_entry(bot, name, pyscript_code, validation_secret, execution_mode)
+        config.pop('_id')
+        return config
+
+    def edit_callback(self, request_data: dict, bot: Text):
+        """
+        Edit callback config.
+
+        :param request_data: request config for callback
+        :param bot: bot id
+        """
+        name = request_data.get("name")
+        request_data.pop('name')
+        config = CallbackConfig.edit(bot, name, **request_data)
+        config.pop('_id')
+        return config
+
+    def delete_callback(self, bot: str, name: str):
+        """
+        Delete callback config.
+
+        :param name: callback name
+        """
+        CallbackConfig.delete_entry(bot, name)
+
+    def get_all_callback_names(self, bot: Text):
+        """
+        Retrieve all callback names.
+
+        :param bot: bot id
+        :return: list of callback names
+        """
+        return CallbackConfig.get_all_names(bot)
+
+    def get_callback(self, bot: Text, name: Text):
+        return CallbackConfig.get_entry(bot, name)
+
+    def add_callback_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Add async callback action config.
+
+        :param request_data: request config for async callback action
+        :param bot: bot id
+        :param user: user
+        """
+        name = request_data.get("name")
+        callback_name = request_data.get("callback_name")
+        metadata_list = request_data.get("metadata_list", [])
+        request_data["bot"] = bot
+        request_data["user"] = user
+        request_data["metadata_list"] = metadata_list
+        request_data['status'] = True
+
+        Utility.is_exist(
+            Actions,
+            exp_message="Action exists!",
+            name__iexact=name,
+            bot=bot,
+            status=True,
+        )
+        Utility.is_exist(
+            CallbackActionConfig,
+            exp_message="Action exists!",
+            name__iexact=name,
+            bot=bot,
+            status=True,
+        )
+        callback_present = Utility.is_exist(
+            CallbackConfig,
+            name__iexact=callback_name,
+            bot=bot,
+            raise_error=False
+        )
+        if not callback_present:
+            raise AppException(f"Callback with name '{callback_name}' not found!")
+
+        new_action = CallbackActionConfig(**request_data).save()
+        self.add_action(
+            request_data["name"],
+            bot,
+            user,
+            raise_exception=False,
+            action_type=ActionType.callback_action,
+        )
+        new_action = new_action.to_mongo().to_dict()
+        new_action.pop('_id')
+        return new_action
+
+    def edit_callback_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Add async callback action config.
+
+        :param request_data: request config for async callback action
+        :param bot: bot id
+        :param user: user
+        """
+        name = request_data.get("name")
+        if not name:
+            raise AppException("Action name is required!")
+
+        request_data.pop('name')
+
+        callback_name = request_data.get("callback_name")
+        if callback_name:
+            callback_present = Utility.is_exist(
+                CallbackConfig,
+                name__iexact=callback_name,
+                bot=bot,
+                raise_error=False
+            )
+            if not callback_present:
+                raise AppException(f"Callback with name '{callback_name}' not found!")
+
+        update_query = {}
+        for key, value in request_data.items():
+            if not value:
+                continue
+            if key == 'metadata_list':
+                value = [HttpActionRequestBody(**param)for param in value] or []
+
+            update_query[f"set__{key}"] = value
+        if not update_query.keys():
+            raise AppException("No change in data to update")
+        callback_action = CallbackActionConfig.objects(
+            bot=bot, name=name
+        ).update(**update_query)
+        if not callback_action:
+            raise AppException("Async callback action not found")
+
+    def get_callback_action(self, bot: Text, name: Text):
+        """
+        Retrieve async callback action config.
+
+        :param bot: bot id
+        :param name: action name
+        """
+        async_callback_action = CallbackActionConfig.objects(
+            bot=bot, name=name
+        ).get()
+        if not async_callback_action:
+            raise AppException("Async callback action not found")
+
+        async_callback_action = async_callback_action.to_mongo().to_dict()
+        async_callback_action.pop("_id")
+        async_callback_action.pop("bot")
+        async_callback_action.pop("user")
+        async_callback_action.pop("status")
+        async_callback_action.pop("timestamp")
+        return async_callback_action
+
+
+    def delete_callback_action(self, bot: Text, name: Text):
+        """
+        Delete async callback action config.
+
+        :param bot: bot id
+        :param name: action name
+        """
+        Utility.hard_delete_document([Actions], bot, name__iexact=name)
+        Utility.hard_delete_document([CallbackActionConfig], bot=bot, name__iexact=name)
+
+
+
 

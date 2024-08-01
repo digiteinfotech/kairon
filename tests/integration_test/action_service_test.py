@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect
 
+from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.utils import Utility
 
 Utility.load_system_metadata()
@@ -25,7 +26,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
     DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig, \
-    CustomActionParameters
+    CustomActionParameters, CallbackActionConfig
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
@@ -66,6 +67,248 @@ def test_healthcheck():
     result = response.json()
     assert response.status_code == 200
     assert result["message"] == "health check ok"
+
+
+def test_callback_action_execution(aioresponses):
+    bot_settings = BotSettings(bot='6697add6b8e47524eb983373', user='test')
+    bot_settings.live_agent_enabled = True
+    bot_settings.save()
+    action_name = "callback_action1"
+    Actions(name=action_name, type=ActionType.callback_action.value,
+            bot="6697add6b8e47524eb983373", user="user").save()
+    CallbackActionConfig(
+        name= "callback_action1",
+        callback_name= "callback_script2",
+        dynamic_url_slot_name= "callback_url",
+        metadata_list= [],
+        bot_response="Hello",
+        dispatch_bot_response= True,
+        bot="6697add6b8e47524eb983373",
+        user="user"
+    ).save()
+
+    CallbackConfig(
+        name= "callback_script2",
+        pyscript_code="bot_response='hello world'",
+        validation_secret= "gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox",
+        execution_mode="sync",
+        bot="6697add6b8e47524eb983373",
+    ).save()
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "6697add6b8e47524eb983373", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'live_agent_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": "facebook",
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": "facebook", "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "6697add6b8e47524eb983373"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json['responses']) == 1
+    response_json['events'][0].pop('value')
+    assert response_json == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'callback_url', }], 'responses': [{'text': 'Hello', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+
+    log = ActionServerLogs.objects(action="callback_action1").get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    log.pop('callback_url')
+    assert log == {'type': 'callback_action', 'intent': 'live_agent_action',
+                   'action': 'callback_action1', 'sender': 'default',
+                   'headers': {}, 'bot_response': 'Hello',
+                   'messages': [], 'bot': '6697add6b8e47524eb983373',
+                   'status': 'SUCCESS', 'user_msg': 'get intents',
+                   'callback_url_slot': 'callback_url', 'metadata': {}}
+
+
+
+def test_callback_action_execution_fail_no_callback_config(aioresponses):
+    bot_settings = BotSettings(bot='6697add6b8e47524eb983373', user='test')
+    bot_settings.save()
+    action_name = "callback_action2"
+    Actions(name=action_name, type=ActionType.callback_action.value,
+            bot="6697add6b8e47524eb983373", user="user").save()
+    CallbackActionConfig(
+        name= "callback_action2",
+        callback_name= "callback_script3",
+        dynamic_url_slot_name= "callback_url",
+        metadata_list= [],
+        bot_response="Hello",
+        dispatch_bot_response= True,
+        bot="6697add6b8e47524eb983373",
+        user="user"
+    ).save()
+
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "6697add6b8e47524eb983373", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'live_agent_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": "facebook",
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": "facebook", "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "6697add6b8e47524eb983373"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 0
+
+    log = ActionServerLogs.objects(action="callback_action2")[0].to_mongo().to_dict()
+    print(log)
+    log.pop('_id')
+    log.pop('timestamp')
+    log.pop('callback_url')
+    assert log == {'type': 'callback_action', 'intent': 'live_agent_action',
+                   'action': 'callback_action2', 'sender': 'default',
+                   'headers': {}, 'bot_response': 'Hello',
+                   'messages': [], 'bot': '6697add6b8e47524eb983373',
+                   'exception': "Callback Configuration with name 'callback_script3' does not exist!",
+                   'status': 'FAILURE', 'user_msg': 'get intents',
+                   'callback_url_slot': 'callback_url', 'metadata': {}}
+
+
 
 
 def test_live_agent_action_execution(aioresponses):
