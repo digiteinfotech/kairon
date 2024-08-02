@@ -49,7 +49,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
-from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
@@ -2680,7 +2680,15 @@ class TestMongoProcessor:
         CognitionData(
             data="Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible.",
             bot=bot, user=user).save()
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=value,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         MongoProcessor().add_action(GPT_LLM_FAQ, bot, user, False, ActionType.prompt_action.value)
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
@@ -8564,7 +8572,8 @@ class TestMongoProcessor:
                           'source': 'action',
                           'is_enabled': True}],
             llm_type=DEFAULT_LLM,
-            hyperparameters=Utility.get_default_llm_hyperparameters()
+            hyperparameters=Utility.get_default_llm_hyperparameters(),
+            bot=bot
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         processor.add_prompt_action(prompt_action_config.dict(), bot, user)
