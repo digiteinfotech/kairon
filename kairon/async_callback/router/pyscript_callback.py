@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request
 
 from loguru import logger
 from kairon.api.models import Response
-from kairon.async_callback.processor import process_async_callback_request
+from kairon.async_callback.processor import CallbackProcessor
 from kairon.exceptions import AppException
 
 router = APIRouter()
@@ -37,14 +37,14 @@ async def process_router_message(bot: str, name: str, dynamic_param, req_type: s
             elif isinstance(req_data, str):
                 data['type'] = 'str'
         request_source = request.client.host
-        data, message, error_code = await process_async_callback_request(bot,
-                                                                         name,
-                                                                         dynamic_param,
-                                                                         token,
-                                                                         data,
-                                                                         request_source)
+        data, message, error_code = await CallbackProcessor.process_async_callback_request(bot,
+                                                                                           name,
+                                                                                           dynamic_param,
+                                                                                           token,
+                                                                                           data,
+                                                                                           request_source)
 
-        return Response(message=message, data=data, error_code=error_code, success=error_code== 0)
+        return Response(message=message, data=data, error_code=error_code, success=error_code == 0)
     except AppException as ae:
         return Response(message=str(ae), error_code=400, success=False)
     except Exception as e:
