@@ -99,7 +99,7 @@ async def test_invalid_request():
 
 
 @pytest.mark.asyncio
-@patch("kairon.async_callback.processor.run_pyscript_async", new_callable=AsyncMock)
+@patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript_async", new_callable=AsyncMock)
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async):
     response = client.get('/callback/6697add6b8e47524eb983373/callback_action2/019107c7570577a6b0f279b4038c4a8a?token=gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox-CLU5_s7f-uMyncxWyaPV0i0oLE9skkZA')
@@ -110,7 +110,7 @@ async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async):
 
 
 @pytest.mark.asyncio
-@patch("kairon.async_callback.processor.run_pyscript")
+@patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript")
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
     mock_run_pyscript.side_effect = AppException("Error")
@@ -122,7 +122,7 @@ async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
 
 
 @pytest.mark.asyncio
-@patch("kairon.async_callback.processor.run_pyscript")
+@patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript")
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_dispatch_message_failure(mock_dispatch_message, mock_run_pyscript):
     mock_dispatch_message.side_effect = AppException("Error")
