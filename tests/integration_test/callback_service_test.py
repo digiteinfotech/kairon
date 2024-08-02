@@ -59,7 +59,23 @@ async def test_get_callback(mock_dispatch_message):
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback(mock_dispatch_message):
-    response = client.post('/callback/6697add6b8e47524eb983373/callback_action1/019107c7570577a6b0f279b4038c4a8f?token=gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox-CLU5_s7f-uMyncxWyaPV0i0oLE9skkZA')
+    req_body = {
+        'key_1' : 'value_1'
+    }
+
+    response = client.post('/callback/6697add6b8e47524eb983373/callback_action1/019107c7570577a6b0f279b4038c4a8f?token=gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox-CLU5_s7f-uMyncxWyaPV0i0oLE9skkZA',
+                            json=req_body)
+    assert response.status_code == 200
+    assert response.json() == {"message": "success", "data": "019107c7570577a6b0f279b4038c4a8f i am happy : )", "error_code": 0, "success": True}
+    assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "019107c7570577a6b0f279b4038c4a8f i am happy : )", "telegram")
+
+
+@pytest.mark.asyncio
+@patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
+async def test_post_callback_req_body_non_json(mock_dispatch_message):
+    req_body = "key_1=value_1"
+    response = client.post('/callback/6697add6b8e47524eb983373/callback_action1/019107c7570577a6b0f279b4038c4a8f?token=gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox-CLU5_s7f-uMyncxWyaPV0i0oLE9skkZA',
+                            json=req_body)
     assert response.status_code == 200
     assert response.json() == {"message": "success", "data": "019107c7570577a6b0f279b4038c4a8f i am happy : )", "error_code": 0, "success": True}
     assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "019107c7570577a6b0f279b4038c4a8f i am happy : )", "telegram")
