@@ -7,7 +7,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.shared.constants import KaironSystemSlots
-from kairon.shared.data.constant import DOMAIN
+from kairon.shared.data.constant import DOMAIN, DEFAULT_LLM
 from kairon.shared.data.data_objects import BotSettings
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs
@@ -66,7 +66,7 @@ class ActionKaironBotResponse(ActionsBase):
             text_response = random.choice(static_response)
             text_response = text_response.get('text')
             if static_response and bot_settings['rephrase_response'] and not ActionUtility.is_empty(text_response):
-                raw_resp, rephrased_message = ActionUtility.trigger_rephrase(self.bot, text_response)
+                raw_resp, rephrased_message = ActionUtility.trigger_rephrase(self.bot, DEFAULT_LLM, text_response)
                 if rephrased_message:
                     is_rephrased = True
                     bot_response = {"text": rephrased_message}

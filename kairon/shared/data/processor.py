@@ -1154,16 +1154,8 @@ class MongoProcessor:
         actions = Actions.objects(bot=bot, status=status).values_list("name")
         actions_list = list(actions)
 
-        for story in Stories.objects(bot=bot, status=status):
-            for event in story.events:
-                if event.name == 'action_listen':
-                    if 'action_listen' not in actions_list:
-                        actions_list.append('action_listen')
-
-        for story in MultiflowStories.objects(bot=bot, status=status):
-            for event in story.events:
-                if event.step.name == 'stop_flow_action' and 'stop_flow_action' not in actions_list:
-                    actions_list.append('stop_flow_action')
+        if Stories.objects(bot=bot, status=status, events__name='action_listen').count() > 0:
+            actions_list.append('action_listen')
 
         return actions_list
 
