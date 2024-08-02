@@ -1880,11 +1880,14 @@ class Utility:
             from mongomock import MongoClient
 
             return MongoClient(
-                **config
+                host=config['host'], username=config.get('username'), password=config.get('password'),
+                authSource=config['options'].get("authSource") if config['options'].get("authSource") else "admin"
             )
         else:
             from pymongo import MongoClient
-            return MongoClient(**config)
+            return MongoClient(host=config['host'], username=config.get('username'), password=config.get('password'),
+                               authSource=config['options'].get("authSource") if config['options'].get(
+                                   "authSource") else "admin")
 
     @staticmethod
     def get_masked_value(value: Text):
