@@ -1076,6 +1076,13 @@ class PromptActionConfigRequest(BaseModel):
     instructions: List[str] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
     dispatch_response: bool = True
+    bot: str
+
+    @validator("llm_type", pre=True, always=True)
+    def validate_llm_type(cls, v, values, **kwargs):
+        if v not in Utility.get_llms():
+            raise ValueError("Invalid llm type")
+        return v
 
     @validator("llm_prompts")
     def validate_llm_prompts(cls, v, values, **kwargs):
@@ -1092,17 +1099,20 @@ class PromptActionConfigRequest(BaseModel):
             raise ValueError("num_bot_responses should not be greater than 5")
         return v
 
-    @validator("llm_type")
-    def validate_llm_type(cls, v, values, **kwargs):
-        if v not in Utility.get_llms():
-            raise ValueError("Invalid llm type")
+    @validator("hyperparameters")
+    def validate_hyperparameters(cls, v, values, **kwargs):
+        bot = values.get('bot')
+        llm_type = values.get('llm_type')
+        if llm_type and v:
+            Utility.validate_llm_hyperparameters(v, llm_type, bot, ValueError)
         return v
 
-    @validator("hyperparameters")
-    def validate_llm_hyperparameters(cls, v, values, **kwargs):
-        if values.get('llm_type'):
-            Utility.validate_llm_hyperparameters(v, values['llm_type'], ValueError)
-        return v
+    @root_validator(pre=True)
+    def validate_required_fields(cls, values):
+        bot = values.get('bot')
+        if not bot:
+            raise ValueError("bot field is missing")
+        return values
 
 
 class ColumnMetadata(BaseModel):
