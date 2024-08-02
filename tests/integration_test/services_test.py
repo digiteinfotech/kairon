@@ -28,6 +28,8 @@ from pipedrive.exceptions import UnauthorizedError
 from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
+
+from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.utils import Utility, MailUtility
 
 Utility.load_system_metadata()
@@ -1199,6 +1201,79 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["data"]["nudge_server_url"] == expected_nudge_server_url
     assert actual["data"]["api_server_host_url"] == expected_app_server_url
     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
+
+
+def test_list_provider_models():
+    secrets = [
+        {
+            "llm_type": "commonllm",
+            "api_key": "common_api_key",
+            "models": ["common_model1", "common_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        }
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/llm/models",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"] is True
+    assert actual["message"] is None
+    assert isinstance(actual["data"], dict)
+    assert "commonllm" in actual["data"]
+    assert actual["data"]["commonllm"] == ["common_model1", "common_model2"]
+
+def test_list_provider_models_bot_specific_model_exists():
+    LLMSecret.objects().delete()
+    secrets = [
+        {
+            "llm_type": "testllm",
+            "api_key": "test_api_key",
+            "models": ["model1", "model2", "model3"],
+            "bot": pytest.bot,
+            "user": "test-user",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "llm_type": "testllm",
+            "api_key": "test_api_key2",
+            "models": ["model1", "model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "llm_type": "commonllm",
+            "api_key": "common_api_key",
+            "models": ["common_model1", "common_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        }
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/llm/models",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["success"] is True
+    assert actual["message"] is None
+    assert actual["error_code"] == 0
+    assert isinstance(actual["data"], dict)
+    assert "testllm" in actual["data"]
+    assert "commonllm" in actual["data"]
+    assert actual["data"]["testllm"] == ["model1", "model2", "model3"]
+    assert actual["data"]["commonllm"] == ["common_model1", "common_model2"]
+
 
 @responses.activate
 def test_default_values():

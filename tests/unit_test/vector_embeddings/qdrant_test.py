@@ -10,7 +10,7 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
-from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
 from kairon.shared.data.data_objects import LLMSettings
 from kairon.shared.vector_embeddings.db.factory import DatabaseFactory
 from kairon.shared.vector_embeddings.db.qdrant import Qdrant
@@ -37,8 +37,15 @@ class TestQdrant:
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         user = "test"
         Utility.load_environment()
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value", bot="5f50fd0a56v098ca10d75d2g",
-                            user="user").save()
+        llm_secret=LLMSecret(
+            llm_type="openai",
+            api_key="key_value",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot="5f50fd0a56v098ca10d75d2g",
+            user="user"
+        )
+        llm_secret.save()
         qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
                         LLMSettings(provider="openai").to_mongo().to_dict())
         mock_http_request.return_value = 'expected_result'

@@ -9,6 +9,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.models import LlmPromptType, LlmPromptSource
@@ -69,6 +70,8 @@ class ActionPrompt(ActionsBase):
             llm_type = k_faq_action_config['llm_type']
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             llm_processor = LLMProcessor(self.bot, llm_type)
+            model_to_check = llm_params['hyperparameters'].get('model')
+            Sysadmin.check_llm_model_exists(model_to_check, llm_type, self.bot)
             llm_response, time_taken_llm_response = await llm_processor.predict(user_msg,
                                                                                 user=tracker.sender_id,
                                                                                 invocation='prompt_action',

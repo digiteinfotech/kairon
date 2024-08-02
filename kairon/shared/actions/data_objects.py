@@ -818,7 +818,7 @@ class PromptAction(Auditlog):
             dict_data["llm_prompts"], ValidationError
         )
         Utility.validate_llm_hyperparameters(
-            dict_data["hyperparameters"], self.llm_type, ValidationError
+            dict_data["hyperparameters"], self.llm_type, self.bot, ValidationError
         )
 
 
