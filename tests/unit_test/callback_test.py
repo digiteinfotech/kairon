@@ -1,11 +1,16 @@
+import asyncio
 import os
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from fernet import Fernet
 from mongoengine import connect
-
 from kairon import Utility
+
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+Utility.load_environment()
+
+from kairon.chat.handlers.channels.whatsapp import Whatsapp
 from kairon.exceptions import AppException
 from kairon.shared.callback.data_objects import (
     check_nonempty_string,
@@ -21,11 +26,12 @@ from uuid6 import uuid7
 from datetime import datetime
 
 
+
+
 # Mock utility environment
 @pytest.fixture(autouse=True)
 def mock_environment(monkeypatch):
-    os.environ["system_file"] = "./tests/testing_data/system.yaml"
-    Utility.load_environment()
+
     connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
     callback_data_1 = {"action_name": "callback_action1", "callback_name": "callback_script2",
                        "bot": "6697add6b8e47524eb983373", "sender_id": "5489844732", "channel": "telegram",
@@ -50,6 +56,10 @@ def mock_environment(monkeypatch):
     CallbackConfig.objects.insert(CallbackConfig(**callback_config_1))
     CallbackData.objects.insert(CallbackData(**callback_data_2))
     CallbackConfig.objects.insert(CallbackConfig(**callback_config_2))
+
+
+from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
+from kairon.shared.constants import ChannelTypes
 
 
 def test_check_nonempty_string():
@@ -177,3 +187,81 @@ def test_validate_callback_data_invalid(mock_objects):
     mock_objects.return_value.first.return_value = None
     with pytest.raises(AppException):
         CallbackData.validate_entry("6697add6b8e47524eb983373", "test_name", "identifier", "valid_secret")
+
+@pytest.mark.asyncio
+async def test_handle_whatsapp():
+    config = MagicMock()
+    with patch('kairon.chat.handlers.channels.whatsapp.Whatsapp.send_message_to_user', new_callable=AsyncMock) as mock_send_message:
+        await ChannelMessageDispatcher.handle_whatsapp('bot', config, 'sender', 'message')
+        mock_send_message.assert_called_once_with('message', 'sender')
+
+
+@pytest.mark.asyncio
+async def test_handle_telegram_text_message():
+    config = {'access_token': 'dummy_token'}
+    with patch('kairon.chat.handlers.channels.telegram.TelegramOutput.send_text_message', new_callable=AsyncMock) as mock_send_message:
+        await ChannelMessageDispatcher.handle_telegram('bot', config, 'sender', 'text message')
+        mock_send_message.assert_called_once_with('sender', 'text message')
+
+@pytest.mark.asyncio
+async def test_handle_telegram_custom_json():
+    config = {'access_token': 'dummy_token'}
+    with patch('kairon.chat.handlers.channels.telegram.TelegramOutput.send_custom_json', new_callable=AsyncMock) as mock_send_custom_json:
+        await ChannelMessageDispatcher.handle_telegram('bot', config, 'sender', {'key': 'value'})
+        mock_send_custom_json.assert_called_once_with('sender', {'key': 'value'})
+
+@pytest.mark.asyncio
+async def test_handle_facebook_text_message():
+    config = {'page_access_token': 'dummy_token'}
+    with patch('kairon.chat.handlers.channels.messenger.MessengerBot.send_text_message', new_callable=AsyncMock) as mock_send_message:
+        await ChannelMessageDispatcher.handle_facebook('bot', config, 'sender', 'text message')
+        mock_send_message.assert_called_once_with('sender', 'text message')
+
+@pytest.mark.asyncio
+async def test_handle_instagram_text_message():
+    config = {'page_access_token': 'dummy_token'}
+    with patch('kairon.chat.handlers.channels.messenger.MessengerBot.send_text_message', new_callable=AsyncMock) as mock_send_message:
+        await ChannelMessageDispatcher.handle_instagram('bot', config, 'sender', 'text message')
+        mock_send_message.assert_called_once_with('sender', 'text message')
+
+@pytest.mark.asyncio
+async def test_handle_default():
+    with patch('uuid6.uuid7') as mock_uuid, patch('time.time') as mock_time, patch('kairon.shared.chat.broadcast.processor.MessageBroadcastProcessor.get_db_client', new_callable=MagicMock) as mock_db_client:
+        mock_uuid.return_value.hex = 'mock_uuid'
+        mock_time.return_value = 1234567890
+        mock_collection = MagicMock()
+        mock_db_client.return_value = mock_collection
+
+        await ChannelMessageDispatcher.handle_default('bot', None, 'sender', 'message')
+        mock_collection.insert_one.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_message_unknown_channel():
+    bot = 'bot'
+    sender = 'sender'
+    message = 'message'
+    channel = 'unknown_channel'
+
+    with patch('kairon.shared.chat.processor.ChatDataProcessor.get_channel_config', return_value={'config': {}}), \
+         patch('kairon.shared.chat.broadcast.processor.MessageBroadcastProcessor.get_db_client') as mock_db_client, \
+         patch('uuid6.uuid7') as mock_uuid, patch('time.time') as mock_time:
+
+        mock_uuid.return_value.hex = 'mock_uuid'
+        mock_time.return_value = 1234567890
+        mock_collection = MagicMock()
+        mock_db_client.return_value = mock_collection
+
+        await ChannelMessageDispatcher.dispatch_message(bot, sender, message, channel)
+
+        mock_collection.insert_one.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch('kairon.chat.handlers.channels.clients.whatsapp.cloud.WhatsappCloud.send')
+async def test_send_message_to_user(mock_send):
+    whatsapp = Whatsapp({'bsp_type': 'meta', 'phone_number_id': '1234'})
+    message = 'Hello, World!'
+    recipient_id = 'user1'
+    await whatsapp.send_message_to_user(message, recipient_id)
+    mock_send.assert_called_once_with('Hello, World!', 'user1', 'text')

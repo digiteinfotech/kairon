@@ -91,7 +91,7 @@ class Whatsapp:
                 for message in messages or []:
                     await self.message(message, metadata, bot)
 
-    async def send_message_to_user(self, message: Dict[Text, Any], recipient_id: str):
+    async def send_message_to_user(self, message: Any, recipient_id: str):
         """Send a message to the user."""
         is_bps = self.config.get("bsp_type", "meta") == "360dialog"
         client = WhatsappFactory.get_client(self.config.get("bsp_type", "meta"))
@@ -99,9 +99,16 @@ class Whatsapp:
         if not phone_number_id and not is_bps:
             raise ValueError("Phone number not found in channel config")
         access_token = self.__get_access_token()
-        client = client(access_token, from_phone_number_id=phone_number_id)
-        await client.send(message, recipient_id, "text")
-
+        c = client(access_token, from_phone_number_id=phone_number_id)
+        message_type = "text"
+        if isinstance(message, dict):
+            if message.get("type") == "image":
+                message_type = "image"
+            elif message.get("type") == "video":
+                message_type = "video"
+            elif message.get("type") == "button":
+                message_type = "interactive"
+        c.send(message, recipient_id, message_type)
 
 
 
