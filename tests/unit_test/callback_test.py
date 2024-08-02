@@ -23,12 +23,8 @@ from kairon.shared.callback.data_objects import (
     CallbackLog,
 )
 from uuid6 import uuid7
-from datetime import datetime
 
 
-
-
-# Mock utility environment
 @pytest.fixture(autouse=True)
 def mock_environment(monkeypatch):
 
@@ -59,7 +55,6 @@ def mock_environment(monkeypatch):
 
 
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
-from kairon.shared.constants import ChannelTypes
 
 
 def test_check_nonempty_string():
@@ -265,3 +260,108 @@ async def test_send_message_to_user(mock_send):
     recipient_id = 'user1'
     await whatsapp.send_message_to_user(message, recipient_id)
     mock_send.assert_called_once_with('Hello, World!', 'user1', 'text')
+    message = {'type': 'image', 'url': 'http://example.com/image.jpg'}
+    await whatsapp.send_message_to_user(message, recipient_id)
+    mock_send.assert_called_with({'type': 'image', 'url': 'http://example.com/image.jpg'}, 'user1', 'image')
+    message = {'type': 'video', 'url': 'http://example.com/video.mp4'}
+    await whatsapp.send_message_to_user(message, recipient_id)
+    mock_send.assert_called_with({'type': 'video', 'url': 'http://example.com/video.mp4'}, 'user1', 'video')
+
+
+from kairon.async_callback.processor import CallbackProcessor
+
+@patch('kairon.async_callback.processor.CloudUtility')
+@patch('kairon.async_callback.processor.Utility')
+def test_run_pyscript(mock_utility, mock_cloud_utility):
+    # Arrange
+    mock_utility.environment = {'async_callback_action': {'pyscript': {'trigger_task': True}}}
+    mock_cloud_utility.trigger_lambda.return_value = {
+        'Payload': {
+            'body': {
+                'bot_response': 'Test response'
+            }
+        }
+    }
+    mock_cloud_utility.lambda_execution_failed.return_value = False
+    script = 'print("Hello, World!")'
+    predefined_objects = {'key': 'value'}
+
+    result = CallbackProcessor.run_pyscript(script, predefined_objects)
+
+    mock_cloud_utility.trigger_lambda.assert_called_once_with('pyscript_evaluator', {
+        'script': script,
+        'predefined_objects': predefined_objects
+    })
+    mock_cloud_utility.lambda_execution_failed.assert_called_once_with(mock_cloud_utility.trigger_lambda.return_value)
+    assert result == 'Test response'
+
+
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+
+from unittest.mock import AsyncMock, MagicMock, patch
+from concurrent.futures import ThreadPoolExecutor
+
+@pytest.fixture
+def mock_callback():
+    return AsyncMock()
+
+@pytest.fixture
+def mock_predefined_objects():
+    return {"key": "value"}
+
+@pytest.fixture
+def mock_script():
+    return "print('Hello, World!')"
+
+@pytest.fixture
+def mock_executor():
+    with patch('kairon.async_callback.processor.async_task_executor', ThreadPoolExecutor(max_workers=1)) as mock_exec:
+        yield mock_exec
+
+@pytest.mark.asyncio
+async def test_run_pyscript_async_success(mock_script, mock_predefined_objects, mock_callback, mock_executor):
+    with patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript', return_value="execution_result"):
+        CallbackProcessor.run_pyscript_async(mock_script, mock_predefined_objects, mock_callback)
+        await asyncio.sleep(0.1)  # Give time for the async task to complete
+
+        mock_callback.assert_called_once_with({'result': 'execution_result'})
+
+@pytest.mark.asyncio
+async def test_run_pyscript_async_exception(mock_script, mock_predefined_objects, mock_callback, mock_executor):
+    with patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript', side_effect=AppException("execution_error")):
+        CallbackProcessor.run_pyscript_async(mock_script, mock_predefined_objects, mock_callback)
+        await asyncio.sleep(0.1)  # Give time for the async task to complete
+
+        mock_callback.assert_called_once_with({'error': 'execution_error'})
+
+@pytest.mark.asyncio
+async def test_run_pyscript_async_submit_exception(mock_script, mock_predefined_objects, mock_callback, mock_executor):
+    with patch('kairon.async_callback.processor.async_task_executor.submit', side_effect=AppException("submission_error")):
+        with pytest.raises(AppException, match="Error while executing pyscript: submission_error"):
+            CallbackProcessor.run_pyscript_async(mock_script, mock_predefined_objects, mock_callback)
+
+
+@pytest.mark.asyncio
+@patch('kairon.async_callback.processor.ChannelMessageDispatcher.dispatch_message')
+@patch('kairon.async_callback.processor.CallbackLog.create_success_entry')
+@patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
+async def test_async_callback(mock_failure_entry, mock_success_entry, mock_dispatch_message):
+    # Arrange
+    obj = {'result': 'Test result'}
+    ent = {'action_name': 'Test action', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
+    cb = {'pyscript_code': 'Test code'}
+    c_src = 'Test source'
+    bot_id = 'Test bot'
+    sid = 'Test sender'
+    chnl = 'Test channel'
+    rd = {'key': 'value'}
+
+    # Act
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
+
+    # Assert
+    mock_dispatch_message.assert_called_once_with(bot_id, sid, obj['result'], chnl)
+    mock_success_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'], pyscript_code=cb['pyscript_code'], sender_id=sid, log=obj['result'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+    mock_failure_entry.assert_not_called()
