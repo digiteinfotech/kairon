@@ -1875,16 +1875,16 @@ class Utility:
                 param["value"] = Utility.decrypt_message(param["value"])
 
     @staticmethod
-    def create_mongo_client(url: Text):
+    def create_mongo_client(config: Dict):
         if Utility.environment["env"] == "test":
             from mongomock import MongoClient
 
             return MongoClient(
-                host=url
+                **config
             )
         else:
             from pymongo import MongoClient
-            return MongoClient(host=url)
+            return MongoClient(**config)
 
     @staticmethod
     def get_masked_value(value: Text):
