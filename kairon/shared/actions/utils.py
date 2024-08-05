@@ -992,11 +992,12 @@ class ActionUtility:
         return output, log, slot_values, elapsed_time
 
     @staticmethod
-    def trigger_rephrase(bot: Text, text_response: Text):
+    def trigger_rephrase(bot: Text, llm_type: str, text_response: Text):
         rephrased_message = None
         raw_resp = None
         prompt = open('./template/rephrase-prompt.txt').read()
-        gpt_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=False)
+        llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
+        gpt_key = llm_secret.get('api_key', None)
         if not Utility.check_empty_string(gpt_key):
             prompt = f"{prompt}{text_response}\noutput:"
             logger.debug(f"gpt3_prompt: {prompt}")

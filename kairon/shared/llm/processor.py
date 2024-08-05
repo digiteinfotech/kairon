@@ -5,11 +5,13 @@ from urllib.parse import urljoin
 
 import litellm
 from loguru import logger as logging
+from mongoengine import Q
+from mongoengine.base import BaseList
 from tiktoken import get_encoding
 from tqdm import tqdm
 
 from kairon.exceptions import AppException
-from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
@@ -36,7 +38,7 @@ class LLMProcessor(LLMBase):
         self.suffix = "_faq_embd"
         self.llm_type = llm_type
         self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
-        self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
+        self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
         self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
         self.__logs = []
@@ -108,7 +110,7 @@ class LLMProcessor(LLMBase):
         result = await litellm.aembedding(model="text-embedding-3-small",
                                           input=[truncated_text],
                                           metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-                                          api_key=self.api_key,
+                                          api_key=self.llm_secret.get('api_key'),
                                           num_retries=3)
         return result["data"][0]["embedding"]
 
@@ -126,7 +128,7 @@ class LLMProcessor(LLMBase):
     async def __get_completion(self, messages, hyperparameters, user, **kwargs):
         response = await litellm.acompletion(messages=messages,
                                              metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-                                             api_key=self.api_key,
+                                             api_key=self.llm_secret.get('api_key'),
                                              num_retries=3,
                                              **hyperparameters)
         formatted_response = await self.__parse_completion_response(response,
@@ -291,3 +293,22 @@ class LLMProcessor(LLMBase):
         :return: Count of rows
         """
         return LLMLogs.objects(metadata__bot=bot).count()
+
+    @staticmethod
+    def get_llm_models(bot: str):
+        """
+        Fetches the llm_type and corresponding models for a particular bot.
+        :param bot: bot id
+        :return: dictionary where each key is a llm_type and the value is a list of models.
+        """
+        secrets = LLMSecret.objects(Q(bot=bot) | Q(bot__exists=False))
+
+        llm_models = {}
+
+        for doc in secrets:
+            models = list(doc.models) if isinstance(doc.models, BaseList) else doc.models
+            if doc.bot == bot or not doc.bot:
+                if doc.llm_type not in llm_models:
+                    llm_models[doc.llm_type] = models
+
+        return llm_models

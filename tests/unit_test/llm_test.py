@@ -14,7 +14,7 @@ Utility.load_system_metadata()
 
 from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
-from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_LLM
 from kairon.shared.llm.processor import LLMProcessor
@@ -38,10 +38,18 @@ class TestLLM:
         test_content = CognitionData(
             data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
             bot=bot, user=user).save()
-        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key= value,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret},
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret},
                                                    'vector': {'db': "http://kairon:6333", "key": None}}):
             mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
@@ -118,14 +126,23 @@ class TestLLM:
             content_type="json",
             collection="Country_details",
             bot=bot, user=user).save()
-        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=value,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         mock_embedding.side_effect = (litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}),
                                       litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}),
                                       litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}))
         gpt3 = LLMProcessor(bot, DEFAULT_LLM)
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
                 method="GET",
@@ -221,7 +238,16 @@ class TestLLM:
             content_type="json",
             collection="payload_with_int",
             bot=bot, user=user).save()
-        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=value,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         input = {"name": "Ram", "color": "red"}
@@ -246,7 +272,7 @@ class TestLLM:
             payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
         )
 
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             response = await gpt3.train(user=user)
             assert response['faq'] == 1
 
@@ -282,12 +308,21 @@ class TestLLM:
             content_type="json",
             collection="embd_int",
             bot=bot, user=user).save()
-        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=value,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         input = {"name": "Ram", "color": "red"}
         mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             gpt3 = LLMProcessor(bot, DEFAULT_LLM)
 
             aioresponses.add(
@@ -338,7 +373,7 @@ class TestLLM:
             assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
     def test_gpt3_faq_embedding_train_failure(self):
-        with pytest.raises(AppException, match=f"Bot secret '{BotSecretType.gpt_key.value}' not configured!"):
+        with pytest.raises(AppException, match=f"LLM secret for '{DEFAULT_LLM}' is not configured!"):
             LLMProcessor('test_failure', DEFAULT_LLM)
 
     @pytest.mark.asyncio
@@ -350,13 +385,22 @@ class TestLLM:
         test_content = CognitionData(
             data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
             bot=bot, user=user).save()
-        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=value,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
@@ -415,12 +459,21 @@ class TestLLM:
             content_type="json",
             collection="error_json",
             bot=bot, user=user).save()
-        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=value,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
@@ -482,7 +535,16 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection=collection, bot=bot, user=user).save()
-        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=value,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
@@ -506,7 +568,7 @@ class TestLLM:
         mock_completion_request.update(hyperparameters)
         mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
@@ -549,7 +611,16 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection=collection, bot=bot, user=user).save()
-        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=value,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
@@ -573,7 +644,7 @@ class TestLLM:
         mock_completion_request.update(hyperparameters)
         mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
             aioresponses.add(
@@ -619,7 +690,17 @@ class TestLLM:
         hyperparameters = Utility.get_default_llm_hyperparameters()
         key = 'test'
         user = "tests"
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=test_content.bot,
+            user=user
+        )
+        llm_secret.save()
+
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
@@ -705,7 +786,17 @@ class TestLLM:
         hyperparameters['stream'] = True
         key = 'test'
         user = "tests"
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=test_content.bot,
+            user=user
+        )
+        llm_secret.save()
+
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
@@ -816,7 +907,15 @@ class TestLLM:
             collection="User_details",
             bot=bot, user=user).save()
 
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=bot, user=user).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         generated_text = "Hitesh and Fahad lives in mumbai city."
         query = "List all the user lives in mumbai city"
@@ -904,7 +1003,17 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=test_content.bot,
+            user=user
+        )
+        llm_secret.save()
+
 
         hyperparameters = Utility.get_default_llm_hyperparameters()
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
@@ -972,7 +1081,17 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=test_content.bot,
+            user=user
+        )
+        llm_secret.save()
+
 
         query = "What kind of language is python?"
         hyperparameters = Utility.get_default_llm_hyperparameters()
@@ -1014,7 +1133,16 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot=bot, user=user).save()
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=test_content.bot,
+            user=user
+        )
+        llm_secret.save()
 
         hyperparameters = Utility.get_default_llm_hyperparameters()
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
@@ -1055,7 +1183,16 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=test_content.bot,
+            user=user
+        )
+        llm_secret.save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
@@ -1123,7 +1260,16 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
-        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=key, bot=test_content.bot, user=user).save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=test_content.bot,
+            user=user
+        )
+        llm_secret.save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"

@@ -504,10 +504,11 @@ class TrainingDataValidator(Validator):
                 raise AppException("Invalid multiflow_stories.yml. Check logs!")
 
     @staticmethod
-    def validate_custom_actions(actions: Dict):
+    def validate_custom_actions(actions: Dict, bot: Text = None):
         """
         Validates different actions supported by kairon.
         @param actions: Action configurations.
+        @param bot: bot id
         @return: Set this flag to false to prevent raising exceptions.
         """
         is_data_invalid = False
@@ -580,7 +581,7 @@ class TrainingDataValidator(Validator):
                 error_summary['pipedrive_leads_actions'] = errors
                 component_count['pipedrive_leads_actions'] = len(actions_list)
             elif action_type == ActionType.prompt_action.value and actions_list:
-                errors = TrainingDataValidator.__validate_prompt_actions(actions_list)
+                errors = TrainingDataValidator.__validate_prompt_actions(actions_list, bot)
                 is_data_invalid = True if errors else False
                 error_summary['prompt_actions'] = errors
                 component_count['prompt_actions'] = len(actions_list)
@@ -674,10 +675,11 @@ class TrainingDataValidator(Validator):
         return data_error
 
     @staticmethod
-    def __validate_prompt_actions(prompt_actions: list):
+    def __validate_prompt_actions(prompt_actions: list, bot: Text = None):
         """
-        Validates form validation actions.
-        @param form_actions: Form validation actions.
+        Validates prompt actions.
+        @param prompt_actions: Promptactions.
+        @param bot: bot id
         """
         data_error = []
         actions_present = set()
@@ -697,7 +699,7 @@ class TrainingDataValidator(Validator):
                 llm_prompts_errors = TrainingDataValidator.__validate_llm_prompts(action['llm_prompts'])
                 if action.get('hyperparameters'):
                     llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparameters(
-                        action.get('hyperparameters'), action.get("llm_type", "openai"))
+                        action.get('hyperparameters'), action.get("llm_type", "openai"), bot)
                     data_error.extend(llm_hyperparameters_errors)
                 data_error.extend(llm_prompts_errors)
                 if action['name'] in actions_present:
@@ -786,10 +788,10 @@ class TrainingDataValidator(Validator):
         return error_list
 
     @staticmethod
-    def __validate_llm_prompts_hyperparameters(hyperparameters: dict, llm_type: str):
+    def __validate_llm_prompts_hyperparameters(hyperparameters: dict, llm_type: str, bot: str = None):
         error_list = []
         try:
-            Utility.validate_llm_hyperparameters(hyperparameters, llm_type, AppException)
+            Utility.validate_llm_hyperparameters(hyperparameters, llm_type, bot, AppException)
         except AppException as e:
             error_list.append(e.__str__())
         return error_list
@@ -1023,13 +1025,14 @@ class TrainingDataValidator(Validator):
         except Exception as e:
             raise AppException(f"Failed to load domain.yml. Error: '{e}'")
 
-    def validate_actions(self, raise_exception: bool = True):
+    def validate_actions(self, bot: Text = None, raise_exception: bool = True):
         """
         Validate different types of actions.
+        @param bot: bot id
         @param raise_exception: Set this flag to false to prevent raising exceptions.
         @return:
         """
-        is_data_invalid, summary, component_count = TrainingDataValidator.validate_custom_actions(self.actions)
+        is_data_invalid, summary, component_count = TrainingDataValidator.validate_custom_actions(self.actions, bot)
         self.component_count.update(component_count)
         self.summary.update(summary)
         if not is_data_invalid and raise_exception:
@@ -1111,7 +1114,7 @@ class TrainingDataValidator(Validator):
             self.verify_story_structure(raise_exception)
             self.verify_domain_validity()
             self.verify_nlu(raise_exception)
-            self.validate_actions(raise_exception)
+            self.validate_actions(bot, raise_exception)
             self.validate_config(raise_exception)
             self.validate_multiflow(raise_exception)
             self.validate_bot_content(bot, user, save_data, overwrite, raise_exception)

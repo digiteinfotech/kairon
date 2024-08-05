@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect
 
+from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.utils import Utility
 
 Utility.load_system_metadata()
@@ -25,13 +26,13 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
     DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig, \
-    CustomActionParameters
+    CustomActionParameters, CallbackActionConfig
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
-from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, FORM_SLOT_SET_TYPE
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, GPT_LLM_FAQ, \
     DEFAULT_NLU_FALLBACK_RESPONSE
@@ -66,6 +67,248 @@ def test_healthcheck():
     result = response.json()
     assert response.status_code == 200
     assert result["message"] == "health check ok"
+
+
+def test_callback_action_execution(aioresponses):
+    bot_settings = BotSettings(bot='6697add6b8e47524eb983373', user='test')
+    bot_settings.live_agent_enabled = True
+    bot_settings.save()
+    action_name = "callback_action1"
+    Actions(name=action_name, type=ActionType.callback_action.value,
+            bot="6697add6b8e47524eb983373", user="user").save()
+    CallbackActionConfig(
+        name= "callback_action1",
+        callback_name= "callback_script2",
+        dynamic_url_slot_name= "callback_url",
+        metadata_list= [],
+        bot_response="Hello",
+        dispatch_bot_response= True,
+        bot="6697add6b8e47524eb983373",
+        user="user"
+    ).save()
+
+    CallbackConfig(
+        name= "callback_script2",
+        pyscript_code="bot_response='hello world'",
+        validation_secret= "gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox",
+        execution_mode="sync",
+        bot="6697add6b8e47524eb983373",
+    ).save()
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "6697add6b8e47524eb983373", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'live_agent_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": "facebook",
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": "facebook", "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "6697add6b8e47524eb983373"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json['responses']) == 1
+    response_json['events'][0].pop('value')
+    assert response_json == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'callback_url', }], 'responses': [{'text': 'Hello', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+
+    log = ActionServerLogs.objects(action="callback_action1").get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    log.pop('callback_url')
+    assert log == {'type': 'callback_action', 'intent': 'live_agent_action',
+                   'action': 'callback_action1', 'sender': 'default',
+                   'headers': {}, 'bot_response': 'Hello',
+                   'messages': [], 'bot': '6697add6b8e47524eb983373',
+                   'status': 'SUCCESS', 'user_msg': 'get intents',
+                   'callback_url_slot': 'callback_url', 'metadata': {}}
+
+
+
+def test_callback_action_execution_fail_no_callback_config(aioresponses):
+    bot_settings = BotSettings(bot='6697add6b8e47524eb983373', user='test')
+    bot_settings.save()
+    action_name = "callback_action2"
+    Actions(name=action_name, type=ActionType.callback_action.value,
+            bot="6697add6b8e47524eb983373", user="user").save()
+    CallbackActionConfig(
+        name= "callback_action2",
+        callback_name= "callback_script3",
+        dynamic_url_slot_name= "callback_url",
+        metadata_list= [],
+        bot_response="Hello",
+        dispatch_bot_response= True,
+        bot="6697add6b8e47524eb983373",
+        user="user"
+    ).save()
+
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "6697add6b8e47524eb983373", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'live_agent_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": "facebook",
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": "facebook", "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "6697add6b8e47524eb983373"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 0
+
+    log = ActionServerLogs.objects(action="callback_action2")[0].to_mongo().to_dict()
+    print(log)
+    log.pop('_id')
+    log.pop('timestamp')
+    log.pop('callback_url')
+    assert log == {'type': 'callback_action', 'intent': 'live_agent_action',
+                   'action': 'callback_action2', 'sender': 'default',
+                   'headers': {}, 'bot_response': 'Hello',
+                   'messages': [], 'bot': '6697add6b8e47524eb983373',
+                   'exception': "Callback Configuration with name 'callback_script3' does not exist!",
+                   'status': 'FAILURE', 'user_msg': 'get intents',
+                   'callback_url_slot': 'callback_url', 'metadata': {}}
+
+
 
 
 def test_live_agent_action_execution(aioresponses):
@@ -3625,8 +3868,15 @@ def test_vectordb_action_execution_payload_search_from_slot():
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot=bot, user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot=bot,
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = f'http://localhost:6333/collections/{bot}_test_vectordb_action_execution_payload_search_from_slot_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -3706,8 +3956,15 @@ def test_vectordb_action_execution_payload_search_from_user_message():
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2e", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50md0a56b698ca10d35d2e", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50md0a56b698ca10d35d2e",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_test_vectordb_action_execution_payload_search_from_user_message_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -3789,8 +4046,15 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2f", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50md0a56b698ca10d35d2f", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50md0a56b698ca10d35d2f",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2f_test_vectordb_action_execution_payload_search_from_user_message_in_slot_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -3873,8 +4137,15 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56b698ca10d75d2e", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50fd0a56b698ca10d75d2e", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50fd0a56b698ca10d75d2e",
+        user="user"
+    )
+    llm_secret.save()
     embedding = list(np.random.random(Qdrant.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
@@ -3970,8 +4241,15 @@ def test_vectordb_action_execution_payload_search_from_value():
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2z", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50md0a56b698ca10d35d2z", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50md0a56b698ca10d35d2z",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2z_test_vectordb_action_execution_payload_search_from_value_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -4113,8 +4391,15 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fx0a56b698ca10d35d2e", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50fx0a56b698ca10d35d2e", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50fx0a56b698ca10d35d2e",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_test_vectordb_action_execution_embedding_search_from_slot_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -4211,8 +4496,15 @@ def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_em
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56v098ca10d75d2e", user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot="5f50fd0a56v098ca10d75d2e", user="user").save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot="5f50fd0a56v098ca10d75d2e",
+        user="user"
+    )
+    llm_secret.save()
 
     http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_test_vectordb_action_execution_no_response_dispatch_faq_embd/points/query'
     resp_msg = json.dumps(
@@ -10782,7 +11074,14 @@ def test_bot_response_action_rephrase_enabled():
     bot = "5f50fd0a56b698ca10d35d2h"
     user = "test_user"
     BotSettings(rephrase_response=True, bot=bot, user=user).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="uditpandey",
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
     gpt_prompt = open("./template/rephrase-prompt.txt").read()
     gpt_prompt = f"{gpt_prompt}hi\noutput:"
     gpt_response = {'id': 'cmpl-6Hh86Qkqq0PJih2YSl9JaNkPEuy4Y', 'object': 'text_completion', 'created': 1669675386,
@@ -10933,7 +11232,14 @@ def test_bot_response_action_rephrase_failure():
     bot = "5f50fd0a56b698ca10d35d2i"
     user = "test_user"
     BotSettings(rephrase_response=True, bot=bot, user=user).save()
-    secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="uditpandey",
+        models=["gpt-3.5-turbo"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
     gpt_prompt = open("./template/rephrase-prompt.txt").read()
     gpt_prompt = f"{gpt_prompt}hi\noutput:"
     gpt_response = {
@@ -11064,8 +11370,6 @@ def test_bot_response_action_rephrase_failure():
     ]
     assert len(responses.calls._calls) == 1
 
-    secret.value = ""
-    secret.save()
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
@@ -11075,7 +11379,7 @@ def test_bot_response_action_rephrase_failure():
         {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
          'response': 'utter_greet', 'image': None, 'attachment': None}
     ]
-    assert len(responses.calls._calls) == 1
+    assert len(responses.calls._calls) == 2
 
 
 def test_bot_response_action_failure():
@@ -11435,7 +11739,14 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
                  user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo","gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"] = {"bot": bot, "prompt_question": user_msg}
@@ -11503,8 +11814,14 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
-
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["next_action"] = action_name
@@ -11575,7 +11892,14 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
                  instructions=instructions).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -11654,7 +11978,14 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -11732,7 +12063,14 @@ def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
                  user=user,
                  llm_prompts=llm_prompts).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -11783,7 +12121,14 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, instructions=instructions).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -11839,7 +12184,14 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -11998,7 +12350,14 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12107,7 +12466,14 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12171,7 +12537,14 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                        num_results=3,
                        set_slot="google_response").save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
     generated_text = 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.'
 
     def _run_action(*args, **kwargs):
@@ -12316,7 +12689,14 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12419,7 +12799,14 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
                      SetSlotsFromResponse(name="api_type", value="${data['api_type']}", evaluation_type="script"),
                      SetSlotsFromResponse(name="query", value="${data['filter']}",
                                           evaluation_type="script")]).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12530,7 +12917,14 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12630,7 +13024,14 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12689,7 +13090,14 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_search, moc
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12758,7 +13166,14 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        bot=bot,
+        user=user
+    )
+    llm_secret.save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12821,9 +13236,15 @@ def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user="user").save()
-    BotSecrets(secret_type=BotSecretType.gpt_key.value, value="key_value",
-               bot=bot, user="user").save()
-
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key="key_value",
+        models=["model1", "model2"],
+        api_base_url="https://api.example.com",
+        bot=bot,
+        user="user"
+    )
+    llm_secret.save()
     http_url = f'http://localhost:6333/collections/{bot}_{action_name}_faq_embd/points/query'
     resp_msg = json.dumps(
         {
