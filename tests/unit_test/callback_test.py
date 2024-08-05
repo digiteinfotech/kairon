@@ -1,9 +1,7 @@
-import asyncio
 import os
 
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from fernet import Fernet
+from unittest.mock import patch, MagicMock
 from mongoengine import connect
 from kairon import Utility
 
@@ -16,7 +14,6 @@ from kairon.shared.callback.data_objects import (
     check_nonempty_string,
     encrypt_secret,
     decrypt_secret,
-    CallbackExecutionMode,
     CallbackConfig,
     CallbackData,
     CallbackRecordStatusType,
@@ -230,6 +227,31 @@ async def test_handle_default():
         await ChannelMessageDispatcher.handle_default('bot', None, 'sender', 'message')
         mock_collection.insert_one.assert_called_once()
 
+@pytest.mark.asyncio
+@patch('kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.handle_whatsapp')
+@patch('kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.handle_telegram')
+@patch('kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.handle_facebook')
+@patch('kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.handle_instagram')
+@patch('kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.handle_default')
+@patch('kairon.async_callback.channel_message_dispacher.ChatDataProcessor.get_channel_config')
+@patch('kairon.async_callback.channel_message_dispacher.MessageBroadcastProcessor.get_db_client')
+async def test_dispatch_message_channel(mock_get_db_client, mock_get_channel_config, mock_handle_default, mock_handle_instagram, mock_handle_facebook, mock_handle_telegram, mock_handle_whatsapp):
+    # Arrange
+    bot = 'Test bot'
+    sender = 'Test sender'
+    message = 'Test message'
+    channel = 'whatsapp'
+    mock_get_channel_config.return_value = {'config': 'Test config'}
+    mock_db_collection = MagicMock()
+    mock_get_db_client.return_value = mock_db_collection
+
+    # Act
+    await ChannelMessageDispatcher.dispatch_message(bot, sender, message, channel)
+
+    # Assert
+    mock_handle_whatsapp.assert_called_once_with(bot, mock_get_channel_config.return_value['config'], sender, message)
+    mock_get_db_client.assert_called_once_with(bot)
+    mock_db_collection.insert_one.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_dispatch_message_unknown_channel():
@@ -297,8 +319,6 @@ def test_run_pyscript(mock_utility, mock_cloud_utility):
 
 
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
-
 
 from unittest.mock import AsyncMock, MagicMock, patch
 from concurrent.futures import ThreadPoolExecutor
@@ -358,10 +378,33 @@ async def test_async_callback(mock_failure_entry, mock_success_entry, mock_dispa
     chnl = 'Test channel'
     rd = {'key': 'value'}
 
-    # Act
     await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
 
-    # Assert
     mock_dispatch_message.assert_called_once_with(bot_id, sid, obj['result'], chnl)
     mock_success_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'], pyscript_code=cb['pyscript_code'], sender_id=sid, log=obj['result'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
     mock_failure_entry.assert_not_called()
+
+@pytest.mark.asyncio
+@patch('kairon.async_callback.processor.ChannelMessageDispatcher.dispatch_message')
+@patch('kairon.async_callback.processor.CallbackLog.create_success_entry')
+@patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
+async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_dispatch_message):
+    # Arrange
+    obj = {'error': 'Test error'}
+    ent = {'action_name': 'Test action', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
+    cb = {'pyscript_code': 'Test code'}
+    c_src = 'Test source'
+    bot_id = 'Test bot'
+    sid = 'Test sender'
+    chnl = 'Test channel'
+    rd = {'key': 'value'}
+
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
+
+    mock_dispatch_message.assert_not_called()
+    mock_success_entry.assert_not_called()
+    mock_failure_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'], pyscript_code=cb['pyscript_code'], sender_id=sid, error_log=obj['error'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+
+
+
+

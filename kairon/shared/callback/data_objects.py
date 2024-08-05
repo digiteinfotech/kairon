@@ -168,14 +168,6 @@ class CallbackData(Document):
         return callback_url
 
     @staticmethod
-    def decode_callback_name_and_identifier(dynamic_param: str):
-        check_nonempty_string(dynamic_param)
-        parts = dynamic_param.split("_")
-        if len(parts) != 2:
-            raise AppException("Invalid identifier!")
-        return parts[0], parts[1]
-
-    @staticmethod
     def validate_entry(bot: str, name : str, dynamic_param: str, validation_secret: str):
         check_nonempty_string(bot)
         check_nonempty_string(validation_secret)

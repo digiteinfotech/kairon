@@ -13,7 +13,7 @@ from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
 
 
-async_task_executor = ThreadPoolExecutor(max_workers=4)
+async_task_executor = ThreadPoolExecutor(max_workers=64)
 
 
 class CallbackProcessor:

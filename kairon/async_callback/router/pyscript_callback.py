@@ -18,7 +18,7 @@ async def process_router_message(bot: str, name: str, dynamic_param, req_type: s
         'data': None
     }
     if request.query_params:
-        data.update({key: request.query_params[key] for key in request.query_params.keys()})
+        data.update({key: request.query_params[key] for key in request.query_params})
     token = data.get('token')
     try:
         req_data = None
