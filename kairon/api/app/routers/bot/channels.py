@@ -73,7 +73,7 @@ async def delete_channel_config(
     """
     Deletes the channel config.
     """
-    ChatDataProcessor.delete_channel_config(current_user.get_bot(), id=channel_id)
+    ChatDataProcessor.delete_channel_config(current_user.get_bot(), user=current_user.get_user(), id=channel_id)
     return Response(message='Channel deleted')
 
 

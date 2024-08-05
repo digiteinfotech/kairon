@@ -508,7 +508,7 @@ class MongoProcessor:
         :return: None
         """
         Utility.hard_delete_document(
-            [TrainingExamples, EntitySynonyms, LookupTables, RegexFeatures], bot=bot
+            [TrainingExamples, EntitySynonyms, LookupTables, RegexFeatures], bot=bot, user=user
         )
 
     def load_nlu(self, bot: Text) -> TrainingData:
@@ -573,8 +573,9 @@ class MongoProcessor:
                 Utterances,
             ],
             bot=bot,
+            user=user
         )
-        Utility.hard_delete_document([Actions], bot=bot, type=None)
+        Utility.hard_delete_document([Actions], bot=bot, type=None, user=user)
 
     def load_domain(self, bot: Text) -> Domain:
         """
@@ -615,7 +616,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([Stories], bot=bot)
+        Utility.hard_delete_document([Stories], bot=bot, user=user)
 
     def load_stories(self, bot: Text) -> StoryGraph:
         """
@@ -634,7 +635,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([MultiflowStories], bot=bot)
+        Utility.hard_delete_document([MultiflowStories], bot=bot, user=user)
 
     def delete_bot_content(self, bot: Text, user: Text):
         """
@@ -643,8 +644,8 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([CognitionSchema], bot=bot)
-        Utility.hard_delete_document([CognitionData], bot=bot)
+        Utility.hard_delete_document([CognitionSchema], bot=bot, user=user)
+        Utility.hard_delete_document([CognitionData], bot=bot, user=user)
 
     def save_multiflow_stories(self, multiflow_stories: dict, bot: Text, user: Text):
         """
@@ -1156,8 +1157,16 @@ class MongoProcessor:
         actions = Actions.objects(bot=bot, status=status).values_list("name")
         actions_list = list(actions)
 
-        if Stories.objects(bot=bot, status=status, events__name='action_listen').count() > 0:
-            actions_list.append('action_listen')
+        for story in Stories.objects(bot=bot, status=status):
+            for event in story.events:
+                if event.name == 'action_listen':
+                    if 'action_listen' not in actions_list:
+                        actions_list.append('action_listen')
+
+        for story in MultiflowStories.objects(bot=bot, status=status):
+            for event in story.events:
+                if event.step.name == 'stop_flow_action' and 'stop_flow_action' not in actions_list:
+                    actions_list.append('stop_flow_action')
 
         return actions_list
 
@@ -2070,7 +2079,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([Configs], bot=bot)
+        Utility.hard_delete_document([Configs], bot=bot, user=user)
 
     def fetch_configs(self, bot: Text):
         """
@@ -2628,7 +2637,7 @@ class MongoProcessor:
         """
         try:
             entity = Entities.objects(name=name, bot=bot, status=True).get()
-            entity.delete()
+            Utility.delete_documents(entity, user)
         except DoesNotExist:
             if raise_exc_if_not_exists:
                 raise AppException("Entity not found")
@@ -3286,7 +3295,7 @@ class MongoProcessor:
             raise AppException("Invalid type")
         try:
             document = data_class.objects(bot=bot, status=True).get(id=story_id)
-            document.delete()
+            Utility.delete_documents(document, user)
         except DoesNotExist:
             raise AppException("Flow does not exists")
 
@@ -3745,16 +3754,15 @@ class MongoProcessor:
                 )
 
         try:
-            intent_obj.user = user
             Utility.hard_delete_document(
-                [TrainingExamples], bot=bot, intent__iexact=intent
+                [TrainingExamples], bot=bot, intent__iexact=intent, user=user
             )
-            intent_obj.delete()
+            Utility.delete_documents(intent_obj, user)
         except Exception as ex:
             logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
 
-    def delete_utterance(self, utterance: str, bot: str, validate_form: bool = True):
+    def delete_utterance(self, utterance: str, bot: str, validate_form: bool = True, user: str = None):
         if not (utterance and utterance.strip()):
             raise AppException("Utterance cannot be empty or spaces")
         try:
@@ -3771,13 +3779,13 @@ class MongoProcessor:
                 )
 
             MongoProcessor.get_attached_flows(bot, utterance_name, "action")
-            Utility.hard_delete_document([Responses], bot=bot, name=utterance_name)
-            utterance.delete()
+            Utility.hard_delete_document([Responses], bot=bot, name=utterance_name, user=user)
+            Utility.delete_documents(utterance, user)
         except DoesNotExist as e:
             logging.info(e)
             raise AppException("Utterance does not exists")
 
-    def delete_response(self, utterance_id: str, bot: str):
+    def delete_response(self, utterance_id: str, bot: str, user: str = None):
         if not (utterance_id and utterance_id.strip()):
             raise AppException("Response Id cannot be empty or spaces")
         try:
@@ -3795,8 +3803,8 @@ class MongoProcessor:
                     "At least one response is required for utterance linked to story"
                 )
             if len(responses) <= 1:
-                self.delete_utterance_name(name=utterance_name, bot=bot, raise_exc=True)
-            response.delete()
+                self.delete_utterance_name(name=utterance_name, bot=bot, raise_exc=True, user=user)
+            Utility.delete_documents(response, user)
         except DoesNotExist as e:
             raise AppException(e)
 
@@ -4493,8 +4501,7 @@ class MongoProcessor:
                 raise AppException(
                     f'Slot is attached to multi-flow story: {[story["block_name"] for story in multi_stories]}'
                 )
-
-            slot.delete()
+            Utility.delete_documents(slot, user)
             self.delete_entity(slot_name, bot, user, False)
         except DoesNotExist as custEx:
             logging.info(custEx)
@@ -4624,7 +4631,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([Rules], bot=bot)
+        Utility.hard_delete_document([Rules], bot=bot, user=user)
 
     def delete_bot_actions(self, bot: Text, user: Text):
         """
@@ -4638,8 +4645,8 @@ class MongoProcessor:
             HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
             ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction, PromptAction,
             PyscriptActionConfig, RazorpayAction, DatabaseAction
-        ], bot=bot)
-        Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
+        ], bot=bot, user=user)
+        Utility.hard_delete_document([Actions], bot=bot, type__ne=None, user=user)
 
     def __get_rules(self, bot: Text):
         for rule in Rules.objects(bot=bot, status=True):
@@ -5358,22 +5365,23 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Synonym value does not exist!")
 
-    def delete_synonym(self, id: str, bot: str):
+    def delete_synonym(self, id: str, bot: str, user: str = None):
         """
         delete the synonym and its values
         :param id: synonym id
         :param bot: bot id
+        :param user: user id
         """
         try:
             synonym = Synonyms.objects(bot=bot, status=True).get(id=id)
             Utility.hard_delete_document(
-                [EntitySynonyms], bot=bot, status=True, name__iexact=synonym.name
+                [EntitySynonyms], bot=bot, status=True, name__iexact=synonym.name, user=user
             )
-            synonym.delete()
+            Utility.delete_documents(synonym, user)
         except DoesNotExist as e:
             raise AppException(e)
 
-    def delete_synonym_value(self, synonym_name: str, value_id: str, bot: str):
+    def delete_synonym_value(self, synonym_name: str, value_id: str, bot: str, user: str = None):
         """
         delete particular synonym value
         :param synonym_name: name of synonym
@@ -5386,7 +5394,7 @@ class MongoProcessor:
             synonym_value = EntitySynonyms.objects(
                 bot=bot, status=True, name__exact=synonym_name
             ).get(id=value_id)
-            synonym_value.delete()
+            Utility.delete_documents(synonym_value, user)
         except DoesNotExist as e:
             raise AppException(e)
 
@@ -5438,7 +5446,7 @@ class MongoProcessor:
             utterance.pop("user")
             yield utterance
 
-    def delete_utterance_name(self, name: Text, bot: Text, raise_exc: bool = False):
+    def delete_utterance_name(self, name: Text, bot: Text, raise_exc: bool = False, user: str = None):
         try:
             utterance = Utterances.objects(
                 name__iexact=name, bot=bot, status=True
@@ -5449,7 +5457,7 @@ class MongoProcessor:
                         f"Utterance cannot be deleted as it is linked to form: {utterance.form_attached}"
                     )
             else:
-                utterance.delete()
+                Utility.delete_documents(utterance, user)
         except DoesNotExist as e:
             logging.info(e)
             if raise_exc:
@@ -5792,7 +5800,7 @@ class MongoProcessor:
             regex = RegexFeatures.objects(
                 name__iexact=regex_name, bot=bot, status=True
             ).get()
-            regex.delete()
+            Utility.delete_documents(regex, user)
         except DoesNotExist:
             raise AppException("Regex name does not exist.")
 
@@ -5955,7 +5963,7 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Lookup value does not exist!")
 
-    def delete_lookup(self, lookup_id: str, bot: str):
+    def delete_lookup(self, lookup_id: str, bot: str, user: str = None):
         """
         delete lookup and its value
         :param lookup_id: lookup ID
@@ -5968,11 +5976,11 @@ class MongoProcessor:
             Utility.hard_delete_document(
                 [LookupTables], bot=bot, name__exact=lookup.name
             )
-            lookup.delete()
+            Utility.delete_documents(lookup, user)
         except DoesNotExist:
             raise AppException("Invalid lookup!")
 
-    def delete_lookup_value(self, lookup_value_id: str, lookup_name: str, bot: str):
+    def delete_lookup_value(self, lookup_value_id: str, lookup_name: str, bot: str, user: str = None):
         """
         delete a lookup value
         :param lookup_value_id: value ID
@@ -5985,7 +5993,7 @@ class MongoProcessor:
             lookup_value = LookupTables.objects(
                 bot=bot, status=True, name__iexact=lookup_name
             ).get(id=lookup_value_id)
-            lookup_value.delete()
+            Utility.delete_documents(lookup_value, user)
         except DoesNotExist as e:
             raise AppException(e)
 
@@ -6188,7 +6196,7 @@ class MongoProcessor:
 
             for slot in slots_to_remove:
                 try:
-                    self.delete_utterance(f"utter_ask_{name}_{slot}", bot, False)
+                    self.delete_utterance(f"utter_ask_{name}_{slot}", bot, False, user=user)
                 except AppException:
                     pass
 
@@ -6217,10 +6225,10 @@ class MongoProcessor:
             for slot in form.required_slots:
                 try:
                     utterance_name = f"utter_ask_{name}_{slot}"
-                    self.delete_utterance(utterance_name, bot, False)
+                    self.delete_utterance(utterance_name, bot, False, user=user)
                 except Exception as e:
                     logging.info(str(e))
-            form.delete()
+            Utility.delete_documents(form, user)
             if Utility.is_exist(
                     FormValidationAction,
                     raise_error=False,
@@ -6308,7 +6316,7 @@ class MongoProcessor:
         except Exception as e:
             raise AppException(e)
 
-    def delete_single_slot_mapping(self, slot_mapping_id: str):
+    def delete_single_slot_mapping(self, slot_mapping_id: str, user: str = None):
         """
         Delete slot mapping.
 
@@ -6316,7 +6324,7 @@ class MongoProcessor:
         """
         try:
             slot_mapping = SlotMapping.objects(id=slot_mapping_id, status=True).get()
-            slot_mapping.delete()
+            Utility.delete_documents(slot_mapping, user)
         except Exception as e:
             raise AppException(e)
 
@@ -6478,68 +6486,82 @@ class MongoProcessor:
                     [SlotSetAction],
                     name__iexact=name,
                     bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.form_validation_action.value:
                 Utility.hard_delete_document(
                     [FormValidationAction],
                     name__iexact=name,
                     bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.email_action.value:
                 Utility.hard_delete_document(
                     [EmailActionConfig],
                     action_name__iexact=name,
                     bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.google_search_action.value:
                 Utility.hard_delete_document(
                     [GoogleSearchAction],
                     name__iexact=name,
                     bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.jira_action.value:
                 Utility.hard_delete_document(
                     [JiraAction],
                     name__iexact=name,
                     bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.http_action.value:
                 Utility.hard_delete_document(
-                    [HttpActionConfig], action_name__iexact=name, bot=bot
+                    [HttpActionConfig], action_name__iexact=name, bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.zendesk_action.value:
                 Utility.hard_delete_document(
-                    [ZendeskAction], name__iexact=name, bot=bot
+                    [ZendeskAction], name__iexact=name, bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.pipedrive_leads_action.value:
                 Utility.hard_delete_document(
-                    [PipedriveLeadsAction], name__iexact=name, bot=bot
+                    [PipedriveLeadsAction], name__iexact=name, bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.hubspot_forms_action.value:
                 Utility.hard_delete_document(
-                    [HubspotFormsAction], name__iexact=name, bot=bot
+                    [HubspotFormsAction], name__iexact=name, bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.two_stage_fallback.value:
                 Utility.hard_delete_document(
-                    [KaironTwoStageFallbackAction], name__iexact=name, bot=bot
+                    [KaironTwoStageFallbackAction], name__iexact=name, bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.razorpay_action.value:
                 Utility.hard_delete_document(
-                    [RazorpayAction], name__iexact=name, bot=bot
+                    [RazorpayAction], name__iexact=name, bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.database_action.value:
                 Utility.hard_delete_document(
-                    [DatabaseAction], name__iexact=name, bot=bot
+                    [DatabaseAction], name__iexact=name, bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.web_search_action.value:
                 Utility.hard_delete_document(
-                    [WebSearchAction], name__iexact=name, bot=bot
+                    [WebSearchAction], name__iexact=name, bot=bot,
+                    user=user
                 )
             elif action.type == ActionType.prompt_action.value:
-                Utility.hard_delete_document([PromptAction], name__iexact=name, bot=bot)
+                Utility.hard_delete_document([PromptAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.pyscript_action.value:
                 Utility.hard_delete_document(
-                    [PyscriptActionConfig], name__iexact=name, bot=bot
+                    [PyscriptActionConfig], name__iexact=name, bot=bot,
+                    user=user
                 )
             action.delete()
         except DoesNotExist:
@@ -6990,7 +7012,7 @@ class MongoProcessor:
         return keys
 
     @staticmethod
-    def delete_secret(key: Text, bot: Text):
+    def delete_secret(key: Text, bot: Text, **kwargs):
         """
         Delete secret for bot.
 
@@ -7166,7 +7188,8 @@ class MongoProcessor:
 
         if len(custom_widgets):
             raise AppException(f"Key is attached to custom widget: {custom_widgets}")
-        KeyVault.objects(key=key, bot=bot).delete()
+        kv = KeyVault.objects(key=key, bot=bot).get()
+        Utility.delete_documents(kv, kwargs.get("user"))
 
     def add_two_stage_fallback_action(self, request_data: dict, bot: Text, user: Text):
         """
@@ -7645,7 +7668,7 @@ class MongoProcessor:
                     error_summary["utterances"].append(str(e))
                     self.delete_intent(intent, bot, user, False)
                 if is_response_added:
-                    self.delete_utterance(action, bot)
+                    self.delete_utterance(action, bot, user=user)
         return component_count, error_summary
 
     def delete_all_faq(self, bot: Text):
@@ -7863,9 +7886,9 @@ class MongoProcessor:
         if not live_agent:
             raise AppException("Live agent not enabled for the bot")
 
-    def disable_live_agent(self, bot: Text):
+    def disable_live_agent(self, bot: Text, user: str = None):
         Utility.hard_delete_document([Actions], bot, name__iexact="live_agent_action")
-        Utility.hard_delete_document([LiveAgentActionConfig], bot=bot)
+        Utility.hard_delete_document([LiveAgentActionConfig], bot=bot, user=user)
 
     def is_live_agent_enabled(self, bot: Text, check_in_utils: bool = True):
         bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
@@ -7874,7 +7897,6 @@ class MongoProcessor:
         if not check_in_utils:
             return True
         return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)
-
     def add_callback(self, request_data: dict, bot: Text):
         """
         Add callback config.

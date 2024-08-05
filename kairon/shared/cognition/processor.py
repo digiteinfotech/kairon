@@ -82,7 +82,7 @@ class CognitionDataProcessor:
         metadata_id = metadata_obj.save().to_mongo().to_dict()["_id"].__str__()
         return metadata_id
 
-    def delete_cognition_schema(self, schema_id: str, bot: Text):
+    def delete_cognition_schema(self, schema_id: str, bot: Text, user: str = None):
         try:
             metadata = CognitionSchema.objects(bot=bot, id=schema_id).get()
             CognitionDataProcessor.validate_collection_name(bot, metadata['collection_name'])
@@ -91,7 +91,7 @@ class CognitionDataProcessor:
             if cognition_data:
                 for data in cognition_data:
                     data.delete()
-            metadata.delete()
+            Utility.delete_documents(metadata, user)
         except DoesNotExist:
             raise AppException("Schema does not exists!")
 
@@ -176,10 +176,10 @@ class CognitionDataProcessor:
         except DoesNotExist:
             raise AppException("Payload with given id not found!")
 
-    def delete_cognition_data(self, row_id: str, bot: Text):
+    def delete_cognition_data(self, row_id: str, bot: Text, user: str = None):
         try:
             payload = CognitionData.objects(bot=bot, id=row_id).get()
-            payload.delete()
+            Utility.delete_documents(payload, user)
         except DoesNotExist:
             raise AppException("Payload does not exists!")
 

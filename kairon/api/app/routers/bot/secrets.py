@@ -64,5 +64,5 @@ async def delete_key_value(
     """
     Deletes key value.
     """
-    mongo_processor.delete_secret(key, current_user.get_bot())
+    mongo_processor.delete_secret(key, current_user.get_bot(), user=current_user.get_user())
     return Response(data=None, message="Secret deleted!")
