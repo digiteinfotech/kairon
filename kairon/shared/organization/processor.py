@@ -131,14 +131,14 @@ class OrgProcessor:
             logger.error(str(ex))
 
     @staticmethod
-    def delete_org(account, org_id):
+    def delete_org(account, org_id, user:str = None):
         try:
             org = Organization.objects(name=org_id, account__contains=account).get()
             org_name = org.name
-            org.delete()
+            Utility.delete_documents(org, user)
         except DoesNotExist:
             raise AppException("Organization not found")
-        IDPProcessor.delete_idp(org_name)
+        IDPProcessor.delete_idp(org_name, user=user)
         OrgProcessor.delete_org_mapping(org_id)
 
     @staticmethod

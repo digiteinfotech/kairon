@@ -547,9 +547,14 @@ class Utility:
         """
         for document in documents:
             kwargs["bot"] = bot
+            user = kwargs.pop("user", "System")
             fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
-                fetched_documents.delete()
+                try:
+                    fetched_documents["user"] = user
+                    fetched_documents.delete()
+                except:
+                    fetched_documents.delete()
 
     @staticmethod
     def extract_db_config(uri: str):
@@ -632,7 +637,7 @@ class Utility:
     @staticmethod
     def get_local_mongo_store(bot: Text, domain):
         """
-        create local mongo tracker
+            create local mongo tracker
 
         :param bot: bot id
         :param domain: domain data
@@ -1876,16 +1881,16 @@ class Utility:
                 param["value"] = Utility.decrypt_message(param["value"])
 
     @staticmethod
-    def create_mongo_client(url: Text):
+    def create_mongo_client(config: Dict):
         if Utility.environment["env"] == "test":
             from mongomock import MongoClient
 
             return MongoClient(
-                host=url
+                **config
             )
         else:
             from pymongo import MongoClient
-            return MongoClient(host=url)
+            return MongoClient(**config)
 
     @staticmethod
     def get_masked_value(value: Text):
@@ -2168,6 +2173,16 @@ class Utility:
         except InvalidDocument as e:
             logger.exception(e)
             return False
+
+    @staticmethod
+    def delete_documents(document: Document, user: str = "System"):
+        """
+        delete the given document, main purpose of this api is set current user and maintain in auditlog.
+        if user is not provided 'System' user will be passed.
+        """
+        if document:
+            document["user"] = user
+            document.delete()
 
 
 class StoryValidator:

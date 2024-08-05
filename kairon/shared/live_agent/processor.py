@@ -36,14 +36,14 @@ class LiveAgentsProcessor:
         agent.save()
 
     @staticmethod
-    def delete_config(bot: Text):
+    def delete_config(bot: Text, user: str = None):
         """
         Delete a particular live agent configuration for bot
 
         :param bot: bot id
         :return: None
         """
-        Utility.hard_delete_document([LiveAgents], bot=bot)
+        Utility.hard_delete_document([LiveAgents], bot=bot, user=user)
 
     @staticmethod
     def get_config(bot: Text, mask_characters=True, raise_error: bool = True):

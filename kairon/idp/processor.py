@@ -151,11 +151,12 @@ class IDPProcessor:
         return KEYCLOAK_SUPPORTED_PROVIDER
 
     @staticmethod
-    def delete_idp(realm_name):
+    def delete_idp(realm_name, user: str = None):
         try:
             helper = IDPFactory.get_supported_idp(Utility.environment["idp"]["type"])
             helper.delete_realm(realm_name)
             idp_config_data = IdpConfig.objects(realm_name=realm_name, status=True).get()
-            idp_config_data.delete()
+            Utility.delete_documents(idp_config_data, user)
+
         except DoesNotExist:
             raise AppException("IDP config not found")
