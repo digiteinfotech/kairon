@@ -1,7 +1,7 @@
 -r prod.txt
 pytest==8.2.2
 pytest_httpx==0.30.0
-pytest-asyncio==0.23.7
+pytest-asyncio==0.23.8
 responses==0.25.2
 mock==5.1.0
 moto[all]==5.0.9
