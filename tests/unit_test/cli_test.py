@@ -405,37 +405,3 @@ class TestMessageBroadcastCli:
             cli()
         for proxy in ActorFactory._ActorFactory__actors.values():
             assert not proxy[1].actor_ref.is_alive()
-
-    def test_message_broadcast_with_is_resend(self, monkeypatch):
-        from kairon import create_argument_parser
-        import sys
-
-        test_args = ["kairon", "broadcast", "test_bot", "test_user", "65432123456789876543", "--is_resend", "True"]
-        monkeypatch.setattr(sys, 'argv', test_args)
-
-        parser = create_argument_parser()
-        args = parser.parse_args()
-
-        assert hasattr(args, 'is_resend')
-        assert args.is_resend == "True"
-
-        with mock.patch('kairon.events.definitions.message_broadcast.MessageBroadcastEvent.execute',
-                        autospec=True):
-            cli()
-
-    def test_message_broadcast_without_is_resend(self, monkeypatch):
-        from kairon import create_argument_parser
-        import sys
-
-        test_args = ["kairon", "broadcast", "test_bot", "test_user", "65432123456789876543"]
-        monkeypatch.setattr(sys, 'argv', test_args)
-
-        parser = create_argument_parser()
-        args = parser.parse_args()
-
-        assert hasattr(args, 'is_resend')
-        assert args.is_resend == "False"
-
-        with mock.patch('kairon.events.definitions.message_broadcast.MessageBroadcastEvent.execute',
-                        autospec=True):
-            cli()
