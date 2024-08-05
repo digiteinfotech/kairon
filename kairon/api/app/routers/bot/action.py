@@ -7,7 +7,7 @@ from kairon.api.models import (
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
-    WebSearchActionRequest, LiveAgentActionRequest
+    WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -601,6 +601,86 @@ async def disable_live_agent(
 ):
     mongo_processor.disable_live_agent(current_user.get_bot())
     return Response(message="Live Agent Action disabled!")
+
+
+@router.get("/callback_list", response_model=Response)
+async def get_all_callback_names_list(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    names = mongo_processor.get_all_callback_names(current_user.get_bot())
+    return Response(data=names)
+
+
+@router.get("/callback/{name}", response_model=Response)
+async def get_callback(
+        name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    info = mongo_processor.get_callback(current_user.get_bot(), name)
+    return Response(data=info)
+
+
+@router.post("/callback", response_model=Response)
+async def add_callback(
+        request_data: CallbackConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    info = mongo_processor.add_callback(request_data.dict(), current_user.get_bot())
+    return Response(data=info, message="Callback added successfully!")
+
+
+@router.put("/callback", response_model=Response)
+async def edit_callback(
+        request_data: CallbackConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    info = mongo_processor.edit_callback(request_data.dict(), current_user.get_bot())
+    return Response(data=info, message="Callback updated successfully!")
+
+
+@router.delete("/callback/{name}", response_model=Response)
+async def delete_callback(
+        name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    mongo_processor.delete_callback(current_user.get_bot(), name)
+    return Response(message="Callback deleted successfully!")
+
+
+@router.get("/callback/action/{name}", response_model=Response)
+async def get_callback_action(
+        name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    action = mongo_processor.get_callback_action(current_user.get_bot(), name)
+    return Response(data=action)
+
+
+@router.post("/callback/action", response_model=Response)
+async def add_callback_action(
+        request_data: CallbackActionConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    action = mongo_processor.add_callback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(data=action, message="Callback action added successfully!")
+
+
+@router.put("/callback/action", response_model=Response)
+async def edit_callback_action(
+        request_data: CallbackActionConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    mongo_processor.edit_callback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message="Callback action updated successfully!")
+
+
+@router.delete("/callback/action/{name}", response_model=Response)
+async def delete_callback_action(
+        name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    mongo_processor.delete_callback_action(current_user.get_bot(), name)
+    return Response(message="Callback action deleted successfully!")
 
 
 @router.get("/actions", response_model=Response)

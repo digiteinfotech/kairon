@@ -903,3 +903,32 @@ class LiveAgentActionConfig(Auditlog):
             raise ValidationError("Action name cannot be empty or blank spaces")
         if self.name.startswith("utter_"):
             raise ValidationError("Action name cannot start with utter_")
+
+
+@auditlogger.log
+@push_notification.apply
+class CallbackActionConfig(Auditlog):
+    name = StringField(required=True)
+    callback_name = StringField(required=True)
+    dynamic_url_slot_name = StringField(default='callback_url')
+    metadata_list = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=True)
+    bot_response = StringField(default='Async callback Action Executed')
+    dispatch_bot_response = BooleanField(default=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "action_name", "status"), "callback_name"]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Action name cannot be empty or blank spaces")
+        if self.name.startswith("utter_"):
+            raise ValidationError("Action name cannot start with utter_")
+

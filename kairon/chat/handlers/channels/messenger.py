@@ -34,7 +34,7 @@ class Messenger:
     def __init__(
             self,
             page_access_token: Text,
-            is_instagram = False
+            is_instagram: bool = False
     ) -> None:
 
         self.client = MessengerClient(page_access_token)

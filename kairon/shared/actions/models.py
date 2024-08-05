@@ -48,6 +48,7 @@ class ActionType(str, Enum):
     database_action = "database_action"
     web_search_action = "web_search_action"
     live_agent_action = "live_agent_action"
+    callback_action = "callback_action"
 
 
 class HttpRequestContentType(str, Enum):
