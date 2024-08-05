@@ -549,12 +549,9 @@ class Utility:
             kwargs["bot"] = bot
             user = kwargs.pop("user", "System")
             fetched_documents = document.objects(**kwargs)
-            if fetched_documents.count() > 0:
-                try:
-                    fetched_documents["user"] = user
-                    fetched_documents.delete()
-                except:
-                    fetched_documents.delete()
+            for doc in fetched_documents:
+                doc["user"] = user
+                doc.delete()
 
     @staticmethod
     def extract_db_config(uri: str):
