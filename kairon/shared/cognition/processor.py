@@ -149,8 +149,6 @@ class CognitionDataProcessor:
         return collection_id
 
     def update_collection_data(self, collection_id: str, payload: Dict, user: Text, bot: Text):
-        from kairon import Utility
-
         collection_name = payload.get("collection_name", None)
         data = payload.get('data')
         is_secure = payload.get('is_secure')
