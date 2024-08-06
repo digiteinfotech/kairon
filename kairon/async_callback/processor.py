@@ -124,7 +124,6 @@ class CallbackProcessor:
         predefined_objects.update(entry)
         callback = CallbackConfig.get_entry(name=entry.get("callback_name"), bot=bot)
         execution_mode = callback.get("execution_mode")
-        predefined_objects.update(entry)
         try:
             if execution_mode == CallbackExecutionMode.ASYNC.value:
                 logger.info(f"Executing async callback. Identifier: {entry.get('identifier')}")
