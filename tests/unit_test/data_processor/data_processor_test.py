@@ -1302,7 +1302,7 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Invalid value for data'):
             processor.save_collection_data(request_body, user, bot)
-    
+
     def test_save_collection_data(self):
         bot = 'test_bot'
         user = 'test_user'
