@@ -1695,6 +1695,628 @@ def test_upload_with_bot_content_event_append_validate_payload_data():
     bot_settings.save()
 
 
+def test_get_collection_data_with_no_collection_data():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    assert actual["data"] == []
+
+
+def test_save_collection_data_with_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number", "aadhar"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_secure contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_save_collection_data_with_collection_name_empty():
+    request_body = {
+        "collection_name": "",
+        "is_secure": ["name", "mobile_number"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'collection_name should not be empty!', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_save_collection_data_with_invalid_is_secure():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": "name, mobile_number",
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'is_secure'],
+                                  'msg': 'value is not a valid list', 'type': 'type_error.list'},
+                                 {'loc': ['body', '__root__'], 'msg': 'is_secure should be list of keys!',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_save_collection_data_with_invalid_data():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "data": "Mahesh"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] ==  [{'loc': ['body', 'data'],
+                                   'msg': 'value is not a valid dict', 'type': 'type_error.dict'},
+                                  {'loc': ['body', '__root__'],
+                                   'msg': 'data cannot be empty and should be of type dict!',
+                                   'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_save_collection_data():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record saved!'
+    assert actual["success"]
+    pytest.collection_id = actual["data"]["_id"]
+
+
+def test_save_collection_data_with_collection_name_already_exist():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": [],
+        "data": {
+            "name": "Hitesh",
+            "age": 25,
+            "mobile_number": "989284928928",
+            "location": "Mumbai"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record saved!'
+    assert actual["success"]
+
+
+def test_save_collection_data_with_valid_data():
+    request_body = {
+        "collection_name": "bank_details",
+        "is_secure": ["account_number", "mobile_number", "ifsc"],
+        "data": {
+            "account_holder_name": "Mahesh",
+            "account_number": "636283263288232",
+            "mobile_number": "9876543210",
+            "location": "Bangalore",
+            "ifsc": "SBIN0000000"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record saved!'
+    assert actual["success"]
+
+
+def test_list_collection_data():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': ['name', 'mobile_number'],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
+            }
+        },
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        },
+        {
+            'collection_name': 'bank_details',
+            'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'data': {
+                'account_holder_name': 'Mahesh',
+                'account_number': '636283263288232',
+                'mobile_number': '9876543210',
+                'location': 'Bangalore',
+                'ifsc': 'SBIN0000000'
+            }
+        }
+    ]
+
+
+def test_get_collection_data():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user?key=name&value=Hitesh",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        }
+    ]
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user?key=location&value=Bangalore",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': ['name', 'mobile_number'],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
+            }
+        }
+    ]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/bank_details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'bank_details',
+            'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'data': {
+                'account_holder_name': 'Mahesh',
+                'account_number': '636283263288232',
+                'mobile_number': '9876543210',
+                'location': 'Bangalore',
+                'ifsc': 'SBIN0000000'
+            }
+        }
+    ]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': ['name', 'mobile_number'],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
+            }
+        },
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        }
+    ]
+
+
+def test_update_collection_data_with_collection_name_empty():
+    request_body = {
+        "collection_name": "",
+        "is_secure": ["name", "mobile_number"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'collection_name should not be empty!', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_collection_data_with_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number", "address"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_secure contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_collection_data_with_invalid_is_secure():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": "name, mobile_number",
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'is_secure'],
+                                  'msg': 'value is not a valid list', 'type': 'type_error.list'},
+                                 {'loc': ['body', '__root__'], 'msg': 'is_secure should be list of keys!',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_collection_data_with_invalid_data():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "data": "Mahesh"
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'data'],
+                                  'msg': 'value is not a valid dict', 'type': 'type_error.dict'},
+                                 {'loc': ['body', '__root__'],
+                                  'msg': 'data cannot be empty and should be of type dict!',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_collection_data():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["mobile_number", "location"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record updated!'
+    assert actual["success"]
+
+
+def test_update_collection_data_doesnot_exist():
+    request_body = {
+        "collection_name": "user_details",
+        "is_secure": ["mobile_number", "location"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Collection Data with given id and collection_name not found!'
+    assert not actual["success"]
+
+
+def test_get_collection_data_after_update():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': ['mobile_number', 'location'],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
+            }
+        },
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        },
+        {
+            'collection_name': 'bank_details',
+            'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'data': {
+                'account_holder_name': 'Mahesh',
+                'account_number': '636283263288232',
+                'mobile_number': '9876543210',
+                'location': 'Bangalore',
+                'ifsc': 'SBIN0000000'
+            }
+        }
+    ]
+
+
+def test_delete_collection_data_doesnot_exist():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.bot}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Collection Data does not exists!'
+    assert not actual["success"]
+
+
+def test_delete_collection_data():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record deleted!'
+    assert actual["success"]
+
+
+def test_get_collection_data_after_delete():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        },
+        {
+            'collection_name': 'bank_details',
+            'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'data': {
+                'account_holder_name': 'Mahesh',
+                'account_number': '636283263288232',
+                'mobile_number': '9876543210',
+                'location': 'Bangalore',
+                'ifsc': 'SBIN0000000'
+            }
+        }
+    ]
+
+
 def test_get_live_agent_with_no_live_agent():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/action/live_agent",
