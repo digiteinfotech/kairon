@@ -223,7 +223,7 @@ async def delete_collection_data(
     """
     Deletes collection data
     """
-    cognition_processor.delete_collection_data(collection_id, current_user.get_bot())
+    cognition_processor.delete_collection_data(collection_id, current_user.get_bot(), current_user.get_user())
     return {
         "message": "Record deleted!"
     }
@@ -237,3 +237,17 @@ async def list_collection_data(
     Fetches collection data of the bot
     """
     return {"data": list(cognition_processor.list_collection_data(current_user.get_bot()))}
+
+
+@router.get("/collection/{collection_name}", response_model=Response)
+async def get_collection_data(
+        collection_name: str,
+        key: str = None, value: str = None,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches collection data based on the filters provided
+    """
+    return {"data": list(cognition_processor.get_collection_data(current_user.get_bot(),
+                                                                 collection_name=collection_name,
+                                                                 key=key, value=value))}

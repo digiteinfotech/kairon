@@ -112,10 +112,10 @@ class CognitionDataProcessor:
             final_data['collection_name'] = collection
             yield final_data
 
-    def delete_collection_data(self, collection_id: str, bot: Text):
+    def delete_collection_data(self, collection_id: str, bot: Text, user: Text):
         try:
             collection = CollectionData.objects(bot=bot, id=collection_id).get()
-            collection.delete()
+            collection.delete(user=user)
         except DoesNotExist:
             raise AppException("Collection Data does not exists!")
 
@@ -137,10 +137,6 @@ class CognitionDataProcessor:
         is_secure = payload.get('is_secure')
         CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
 
-        if Utility.is_exist(CollectionData, bot=bot, collection_name__iexact=collection_name,
-                            raise_error=False):
-            raise AppException('collection name already exist')
-
         data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
 
         collection_obj = CollectionData()
@@ -159,10 +155,6 @@ class CognitionDataProcessor:
         data = payload.get('data')
         is_secure = payload.get('is_secure')
         CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
-
-        if not Utility.is_exist(CollectionData, bot=bot, collection_name__iexact=collection_name,
-                                raise_error=False):
-            raise AppException('collection name does not exist')
 
         data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
 
@@ -206,6 +198,34 @@ class CognitionDataProcessor:
         :return: yield dict
         """
         for value in CollectionData.objects(bot=bot):
+            final_data = {}
+            item = value.to_mongo().to_dict()
+            collection_name = item.pop('collection_name', None)
+            is_secure = item.pop('is_secure')
+            data = item.pop('data')
+            data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
+            final_data["_id"] = item["_id"].__str__()
+            final_data['collection_name'] = collection_name
+            final_data['is_secure'] = is_secure
+            final_data['data'] = data
+            yield final_data
+
+    def get_collection_data(self, bot: Text, **kwargs):
+        """
+        fetches collection data based on the filters provided
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        collection_name = kwargs.pop("collection_name")
+        collection_name = collection_name.lower()
+        key = kwargs.pop("key", None)
+        value = kwargs.pop("value", None)
+        query = {"bot": bot, "collection_name": collection_name}
+        if key is not None and value is not None:
+            query.update({f"data__{key}": value})
+
+        for value in CollectionData.objects(**query):
             final_data = {}
             item = value.to_mongo().to_dict()
             collection_name = item.pop('collection_name', None)

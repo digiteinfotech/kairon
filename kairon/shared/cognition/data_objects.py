@@ -111,6 +111,11 @@ class CollectionData(Auditlog):
         if self.is_secure:
             if not self.data or not isinstance(self.data, dict):
                 raise ValidationError("data cannot be empty and should be of type dict")
+            data_keys = set(self.data.keys())
+            is_secure_set = set(self.is_secure)
+
+            if not is_secure_set.issubset(data_keys):
+                raise ValidationError("is_secure contains keys that are not present in data")
 
     def clean(self):
         if self.collection_name:

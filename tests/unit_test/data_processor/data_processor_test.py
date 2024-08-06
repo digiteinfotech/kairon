@@ -1219,6 +1219,24 @@ class TestMongoProcessor:
 
         assert response == []
 
+    def test_save_collection_data_with_with_keys_not_present(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number", "address"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        processor = CognitionDataProcessor()
+        with pytest.raises(ValidationError, match='is_secure contains keys that are not present in data'):
+            processor.save_collection_data(request_body, user, bot)
+
+
     def test_save_collection_data_with_collection_name_empty(self):
         bot = 'test_bot'
         user = 'test_user'
@@ -1285,20 +1303,19 @@ class TestMongoProcessor:
     def test_save_collection_data_with_collection_name_already_exist(self):
         request_body = {
             "collection_name": "user",
-            "is_secure": ["name", "mobile_number"],
+            "is_secure": [],
             "data": {
-                "name": "Mahesh",
-                "age": 24,
-                "mobile_number": "9876543210",
-                "location": "Bangalore"
+                "name": "Hitesh",
+                "age": 25,
+                "mobile_number": "989284928928",
+                "location": "Mumbai"
             }
         }
         bot = 'test_bot'
         user = 'test_user'
 
         processor = CognitionDataProcessor()
-        with pytest.raises(AppException, match='collection name already exist'):
-            processor.save_collection_data(request_body, user, bot)
+        processor.save_collection_data(request_body, user, bot)
 
     def test_get_collection_data(self):
         bot = 'test_bot'
@@ -1318,8 +1335,37 @@ class TestMongoProcessor:
                     'mobile_number': '9876543210',
                     'location': 'Bangalore'
                 }
+            },
+            {
+                'collection_name': 'user',
+                'is_secure': [],
+                'data': {
+                    'name': 'Hitesh',
+                    'age': 25,
+                    'mobile_number': '989284928928',
+                    'location': 'Mumbai'
+                }
             }
         ]
+
+    def test_update_collection_data_with_keys_not_present(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number", "aadhar"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(ValidationError, match='is_secure contains keys that are not present in data'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data_with_collection_name_empty(self):
         request_body = {
@@ -1389,7 +1435,7 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         pytest.collection_id = processor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
-    def test_update_collection_data_with_collection_name_doesnot_exist(self):
+    def test_update_collection_data_doesnot_exist(self):
         request_body = {
             "collection_name": "user_details",
             "is_secure": ["mobile_number", "location"],
@@ -1405,7 +1451,7 @@ class TestMongoProcessor:
         user = 'test_user'
 
         processor = CognitionDataProcessor()
-        with pytest.raises(AppException, match='collection name does not exist'):
+        with pytest.raises(AppException, match='Collection Data with given id and collection_name not found!'):
             processor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_get_collection_data_after_update(self):
@@ -1418,13 +1464,23 @@ class TestMongoProcessor:
             coll.pop("_id")
         assert response == [
             {
-                'collection_name': 'user', 
+                'collection_name': 'user',
                 'is_secure': ['mobile_number', 'location'],
                 'data': {
                     'name': 'Mahesh',
                     'age': 24,
                     'mobile_number': '9876543210',
                     'location': 'Bangalore'
+                }
+            },
+            {
+                'collection_name': 'user',
+                'is_secure': [],
+                'data': {
+                    'name': 'Hitesh',
+                    'age': 25,
+                    'mobile_number': '989284928928',
+                    'location': 'Mumbai'
                 }
             }
         ]
@@ -1434,13 +1490,13 @@ class TestMongoProcessor:
         user = 'test_user'
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Collection Data does not exists!'):
-            processor.delete_collection_data("66b1d6218d29ff530381eed5", bot)
+            processor.delete_collection_data("66b1d6218d29ff530381eed5", bot, user)
 
     def test_delete_collection_data(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        processor.delete_collection_data(pytest.collection_id, bot)
+        processor.delete_collection_data(pytest.collection_id, bot, user)
 
     def test_get_collection_data_after_delete(self):
         bot = 'test_bot'
@@ -1448,7 +1504,20 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         response = list(processor.list_collection_data(bot))
 
-        assert response == []
+        for coll in response:
+            coll.pop("_id")
+        assert response == [
+            {
+                'collection_name': 'user',
+                'is_secure': [],
+                'data': {
+                    'name': 'Hitesh',
+                    'age': 25,
+                    'mobile_number': '989284928928',
+                    'location': 'Mumbai'
+                }
+            }
+        ]
 
     def test_add_pyscript_action_empty_name(self):
         bot = 'test_bot'

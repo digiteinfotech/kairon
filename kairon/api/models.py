@@ -1159,6 +1159,11 @@ class CollectionDataRequest(BaseModel):
         if is_secure:
             if not data or not isinstance(data, dict):
                 raise ValueError("data cannot be empty and should be of type dict!")
+            data_keys = set(data.keys())
+            is_secure_set = set(is_secure)
+
+            if not is_secure_set.issubset(data_keys):
+                raise ValueError("is_secure contains keys that are not present in data")
         return values
 
 
