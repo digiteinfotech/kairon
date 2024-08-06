@@ -1275,6 +1275,6 @@ class CallbackActionConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     callback_name: str
     dynamic_url_slot_name: Optional[str]
-    metadata_list: list[HttpActionParameters]
+    metadata_list: list[HttpActionParameters] = []
     bot_response: Optional[str]
     dispatch_bot_response: bool = True
