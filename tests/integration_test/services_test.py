@@ -30,6 +30,7 @@ from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
 from kairon.shared.utils import Utility, MailUtility
 
 Utility.load_system_metadata()
@@ -2039,6 +2040,50 @@ def test_callback_action_get():
     assert actual['data']['name'] == 'callback_action1'
     assert actual['data']['callback_name'] == 'callback_1'
     assert actual['data']['dynamic_url_slot_name'] == 'new_slot_name'
+
+
+def test_callback_action_get_all():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/callback_actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data'], list)
+    assert len(actual['data']) == 1
+    assert actual['data'][0]['name'] == 'callback_action1'
+
+def test_callback_get_logs():
+    new_log = CallbackLog(
+        bot=pytest.bot,
+        callback_name="callback_action1",
+        channel="channel",
+        identifier="identifier",
+        pyscript_code="pyscript_code",
+        sender_id="sender_id",
+        log="callback_log",
+        request_data={},
+        metadata={},
+        callback_url="callback_url",
+        callback_source="callback_source",
+        status=CallbackRecordStatusType.FAILED.value,
+        timestamp=datetime.utcnow()).save()
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/callback_logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    
+    actual = response.json()
+
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data']['logs'], list)
+    assert len(actual['data']['logs']) == 1
+    assert actual['data']['total_number_of_pages'] == 1
 
 
 def test_callback_action_delete():

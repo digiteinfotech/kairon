@@ -73,6 +73,7 @@ class CallbackProcessor:
                 await ChannelMessageDispatcher.dispatch_message(bot_id, sid, res, chnl)
                 CallbackLog.create_success_entry(name=ent.get("action_name"),
                                                  bot=bot_id,
+                                                 channel=chnl,
                                                  identifier=ent.get("identifier"),
                                                  pyscript_code=cb.get("pyscript_code"),
                                                  sender_id=sid,
@@ -89,6 +90,7 @@ class CallbackProcessor:
             logger.exception(e)
             CallbackLog.create_failure_entry(name=ent.get("action_name"),
                                              bot=bot_id,
+                                             channel=chnl,
                                              identifier=ent.get("identifier"),
                                              pyscript_code=cb.get("pyscript_code"),
                                              sender_id=sid,
@@ -133,6 +135,7 @@ class CallbackProcessor:
                 await ChannelMessageDispatcher.dispatch_message(bot, entry.get("sender_id"), data, entry.get("channel"))
                 CallbackLog.create_success_entry(name=entry.get("action_name"),
                                                  bot=bot,
+                                                 channel=entry.get("channel"),
                                                  identifier=entry.get("identifier"),
                                                  pyscript_code=callback.get("pyscript_code"),
                                                  sender_id=entry.get("sender_id"),

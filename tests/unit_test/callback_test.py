@@ -127,6 +127,7 @@ def test_create_callback_log_success():
         "name": "test_action",
         "bot": "test_bot",
         "identifier": uuid7().hex,
+        "channel": "channel",
         "pyscript_code": "print('Hello, World!')",
         "sender_id": "sender_123",
         "log": "log data",
@@ -146,6 +147,7 @@ def test_create_callback_log_failure():
         "name": "test_action",
         "bot": "test_bot",
         "identifier": uuid7().hex,
+        "channel": "channel",
         "pyscript_code": "print('Hello, World!')",
         "sender_id": "sender_123",
         "error_log": "error log data",
@@ -381,7 +383,10 @@ async def test_async_callback(mock_failure_entry, mock_success_entry, mock_dispa
     await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
 
     mock_dispatch_message.assert_called_once_with(bot_id, sid, obj['result'], chnl)
-    mock_success_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'], pyscript_code=cb['pyscript_code'], sender_id=sid, log=obj['result'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+    mock_success_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id,
+                                               channel=chnl,
+                                               identifier=ent['identifier'],
+                                               pyscript_code=cb['pyscript_code'], sender_id=sid, log=obj['result'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
     mock_failure_entry.assert_not_called()
 
 @pytest.mark.asyncio
@@ -389,7 +394,6 @@ async def test_async_callback(mock_failure_entry, mock_success_entry, mock_dispa
 @patch('kairon.async_callback.processor.CallbackLog.create_success_entry')
 @patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
 async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_dispatch_message):
-    # Arrange
     obj = {'error': 'Test error'}
     ent = {'action_name': 'Test action', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
     cb = {'pyscript_code': 'Test code'}
@@ -403,7 +407,9 @@ async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_
 
     mock_dispatch_message.assert_not_called()
     mock_success_entry.assert_not_called()
-    mock_failure_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'], pyscript_code=cb['pyscript_code'], sender_id=sid, error_log=obj['error'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+    mock_failure_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
+                                               channel=chnl,
+                                               pyscript_code=cb['pyscript_code'], sender_id=sid, error_log=obj['error'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
 
 
 
