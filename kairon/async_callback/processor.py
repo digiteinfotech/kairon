@@ -27,7 +27,7 @@ class CallbackProcessor:
             if trigger_task:
                 logger.info("Triggering lambda for pyscript evaluation")
                 lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, {
-                    'script': script,
+                    'source_code': script,
                     'predefined_objects': predefined_objects
                 })
                 if CloudUtility.lambda_execution_failed(lambda_response):

@@ -313,7 +313,7 @@ def test_run_pyscript(mock_utility, mock_cloud_utility):
     result = CallbackProcessor.run_pyscript(script, predefined_objects)
 
     mock_cloud_utility.trigger_lambda.assert_called_once_with('pyscript_evaluator', {
-        'script': script,
+        'source_code': script,
         'predefined_objects': predefined_objects
     })
     mock_cloud_utility.lambda_execution_failed.assert_called_once_with(mock_cloud_utility.trigger_lambda.return_value)
