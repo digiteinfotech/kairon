@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Any
-
+import json
 from uuid6 import uuid7
 
 from mongoengine import StringField, DictField, DateTimeField, Document, DynamicField
@@ -28,7 +28,6 @@ def decrypt_secret(secret: str) -> str:
     secret = secret.encode("utf-8")
     fernet = Fernet(Utility.environment['security']['fernet_key'].encode("utf-8"))
     return fernet.decrypt(secret).decode("utf-8")
-
 
 
 class CallbackExecutionMode(Enum):
@@ -190,19 +189,20 @@ class CallbackData(Document):
         return entry_dict
 
 
-
 @push_notification.apply
 class CallbackLog(Document):
     callback_name = StringField(required=True)
     bot = StringField(required=True)
+    channel = StringField(default='unsupported')
     identifier = StringField(required=True)
     pyscript_code = StringField(required=True)
     sender_id = StringField()
     log = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
-    status = StringField(default=CallbackRecordStatusType.SUCCESS.value, choices=[v.value for v in CallbackRecordStatusType.__members__.values()])
+    status = StringField(default=CallbackRecordStatusType.SUCCESS.value,
+                         choices=[v.value for v in CallbackRecordStatusType.__members__.values()])
     request_data = DynamicField()
-    metadata = DictField()
+    metadata = DynamicField()
     callback_url = StringField(required=True)
     callback_source = StringField()
 
@@ -211,6 +211,7 @@ class CallbackLog(Document):
     @staticmethod
     def create_success_entry(name: str,
                              bot: str,
+                             channel: str,
                              identifier: str,
                              pyscript_code: str,
                              sender_id: str,
@@ -226,6 +227,7 @@ class CallbackLog(Document):
         check_nonempty_string(callback_url)
         record = CallbackLog(callback_name=name,
                              bot=bot,
+                             channel=channel,
                              identifier=identifier,
                              pyscript_code=pyscript_code,
                              sender_id=sender_id,
@@ -242,6 +244,7 @@ class CallbackLog(Document):
     @staticmethod
     def create_failure_entry(name: str,
                              bot: str,
+                             channel: str,
                              identifier: str,
                              pyscript_code: str,
                              sender_id: str,
@@ -257,6 +260,7 @@ class CallbackLog(Document):
         check_nonempty_string(callback_url)
         record = CallbackLog(callback_name=name,
                              bot=bot,
+                             channel=channel,
                              identifier=identifier,
                              pyscript_code=pyscript_code,
                              sender_id=sender_id,
@@ -271,7 +275,11 @@ class CallbackLog(Document):
         return record.to_mongo().to_dict()
 
     @staticmethod
-    def get_logs(query: dict, page: int, limit: int):
-        logs = CallbackLog.objects(**query).order_by("-timestamp").paginate(page=page, per_page=limit)
-        return logs.items, logs.total
+    def get_logs(query: dict, offset: int, limit: int):
+        logs = CallbackLog.objects(**query).skip(offset).limit(limit).exclude('id').order_by('-timestamp').to_json()
+        logs_dict_list = json.loads(logs)
+        for log in logs_dict_list:
+            log['timestamp'] = log['timestamp']['$date']
+        total = CallbackLog.objects(**query).count()
+        return logs_dict_list, total
 

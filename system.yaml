@@ -116,7 +116,7 @@ notifications:
   server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8800/events/"}
 
 events:
-  server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}
+  server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5056"}
   executor:
     type: ${EVENTS_EXECUTOR_TYPE}
     region: ${EVENTS_EXECUTOR_REGION}

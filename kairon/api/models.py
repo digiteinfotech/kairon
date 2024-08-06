@@ -1138,6 +1138,35 @@ class CognitionSchemaRequest(BaseModel):
     collection_name: constr(to_lower=True, strip_whitespace=True)
 
 
+class CollectionDataRequest(BaseModel):
+    data: dict
+    is_secure: list = []
+    collection_name: constr(to_lower=True, strip_whitespace=True)
+
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        data = values.get("data")
+        is_secure = values.get("is_secure")
+        collection_name = values.get("collection_name")
+        if Utility.check_empty_string(collection_name):
+            raise ValueError("collection_name should not be empty!")
+
+        if not isinstance(is_secure, list):
+            raise ValueError("is_secure should be list of keys!")
+
+        if is_secure:
+            if not data or not isinstance(data, dict):
+                raise ValueError("data cannot be empty and should be of type dict!")
+            data_keys = set(data.keys())
+            is_secure_set = set(is_secure)
+
+            if not is_secure_set.issubset(data_keys):
+                raise ValueError("is_secure contains keys that are not present in data")
+        return values
+
+
 class CognitiveDataRequest(BaseModel):
     data: Any
     content_type: CognitionDataType = CognitionDataType.text.value

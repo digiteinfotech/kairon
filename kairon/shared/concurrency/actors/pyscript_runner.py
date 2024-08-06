@@ -1,6 +1,6 @@
 from types import ModuleType
 from typing import Text, Dict, Optional, Callable
-
+from datetime import datetime, date
 import orjson as json
 from AccessControl.ZopeGuards import _safe_globals
 from RestrictedPython import compile_restricted
@@ -56,5 +56,9 @@ class PyScriptRunner(BaseActor):
         filtered_locals = {}
         for key, value in local_vars.items():
             if not isinstance(value, Callable) and not isinstance(value, ModuleType):
+                if isinstance(value, datetime):
+                    value = value.strftime("%m/%d/%Y, %H:%M:%S")
+                elif isinstance(value, date):
+                    value = value.strftime("%Y-%m-%d")
                 filtered_locals[key] = value
         return filtered_locals

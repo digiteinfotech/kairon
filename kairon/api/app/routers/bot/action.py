@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Path, Security, Depends
+from fastapi import APIRouter, Path, Security, Depends, Request
 
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
@@ -638,6 +638,15 @@ async def edit_callback(
     return Response(data=info, message="Callback updated successfully!")
 
 
+@router.get("/callback_actions", response_model=Response)
+async def get_all_callback_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    actions = list(mongo_processor.get_all_callback_actions(current_user.get_bot()))
+    msg = "No callback actions found!" if not actions else "success!"
+    return Response(data=actions, message=msg)
+
+
 @router.delete("/callback/{name}", response_model=Response)
 async def delete_callback(
         name: str,
@@ -681,6 +690,43 @@ async def delete_callback_action(
 ):
     mongo_processor.delete_callback_action(current_user.get_bot(), name)
     return Response(message="Callback action deleted successfully!")
+
+
+@router.get('/callback_logs')
+async def get_callback_logs(
+    request: Request,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+):
+    '''
+    Provides callback logs for the bot
+    Request Parameters:
+    channel: str
+    offset: int
+    limit: int
+    name: str
+    sender_id: str
+    identifier: str
+
+    '''
+    channel = None
+    offset = 0
+    limit = 50
+    name = None
+    sender_id = None
+    identifier = None
+    if request.query_params:
+        params_dict = request.query_params.__dict__['_dict']
+        channel = params_dict.get("channel")
+        offset = int(params_dict.get("offset", 0))
+        limit = int(params_dict.get("limit", 10))
+        name = params_dict.get("name")
+        identifier = params_dict.get("identifier")
+    logs, total_count = mongo_processor.get_callback_service_log(current_user.get_bot(), channel, name, sender_id, identifier, offset, limit)
+    return Response(data={
+        "logs": logs,
+        "total": total_count,
+        "total_number_of_pages": total_count // limit + 1
+    })
 
 
 @router.get("/actions", response_model=Response)

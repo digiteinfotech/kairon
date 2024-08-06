@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from mongoengine import EmbeddedDocument, StringField, BooleanField, ValidationError, ListField, EmbeddedDocumentField, \
-    DateTimeField, SequenceField, DynamicField
+    DateTimeField, SequenceField, DynamicField, DictField
 
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
@@ -83,3 +83,40 @@ class CognitionData(Auditlog):
     def clean(self):
         if self.collection:
             self.collection = self.collection.strip().lower()
+
+
+class CollectionData(Auditlog):
+    collection_name = StringField(required=True)
+    is_secure = ListField(StringField(), default=[])
+    data = DictField()
+    user = StringField(required=True)
+    bot = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
+    def validate(self, clean=True):
+        from kairon import Utility
+
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.collection_name):
+            raise ValidationError("collection_name should not be empty")
+
+        if not isinstance(self.is_secure, list):
+            raise ValidationError("is_secure should be list of keys")
+
+        if self.is_secure:
+            if not self.data or not isinstance(self.data, dict):
+                raise ValidationError("data cannot be empty and should be of type dict")
+            data_keys = set(self.data.keys())
+            is_secure_set = set(self.is_secure)
+
+            if not is_secure_set.issubset(data_keys):
+                raise ValidationError("is_secure contains keys that are not present in data")
+
+    def clean(self):
+        if self.collection_name:
+            self.collection_name = self.collection_name.strip().lower()

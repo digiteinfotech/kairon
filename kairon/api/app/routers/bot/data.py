@@ -4,7 +4,7 @@ from fastapi import UploadFile, File, Security, APIRouter
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
-from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest
+from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.cognition.processor import CognitionDataProcessor
@@ -171,3 +171,83 @@ async def list_cognition_data(
         "total": row_cnt
     }
     return Response(data=data)
+
+
+@router.post("/collection", response_model=Response)
+async def save_collection_data(
+        collection: CollectionDataRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Saves collection data
+    """
+    return {
+        "message": "Record saved!",
+        "data": {
+            "_id": cognition_processor.save_collection_data(
+                collection.dict(),
+                current_user.get_user(),
+                current_user.get_bot(),
+            )
+        }
+    }
+
+
+@router.put("/collection/{collection_id}", response_model=Response)
+async def update_collection_data(
+        collection_id: str,
+        collection: CollectionDataRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Updates collection data
+    """
+    return {
+        "message": "Record updated!",
+        "data": {
+            "_id": cognition_processor.update_collection_data(
+                collection_id,
+                collection.dict(),
+                current_user.get_user(),
+                current_user.get_bot(),
+            )
+        }
+    }
+
+
+@router.delete("/collection/{collection_id}", response_model=Response)
+async def delete_collection_data(
+        collection_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Deletes collection data
+    """
+    cognition_processor.delete_collection_data(collection_id, current_user.get_bot(), current_user.get_user())
+    return {
+        "message": "Record deleted!"
+    }
+
+
+@router.get("/collection", response_model=Response)
+async def list_collection_data(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches collection data of the bot
+    """
+    return {"data": list(cognition_processor.list_collection_data(current_user.get_bot()))}
+
+
+@router.get("/collection/{collection_name}", response_model=Response)
+async def get_collection_data(
+        collection_name: str,
+        key: str = None, value: str = None,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches collection data based on the filters provided
+    """
+    return {"data": list(cognition_processor.get_collection_data(current_user.get_bot(),
+                                                                 collection_name=collection_name,
+                                                                 key=key, value=value))}
