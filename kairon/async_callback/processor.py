@@ -129,7 +129,7 @@ class CallbackProcessor:
                     copied_func = functools.partial(CallbackProcessor.async_callback, rsp, entry, callback, callback_source, bot, entry.get("sender_id"), entry.get("channel"), request_data)
                     await copied_func()
 
-                await CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"), predefined_objects=predefined_objects, callback=callback_function)
+                CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"), predefined_objects=predefined_objects, callback=callback_function)
             elif execution_mode == CallbackExecutionMode.SYNC.value:
                 data = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"), predefined_objects=predefined_objects)
                 await ChannelMessageDispatcher.dispatch_message(bot, entry.get("sender_id"), data, entry.get("channel"))
@@ -150,6 +150,7 @@ class CallbackProcessor:
             message = str(e)
             CallbackLog.create_failure_entry(name=entry.get("action_name"),
                                              bot=bot,
+                                             channel=entry.get("channel"),
                                              identifier=entry.get("identifier"),
                                              pyscript_code=callback.get("pyscript_code"),
                                              sender_id=entry.get("sender_id"),
