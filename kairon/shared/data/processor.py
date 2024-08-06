@@ -157,7 +157,7 @@ from .data_objects import (
     Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
 )
 from .utils import DataUtility
-from ..callback.data_objects import CallbackConfig
+from ..callback.data_objects import CallbackConfig, CallbackLog
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
@@ -1123,6 +1123,7 @@ class MongoProcessor:
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
             if action.strip().lower() not in saved_actions:
+                self.__check_for_form_and_action_existance(bot, action)
                 new_action = Actions(name=action, bot=bot, user=user)
                 new_action.clean()
                 yield new_action
@@ -8003,7 +8004,7 @@ class MongoProcessor:
 
         update_query = {}
         for key, value in request_data.items():
-            if not value:
+            if not value and key != 'dispatch_bot_response':
                 continue
             if key == 'metadata_list':
                 value = [HttpActionRequestBody(**param)for param in value] or []
@@ -8047,3 +8048,44 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([Actions], bot, name__iexact=name)
         Utility.hard_delete_document([CallbackActionConfig], bot=bot, name__iexact=name)
+
+    def get_all_callback_actions(self, bot: Text):
+        """
+        Retrieve all async callback action config.
+        """
+        async_callback_actions = CallbackActionConfig.objects(bot=bot, status=True)
+        if not async_callback_actions:
+            return []
+
+        action_dict_list = []
+        for action in async_callback_actions:
+            action = action.to_mongo().to_dict()
+            action.pop("_id")
+            action.pop("bot")
+            action.pop("user")
+            action.pop("status")
+            action_dict_list.append(action)
+        return action_dict_list
+
+    def get_callback_service_log(self, bot: str,
+                                 channel: Optional[None] = None,
+                                 name: Optional[str] = None,
+                                 sender_id: Optional[str] = None,
+                                 identifier: Optional[str] = None,
+                                 start: Optional[int] = 0,
+                                 limit: Optional[int] = 100):
+        """
+        Retrieve callback service logs.
+        """
+        query = {"bot": bot}
+        if name:
+            query["callback_name"] = name
+        if sender_id:
+            query["sender_id"] = sender_id
+        if channel:
+            query["channel"] = channel
+        if identifier:
+            query["identifier"] = identifier
+
+        logs, total_count = CallbackLog.get_logs(query, start, limit)
+        return logs, total_count

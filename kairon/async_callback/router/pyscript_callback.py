@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Request
 
 from loguru import logger
@@ -15,28 +14,28 @@ async def process_router_message(bot: str, name: str, dynamic_param, req_type: s
     data = {
         'type': req_type,
         'dynamic_param': dynamic_param,
-        'data': None
+        'body': None,
+        'params': {},
     }
     if request.query_params:
-        data.update({key: request.query_params[key] for key in request.query_params})
-    token = data.get('token')
+        data['params'].update({key: request.query_params[key] for key in request.query_params})
+    token = data['params'].get('token')
     try:
         req_data = None
         try:
             req_data = await request.json()
+            logger.info('Request Body type: json')
         except Exception as e:
-            logger.exception(e)
+            logger.info('Request Body type: text')
             req_data = await request.body()
-            req_data = req_data.decode('utf-8') if len(req_data) > 0 else None
+            if req_data and len(req_data) > 0:
+                req_data = req_data.decode('utf-8')
+            else:
+                req_data = None
         if req_data:
-            data.update({"data": req_data})
-            if isinstance(req_data, dict):
-                data['type'] = 'dict'
-            elif isinstance(req_data, list):
-                data['type'] = 'list'
-            elif isinstance(req_data, str):
-                data['type'] = 'str'
+            data.update({"body": req_data})
         request_source = request.client.host
+        logger.info(f"data from request: ${data}")
         data, message, error_code = await CallbackProcessor.process_async_callback_request(bot,
                                                                                            name,
                                                                                            dynamic_param,
