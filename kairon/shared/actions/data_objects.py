@@ -932,3 +932,19 @@ class CallbackActionConfig(Auditlog):
         if self.name.startswith("utter_"):
             raise ValidationError("Action name cannot start with utter_")
 
+
+@auditlogger.log
+@push_notification.apply
+class ScheduleAction(Auditlog):
+    name = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    schedule_time = EmbeddedDocumentField(CustomActionParameters, required=True)
+    schedule_action = StringField(default=ActionType.pyscript_action, required=True)
+    response_text = StringField(required=False)
+    params_list = ListField(
+        EmbeddedDocumentField(CustomActionRequestParameters), required=False
+    )
+    dispatch_bot_response = BooleanField(default=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
