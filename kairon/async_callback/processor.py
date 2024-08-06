@@ -25,6 +25,7 @@ class CallbackProcessor:
         trigger_task = Utility.environment['async_callback_action']['pyscript']['trigger_task']
         try:
             if trigger_task:
+                logger.info("Triggering lambda for pyscript evaluation")
                 lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, {
                     'script': script,
                     'predefined_objects': predefined_objects
@@ -34,8 +35,9 @@ class CallbackProcessor:
                     raise AppException(f"{err}")
                 result = lambda_response["Payload"].get('body')
                 return result.get('bot_response')
-
-            response = EvaluatorProcessor.evaluate_pyscript(source_code=script, predefined_objects=predefined_objects)
+            else:
+                logger.info("Triggering local_evaluator for pyscript evaluation")
+                response = EvaluatorProcessor.evaluate_pyscript(source_code=script, predefined_objects=predefined_objects)
 
             return response.get('bot_response')
         except AppException as e:
@@ -125,13 +127,17 @@ class CallbackProcessor:
         predefined_objects.update(entry)
         try:
             if execution_mode == CallbackExecutionMode.ASYNC.value:
+                logger.info(f"Executing async callback. Identifier: {entry.get('identifier')}")
+
                 async def callback_function(rsp: dict):
                     copied_func = functools.partial(CallbackProcessor.async_callback, rsp, entry, callback, callback_source, bot, entry.get("sender_id"), entry.get("channel"), request_data)
                     await copied_func()
 
                 CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"), predefined_objects=predefined_objects, callback=callback_function)
             elif execution_mode == CallbackExecutionMode.SYNC.value:
+                logger.info(f"Executing sync callback. Identifier: {entry.get('identifier')}")
                 data = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"), predefined_objects=predefined_objects)
+                logger.info(f'Pyscript output: {data}')
                 await ChannelMessageDispatcher.dispatch_message(bot, entry.get("sender_id"), data, entry.get("channel"))
                 CallbackLog.create_success_entry(name=entry.get("action_name"),
                                                  bot=bot,

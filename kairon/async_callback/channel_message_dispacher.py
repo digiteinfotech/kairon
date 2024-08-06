@@ -2,7 +2,7 @@ import time
 from typing import Any
 
 from uuid6 import uuid7
-
+from loguru import logger
 from kairon.chat.handlers.channels.messenger import MessengerClient, MessengerBot
 from kairon.chat.handlers.channels.telegram import TelegramOutput
 from kairon.chat.handlers.channels.whatsapp import Whatsapp
@@ -79,6 +79,7 @@ class ChannelMessageDispatcher:
             config = ChatDataProcessor.get_channel_config(connector_type=channel, bot=bot, mask_characters=False)
             handler_func = channel_handlers.get(channel, None)
             if handler_func:
+                logger.info(f"Sending message <{message}> to <{channel} , {sender}>")
                 await handler_func(bot, config['config'], sender, message)
             else:
                 raise ValueError(f"Channel handler not found for {channel}")
