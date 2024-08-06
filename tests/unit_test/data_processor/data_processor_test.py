@@ -1211,6 +1211,245 @@ class TestMongoProcessor:
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
 
+    def test_get_collection_data_with_no_collection_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        response = list(processor.list_collection_data(bot))
+
+        assert response == []
+
+    def test_save_collection_data_with_collection_name_empty(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "",
+            "is_secure": ["name", "mobile_number"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='collection name is empty'):
+            processor.save_collection_data(request_body, user, bot)
+
+    def test_save_collection_data_with_invalid_is_secure(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "user",
+            "is_secure": "name, mobile_number",
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='is_secure should be list of keys'):
+            processor.save_collection_data(request_body, user, bot)
+
+    def test_save_collection_data_with_invalid_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number"],
+            "data": "Mahesh"
+        }
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='Invalid value for data'):
+            processor.save_collection_data(request_body, user, bot)
+    
+    def test_save_collection_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        processor = CognitionDataProcessor()
+        collection_id = processor.save_collection_data(request_body, user, bot)
+        pytest.collection_id = collection_id
+
+    def test_save_collection_data_with_collection_name_already_exist(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='collection name already exist'):
+            processor.save_collection_data(request_body, user, bot)
+
+    def test_get_collection_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        response = list(processor.list_collection_data(bot))
+
+        for coll in response:
+            coll.pop("_id")
+        assert response == [
+            {
+                'collection_name': 'user',
+                'is_secure': ['name', 'mobile_number'],
+                'data': {
+                    'name': 'Mahesh',
+                    'age': 24,
+                    'mobile_number': '9876543210',
+                    'location': 'Bangalore'
+                }
+            }
+        ]
+
+    def test_update_collection_data_with_collection_name_empty(self):
+        request_body = {
+            "collection_name": "",
+            "is_secure": ["name", "mobile_number"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='collection name is empty'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_update_collection_data_with_invalid_is_secure(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": "name, mobile_number",
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='is_secure should be list of keys'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_update_collection_data_with_invalid_data(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number"],
+            "data": "Mahesh"
+        }
+
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='Invalid value for data'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_update_collection_data(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["mobile_number", "location"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        pytest.collection_id = processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_update_collection_data_with_collection_name_doesnot_exist(self):
+        request_body = {
+            "collection_name": "user_details",
+            "is_secure": ["mobile_number", "location"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='collection name does not exist'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_get_collection_data_after_update(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        response = list(processor.list_collection_data(bot))
+
+        for coll in response:
+            coll.pop("_id")
+        assert response == [
+            {
+                'collection_name': 'user', 
+                'is_secure': ['mobile_number', 'location'],
+                'data': {
+                    'name': 'Mahesh',
+                    'age': 24,
+                    'mobile_number': '9876543210',
+                    'location': 'Bangalore'
+                }
+            }
+        ]
+
+    def test_delete_collection_data_doesnot_exist(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='Collection Data does not exists!'):
+            processor.delete_collection_data("66b1d6218d29ff530381eed5", bot)
+
+    def test_delete_collection_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        processor.delete_collection_data(pytest.collection_id, bot)
+
+    def test_get_collection_data_after_delete(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        response = list(processor.list_collection_data(bot))
+
+        assert response == []
+
     def test_add_pyscript_action_empty_name(self):
         bot = 'test_bot'
         user = 'test_user'

@@ -7,7 +7,7 @@ from mongoengine import DoesNotExist, Q
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
-from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import CognitionDataType, CognitionMetadataType
 
@@ -110,6 +110,112 @@ class CognitionDataProcessor:
             final_data["_id"] = item["_id"].__str__()
             final_data['metadata'] = metadata
             final_data['collection_name'] = collection
+            yield final_data
+
+    def delete_collection_data(self, collection_id: str, bot: Text):
+        try:
+            collection = CollectionData.objects(bot=bot, id=collection_id).get()
+            collection.delete()
+        except DoesNotExist:
+            raise AppException("Collection Data does not exists!")
+
+    @staticmethod
+    def validate_collection_payload(collection_name, is_secure, data):
+        if not collection_name:
+            raise AppException("collection name is empty")
+
+        if not isinstance(is_secure, list):
+            raise AppException("is_secure should be list of keys")
+
+        if is_secure:
+            if not data or not isinstance(data, dict):
+                raise AppException("Invalid value for data")
+
+    def save_collection_data(self, payload: Dict, user: Text, bot: Text):
+        collection_name = payload.get("collection_name", None)
+        data = payload.get('data')
+        is_secure = payload.get('is_secure')
+        CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
+
+        if Utility.is_exist(CollectionData, bot=bot, collection_name__iexact=collection_name,
+                            raise_error=False):
+            raise AppException('collection name already exist')
+
+        data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
+
+        collection_obj = CollectionData()
+        collection_obj.data = data
+        collection_obj.is_secure = is_secure
+        collection_obj.collection_name = collection_name
+        collection_obj.user = user
+        collection_obj.bot = bot
+        collection_id = collection_obj.save().to_mongo().to_dict()["_id"].__str__()
+        return collection_id
+
+    def update_collection_data(self, collection_id: str, payload: Dict, user: Text, bot: Text):
+        from kairon import Utility
+
+        collection_name = payload.get("collection_name", None)
+        data = payload.get('data')
+        is_secure = payload.get('is_secure')
+        CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
+
+        if not Utility.is_exist(CollectionData, bot=bot, collection_name__iexact=collection_name,
+                                raise_error=False):
+            raise AppException('collection name does not exist')
+
+        data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
+
+        try:
+            collection_obj = CollectionData.objects(bot=bot, id=collection_id, collection_name=collection_name).get()
+            collection_obj.data = data
+            collection_obj.collection_name = collection_name
+            collection_obj.is_secure = is_secure
+            collection_obj.user = user
+            collection_obj.timestamp = datetime.utcnow()
+            collection_obj.save()
+        except DoesNotExist:
+            raise AppException("Collection Data with given id and collection_name not found!")
+        return collection_id
+
+    @staticmethod
+    def prepare_encrypted_data(data, is_secure):
+        encrypted_data = {}
+        for key, value in data.items():
+            if key in is_secure:
+                encrypted_data[key] = Utility.encrypt_message(value)
+            else:
+                encrypted_data[key] = value
+        return encrypted_data
+
+    @staticmethod
+    def prepare_decrypted_data(data, is_secure):
+        decrypted_data = {}
+        for key, value in data.items():
+            if key in is_secure:
+                decrypted_data[key] = Utility.decrypt_message(value)
+            else:
+                decrypted_data[key] = value
+        return decrypted_data
+
+    def list_collection_data(self, bot: Text):
+        """
+        fetches collection data
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        for value in CollectionData.objects(bot=bot):
+            final_data = {}
+            item = value.to_mongo().to_dict()
+            collection_name = item.pop('collection_name', None)
+            is_secure = item.pop('is_secure')
+            data = item.pop('data')
+            data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
+            final_data["_id"] = item["_id"].__str__()
+            final_data['collection_name'] = collection_name
+            final_data['is_secure'] = is_secure
+            final_data['data'] = data
             yield final_data
 
     @staticmethod
