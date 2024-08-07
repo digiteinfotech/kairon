@@ -91,7 +91,6 @@ class ActionCallback(ActionsBase):
                 metadata=metadata
             )
             filled_slots.update({dynamic_url_slot_name: callback_url})
-            bot_response = bot_response.replace("{callback_url}", callback_url)
 
         except Exception as e:
             exception = e
@@ -101,6 +100,7 @@ class ActionCallback(ActionsBase):
             bot_response = bot_response if bot_response else "Sorry, I am unable to process your request at the moment."
         finally:
             if dispatch_bot_response:
+                bot_response = bot_response.replace("{callback_url}", callback_url)
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, DispatchType.text.value, bot_response)
                 if message:
                     msg_logger.append(message)
