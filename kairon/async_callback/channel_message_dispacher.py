@@ -49,7 +49,7 @@ class ChannelMessageDispatcher:
     async def handle_default(bot: str, config, sender: str, message: Any, channel: str = 'default'):
         chat_database_collection = MessageBroadcastProcessor.get_db_client(bot)
         chat_database_collection.insert_one({
-            "type": "flatten",
+            "type": "flattened",
             "tag": 'callback_message',
             "conversation_id": uuid7().hex,
             "timestamp": time.time(),
@@ -86,7 +86,7 @@ class ChannelMessageDispatcher:
 
             chat_database_collection = MessageBroadcastProcessor.get_db_client(bot)
             chat_database_collection.insert_one({
-                "type": "flatten",
+                "type": "flattened",
                 "tag": 'callback_message',
                 "conversation_id": uuid7().hex,
                 "timestamp": time.time(),
