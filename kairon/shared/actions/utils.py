@@ -1,11 +1,13 @@
-import time
-
-import ujson as json
 import logging
 import re
+import time
 from datetime import datetime
 from typing import Any, List, Text, Dict
+
+import ujson as json
+
 from ..utils import Utility
+
 Utility.load_system_metadata()
 
 import requests
@@ -20,11 +22,10 @@ from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
 from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType, DispatchType, \
     DbQueryValueType, DbActionOperationType
-from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
-from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
+from ..data.constant import REQUEST_TIMESTAMP_HEADER
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..rest_client import AioRestClient
@@ -593,7 +594,6 @@ class ActionUtility:
 
     @staticmethod
     def handle_json_response(dispatcher: CollectingDispatcher, bot_response: Any):
-        from json import JSONDecodeError
 
         message = None
         try:

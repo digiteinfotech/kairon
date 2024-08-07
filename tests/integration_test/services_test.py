@@ -14395,7 +14395,7 @@ def test_list_actions():
                               'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                               'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
-                              'prompt_action': [], 'callback_action': [],
+                              'prompt_action': [], 'callback_action': [], 'schedule_action': [],
                               'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []}, ignore_order=True)
 
     assert actual["success"]
@@ -21361,6 +21361,7 @@ def test_add_bot_with_template_name(monkeypatch):
             "pyscript_action": [],
             "live_agent_action": [],
             "callback_action": [],
+            "schedule_action": []
         },
         ignore_order=True,
     )

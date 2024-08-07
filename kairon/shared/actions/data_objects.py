@@ -941,6 +941,7 @@ class ScheduleAction(Auditlog):
     user = StringField(required=True)
     schedule_time = EmbeddedDocumentField(CustomActionParameters, required=True)
     schedule_action = StringField(default=ActionType.pyscript_action, required=True)
+    timezone = StringField(required=True)
     response_text = StringField(required=False)
     params_list = ListField(
         EmbeddedDocumentField(CustomActionRequestParameters), required=False

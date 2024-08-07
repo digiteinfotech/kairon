@@ -10,7 +10,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
-from fernet import Fernet
+from cryptography.fernet import Fernet
 
 
 def check_nonempty_string(value, msg="Value must be a non-empty string"):
@@ -57,7 +57,7 @@ class CallbackConfig(Auditlog):
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
         dict_form = entry.to_mongo().to_dict()
         dict_form.pop("_id")
-        return  dict_form
+        return dict_form
 
     @staticmethod
     def create_entry(bot: str,
