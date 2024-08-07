@@ -105,13 +105,15 @@ class Whatsapp:
             message = {
                 'body': message,
             }
-        if isinstance(message, dict):
+        elif isinstance(message, dict):
             if message.get("type") == "image":
                 message_type = "image"
             elif message.get("type") == "video":
                 message_type = "video"
             elif message.get("type") == "button":
                 message_type = "interactive"
+            if message.get("type"):
+                message.pop("type")
         c.send(message, recipient_id, message_type)
 
 
