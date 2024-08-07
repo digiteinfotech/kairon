@@ -13,6 +13,7 @@ from kairon.exceptions import AppException
 from kairon.shared.callback.data_objects import (
     check_nonempty_string,
     encrypt_secret,
+    decrypt_secret,
     CallbackConfig,
     CallbackData,
     CallbackRecordStatusType,
