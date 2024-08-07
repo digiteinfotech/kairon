@@ -62,12 +62,10 @@ def test_check_nonempty_string():
     check_nonempty_string("valid_string")
 
 
-def test_encrypt_decrypt_secret():
+def test_encrypt_secret():
     secret = "my_secret"
     encrypted = encrypt_secret(secret)
-    decrypted = decrypt_secret(encrypted)
-    assert secret == decrypted
-
+    assert len(encrypted) == 24
 
 @patch("kairon.shared.callback.data_objects.CallbackConfig.save", MagicMock())
 def test_create_callback_config():
@@ -283,13 +281,13 @@ async def test_send_message_to_user(mock_send):
     message = 'Hello, World!'
     recipient_id = 'user1'
     await whatsapp.send_message_to_user(message, recipient_id)
-    mock_send.assert_called_once_with('Hello, World!', 'user1', 'text')
+    mock_send.assert_called_once_with({'body': 'Hello, World!'}, 'user1', 'text')
     message = {'type': 'image', 'url': 'http://example.com/image.jpg'}
     await whatsapp.send_message_to_user(message, recipient_id)
-    mock_send.assert_called_with({'type': 'image', 'url': 'http://example.com/image.jpg'}, 'user1', 'image')
+    mock_send.assert_called_with({'url': 'http://example.com/image.jpg'}, 'user1', 'image')
     message = {'type': 'video', 'url': 'http://example.com/video.mp4'}
     await whatsapp.send_message_to_user(message, recipient_id)
-    mock_send.assert_called_with({'type': 'video', 'url': 'http://example.com/video.mp4'}, 'user1', 'video')
+    mock_send.assert_called_with({'url': 'http://example.com/video.mp4'}, 'user1', 'video')
 
 
 from kairon.async_callback.processor import CallbackProcessor

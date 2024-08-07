@@ -101,6 +101,10 @@ class Whatsapp:
         access_token = self.__get_access_token()
         c = client(access_token, from_phone_number_id=phone_number_id)
         message_type = "text"
+        if isinstance(message, str):
+            message = {
+                'body': message,
+            }
         if isinstance(message, dict):
             if message.get("type") == "image":
                 message_type = "image"

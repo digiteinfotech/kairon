@@ -22,7 +22,8 @@ def check_nonempty_string(value, msg="Value must be a non-empty string"):
 def encrypt_secret(secret: str) -> str:
     secret = secret.encode("utf-8")
     fernet = Fernet(Utility.environment['security']['fernet_key'].encode("utf-8"))
-    return fernet.encrypt(secret).decode("utf-8")
+    sec = fernet.encrypt(secret).decode("utf-8")
+    return sec[:24]
 
 
 def decrypt_secret(secret: str) -> str:
@@ -58,7 +59,7 @@ class CallbackConfig(Auditlog):
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
         dict_form = entry.to_mongo().to_dict()
         dict_form.pop("_id")
-        return  dict_form
+        return dict_form
 
     @staticmethod
     def create_entry(bot: str,
