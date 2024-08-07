@@ -131,6 +131,7 @@ events:
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
     web_search: ${WEB_SEARCH_TASK_DEFINITION}
     pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
+    scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
     attributes:
