@@ -8,6 +8,7 @@ from mongoengine import StringField, DictField, DateTimeField, Document, Dynamic
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import CallbackActionConfig
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
 from fernet import Fernet
@@ -115,6 +116,9 @@ class CallbackConfig(Auditlog):
     @staticmethod
     def delete_entry(bot: str, name: str):
         check_nonempty_string(name)
+        callback_action_count = CallbackActionConfig.objects(bot=bot, callback_name=name).count()
+        if callback_action_count > 0:
+            raise AppException(f"Cannot delete Callback Configuration '{name}' as it is attached to some callback action!")
         config = CallbackConfig.objects(bot=bot, name__iexact=name).first()
         if not config:
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
