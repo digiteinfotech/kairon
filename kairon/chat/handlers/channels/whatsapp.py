@@ -101,13 +101,19 @@ class Whatsapp:
         access_token = self.__get_access_token()
         c = client(access_token, from_phone_number_id=phone_number_id)
         message_type = "text"
-        if isinstance(message, dict):
+        if isinstance(message, str):
+            message = {
+                'body': message,
+            }
+        elif isinstance(message, dict):
             if message.get("type") == "image":
                 message_type = "image"
             elif message.get("type") == "video":
                 message_type = "video"
             elif message.get("type") == "button":
                 message_type = "interactive"
+            if message.get("type"):
+                message.pop("type")
         c.send(message, recipient_id, message_type)
 
 
