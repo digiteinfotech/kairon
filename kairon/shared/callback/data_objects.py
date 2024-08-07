@@ -186,6 +186,7 @@ class CallbackData(Document):
             raise AppException("Invalid validation secret!")
         entry_dict = record.to_mongo().to_dict()
         entry_dict.pop('_id')
+        entry_dict.pop('timestamp')
         return entry_dict
 
 
