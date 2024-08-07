@@ -8004,8 +8004,6 @@ class MongoProcessor:
 
         update_query = {}
         for key, value in request_data.items():
-            if not value and key != 'dispatch_bot_response':
-                continue
             if key == 'metadata_list':
                 value = [HttpActionRequestBody(**param)for param in value] or []
 
