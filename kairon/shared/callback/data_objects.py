@@ -26,11 +26,6 @@ def encrypt_secret(secret: str) -> str:
     return sec[:24]
 
 
-def decrypt_secret(secret: str) -> str:
-    secret = secret.encode("utf-8")
-    fernet = Fernet(Utility.environment['security']['fernet_key'].encode("utf-8"))
-    return fernet.decrypt(secret).decode("utf-8")
-
 
 class CallbackExecutionMode(Enum):
     ASYNC = "async"
