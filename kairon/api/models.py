@@ -938,6 +938,28 @@ class CustomActionParameterModel(BaseModel):
         return values
 
 
+class CustomActionDynamicParameterModel(BaseModel):
+    value: Any = None
+    parameter_type: ActionParameterType = ActionParameterType.value
+
+    @validator("parameter_type")
+    def validate_parameter_type(cls, v, values, **kwargs):
+        allowed_values = {ActionParameterType.value, ActionParameterType.slot}
+        if v not in allowed_values:
+            raise ValueError(f"Invalid parameter type. Allowed values: {allowed_values}")
+        return v
+
+    @root_validator
+    def check(cls, values):
+        if values.get('parameter_type') == ActionParameterType.slot and not values.get('value'):
+            raise ValueError("Provide name of the slot as value")
+
+        if values.get('parameter_type') == ActionParameterType.value and Utility.check_empty_string(values.get("value")):
+            raise ValueError("Value can not be blank")
+
+        return values
+
+
 class EmailActionRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)
     smtp_url: str
@@ -1278,3 +1300,25 @@ class CallbackActionConfigRequest(BaseModel):
     metadata_list: list[HttpActionParameters] = []
     bot_response: Optional[str]
     dispatch_bot_response: bool = True
+
+
+class ScheduleActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    schedule_time: CustomActionDynamicParameterModel
+    timezone: str = None
+    schedule_action: str
+    response_text: Optional[str]
+    params_list: Optional[List[CustomActionParameter]]
+    dispatch_bot_response: bool = True
+
+    @root_validator
+    def validate_name(cls, values):
+        from kairon.shared.utils import Utility
+
+        if not values.get("name") or Utility.check_empty_string(values.get("name")):
+            raise ValueError("Schedule action name can not be empty")
+
+        if not values.get("schedule_action") or Utility.check_empty_string(values.get("schedule_action")):
+            raise ValueError("Schedule action can not be empty, it is needed to execute on schedule time")
+
+        return values
