@@ -959,7 +959,7 @@ class ScheduleAction(Auditlog):
     user = StringField(required=True)
     schedule_time = EmbeddedDocumentField(CustomActionDynamicParameters)
     timezone = StringField(default="UTC", required=True)
-    schedule_action = ListField(required=True)
+    schedule_action = StringField(required=True)
     response_text = StringField(required=False)
     params_list = ListField(
         EmbeddedDocumentField(CustomActionRequestParameters), required=False
