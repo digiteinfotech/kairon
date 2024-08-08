@@ -13564,8 +13564,6 @@ def test_schedule_action_execution(mock_jobstore, mock_execute_factory, mock_col
                    'data': {'bot': '**********************74', 'user': '1011'}}
 
     args, kwargs = mock_jobstore.call_args
-    print(kwargs)
-    print(args)
     assert kwargs['args'][0] == 'scheduler_evaluator'
     assert kwargs['args'][1] == {'script': "bot_response='hello world'",
                                  'predefined_objects': {'bot': '6697add6b8e47524eb983374',
