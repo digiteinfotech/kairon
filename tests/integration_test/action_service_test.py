@@ -13576,3 +13576,102 @@ def test_schedule_action_execution(mock_jobstore, mock_execute_factory, mock_col
     assert args[1].__self__.__class__.__name__ == 'LambdaExecutor'
     assert args[2].run_date.strftime("%Y-%m-%d %H:%M:%S") == date_str
     assert args[2].run_date.tzinfo.zone == timezone
+
+@mock.patch("pymongo.collection.Collection.create_index")
+@mock.patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
+@mock.patch("kairon.events.executors.factory.ExecutorFactory.get_executor", autospec=True)
+@mock.patch("apscheduler.schedulers.base.BaseScheduler.add_job", autospec=True)
+def test_schedule_action_execution_schedule_time_from_slot(mock_jobstore, mock_execute_factory, mock_collection, mock_scheduler):
+    mock_execute_factory.return_value = LambdaExecutor()
+    bot = '6697add6b8e47524eb983374'
+    user = 'test'
+    action_name = "test_schedule_action_execution_slot"
+    callback_script = "test_schedule_action_script"
+    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    slot_name = "schedule_slot"
+    timezone = "Asia/Kolkata"
+    Actions(name=action_name, type=ActionType.schedule_action.value,
+            bot=bot, user=user).save()
+
+    CallbackConfig(
+        name=callback_script,
+        pyscript_code="bot_response='hello world'",
+        validation_secret="test",
+        execution_mode="async",
+        bot=bot,
+    ).save()
+
+    ScheduleAction(
+        name=action_name,
+        bot=bot,
+        user=user,
+        schedule_time=CustomActionDynamicParameters(parameter_type=ActionParameterType.slot.value,
+                                                    value=slot_name),
+        schedule_action=callback_script,
+        timezone=timezone,
+        response_text="Action schedule",
+        params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                     CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
+    ).save()
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": bot, "schedule_slot": date_str},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": bot},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['responses']) == 1
+    assert response_json == {'events': [], 'responses': [
+        {'text': 'Action schedule', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+         'image': None, 'attachment': None}]}
+
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log == {'type': 'schedule_action', 'intent': 'test_run',
+                   'action': 'test_schedule_action_execution_slot', 'sender': 'default', 'headers': {},
+                   'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
+                   'status': 'SUCCESS',
+                   'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
+                   'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                   'pyscript_code': "bot_response='hello world'",
+                   'data': {'bot': '**********************74', 'user': '1011'}}
+
+    args, kwargs = mock_jobstore.call_args
+    assert kwargs['args'][0] == 'scheduler_evaluator'
+    assert kwargs['args'][1] == {'script': "bot_response='hello world'",
+                                 'predefined_objects': {'bot': '6697add6b8e47524eb983374',
+                                                        'user': '1011'}}
+    assert kwargs['id']
+    assert kwargs['name'] == 'execute_task'
+    assert kwargs['jobstore'] == 'kscheduler'
+
+    assert args[1].__name__ == 'execute_task'
+    assert args[1].__self__.__class__.__name__ == 'LambdaExecutor'
+    assert args[2].run_date.strftime("%Y-%m-%d %H:%M:%S") == date_str
+    assert args[2].run_date.tzinfo.zone == timezone

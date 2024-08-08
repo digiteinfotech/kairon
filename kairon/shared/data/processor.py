@@ -8142,7 +8142,7 @@ class MongoProcessor:
         """
         action = ScheduleAction.objects(bot=bot, name=name, status=True)
         if action:
-            action = action.to_mongo().to_dict()
+            action = action.get().to_mongo().to_dict()
             if with_doc_id:
                 action["_id"] = action["_id"].__str__()
             else:

@@ -422,6 +422,14 @@ class CustomActionDynamicParameters(EmbeddedDocument):
         if ActionUtility.is_empty(self.value):
             raise ValidationError("Value cannot be empty")
 
+        if self.parameter_type == ActionParameterType.value:
+            #: todo move this date format at system.yml
+            dateformat = "%Y-%m-%d %H:%M"
+            try:
+                datetime.strftime(self.schedule_time, dateformat)
+            except ValueError:
+                raise ValidationError(f"Supported date format is f{dateformat}")
+
 
 @auditlogger.log
 @push_notification.apply
@@ -967,3 +975,13 @@ class ScheduleAction(Auditlog):
     dispatch_bot_response = BooleanField(default=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        from datetime import datetime
+        if clean:
+            self.clean()
+
+        if not (self.name and self.schedule_time and self.schedule_action):
+            raise ValidationError(
+                "Fields name, schedule_time, schedule_action are required!"
+            )
