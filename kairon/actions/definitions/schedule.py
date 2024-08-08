@@ -14,7 +14,6 @@ from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.constants import EventClass
-from dateutil import parser as date_parser
 
 
 class ActionSchedule(ActionsBase):
