@@ -1,5 +1,6 @@
 from typing import Text, Dict, Any
 
+from dateutil import parser as date_parser
 from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
@@ -9,11 +10,10 @@ from uuid6 import uuid7
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, DispatchType
+from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.constants import EventClass
-from dateutil import parser as date_parser
 
 
 class ActionSchedule(ActionsBase):
