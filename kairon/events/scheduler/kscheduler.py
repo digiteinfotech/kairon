@@ -10,6 +10,7 @@ from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.scheduler.base import EventSchedulerBase
 from kairon.exceptions import AppException
+from datetime import datetime
 
 import logging
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
@@ -46,7 +47,7 @@ class KScheduler(EventSchedulerBase):
         KScheduler.__scheduler.add_job(func, trigger, args, id=event_id, name=func.__name__,
                                        jobstore=KScheduler.__job_store_name)
 
-    def add_job_for_date(self, event_id: Text, datetime: Text, event_class: Text, data: dict, timezone=None):
+    def add_job_for_date(self, event_id: Text, datetime: datetime, event_class: Text, data: dict, timezone=None):
         func = ExecutorFactory.get_executor().execute_task
         args = (event_class, data,)
         trigger = DateTrigger(run_date=datetime, timezone=timezone)

@@ -1876,16 +1876,24 @@ class Utility:
                 param["value"] = Utility.decrypt_message(param["value"])
 
     @staticmethod
-    def create_mongo_client(url: Text):
+    def create_mongo_client(config: Dict=None):
+        if not config:
+            config = Utility.get_local_db()
         if Utility.environment["env"] == "test":
             from mongomock import MongoClient
 
             return MongoClient(
-                host=url
+                host=config['host'],
+                username=config.get('username'),
+                password=config.get('password'),
+                authSource=config['options'].get("authSource") if config['options'].get("authSource") else "admin"
             )
         else:
             from pymongo import MongoClient
-            return MongoClient(host=url)
+            return MongoClient(host=config['host'],
+                               username=config.get('username'),
+                               password=config.get('password'),
+                               authSource=config['options'].get("authSource") if config['options'].get("authSource") else "admin")
 
     @staticmethod
     def get_masked_value(value: Text):

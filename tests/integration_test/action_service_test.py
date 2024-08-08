@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import os
 from urllib.parse import urlencode, urljoin
 
@@ -12,7 +13,9 @@ from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect
+from pytz.tzinfo import DstTzInfo
 
+from kairon.events.executors.lamda import LambdaExecutor
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.utils import Utility
 
@@ -26,7 +29,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
     DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig, \
-    CustomActionParameters, CallbackActionConfig
+    CustomActionParameters, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
@@ -77,20 +80,20 @@ def test_callback_action_execution(aioresponses):
     Actions(name=action_name, type=ActionType.callback_action.value,
             bot="6697add6b8e47524eb983373", user="user").save()
     CallbackActionConfig(
-        name= "callback_action1",
-        callback_name= "callback_script2",
-        dynamic_url_slot_name= "callback_url",
-        metadata_list= [],
+        name="callback_action1",
+        callback_name="callback_script2",
+        dynamic_url_slot_name="callback_url",
+        metadata_list=[],
         bot_response="Hello",
-        dispatch_bot_response= True,
+        dispatch_bot_response=True,
         bot="6697add6b8e47524eb983373",
         user="user"
     ).save()
 
     CallbackConfig(
-        name= "callback_script2",
+        name="callback_script2",
         pyscript_code="bot_response='hello world'",
-        validation_secret= "gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox",
+        validation_secret="gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox",
         execution_mode="sync",
         bot="6697add6b8e47524eb983373",
     ).save()
@@ -179,7 +182,9 @@ def test_callback_action_execution(aioresponses):
     assert response.status_code == 200
     assert len(response_json['responses']) == 1
     response_json['events'][0].pop('value')
-    assert response_json == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'callback_url', }], 'responses': [{'text': 'Hello', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+    assert response_json == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'callback_url', }], 'responses': [
+        {'text': 'Hello', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+         'image': None, 'attachment': None}]}
 
     log = ActionServerLogs.objects(action="callback_action1").get().to_mongo().to_dict()
     log.pop('_id')
@@ -193,7 +198,6 @@ def test_callback_action_execution(aioresponses):
                    'callback_url_slot': 'callback_url', 'metadata': {}}
 
 
-
 def test_callback_action_execution_fail_no_callback_config(aioresponses):
     bot_settings = BotSettings(bot='6697add6b8e47524eb983373', user='test')
     bot_settings.save()
@@ -201,16 +205,15 @@ def test_callback_action_execution_fail_no_callback_config(aioresponses):
     Actions(name=action_name, type=ActionType.callback_action.value,
             bot="6697add6b8e47524eb983373", user="user").save()
     CallbackActionConfig(
-        name= "callback_action2",
-        callback_name= "callback_script3",
-        dynamic_url_slot_name= "callback_url",
-        metadata_list= [],
+        name="callback_action2",
+        callback_name="callback_script3",
+        dynamic_url_slot_name="callback_url",
+        metadata_list=[],
         bot_response="Hello",
-        dispatch_bot_response= True,
+        dispatch_bot_response=True,
         bot="6697add6b8e47524eb983373",
         user="user"
     ).save()
-
 
     request_object = {
         "next_action": action_name,
@@ -307,8 +310,6 @@ def test_callback_action_execution_fail_no_callback_config(aioresponses):
                    'exception': "Callback Configuration with name 'callback_script3' does not exist!",
                    'status': 'FAILURE', 'user_msg': 'get intents',
                    'callback_url_slot': 'callback_url', 'metadata': {}}
-
-
 
 
 def test_live_agent_action_execution(aioresponses):
@@ -3847,6 +3848,7 @@ def test_http_action_doesnotexist():
     assert response.status_code == 200
     assert response_json == {'events': [], 'responses': []}
 
+
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_slot():
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
@@ -3935,6 +3937,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
     log = ActionServerLogs.objects(action=action_name, bot=bot).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
+
 
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_user_message():
@@ -11742,7 +11745,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo","gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
         user=user
     )
@@ -13319,3 +13322,252 @@ def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
                 "api_key": 'key_value',
                 "num_retries": 3}
     assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
+
+def test_schedule_action_invalid_date():
+    bot = '6697add6b8e47524eb983375'
+    user = 'test'
+    action_name = "test_schedule_action_invalid_date"
+    callback_script = "test_schedule_action_invalid_date_script"
+    date_str = "text"
+    Actions(name=action_name, type=ActionType.schedule_action.value,
+            bot=bot, user=user).save()
+
+    CallbackConfig(
+        name=callback_script,
+        pyscript_code="bot_response='hello world'",
+        validation_secret="test",
+        execution_mode="async",
+        bot=bot,
+    ).save()
+
+    ScheduleAction(
+        name=action_name,
+        bot=bot,
+        user=user,
+        schedule_time=CustomActionDynamicParameters(parameter_type='value',
+                                                    value=date_str),
+        schedule_action=callback_script,
+        timezone="Asia/Kolkata",
+        response_text="Action schedule",
+        params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                     CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
+    ).save()
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": bot},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": bot},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['responses']) == 1
+    assert response_json == {'events': [], 'responses': [
+        {'text': 'Sorry, I am unable to process your request at the moment.', 'buttons': [], 'elements': [],
+         'custom': {}, 'template': None, 'response': None,
+         'image': None, 'attachment': None}]}
+
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log == {'type': 'schedule_action', 'intent': 'test_run',
+                   'action': action_name, 'sender': 'default', 'headers': {},
+                   'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
+                   'bot': bot,
+                   'status': 'FAILURE',
+                   'user_msg': 'get intents', 'schedule_action': callback_script,
+                   'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                   'pyscript_code': "bot_response='hello world'",
+                   'data': {'bot': '**********************75', 'user': '1011'},
+                   'exception': 'Unknown string format: text'}
+
+
+def test_schedule_action_invalid_callback():
+    bot = '6697add6b8e47524eb983376'
+    user = 'test'
+    action_name = "test_schedule_action_invalid_callback"
+    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    Actions(name=action_name, type=ActionType.schedule_action.value,
+            bot=bot, user=user).save()
+
+    ScheduleAction(
+        name=action_name,
+        bot=bot,
+        user=user,
+        schedule_time=CustomActionDynamicParameters(parameter_type='value',
+                                                    value=date_str),
+        schedule_action="invalid_callback",
+        timezone="Asia/Kolkata",
+        response_text="Action schedule",
+        params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                     CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
+    ).save()
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": bot},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": bot},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['responses']) == 1
+    assert response_json == {'events': [], 'responses': [
+        {'text': 'Sorry, I am unable to process your request at the moment.', 'buttons': [], 'elements': [],
+         'custom': {}, 'template': None, 'response': None,
+         'image': None, 'attachment': None}]}
+
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log == {'type': 'schedule_action', 'intent': 'test_run',
+                   'action': action_name, 'sender': 'default', 'headers': {},
+                   'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
+                   'bot': bot,
+                   'status': 'FAILURE',
+                   'user_msg': 'get intents', 'schedule_action': 'invalid_callback',
+                   'schedule_time': None, 'timezone': 'Asia/Kolkata',
+                   'pyscript_code': None,
+                   'data': {},
+                   'exception': 'Callback Configuration with name \'invalid_callback\' does not exist!'}
+
+
+@mock.patch("pymongo.collection.Collection.create_index")
+@mock.patch("kairon.events.executors.factory.ExecutorFactory.get_executor", autospec=True)
+@mock.patch("apscheduler.jobstores.mongodb.MongoDBJobStore.add_job", autospec=True)
+def test_schedule_action_execution(mock_jobstore, mock_execute_factory, mock_collection):
+    mock_execute_factory.return_value = LambdaExecutor()
+    bot = '6697add6b8e47524eb983374'
+    user = 'test'
+    action_name = "test_schedule_action_execution"
+    callback_script = "test_schedule_action_script"
+    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    Actions(name=action_name, type=ActionType.schedule_action.value,
+            bot=bot, user=user).save()
+
+    CallbackConfig(
+        name=callback_script,
+        pyscript_code="bot_response='hello world'",
+        validation_secret="test",
+        execution_mode="async",
+        bot=bot,
+    ).save()
+
+    ScheduleAction(
+        name=action_name,
+        bot=bot,
+        user=user,
+        schedule_time=CustomActionDynamicParameters(parameter_type='value',
+                                                    value=date_str),
+        schedule_action=callback_script,
+        timezone="Asia/Kolkata",
+        response_text="Action schedule",
+        params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                     CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
+    ).save()
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": bot},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": bot},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['responses']) == 1
+    assert response_json == {'events': [], 'responses': [
+        {'text': 'Action schedule', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+         'image': None, 'attachment': None}]}
+
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log == {'type': 'schedule_action', 'intent': 'test_run',
+                   'action': 'test_schedule_action_execution', 'sender': 'default', 'headers': {},
+                   'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
+                   'status': 'SUCCESS',
+                   'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
+                   'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                   'pyscript_code': "bot_response='hello world'",
+                   'data': {'bot': '**********************74', 'user': '1011'}}
+
+    assert mock_jobstore.call_args.args[1].args[0] == 'scheduler_evaluator'
+    assert mock_jobstore.call_args.args[1].args[1] == {'script': "bot_response='hello world'",
+                                                       'predefined_objects': {'bot': '6697add6b8e47524eb983374',
+                                                                              'user': '1011'}}
+    assert mock_jobstore.call_args.args[1].coalesce
+    assert mock_jobstore.call_args.args[
+               1].func_ref == 'kairon.events.executors.lamda:LambdaExecutor.execute_task'
+    assert mock_jobstore.call_args.args[1].id
+    assert mock_jobstore.call_args.args[1].trigger
+    assert mock_jobstore.call_args.args[1].trigger.run_date.tzinfo._tzname == 'IST'
