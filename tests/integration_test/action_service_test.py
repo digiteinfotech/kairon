@@ -13,7 +13,7 @@ from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect
-from pytz.tzinfo import DstTzInfo
+import pytz
 
 from kairon.events.executors.lamda import LambdaExecutor
 from kairon.shared.callback.data_objects import CallbackConfig
@@ -13480,15 +13480,17 @@ def test_schedule_action_invalid_callback():
 
 
 @mock.patch("pymongo.collection.Collection.create_index")
+@mock.patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
 @mock.patch("kairon.events.executors.factory.ExecutorFactory.get_executor", autospec=True)
-@mock.patch("apscheduler.jobstores.mongodb.MongoDBJobStore.add_job", autospec=True)
-def test_schedule_action_execution(mock_jobstore, mock_execute_factory, mock_collection):
+@mock.patch("apscheduler.schedulers.base.BaseScheduler.add_job", autospec=True)
+def test_schedule_action_execution(mock_jobstore, mock_execute_factory, mock_collection, mock_scheduler):
     mock_execute_factory.return_value = LambdaExecutor()
     bot = '6697add6b8e47524eb983374'
     user = 'test'
     action_name = "test_schedule_action_execution"
     callback_script = "test_schedule_action_script"
     date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    timezone = "Asia/Kolkata"
     Actions(name=action_name, type=ActionType.schedule_action.value,
             bot=bot, user=user).save()
 
@@ -13507,7 +13509,7 @@ def test_schedule_action_execution(mock_jobstore, mock_execute_factory, mock_col
         schedule_time=CustomActionDynamicParameters(parameter_type='value',
                                                     value=date_str),
         schedule_action=callback_script,
-        timezone="Asia/Kolkata",
+        timezone=timezone,
         response_text="Action schedule",
         params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
                      CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
@@ -13561,13 +13563,18 @@ def test_schedule_action_execution(mock_jobstore, mock_execute_factory, mock_col
                    'pyscript_code': "bot_response='hello world'",
                    'data': {'bot': '**********************74', 'user': '1011'}}
 
-    assert mock_jobstore.call_args.args[1].args[0] == 'scheduler_evaluator'
-    assert mock_jobstore.call_args.args[1].args[1] == {'script': "bot_response='hello world'",
-                                                       'predefined_objects': {'bot': '6697add6b8e47524eb983374',
-                                                                              'user': '1011'}}
-    assert mock_jobstore.call_args.args[1].coalesce
-    assert mock_jobstore.call_args.args[
-               1].func_ref == 'kairon.events.executors.lamda:LambdaExecutor.execute_task'
-    assert mock_jobstore.call_args.args[1].id
-    assert mock_jobstore.call_args.args[1].trigger
-    assert mock_jobstore.call_args.args[1].trigger.run_date.tzinfo._tzname == 'IST'
+    args, kwargs = mock_jobstore.call_args
+    print(kwargs)
+    print(args)
+    assert kwargs['args'][0] == 'scheduler_evaluator'
+    assert kwargs['args'][1] == {'script': "bot_response='hello world'",
+                                 'predefined_objects': {'bot': '6697add6b8e47524eb983374',
+                                                        'user': '1011'}}
+    assert kwargs['id']
+    assert kwargs['name'] == 'execute_task'
+    assert kwargs['jobstore'] == 'kscheduler'
+
+    assert args[1].__name__ == 'execute_task'
+    assert args[1].__self__.__class__.__name__ == 'LambdaExecutor'
+    assert args[2].run_date.strftime("%Y-%m-%d %H:%M:%S") == date_str
+    assert args[2].run_date.tzinfo.zone == timezone
