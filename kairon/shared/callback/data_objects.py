@@ -8,6 +8,7 @@ from mongoengine import StringField, DictField, DateTimeField, Document, Dynamic
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import CallbackActionConfig
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
 from cryptography.fernet import Fernet
@@ -21,13 +22,9 @@ def check_nonempty_string(value, msg="Value must be a non-empty string"):
 def encrypt_secret(secret: str) -> str:
     secret = secret.encode("utf-8")
     fernet = Fernet(Utility.environment['security']['fernet_key'].encode("utf-8"))
-    return fernet.encrypt(secret).decode("utf-8")
+    sec = fernet.encrypt(secret).decode("utf-8")
+    return sec[:24]
 
-
-def decrypt_secret(secret: str) -> str:
-    secret = secret.encode("utf-8")
-    fernet = Fernet(Utility.environment['security']['fernet_key'].encode("utf-8"))
-    return fernet.decrypt(secret).decode("utf-8")
 
 
 class CallbackExecutionMode(Enum):
@@ -115,6 +112,9 @@ class CallbackConfig(Auditlog):
     @staticmethod
     def delete_entry(bot: str, name: str):
         check_nonempty_string(name)
+        callback_action_count = CallbackActionConfig.objects(bot=bot, callback_name=name).count()
+        if callback_action_count > 0:
+            raise AppException(f"Cannot delete Callback Configuration '{name}' as it is attached to some callback action!")
         config = CallbackConfig.objects(bot=bot, name__iexact=name).first()
         if not config:
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
