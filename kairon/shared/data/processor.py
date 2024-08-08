@@ -8135,7 +8135,7 @@ class MongoProcessor:
 
     def get_schedule_action(self, bot: Text, name: str, with_doc_id: bool = True):
         """
-        List Schedule Action
+        Get Schedule Action by name
         :param bot: bot id
         :param name: Name of action
         :param with_doc_id: return document id along with action configuration if True
