@@ -538,8 +538,8 @@ class TestActions:
 
     def test_prepare_request(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
-        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
-                                     HttpActionRequestBody(key="param2", value="slot_name", parameter_type="slot")]
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1").to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="param2", value="slot_name", parameter_type="slot").to_mongo().to_dict()]
         tracker = {"sender_id": "sender1", "slot": slots}
         actual_request_body, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert actual_request_body
@@ -551,14 +551,14 @@ class TestActions:
         bot = "demo_bot"
         KeyVault(key="ACCESS_KEY", value="234567890fdsf", bot=bot, user="test_user").save()
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "slot_name": "param2value"}
-        http_action_config_params = [HttpActionRequestBody(key="param1", value=Utility.encrypt_message("value1"), encrypt=True),
-                                     HttpActionRequestBody(key="param2", value="bot", parameter_type="slot", encrypt=True),
-                                     HttpActionRequestBody(key="param3", parameter_type="sender_id", encrypt=True),
-                                     HttpActionRequestBody(key="param4", parameter_type="user_message", encrypt=True),
-                                     HttpActionRequestBody(key="param5", parameter_type="intent", encrypt=True),
-                                     HttpActionRequestBody(key="param6", parameter_type="chat_log", encrypt=True),
-                                     HttpActionRequestBody(key="param7", value="http_action_config", parameter_type="slot", encrypt=True),
-                                     HttpActionRequestBody(key="param8", parameter_type="key_vault", value="ACCESS_KEY", encrypt=True),]
+        http_action_config_params = [HttpActionRequestBody(key="param1", value=Utility.encrypt_message("value1"), encrypt=True).to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="param2", value="bot", parameter_type="slot", encrypt=True).to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="param3", parameter_type="sender_id", encrypt=True).to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="param4", parameter_type="user_message", encrypt=True).to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="param5", parameter_type="intent", encrypt=True).to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="param6", parameter_type="chat_log", encrypt=True).to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="param7", value="http_action_config", parameter_type="slot", encrypt=True).to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="param8", parameter_type="key_vault", value="ACCESS_KEY", encrypt=True).to_mongo().to_dict(),]
         tracker = {"sender_id": "sender1", "slot": slots, "intent": "greet", "user_message": "hi",
                    "chat_log": [{'user': 'hi'}, {'bot': 'are you ok?'}, {'user': 'yes'}, {'bot': 'Great, carry on!'},
                                 {'user': 'hi'}], 'session_started': '2021-12-31 16:59:38'}
@@ -580,8 +580,8 @@ class TestActions:
 
     def test_prepare_request_empty_slot(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
-        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
-                                     HttpActionRequestBody(key="param3", value="", parameter_type="slot")]
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1").to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="param3", value="", parameter_type="slot").to_mongo().to_dict()]
         tracker = {"sender_id": "sender1", "slot": slots}
         request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="demo_bot")
         assert request_params['param1'] == "value1"
@@ -591,8 +591,8 @@ class TestActions:
     def test_prepare_request_sender_id(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
-        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
-                                     HttpActionRequestBody(key="user_id", value="", parameter_type="sender_id")]
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1").to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="user_id", value="", parameter_type="sender_id").to_mongo().to_dict()]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": slots}
         request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="demo_bot")
         assert request_params['param1'] == "value1"
@@ -602,8 +602,8 @@ class TestActions:
     def test_prepare_request_with_intent(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
-        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
-                                     HttpActionRequestBody(key="card_type", parameter_type="intent")]
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1").to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="card_type", parameter_type="intent").to_mongo().to_dict()]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": slots, "intent": "restart"}
         request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="demo_bot")
         assert request_params['param1'] == "value1"
@@ -690,8 +690,8 @@ class TestActions:
                                   'intent_ranking': [{'name': 'restart', 'confidence': 1.0}]},
                    'input_channel': 'cmdline', 'message_id': 'f4341cbf3eb1446e889a69d768ac091c', 'metadata': {}},
                   {'event': 'user_featurization', 'timestamp': 1640969987.350634, 'use_text_for_featurization': False}]
-        http_action_config_params = [HttpActionRequestBody(key="intent", parameter_type="intent"),
-                                     HttpActionRequestBody(key="user_msg", value="", parameter_type="chat_log")]
+        http_action_config_params = [HttpActionRequestBody(key="intent", parameter_type="intent").to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="user_msg", value="", parameter_type="chat_log").to_mongo().to_dict()]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": slots, "intent": "restart",
                    "chat_log": ActionUtility.prepare_message_trail(events)[1], 'session_started': '2021-12-31 16:59:38'}
         request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
@@ -723,8 +723,8 @@ class TestActions:
                                                      {'user': '/restart'}]}}
 
     def test_prepare_request_user_message(self):
-        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
-                                     HttpActionRequestBody(key="msg", parameter_type="user_message")]
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1").to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="msg", parameter_type="user_message").to_mongo().to_dict()]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": None, "user_message": "perform google search"}
         request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert request_params['param1'] == "value1"
@@ -739,8 +739,8 @@ class TestActions:
         assert log['param1'] == "value1"
         assert not log['msg']
 
-        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
-                                     HttpActionRequestBody(key="msg", parameter_type="user_message")]
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1").to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="msg", parameter_type="user_message").to_mongo().to_dict()]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": None, "user_message": "/google_search",
                    KAIRON_USER_MSG_ENTITY: "using custom msg"}
         request_params, log = ActionUtility.prepare_request(tracker,
@@ -751,8 +751,8 @@ class TestActions:
         assert log['param1'] == "value1"
         assert log['msg'] == "using custom msg"
 
-        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
-                                     HttpActionRequestBody(key="msg", parameter_type="user_message")]
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1").to_mongo().to_dict(),
+                                     HttpActionRequestBody(key="msg", parameter_type="user_message").to_mongo().to_dict()]
         tracker = {"sender_id": "kairon_user@digite.com", "slot": None, "user_message": "perform google search",
                    KAIRON_USER_MSG_ENTITY: "using custom msg"}
         request_params, log = ActionUtility.prepare_request(tracker,
@@ -765,7 +765,7 @@ class TestActions:
 
     def test_prepare_request_no_request_params(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
-        http_action_config_params: List[HttpActionRequestBody] = None
+        http_action_config_params: List[dict] = None
         tracker = {"sender_id": "sender1", "slot": slots}
         actual_request_body = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert actual_request_body == ({}, {})
@@ -1637,8 +1637,8 @@ class TestActions:
     async def test_run_with_params(self, monkeypatch, aioresponses):
         http_url = "http://www.google.com/$SENDER_ID?id=$param2"
         http_response = "This should be response"
-        request_params = [HttpActionRequestBody(key='key1', value="value1"),
-                          HttpActionRequestBody(key='key2', value="value2")]
+        request_params = [HttpActionRequestBody(key='key1', value="value1").to_mongo().to_dict(),
+                          HttpActionRequestBody(key='key2', value="value2").to_mongo().to_dict()]
         action = HttpActionConfig(
             action_name="http_action_with_params",
             response=HttpActionResponse(value=http_response),

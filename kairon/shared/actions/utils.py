@@ -1,11 +1,13 @@
-import time
-
-import ujson as json
 import logging
 import re
+import time
 from datetime import datetime
 from typing import Any, List, Text, Dict
+
+import ujson as json
+
 from ..utils import Utility
+
 Utility.load_system_metadata()
 
 import requests
@@ -20,11 +22,10 @@ from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
 from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType, DispatchType, \
     DbQueryValueType, DbActionOperationType
-from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
-from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
+from ..data.constant import REQUEST_TIMESTAMP_HEADER
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..rest_client import AioRestClient
@@ -148,7 +149,7 @@ class ActionUtility:
             return mask_nested_json_values(request_body)
 
     @staticmethod
-    def prepare_request(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody], bot: Text):
+    def prepare_request(tracker_data: dict, http_action_config_params: List[dict], bot: Text):
         """
         Prepares request body:
         1. Fetches value of parameter from slot(Tracker) if parameter_type is slot and adds to request body
@@ -164,40 +165,45 @@ class ActionUtility:
         request_body_log = {}
 
         for param in http_action_config_params or []:
-            if param['parameter_type'] == ActionParameterType.sender_id.value:
-                value = tracker_data.get(ActionParameterType.sender_id.value)
-            elif param['parameter_type'] == ActionParameterType.slot.value:
-                value = tracker_data.get(ActionParameterType.slot.value, {}).get(param['value'])
-            elif param['parameter_type'] == ActionParameterType.user_message.value:
-                value = tracker_data.get(ActionParameterType.user_message.value)
-                if not ActionUtility.is_empty(value) and value.startswith("/"):
-                    user_msg = tracker_data.get(KAIRON_USER_MSG_ENTITY)
-                    if not ActionUtility.is_empty(user_msg):
-                        value = user_msg
-            elif param['parameter_type'] == ActionParameterType.intent.value:
-                value = tracker_data.get(ActionParameterType.intent.value)
-            elif param['parameter_type'] == ActionParameterType.chat_log.value:
-                value = {
-                    'sender_id': tracker_data.get(ActionParameterType.sender_id.value),
-                    'session_started': tracker_data['session_started'],
-                    'conversation': tracker_data.get(ActionParameterType.chat_log.value)
-                }
-            elif param['parameter_type'] == ActionParameterType.key_vault.value:
-                value = ActionUtility.get_secret_from_key_vault(param['value'], bot, False)
-            else:
-                value = param['value']
-            log_value = value
-            if param['encrypt'] is True and param['parameter_type'] != ActionParameterType.chat_log.value:
-                if not ActionUtility.is_empty(value) and param['parameter_type'] == ActionParameterType.value.value:
-                    value = Utility.decrypt_message(value)
-
-                if not ActionUtility.is_empty(value):
-                    log_value = Utility.get_masked_value(value)
+            value, log_value = ActionUtility.get_parameter_value(tracker_data, param, bot)
 
             request_body[param['key']] = value
             request_body_log[param['key']] = log_value
 
         return request_body, request_body_log
+
+    @staticmethod
+    def get_parameter_value(tracker_data: dict, param: dict, bot: Text):
+        if param['parameter_type'] == ActionParameterType.sender_id.value:
+            value = tracker_data.get(ActionParameterType.sender_id.value)
+        elif param['parameter_type'] == ActionParameterType.slot.value:
+            value = tracker_data.get(ActionParameterType.slot.value, {}).get(param['value'])
+        elif param['parameter_type'] == ActionParameterType.user_message.value:
+            value = tracker_data.get(ActionParameterType.user_message.value)
+            if not ActionUtility.is_empty(value) and value.startswith("/"):
+                user_msg = tracker_data.get(KAIRON_USER_MSG_ENTITY)
+                if not ActionUtility.is_empty(user_msg):
+                    value = user_msg
+        elif param['parameter_type'] == ActionParameterType.intent.value:
+            value = tracker_data.get(ActionParameterType.intent.value)
+        elif param['parameter_type'] == ActionParameterType.chat_log.value:
+            value = {
+                'sender_id': tracker_data.get(ActionParameterType.sender_id.value),
+                'session_started': tracker_data['session_started'],
+                'conversation': tracker_data.get(ActionParameterType.chat_log.value)
+            }
+        elif param['parameter_type'] == ActionParameterType.key_vault.value:
+            value = ActionUtility.get_secret_from_key_vault(param['value'], bot, False)
+        else:
+            value = param['value']
+        log_value = value
+        if param.get('encrypt') is True and param['parameter_type'] != ActionParameterType.chat_log.value:
+            if not ActionUtility.is_empty(value) and param['parameter_type'] == ActionParameterType.value.value:
+                value = Utility.decrypt_message(value)
+
+            if not ActionUtility.is_empty(value):
+                log_value = Utility.get_masked_value(value)
+        return value, log_value
 
     @staticmethod
     def retrieve_value_for_custom_action_parameter(tracker_data: dict, action_config_param: dict, bot: Text):
@@ -593,7 +599,6 @@ class ActionUtility:
 
     @staticmethod
     def handle_json_response(dispatcher: CollectingDispatcher, bot_response: Any):
-        from json import JSONDecodeError
 
         message = None
         try:

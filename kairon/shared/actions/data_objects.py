@@ -405,6 +405,32 @@ class CustomActionParameters(HttpActionRequestBody):
                                  choices=[ActionParameterType.value, ActionParameterType.slot])
 
 
+class CustomActionDynamicParameters(EmbeddedDocument):
+    value = DynamicField(required=True)
+    parameter_type = StringField(default=ActionParameterType.value,
+                                 choices=[
+                                     ActionParameterType.value,
+                                     ActionParameterType.slot
+                                 ])
+
+    def validate(self, clean=True):
+        from kairon.shared.actions.utils import ActionUtility
+
+        if clean:
+            self.clean()
+
+        if ActionUtility.is_empty(self.value):
+            raise ValidationError("Value cannot be empty")
+
+        if self.parameter_type == ActionParameterType.value:
+            #: todo move this date format at system.yml
+            dateformat = "%Y-%m-%d %H:%M"
+            try:
+                datetime.strftime(self.schedule_time, dateformat)
+            except ValueError:
+                raise ValidationError(f"Supported date format is f{dateformat}")
+
+
 @auditlogger.log
 @push_notification.apply
 class EmailActionConfig(Auditlog):
@@ -932,3 +958,29 @@ class CallbackActionConfig(Auditlog):
         if self.name.startswith("utter_"):
             raise ValidationError("Action name cannot start with utter_")
 
+
+@auditlogger.log
+@push_notification.apply
+class ScheduleAction(Auditlog):
+    name = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    schedule_time = EmbeddedDocumentField(CustomActionDynamicParameters)
+    timezone = StringField(default="UTC", required=True)
+    schedule_action = StringField(required=True)
+    response_text = StringField(required=False)
+    params_list = ListField(
+        EmbeddedDocumentField(CustomActionRequestParameters), required=False
+    )
+    dispatch_bot_response = BooleanField(default=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if not (self.name and self.schedule_time and self.schedule_action):
+            raise ValidationError(
+                "Fields name, schedule_time, schedule_action are required!"
+            )

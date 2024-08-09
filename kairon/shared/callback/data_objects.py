@@ -11,7 +11,7 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import CallbackActionConfig
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
-from fernet import Fernet
+from cryptography.fernet import Fernet
 
 
 def check_nonempty_string(value, msg="Value must be a non-empty string"):

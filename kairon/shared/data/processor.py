@@ -82,7 +82,7 @@ from kairon.shared.actions.data_objects import (
     PyscriptActionConfig,
     WebSearchAction,
     UserQuestion, CustomActionParameters,
-    LiveAgentActionConfig, CallbackActionConfig,
+    LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -6542,6 +6542,10 @@ class MongoProcessor:
                 Utility.hard_delete_document(
                     [PyscriptActionConfig], name__iexact=name, bot=bot
                 )
+            elif action.type == ActionType.schedule_action.value:
+                Utility.hard_delete_document(
+                    [ScheduleAction], name__iexact=name, bot=bot
+                )
             action.delete()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
@@ -8046,6 +8050,108 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([Actions], bot, name__iexact=name)
         Utility.hard_delete_document([CallbackActionConfig], bot=bot, name__iexact=name)
+
+    def add_schedule_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Add Schedule Action
+        :param request_data: data object for schedule action
+        :param bot: bot id
+        :param user: user
+        """
+        Utility.is_exist(
+            Actions,
+            exp_message="Action exists!",
+            name__iexact=request_data.get("name"),
+            bot=bot,
+            status=True,
+        )
+        Utility.is_exist(
+            ScheduleAction,
+            exp_message="Action exists!",
+            name__iexact=request_data.get("name"),
+            bot=bot,
+            status=True,
+        )
+
+        request_data["bot"] = bot
+        request_data["user"] = user
+        action_id = ScheduleAction(**request_data).save().id.__str__()
+        self.add_action(
+            request_data["name"],
+            bot,
+            user,
+            raise_exception=False,
+            action_type=ActionType.schedule_action,
+        )
+        return action_id
+
+    def update_schedule_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Update Schedule Action
+        :param request_data: data object for schedule action
+        :param bot: bot id
+        :param user: user who edit/update this
+        """
+        if not Utility.is_exist(
+                ScheduleAction,
+                raise_error=False,
+                name__iexact=request_data["name"],
+                bot=bot,
+                status=True,
+        ):
+            raise AppException(
+                "No schedule action found for this bot with this name "
+                + bot
+                + " and action "
+                + request_data["name"]
+            )
+        schedule_action = ScheduleAction.objects(bot=bot, name=request_data["name"], status=True).get()
+        schedule_action.name = request_data.get("name")
+        schedule_action.user = user
+        schedule_action.timezone = request_data.get("timezone")
+        schedule_action.schedule_time = CustomActionDynamicParameters(**request_data.get("schedule_time"))
+        schedule_action.schedule_action = request_data.get("schedule_action")
+        schedule_action.dispatch_bot_response = request_data.get("dispatch_response", True)
+        schedule_action.save()
+        return schedule_action.id.__str__()
+
+    def list_schedule_action(self, bot: Text, with_doc_id: bool = True):
+        """
+        List Schedule Action
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        """
+        for action in ScheduleAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
+
+    def get_schedule_action(self, bot: Text, name: str, with_doc_id: bool = True):
+        """
+        Get Schedule Action by name
+        :param bot: bot id
+        :param name: Name of action
+        :param with_doc_id: return document id along with action configuration if True
+        """
+        action = ScheduleAction.objects(bot=bot, name=name, status=True)
+        if action:
+            action = action.get().to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            return action
 
     def get_all_callback_actions(self, bot: Text):
         """
