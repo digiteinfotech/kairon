@@ -977,7 +977,6 @@ class ScheduleAction(Auditlog):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
-        from datetime import datetime
         if clean:
             self.clean()
 
