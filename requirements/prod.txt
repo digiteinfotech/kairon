@@ -64,7 +64,7 @@ opentelemetry-instrumentation-requests==0.46b0
 opentelemetry-instrumentation-sklearn==0.46b0
 pykwalify==1.8.0
 gunicorn==22.0.0
-litellm==1.39.5
+litellm==1.43.4
 jsonschema_rs==0.18.0
 mongoengine-jsonschema==0.1.3
 fernet==1.0.1
