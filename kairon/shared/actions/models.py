@@ -49,6 +49,7 @@ class ActionType(str, Enum):
     web_search_action = "web_search_action"
     live_agent_action = "live_agent_action"
     callback_action = "callback_action"
+    schedule_action = "schedule_action"
 
 
 class HttpRequestContentType(str, Enum):

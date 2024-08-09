@@ -21,6 +21,7 @@ from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
+from kairon.actions.definitions.schedule import ActionSchedule
 
 
 class ActionFactory:
@@ -43,7 +44,8 @@ class ActionFactory:
         ActionType.database_action.value: ActionDatabase,
         ActionType.web_search_action.value: ActionWebSearch,
         ActionType.live_agent_action.value: ActionLiveAgent,
-        ActionType.callback_action.value: ActionCallback
+        ActionType.callback_action.value: ActionCallback,
+        ActionType.schedule_action.value: ActionSchedule
     }
 
     @staticmethod

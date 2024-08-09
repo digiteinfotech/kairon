@@ -40,7 +40,7 @@ from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
@@ -2999,6 +2999,75 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual["data"][0]["name"] == "test_add_pyscript_action_case_insensitivity"
     assert actual["data"][0]["source_code"] == script2
     assert actual["data"][0]["dispatch_response"]
+
+
+def test_add_schedule_action():
+    schedule_action_data = {
+        "name": "test_schedule_action",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "test_pyscript",
+        "response_text": "action scheduled",
+        "params_list": [],
+        "dispatch_bot_response": True
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        json=schedule_action_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+
+
+def test_add_schedule_action_exists():
+    schedule_action_data = {
+        "name": "test_schedule_action",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "test_pyscript",
+        "response_text": "action scheduled",
+        "params_list": [],
+        "dispatch_bot_response": True
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        json=schedule_action_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] == False
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action exists!"
+
+
+def test_update_schedule_action_update_scheduled_action():
+    schedule_action_data = {
+        "name": "test_schedule_action",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "test_pyscript_new",
+        "response_text": "action scheduled",
+        "params_list": [],
+        "dispatch_bot_response": True
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        json=schedule_action_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated!"
+    action = ScheduleAction.objects(bot=pytest.bot, name="test_schedule_action", status=True).get()
+    action = action.to_mongo().to_dict()
+    assert "test_pyscript_new" == action.get("schedule_action")
 
 
 def test_initiate_bsp_onboarding_for_broadcast(monkeypatch):
@@ -14395,7 +14464,7 @@ def test_list_actions():
                               'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                               'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
-                              'prompt_action': [], 'callback_action': [],
+                              'prompt_action': [], 'callback_action': [], 'schedule_action': [],
                               'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []}, ignore_order=True)
 
     assert actual["success"]
@@ -21361,6 +21430,7 @@ def test_add_bot_with_template_name(monkeypatch):
             "pyscript_action": [],
             "live_agent_action": [],
             "callback_action": [],
+            "schedule_action": []
         },
         ignore_order=True,
     )
@@ -26904,3 +26974,4 @@ def test_list_system_metadata():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert len(actual["data"]) == 17
+

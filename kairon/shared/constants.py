@@ -76,6 +76,7 @@ class EventClass(str, Enum):
     pyscript_evaluator = "pyscript_evaluator"
     message_broadcast = "message_broadcast"
     web_search = "web_search"
+    scheduler_evaluator = "scheduler_evaluator"
 
 
 class EventRequestType(str, Enum):

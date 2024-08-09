@@ -7,7 +7,8 @@ from kairon.api.models import (
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
-    WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest
+    WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest,
+    ScheduleActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -736,4 +737,37 @@ async def list_available_actions(
     Returns list of all actions for bot.
     """
     actions = list(mongo_processor.list_all_actions(bot=current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.post("/schedule", response_model=Response)
+async def add_schedule_action(
+        request_data: ScheduleActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Add the schedule action
+    """
+    action_id = mongo_processor.add_schedule_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action added!")
+
+
+@router.put("/schedule", response_model=Response)
+async def update_schedule_action(
+        request_data: ScheduleActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Update the schedule action
+    """
+    action_id = mongo_processor.update_schedule_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action updated!")
+
+
+@router.get("/schedule", response_model=Response)
+async def list_schedule_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of schedule actions for bot.
+    """
+    actions = list(mongo_processor.list_schedule_action(current_user.get_bot()))
     return Response(data=actions)

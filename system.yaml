@@ -135,6 +135,7 @@ events:
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
     web_search: ${WEB_SEARCH_TASK_DEFINITION}
     pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
+    scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
