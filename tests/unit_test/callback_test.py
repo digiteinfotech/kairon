@@ -418,7 +418,8 @@ async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_
                                                pyscript_code=cb['pyscript_code'], sender_id=sid,
                                                error_log=f"Error while executing pyscript: {obj['error']}",
                                                request_data=rd, metadata=ent['metadata'],
-                                               callback_url=ent['callback_url'], callback_source=c_src)
+                                               callback_url=ent['callback_url'], callback_source=c_src
+                                               )
 
 
 
