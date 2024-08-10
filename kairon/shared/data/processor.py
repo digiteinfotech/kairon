@@ -8119,6 +8119,7 @@ class MongoProcessor:
         schedule_action.params_list = params_list
         schedule_action.schedule_action = request_data.get("schedule_action")
         schedule_action.dispatch_bot_response = request_data.get("dispatch_response", True)
+        schedule_action.status = request_data.get("status", True)
         schedule_action.save()
         return schedule_action.id.__str__()
 
