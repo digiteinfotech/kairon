@@ -3008,7 +3008,13 @@ def test_add_schedule_action():
         "timezone": None,
         "schedule_action": "test_pyscript",
         "response_text": "action scheduled",
-        "params_list": [],
+        "params_list": [
+            {
+                "value": "param_1",
+                "parameter_type": "value",
+                "count": 0
+            }
+        ],
         "dispatch_bot_response": True
     }
 
@@ -3051,8 +3057,14 @@ def test_update_schedule_action_update_scheduled_action():
         "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
         "timezone": None,
         "schedule_action": "test_pyscript_new",
-        "response_text": "action scheduled",
-        "params_list": [],
+        "response_text": "action scheduled, will be notified",
+        "params_list": [
+            {
+                "value": "param_2",
+                "parameter_type": "value",
+                "count": 0
+            }
+        ],
         "dispatch_bot_response": True
     }
 
@@ -3067,7 +3079,8 @@ def test_update_schedule_action_update_scheduled_action():
     assert actual["message"] == "Action updated!"
     action = ScheduleAction.objects(bot=pytest.bot, name="test_schedule_action", status=True).get()
     action = action.to_mongo().to_dict()
-    assert "test_pyscript_new" == action.get("schedule_action")
+    assert action.get("schedule_action") == "test_pyscript_new"
+    assert action.get("response_text") == "action scheduled, will be notified"
 
 
 def test_initiate_bsp_onboarding_for_broadcast(monkeypatch):

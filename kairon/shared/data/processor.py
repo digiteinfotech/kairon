@@ -8105,11 +8105,18 @@ class MongoProcessor:
                 + " and action "
                 + request_data["name"]
             )
+        params_list = [
+            CustomActionRequestParameters(**param)
+            for param in request_data.get("params_list") or []
+        ]
+
         schedule_action = ScheduleAction.objects(bot=bot, name=request_data["name"], status=True).get()
         schedule_action.name = request_data.get("name")
         schedule_action.user = user
         schedule_action.timezone = request_data.get("timezone")
+        schedule_action.response_text = request_data.get("response_text")
         schedule_action.schedule_time = CustomActionDynamicParameters(**request_data.get("schedule_time"))
+        schedule_action.params_list = params_list
         schedule_action.schedule_action = request_data.get("schedule_action")
         schedule_action.dispatch_bot_response = request_data.get("dispatch_response", True)
         schedule_action.save()
