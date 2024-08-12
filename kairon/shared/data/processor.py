@@ -7797,6 +7797,7 @@ class MongoProcessor:
             if request_data.get("contact")
             else None
         )
+        action.notes = request_data.get("notes")
         action.user = user
         action.save()
 
