@@ -24143,6 +24143,7 @@ def test_add_razorpay_action():
         "username": {"parameter_type": "sender_id"},
         "email": {"parameter_type": "sender_id"},
         "contact": {"value": "contact", "parameter_type": "slot"},
+        'notes': {"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj"}
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/razorpay",
@@ -24262,6 +24263,10 @@ def test_list_razorpay_actions():
                 "value": "contact",
                 "parameter_type": "slot",
             },
+            "notes": {
+                "phone_number": "9876543210",
+                "order_id": "dsjdksjdksjdksj"
+            }
         },
         {
             "name": "razorpay_action_required_values_only",
@@ -24293,6 +24298,7 @@ def test_list_razorpay_actions():
                 "value": "INR",
                 "parameter_type": "slot",
             },
+            "notes": {}
         },
     ]
     assert actual["success"]
