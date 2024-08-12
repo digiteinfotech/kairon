@@ -1235,6 +1235,7 @@ def test_get_llm_metadata():
     assert "claude" in actual["data"]
     assert "model" in actual["data"]["claude"]["properties"]
     assert actual["data"]["claude"]["properties"]["model"]["enum"] == []
+    LLMSecret.objects.delete()
 
 
 def test_get_llm_metadata_bot_specific_model_exists():
@@ -1283,6 +1284,7 @@ def test_get_llm_metadata_bot_specific_model_exists():
     assert "claude" in actual["data"]
     assert "model" in actual["data"]["claude"]["properties"]
     assert actual["data"]["claude"]["properties"]["model"]["enum"] == ["common_claude_model1", "common_claude_model2", "custom_claude_model1"]
+    LLMSecret.objects.delete()
 
 
 @responses.activate
