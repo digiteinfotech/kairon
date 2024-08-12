@@ -9499,6 +9499,27 @@ class TestMongoProcessor:
         ]
         processor.delete_complex_story(story_id, 'STORY', bot, user)
 
+    def test_add_schedule_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "schedule_mp2", "type": "SCHEDULE_ACTION"},
+        ]
+        story_dict = {'name': "story with schedule action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_id = processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with schedule action", bot=bot, events__name='schedule_mp2',
+                                status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with schedule action']
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'schedule_mp2', 'type': 'SCHEDULE_ACTION'},
+        ]
+        processor.delete_complex_story(story_id, 'STORY', bot, user)
+
     def test_delete_jira_action(self):
         processor = MongoProcessor()
         bot = 'test'
