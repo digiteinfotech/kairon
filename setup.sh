@@ -1,9 +1,10 @@
 #!/bin/bash
 python -m pip install -r requirements/dev.txt
-python -m spacy download en_core_web_md
+python -c "import spacy; spacy.cli.download('en_core_web_md')"
 python -m spacy link en_core_web_md en
-python -m nltk.downloader averaged_perceptron_tagger
-python -m nltk.downloader punkt
-python -m nltk.downloader stopwords
-python -m nltk.downloader omw-1.4
-python -m nltk.downloader wordnet
+python -c "import nltk;nltk.download('averaged_perceptron_tagger_eng')"
+python -c "import nltk;nltk.download('averaged_perceptron_tagger')"
+python -c "import nltk;nltk.download('punkt')"
+python -c "import nltk;nltk.download('stopwords')"
+python -c "import nltk;nltk.download('omw-1.4')"
+python -c "import nltk;nltk.download('wordnet')"
