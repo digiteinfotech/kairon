@@ -859,7 +859,9 @@ class RazorpayAction(Auditlog):
     username = EmbeddedDocumentField(CustomActionRequestParameters)
     email = EmbeddedDocumentField(CustomActionRequestParameters)
     contact = EmbeddedDocumentField(CustomActionRequestParameters)
-    notes = DictField(default={})
+    notes = ListField(
+        EmbeddedDocumentField(CustomActionRequestParameters), required=False
+    )
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -875,8 +877,6 @@ class RazorpayAction(Auditlog):
             raise ValidationError(
                 "Fields api_key, api_secret, amount, currency are required!"
             )
-        if not isinstance(self.notes, dict):
-            raise ValidationError("notes is not a valid dict")
 
     def clean(self):
         self.name = self.name.strip().lower()

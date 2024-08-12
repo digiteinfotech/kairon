@@ -7797,7 +7797,11 @@ class MongoProcessor:
             if request_data.get("contact")
             else None
         )
-        action.notes = request_data.get("notes")
+        notes = [
+            CustomActionRequestParameters(**param)
+            for param in request_data.get("notes") or []
+        ]
+        action.notes = notes
         action.user = user
         action.save()
 

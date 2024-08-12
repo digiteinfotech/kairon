@@ -1696,54 +1696,6 @@ def test_upload_with_bot_content_event_append_validate_payload_data():
     bot_settings.save()
 
 
-def test_add_razorpay_action_with_invalid_notes():
-    action_name = "razorpay_action"
-    action = {
-        "name": action_name,
-        "api_key": {"value": "API_KEY", "parameter_type": "key_vault"},
-        "api_secret": {"value": "API_SECRET", "parameter_type": "key_vault"},
-        "amount": {"value": "amount", "parameter_type": "slot"},
-        "currency": {"value": "INR", "parameter_type": "value"},
-        "username": {"parameter_type": "sender_id"},
-        "email": {"parameter_type": "sender_id"},
-        "contact": {"value": "contact", "parameter_type": "slot"},
-        'notes': ["phone_number", "order_id"]
-    }
-    response = client.post(
-        f"/api/bot/{pytest.bot}/action/razorpay",
-        json=action,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', 'notes'], 'msg': 'value is not a valid dict', 'type': 'type_error.dict'}]
-    assert not actual["data"]
-
-    action = {
-        "name": action_name,
-        "api_key": {"value": "API_KEY", "parameter_type": "key_vault"},
-        "api_secret": {"value": "API_SECRET", "parameter_type": "key_vault"},
-        "amount": {"value": "amount", "parameter_type": "slot"},
-        "currency": {"value": "INR", "parameter_type": "value"},
-        "username": {"parameter_type": "sender_id"},
-        "email": {"parameter_type": "sender_id"},
-        "contact": {"value": "contact", "parameter_type": "slot"},
-        'notes': "phone_number, order_id"
-    }
-    response = client.post(
-        f"/api/bot/{pytest.bot}/action/razorpay",
-        json=action,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["message"] == [
-        {'loc': ['body', 'notes'], 'msg': 'value is not a valid dict', 'type': 'type_error.dict'}]
-    assert not actual["data"]
-
-
 def test_get_collection_data_with_no_collection_data():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection",
@@ -24143,7 +24095,10 @@ def test_add_razorpay_action():
         "username": {"parameter_type": "sender_id"},
         "email": {"parameter_type": "sender_id"},
         "contact": {"value": "contact", "parameter_type": "slot"},
-        'notes': {"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj"}
+        "notes": [
+            {"key": "order_id", "parameter_type": "slot", "value": "order_id"},
+            {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+        ]
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/razorpay",
@@ -24263,10 +24218,22 @@ def test_list_razorpay_actions():
                 "value": "contact",
                 "parameter_type": "slot",
             },
-            "notes": {
-                "phone_number": "9876543210",
-                "order_id": "dsjdksjdksjdksj"
-            }
+            "notes": [
+                {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'order_id',
+                    'encrypt': False,
+                    'value': 'order_id',
+                    'parameter_type': 'slot'
+                },
+                {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'phone_number',
+                    'encrypt': False,
+                    'value': '9876543210',
+                    'parameter_type': 'value'
+                }
+            ]
         },
         {
             "name": "razorpay_action_required_values_only",
@@ -24298,7 +24265,7 @@ def test_list_razorpay_actions():
                 "value": "INR",
                 "parameter_type": "slot",
             },
-            "notes": {}
+            "notes": []
         },
     ]
     assert actual["success"]
@@ -24315,6 +24282,9 @@ def test_edit_razorpay_action():
         "currency": {"value": "INR", "parameter_type": "slot"},
         "email": {"parameter_type": "sender_id"},
         "contact": {"value": "contact", "parameter_type": "value"},
+        "notes": [
+            {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+        ]
     }
 
     response = client.put(
@@ -24327,6 +24297,105 @@ def test_edit_razorpay_action():
     assert actual["error_code"] == 0
     assert actual["message"] == "Action updated!"
 
+
+def test_list_razorpay_actions_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    [v.pop("timestamp") for v in actual["data"]]
+    [action.pop("_id") for action in actual["data"]]
+    print(actual["data"])
+    assert actual["data"] == [
+        {
+            "name": "razorpay_action",
+            "api_key": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_key",
+                "encrypt": False,
+                "value": "API_KEY",
+                "parameter_type": "key_vault",
+            },
+            "api_secret": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_secret",
+                "encrypt": False,
+                "value": "API_SECRET",
+                "parameter_type": "key_vault",
+            },
+            "amount": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "amount",
+                "encrypt": False,
+                "value": "amount",
+                "parameter_type": "value",
+            },
+            "currency": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "currency",
+                "encrypt": False,
+                "value": "INR",
+                "parameter_type": "slot",
+            },
+            "email": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "email",
+                "encrypt": False,
+                "parameter_type": "sender_id",
+            },
+            "contact": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "contact",
+                "encrypt": False,
+                "value": "contact",
+                "parameter_type": "value",
+            },
+            "notes": [
+                {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'phone_number',
+                    'encrypt': False,
+                    'value': '9876543210',
+                    'parameter_type': 'value'
+                }
+            ]
+        },
+        {
+            "name": "razorpay_action_required_values_only",
+            "api_key": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_key",
+                "encrypt": False,
+                "value": "API_KEY",
+                "parameter_type": "value",
+            },
+            "api_secret": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_secret",
+                "encrypt": False,
+                "value": "API_SECRET",
+                "parameter_type": "value",
+            },
+            "amount": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "amount",
+                "encrypt": False,
+                "value": "amount",
+                "parameter_type": "value",
+            },
+            "currency": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "currency",
+                "encrypt": False,
+                "value": "INR",
+                "parameter_type": "slot",
+            },
+            "notes": []
+        },
+    ]
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 def test_edit_razorpay_action_required_config_missing():
     action_name = "razorpay_action"

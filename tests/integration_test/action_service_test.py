@@ -768,13 +768,19 @@ def test_process_razorpay_action_with_notes():
         username=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
         email=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
         contact=CustomActionRequestParameters(value="contact", parameter_type=ActionParameterType.slot),
-        notes={"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj"},
+        notes=[
+            CustomActionRequestParameters(key="order_id", parameter_type="slot",
+                                          value="order_id", encrypt=True),
+            CustomActionRequestParameters(key="phone_number", parameter_type="value",
+                                          value="9876543210", encrypt=False),
+        ],
         bot=bot, user="udit.pandey@digite.com"
     ).save()
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["tracker"]["slots"]["amount"] = 11000
     request_object["tracker"]["slots"]["contact"] = "987654320"
+    request_object["tracker"]["slots"]["order_id"] = "dsjdksjdksjdksj"
     request_object["next_action"] = action_name
     request_object["tracker"]["sender_id"] = "udit.pandey"
 
@@ -10061,13 +10067,19 @@ def test_process_razorpay_action():
         username=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
         email=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
         contact=CustomActionRequestParameters(value="contact", parameter_type=ActionParameterType.slot),
-        notes={"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj"},
+        notes=[
+            CustomActionRequestParameters(key="order_id", parameter_type="slot",
+                                          value="order_id", encrypt=True),
+            CustomActionRequestParameters(key="phone_number", parameter_type="value",
+                                          value="9876543210", encrypt=False),
+        ],
         bot=bot, user="udit.pandey@digite.com"
     ).save()
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["tracker"]["slots"]["amount"] = 11000
     request_object["tracker"]["slots"]["contact"] = "987654320"
+    request_object["tracker"]["slots"]["order_id"] = "dsjdksjdksjdksj"
     request_object["next_action"] = action_name
     request_object["tracker"]["sender_id"] = "udit.pandey"
 
