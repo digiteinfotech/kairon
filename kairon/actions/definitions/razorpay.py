@@ -75,6 +75,7 @@ class ActionRazorpay(ActionsBase):
             email = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, email, self.bot)
             contact = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, contact, self.bot)
             headers = {"Authorization": ActionUtility.get_basic_auth_str(api_key, api_secret)}
+            notes, notes_log = ActionUtility.prepare_request(tracker_data, notes, self.bot)
             body = {
                 "amount": amount, "currency": currency,
                 "customer": {"username": username, "email": email, "contact": contact},
@@ -84,6 +85,8 @@ class ActionRazorpay(ActionsBase):
                 headers=headers, http_url=ActionRazorpay.__URL, request_method="POST", request_body=body
             )
             bot_response = http_response["short_url"]
+            logger.info("schedule_data: " + str(notes_log))
+            logger.info("bot_response: " + str(bot_response))
         except ValueError as e:
             logger.exception(e)
             logger.debug(e)
