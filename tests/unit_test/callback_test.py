@@ -280,13 +280,22 @@ async def test_send_message_to_user(mock_send):
     message = 'Hello, World!'
     recipient_id = 'user1'
     await whatsapp.send_message_to_user(message, recipient_id)
-    mock_send.assert_called_once_with({'body': 'Hello, World!'}, 'user1', 'text')
-    message = {'type': 'image', 'url': 'http://example.com/image.jpg'}
+    mock_send.assert_called_once_with({'body': 'Hello, World!', 'preview_url': True}, 'user1', 'text')
+    message = {
+        "data": [
+            {
+                "type": "button",
+                "value": "/greet",
+                "id": "btn_end",
+                "children": [{"text": "hello world"}],
+            }
+        ],
+        "type": "button",
+    }
     await whatsapp.send_message_to_user(message, recipient_id)
-    mock_send.assert_called_with({'url': 'http://example.com/image.jpg'}, 'user1', 'image')
-    message = {'type': 'video', 'url': 'http://example.com/video.mp4'}
-    await whatsapp.send_message_to_user(message, recipient_id)
-    mock_send.assert_called_with({'url': 'http://example.com/video.mp4'}, 'user1', 'video')
+    mock_send.assert_called_with({'type': 'button', 'body': {'text': 'Please select from quick buttons:'},
+                                  'action': {'buttons': [{'type': 'reply', 'reply': {'id': '/greet', 'title':
+                                      'hello world'}}]}}, 'user1', 'interactive')
 
 
 from kairon.async_callback.processor import CallbackProcessor
@@ -406,7 +415,11 @@ async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_
     mock_success_entry.assert_not_called()
     mock_failure_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
                                                channel=chnl,
-                                               pyscript_code=cb['pyscript_code'], sender_id=sid, error_log=obj['error'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+                                               pyscript_code=cb['pyscript_code'], sender_id=sid,
+                                               error_log=f"Error while executing pyscript: {obj['error']}",
+                                               request_data=rd, metadata=ent['metadata'],
+                                               callback_url=ent['callback_url'], callback_source=c_src
+                                               )
 
 
 
