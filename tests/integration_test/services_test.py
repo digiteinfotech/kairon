@@ -2698,7 +2698,7 @@ def test_callback_get_logs():
         url=f"/api/bot/{pytest.bot}/action/callback_logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    
+
     actual = response.json()
 
     assert actual['success'] == True
