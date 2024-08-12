@@ -93,6 +93,8 @@ class Whatsapp:
 
     async def send_message_to_user(self, message: Any, recipient_id: str):
         """Send a message to the user."""
+        from kairon.chat.converters.channels.response_factory import ConverterFactory
+
         is_bps = self.config.get("bsp_type", "meta") == "360dialog"
         client = WhatsappFactory.get_client(self.config.get("bsp_type", "meta"))
         phone_number_id = self.config.get('phone_number_id')
@@ -104,17 +106,23 @@ class Whatsapp:
         if isinstance(message, str):
             message = {
                 'body': message,
+                'preview_url': True
             }
-        elif isinstance(message, dict):
-            if message.get("type") == "image":
-                message_type = "image"
-            elif message.get("type") == "video":
-                message_type = "video"
-            elif message.get("type") == "button":
-                message_type = "interactive"
-            if message.get("type"):
-                message.pop("type")
-        c.send(message, recipient_id, message_type)
+            c.send(message, recipient_id, message_type)
+        else:
+            content_type = {"link": "text", "video": "video", "image": "image", "button": "interactive",
+                            "dropdown": "interactive", "audio": "audio"}
+            if isinstance(message, dict):
+                message = [message]
+            for item in message:
+                message_type = content_type.get(item.get('type'))
+                message_body = item.get('data')
+                if not message_type:
+                    c.send({'body': f"{message_body}", 'preview_url': True}, recipient_id, "text")
+
+                converter_instance = ConverterFactory.getConcreteInstance(item.get('type'), ChannelTypes.WHATSAPP.value)
+                response = await converter_instance.messageConverter(message_body)
+                c.send(response, recipient_id, message_type)
 
 
 

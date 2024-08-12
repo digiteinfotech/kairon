@@ -3318,6 +3318,7 @@ class MongoProcessor:
         database_actions = set(DatabaseAction.objects(bot=bot, status=True).values_list('name'))
         web_search_actions = set(WebSearchAction.objects(bot=bot, status=True).values_list('name'))
         callback_actions = set(CallbackActionConfig.objects(bot=bot, status=True).values_list('name'))
+        schedule_action = set(ScheduleAction.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -3386,6 +3387,8 @@ class MongoProcessor:
                         step["type"] = StoryStepType.live_agent_action.value
                     elif event['name'] in callback_actions:
                         step["type"] = StoryStepType.callback_action.value
+                    elif event['name'] in schedule_action:
+                        step["type"] = StoryStepType.schedule_action.value
                     elif event['name'] == 'action_listen':
                         step["type"] = StoryStepType.stop_flow_action.value
                         step["name"] = 'stop_flow_action'

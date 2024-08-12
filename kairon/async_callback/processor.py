@@ -89,7 +89,8 @@ class CallbackProcessor:
             else:
                 raise AppException("No response received from callback script")
         except Exception as e:
-            logger.exception(e)
+            error = str(e)
+            logger.exception(error)
             CallbackLog.create_failure_entry(name=ent.get("action_name"),
                                              bot=bot_id,
                                              channel=chnl,
