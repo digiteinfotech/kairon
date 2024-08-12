@@ -83,7 +83,7 @@ class ActionSchedule(ActionsBase):
                                                                              action_config['params_list'],
                                                                              self.bot)
             logger.info("schedule_data: " + str(schedule_data_log))
-            event_data = {'data': {'script': callback['pyscript_code'],
+            event_data = {'data': {'source_code': callback['pyscript_code'],
                                    'predefined_objects': schedule_data
                                    },
                           'datetime': date_parser.parse(schedule_time),

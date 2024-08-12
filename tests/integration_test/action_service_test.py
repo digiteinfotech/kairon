@@ -13565,7 +13565,7 @@ def test_schedule_action_execution(mock_jobstore, mock_execute_factory, mock_col
 
     args, kwargs = mock_jobstore.call_args
     assert kwargs['args'][0] == 'scheduler_evaluator'
-    assert kwargs['args'][1] == {'script': "bot_response='hello world'",
+    assert kwargs['args'][1] == {'source_code': "bot_response='hello world'",
                                  'predefined_objects': {'bot': '6697add6b8e47524eb983374',
                                                         'user': '1011'}}
     assert kwargs['id']
@@ -13664,7 +13664,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_jobstore, mock_e
 
     args, kwargs = mock_jobstore.call_args
     assert kwargs['args'][0] == 'scheduler_evaluator'
-    assert kwargs['args'][1] == {'script': "bot_response='hello world'",
+    assert kwargs['args'][1] == {'source_code': "bot_response='hello world'",
                                  'predefined_objects': {'bot': '6697add6b8e47524eb983374',
                                                         'user': '1011'}}
     assert kwargs['id']
