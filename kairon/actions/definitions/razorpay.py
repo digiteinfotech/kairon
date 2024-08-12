@@ -60,6 +60,7 @@ class ActionRazorpay(ActionsBase):
         username = action_config.get('username')
         email = action_config.get('email')
         contact = action_config.get('contact')
+        notes = action_config.get('notes')
         body = {}
         try:
             tracker_data = ActionUtility.build_context(tracker)
@@ -76,7 +77,8 @@ class ActionRazorpay(ActionsBase):
             headers = {"Authorization": ActionUtility.get_basic_auth_str(api_key, api_secret)}
             body = {
                 "amount": amount, "currency": currency,
-                "customer": {"username": username, "email": email, "contact": contact}
+                "customer": {"username": username, "email": email, "contact": contact},
+                "notes": {**notes, "bot": self.bot}
             }
             http_response = ActionUtility.execute_http_request(
                 headers=headers, http_url=ActionRazorpay.__URL, request_method="POST", request_body=body

@@ -754,6 +754,53 @@ def test_retrieve_config_failure():
 
 
 @responses.activate
+def test_process_razorpay_action_with_notes():
+    action_name = "test_process_razorpay_action_with_notes"
+    bot = "5f50fd0a56b698ca10d35d1z"
+
+    Actions(name=action_name, type=ActionType.razorpay_action.value, bot=bot, user='test_user').save()
+    RazorpayAction(
+        name=action_name,
+        api_key=CustomActionRequestParameters(value="API_KEY", parameter_type=ActionParameterType.key_vault),
+        api_secret=CustomActionRequestParameters(value="API_SECRET", parameter_type=ActionParameterType.key_vault),
+        amount=CustomActionRequestParameters(value="amount", parameter_type=ActionParameterType.slot),
+        currency=CustomActionRequestParameters(value="INR", parameter_type=ActionParameterType.value),
+        username=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
+        email=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
+        contact=CustomActionRequestParameters(value="contact", parameter_type=ActionParameterType.slot),
+        notes={"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj"},
+        bot=bot, user="udit.pandey@digite.com"
+    ).save()
+    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+    request_object["tracker"]["slots"]["bot"] = bot
+    request_object["tracker"]["slots"]["amount"] = 11000
+    request_object["tracker"]["slots"]["contact"] = "987654320"
+    request_object["next_action"] = action_name
+    request_object["tracker"]["sender_id"] = "udit.pandey"
+
+    response_object = json.load(open("tests/testing_data/actions/razorpay-success.json"))
+    responses.add(
+        "POST",
+        "https://api.razorpay.com/v1/payment_links/",
+        json=response_object,
+        match=[responses.matchers.json_params_matcher({
+            "amount": 11000, "currency": "INR",
+            "customer": {"username": "udit.pandey", "email": "udit.pandey", "contact": "987654320"},
+            "notes": {"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj", "bot": "5f50fd0a56b698ca10d35d1z"}
+        })]
+    )
+
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response_json == {'events': [{'event': 'slot', 'name': 'kairon_action_response',
+                                         'timestamp': None, 'value': 'https://rzp.io/i/nxrHnLJ'}],
+                             'responses': [{'attachment': None, 'buttons': [], 'custom': {},
+                                            'elements': [], 'image': None, 'response': None,
+                                            'template': None, 'text': 'https://rzp.io/i/nxrHnLJ'}]}
+
+
+@responses.activate
 def test_pyscript_action_execution():
     import textwrap
 
@@ -10014,6 +10061,7 @@ def test_process_razorpay_action():
         username=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
         email=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
         contact=CustomActionRequestParameters(value="contact", parameter_type=ActionParameterType.slot),
+        notes={"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj"},
         bot=bot, user="udit.pandey@digite.com"
     ).save()
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -10030,7 +10078,8 @@ def test_process_razorpay_action():
         json=response_object,
         match=[responses.matchers.json_params_matcher({
             "amount": 11000, "currency": "INR",
-            "customer": {"username": "udit.pandey", "email": "udit.pandey", "contact": "987654320"}
+            "customer": {"username": "udit.pandey", "email": "udit.pandey", "contact": "987654320"},
+            "notes": {"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj", "bot": "5f50fd0a56b698ca10d35d2e"}
         })]
     )
 

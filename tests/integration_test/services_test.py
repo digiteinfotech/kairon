@@ -1696,6 +1696,54 @@ def test_upload_with_bot_content_event_append_validate_payload_data():
     bot_settings.save()
 
 
+def test_add_razorpay_action_with_invalid_notes():
+    action_name = "razorpay_action"
+    action = {
+        "name": action_name,
+        "api_key": {"value": "API_KEY", "parameter_type": "key_vault"},
+        "api_secret": {"value": "API_SECRET", "parameter_type": "key_vault"},
+        "amount": {"value": "amount", "parameter_type": "slot"},
+        "currency": {"value": "INR", "parameter_type": "value"},
+        "username": {"parameter_type": "sender_id"},
+        "email": {"parameter_type": "sender_id"},
+        "contact": {"value": "contact", "parameter_type": "slot"},
+        'notes': ["phone_number", "order_id"]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'notes'], 'msg': 'value is not a valid dict', 'type': 'type_error.dict'}]
+    assert not actual["data"]
+
+    action = {
+        "name": action_name,
+        "api_key": {"value": "API_KEY", "parameter_type": "key_vault"},
+        "api_secret": {"value": "API_SECRET", "parameter_type": "key_vault"},
+        "amount": {"value": "amount", "parameter_type": "slot"},
+        "currency": {"value": "INR", "parameter_type": "value"},
+        "username": {"parameter_type": "sender_id"},
+        "email": {"parameter_type": "sender_id"},
+        "contact": {"value": "contact", "parameter_type": "slot"},
+        'notes': "phone_number, order_id"
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'notes'], 'msg': 'value is not a valid dict', 'type': 'type_error.dict'}]
+    assert not actual["data"]
+
+
 def test_get_collection_data_with_no_collection_data():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection",

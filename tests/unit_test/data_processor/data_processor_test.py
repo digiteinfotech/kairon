@@ -1018,6 +1018,38 @@ class TestMongoProcessor:
         user = 'test_user'
         with pytest.raises(AppException, match=f'Action with name "non_existent_kairon_faq_action" not found'):
             processor.delete_action('non_existent_kairon_faq_action', bot, user)
+    
+    def test_add_razorpay_action_with_invalid_notes(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action_name = 'razorpay_action'
+        action = {
+            'name': action_name,
+            'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+            'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
+            'amount': {"value": "amount", "parameter_type": "slot"},
+            'currency': {"value": "INR", "parameter_type": "value"},
+            'username': {"parameter_type": "sender_id"},
+            'email': {"parameter_type": "sender_id"},
+            'contact': {"value": "contact", "parameter_type": "slot"},
+            'notes': [{"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj"}]
+        }
+        with pytest.raises(ValidationError, match="notes is not a valid dict"):
+            processor.add_razorpay_action(action, bot, user)
+        action = {
+            'name': action_name,
+            'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+            'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
+            'amount': {"value": "amount", "parameter_type": "slot"},
+            'currency': {"value": "INR", "parameter_type": "value"},
+            'username': {"parameter_type": "sender_id"},
+            'email': {"parameter_type": "sender_id"},
+            'contact': {"value": "contact", "parameter_type": "slot"},
+            'notes': "Invalid notes"
+        }
+        with pytest.raises(ValidationError, match="notes is not a valid dict"):
+            processor.add_razorpay_action(action, bot, user)
 
     def test_get_live_agent(self):
         processor = MongoProcessor()
@@ -9886,6 +9918,7 @@ class TestMongoProcessor:
             'username': {"parameter_type": "sender_id"},
             'email': {"parameter_type": "sender_id"},
             'contact': {"value": "contact", "parameter_type": "slot"},
+            'notes': {"phone_number": "9876543210", "order_id": "dsjdksjdksjdksj"}
         }
         assert processor.add_razorpay_action(action, bot, user)
         assert Actions.objects(name=action_name, status=True, bot=bot).get()
@@ -9966,7 +9999,8 @@ class TestMongoProcessor:
                             'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
                                       'parameter_type': 'sender_id'},
                             'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
-                                        'value': 'contact', 'parameter_type': 'slot'}}]
+                                        'value': 'contact', 'parameter_type': 'slot'},
+                            'notes': {'phone_number': '9876543210', 'order_id': 'dsjdksjdksjdksj'}}]
 
     def test_list_razorpay_action_with_false(self):
         processor = MongoProcessor()
@@ -9988,7 +10022,8 @@ class TestMongoProcessor:
                             'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
                                       'parameter_type': 'sender_id'},
                             'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
-                                        'value': 'contact', 'parameter_type': 'slot'}}]
+                                        'value': 'contact', 'parameter_type': 'slot'},
+                            'notes': {'phone_number': '9876543210', 'order_id': 'dsjdksjdksjdksj'}}]
 
     def test_edit_razorpay_action_not_exists(self):
         processor = MongoProcessor()
@@ -10008,6 +10043,35 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match='Action with name "test_edit_razorpay_action_not_exists" not found'):
             processor.edit_razorpay_action(action, bot, user)
 
+
+    def test_edit_razorpay_action_with_invalid_notes(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action_name = 'razorpay_action'
+        action = {
+            'name': action_name,
+            'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+            'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
+            'amount': {"value": "amount", "parameter_type": "slot"},
+            'currency': {"value": "INR", "parameter_type": "value"},
+            'notes': ["phone_number", "9876543210"]
+        }
+        with pytest.raises(ValidationError, match="notes is not a valid dict"):
+            processor.edit_razorpay_action(action, bot, user)
+
+        action = {
+            'name': action_name,
+            'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+            'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
+            'amount': {"value": "amount", "parameter_type": "slot"},
+            'currency': {"value": "INR", "parameter_type": "value"},
+            'notes': "phone_number, 9876543210"
+        }
+        with pytest.raises(ValidationError, match="notes is not a valid dict"):
+            processor.edit_razorpay_action(action, bot, user)
+
+
     def test_edit_razorpay_action(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -10019,8 +10083,26 @@ class TestMongoProcessor:
             'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
             'amount': {"value": "amount", "parameter_type": "slot"},
             'currency': {"value": "INR", "parameter_type": "value"},
+            'notes': {"phone_number": "9876543210"}
         }
         assert not processor.edit_razorpay_action(action, bot, user)
+
+    def test_list_razorpay_action_after_update(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.get_razorpay_action_config(bot))
+        actions[0].pop("timestamp")
+        actions[0].pop("_id")
+        assert actions == [{'name': 'razorpay_action',
+                            'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
+                                        'value': 'API_KEY', 'parameter_type': 'key_vault'},
+                            'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret',
+                                           'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'},
+                            'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False,
+                                       'value': 'amount', 'parameter_type': 'slot'},
+                            'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False,
+                                         'value': 'INR', 'parameter_type': 'value'},
+                            'notes': {'phone_number': '9876543210'}}]
 
     def test_delete_razorpay_action(self):
         processor = MongoProcessor()
