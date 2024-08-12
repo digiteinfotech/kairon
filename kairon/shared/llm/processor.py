@@ -295,20 +295,25 @@ class LLMProcessor(LLMBase):
         return LLMLogs.objects(metadata__bot=bot).count()
 
     @staticmethod
-    def get_llm_models(bot: str):
+    def get_llm_metadata(bot: str):
         """
         Fetches the llm_type and corresponding models for a particular bot.
         :param bot: bot id
         :return: dictionary where each key is a llm_type and the value is a list of models.
         """
-        secrets = LLMSecret.objects(Q(bot=bot) | Q(bot__exists=False))
+        metadata = Utility.llm_metadata
+        llm_types = metadata.keys()
 
-        llm_models = {}
+        for llm_type in llm_types:
+            secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
+            if not secret:
+                secret = LLMSecret.objects(llm_type=llm_type, bot__exists=False).first()
 
-        for doc in secrets:
-            models = list(doc.models) if isinstance(doc.models, BaseList) else doc.models
-            if doc.bot == bot or not doc.bot:
-                if doc.llm_type not in llm_models:
-                    llm_models[doc.llm_type] = models
+            if secret:
+                models = list(secret.models) if isinstance(secret.models, BaseList) else secret.models
+            else:
+                models = []
 
-        return llm_models
+            metadata[llm_type]['properties']['model']['enum'] = models
+
+        return metadata

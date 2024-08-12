@@ -94,6 +94,8 @@ class Utility:
     environment = {}
     email_conf = {}
     system_metadata = {}
+    llm_metadata = {}
+    llm_metadata_file_path = "./metadata/llm_metadata.yml"
     password_policy = PasswordPolicy.from_names(
         length=10,  # min length: 8
         uppercase=1,  # need min. 1 uppercase letters
@@ -269,6 +271,8 @@ class Utility:
         """
         Utility.environment = ConfigLoader(os.getenv(env, "./system.yaml")).get_config()
         Utility.load_system_metadata()
+        llm_metadata_file = Utility.environment.get("llm_metadata_file", Utility.llm_metadata_file_path)
+        Utility.load_llm_metadata(file_path=llm_metadata_file)
 
     @staticmethod
     def load_system_metadata():
@@ -284,6 +288,16 @@ class Utility:
             Utility.system_metadata.update(
                 Utility.load_yaml(os.path.join(parent_dir, file))
             )
+
+    @staticmethod
+    def load_llm_metadata(file_path: str = llm_metadata_file_path):
+        """
+        Loads the metadata for LLM from the llm_metadata.yml file.
+
+        :return: None
+        """
+        Utility.llm_metadata = Utility.load_yaml(file_path)
+
 
     @staticmethod
     def retrieve_field_values(document: Document, field: str, *args, **kwargs):
@@ -2046,7 +2060,7 @@ class Utility:
 
     @staticmethod
     def get_llms():
-        return Utility.system_metadata.get("llm", {}).keys()
+        return Utility.llm_metadata.keys()
 
     @staticmethod
     def get_default_llm_hyperparameters():
@@ -2055,8 +2069,8 @@ class Utility:
     @staticmethod
     def get_llm_hyperparameters(llm_type):
         hyperparameters = {}
-        if llm_type in Utility.system_metadata["llm"].keys():
-            for key, value in Utility.system_metadata["llm"][llm_type]['properties'].items():
+        if llm_type in Utility.llm_metadata.keys():
+            for key, value in Utility.llm_metadata[llm_type]['properties'].items():
                 hyperparameters[key] = value["default"]
             return hyperparameters
         raise AppException(f"Could not find any hyperparameters for {llm_type} LLM.")
@@ -2065,7 +2079,7 @@ class Utility:
     def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, bot: str, exception_class):
         from jsonschema_rs import JSONSchema, ValidationError as JValidationError
         from .admin.data_objects import LLMSecret
-        schema = Utility.system_metadata["llm"][llm_type]
+        schema = Utility.llm_metadata[llm_type]
         if bot is not None:
             llm_secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
             if llm_secret:
