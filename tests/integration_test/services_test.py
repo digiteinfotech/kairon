@@ -1204,7 +1204,7 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
 
-def test_list_provider_models():
+def test_get_llm_metadata():
     secrets = [
         {
             "llm_type": "openai",
@@ -1237,7 +1237,7 @@ def test_list_provider_models():
     assert actual["data"]["claude"]["properties"]["model"]["enum"] == []
 
 
-def test_list_provider_models_bot_specific_model_exists():
+def test_get_llm_metadata_bot_specific_model_exists():
 
     secrets = [
         {

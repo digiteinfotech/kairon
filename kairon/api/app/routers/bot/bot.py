@@ -1687,10 +1687,10 @@ async def get_llm_logs(
 
 
 @router.get("/metadata/llm", response_model=Response)
-async def list_provider_models(
+async def get_llm_metadata(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)) -> Response:
     """
     Returns a list of LLMs and their corresponding models available for the bot.
     """
-    llm_models = LLMProcessor.get_llm_metadata(current_user.get_bot())
+    llm_models = LLMProcessor.fetch_llm_metadata(current_user.get_bot())
     return Response(data=llm_models)

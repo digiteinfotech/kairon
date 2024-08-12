@@ -295,7 +295,7 @@ class LLMProcessor(LLMBase):
         return LLMLogs.objects(metadata__bot=bot).count()
 
     @staticmethod
-    def get_llm_metadata(bot: str):
+    def fetch_llm_metadata(bot: str):
         """
         Fetches the llm_type and corresponding models for a particular bot.
         :param bot: bot id
