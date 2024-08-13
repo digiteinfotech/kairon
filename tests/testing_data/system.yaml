@@ -248,3 +248,5 @@ async_callback_action:
   url: ${ASYNC_CALLBACK_ACTION_SERVER_URL:"http://localhost:5059/callback"}
   pyscript:
     trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
+
+llm_metadata_file: "./tests/testing_data/llm_metadata.yml"

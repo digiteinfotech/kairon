@@ -1216,6 +1216,7 @@ class RazorpayActionRequest(BaseModel):
     username: CustomActionParameter = None
     email: CustomActionParameter = None
     contact: CustomActionParameter = None
+    notes: Optional[List[HttpActionParameters]]
 
 
 class IntegrationRequest(BaseModel):

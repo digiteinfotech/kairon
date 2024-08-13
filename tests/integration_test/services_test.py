@@ -1204,76 +1204,87 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
 
-def test_list_provider_models():
+def test_get_llm_metadata():
     secrets = [
         {
-            "llm_type": "commonllm",
-            "api_key": "common_api_key",
-            "models": ["common_model1", "common_model2"],
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
             "timestamp": datetime.utcnow()
-        }
+        },
     ]
 
     for secret in secrets:
         LLMSecret(**secret).save()
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/llm/models",
+        url=f"/api/bot/{pytest.bot}/metadata/llm",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"] is True
     assert actual["message"] is None
-    assert isinstance(actual["data"], dict)
-    assert "commonllm" in actual["data"]
-    assert actual["data"]["commonllm"] == ["common_model1", "common_model2"]
 
-def test_list_provider_models_bot_specific_model_exists():
-    LLMSecret.objects().delete()
+    assert "data" in actual
+    assert "openai" in actual["data"]
+    assert "model" in actual["data"]["openai"]["properties"]
+    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
+
+    assert "claude" in actual["data"]
+    assert "model" in actual["data"]["claude"]["properties"]
+    assert actual["data"]["claude"]["properties"]["model"]["enum"] == []
+    LLMSecret.objects.delete()
+
+
+def test_get_llm_metadata_bot_specific_model_exists():
+
     secrets = [
         {
-            "llm_type": "testllm",
-            "api_key": "test_api_key",
-            "models": ["model1", "model2", "model3"],
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "llm_type": "claude",
+            "api_key": "common_claude_key",
+            "models": ["common_claude_model1", "common_claude_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "llm_type": "claude",
+            "api_key": "custom_claude_key",
+            "models": ["common_claude_model1", "common_claude_model2", "custom_claude_model1"],
             "bot": pytest.bot,
-            "user": "test-user",
-            "timestamp": datetime.utcnow()
-        },
-        {
-            "llm_type": "testllm",
-            "api_key": "test_api_key2",
-            "models": ["model1", "model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        },
-        {
-            "llm_type": "commonllm",
-            "api_key": "common_api_key",
-            "models": ["common_model1", "common_model2"],
             "user": "123",
             "timestamp": datetime.utcnow()
         }
     ]
-
     for secret in secrets:
         LLMSecret(**secret).save()
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/llm/models",
+        url=f"/api/bot/{pytest.bot}/metadata/llm",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-
+    assert actual["error_code"] == 0
     assert actual["success"] is True
     assert actual["message"] is None
-    assert actual["error_code"] == 0
-    assert isinstance(actual["data"], dict)
-    assert "testllm" in actual["data"]
-    assert "commonllm" in actual["data"]
-    assert actual["data"]["testllm"] == ["model1", "model2", "model3"]
-    assert actual["data"]["commonllm"] == ["common_model1", "common_model2"]
+
+    assert "data" in actual
+    assert "openai" in actual["data"]
+    assert "model" in actual["data"]["openai"]["properties"]
+    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
+
+    assert "claude" in actual["data"]
+    assert "model" in actual["data"]["claude"]["properties"]
+    assert actual["data"]["claude"]["properties"]["model"]["enum"] == ["common_claude_model1", "common_claude_model2", "custom_claude_model1"]
+    LLMSecret.objects.delete()
 
 
 @responses.activate
@@ -24095,6 +24106,10 @@ def test_add_razorpay_action():
         "username": {"parameter_type": "sender_id"},
         "email": {"parameter_type": "sender_id"},
         "contact": {"value": "contact", "parameter_type": "slot"},
+        "notes": [
+            {"key": "order_id", "parameter_type": "slot", "value": "order_id"},
+            {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+        ]
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/razorpay",
@@ -24214,6 +24229,22 @@ def test_list_razorpay_actions():
                 "value": "contact",
                 "parameter_type": "slot",
             },
+            "notes": [
+                {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'order_id',
+                    'encrypt': False,
+                    'value': 'order_id',
+                    'parameter_type': 'slot'
+                },
+                {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'phone_number',
+                    'encrypt': False,
+                    'value': '9876543210',
+                    'parameter_type': 'value'
+                }
+            ]
         },
         {
             "name": "razorpay_action_required_values_only",
@@ -24245,6 +24276,7 @@ def test_list_razorpay_actions():
                 "value": "INR",
                 "parameter_type": "slot",
             },
+            "notes": []
         },
     ]
     assert actual["success"]
@@ -24261,6 +24293,9 @@ def test_edit_razorpay_action():
         "currency": {"value": "INR", "parameter_type": "slot"},
         "email": {"parameter_type": "sender_id"},
         "contact": {"value": "contact", "parameter_type": "value"},
+        "notes": [
+            {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+        ]
     }
 
     response = client.put(
@@ -24273,6 +24308,105 @@ def test_edit_razorpay_action():
     assert actual["error_code"] == 0
     assert actual["message"] == "Action updated!"
 
+
+def test_list_razorpay_actions_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    [v.pop("timestamp") for v in actual["data"]]
+    [action.pop("_id") for action in actual["data"]]
+    print(actual["data"])
+    assert actual["data"] == [
+        {
+            "name": "razorpay_action",
+            "api_key": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_key",
+                "encrypt": False,
+                "value": "API_KEY",
+                "parameter_type": "key_vault",
+            },
+            "api_secret": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_secret",
+                "encrypt": False,
+                "value": "API_SECRET",
+                "parameter_type": "key_vault",
+            },
+            "amount": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "amount",
+                "encrypt": False,
+                "value": "amount",
+                "parameter_type": "value",
+            },
+            "currency": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "currency",
+                "encrypt": False,
+                "value": "INR",
+                "parameter_type": "slot",
+            },
+            "email": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "email",
+                "encrypt": False,
+                "parameter_type": "sender_id",
+            },
+            "contact": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "contact",
+                "encrypt": False,
+                "value": "contact",
+                "parameter_type": "value",
+            },
+            "notes": [
+                {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'phone_number',
+                    'encrypt': False,
+                    'value': '9876543210',
+                    'parameter_type': 'value'
+                }
+            ]
+        },
+        {
+            "name": "razorpay_action_required_values_only",
+            "api_key": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_key",
+                "encrypt": False,
+                "value": "API_KEY",
+                "parameter_type": "value",
+            },
+            "api_secret": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_secret",
+                "encrypt": False,
+                "value": "API_SECRET",
+                "parameter_type": "value",
+            },
+            "amount": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "amount",
+                "encrypt": False,
+                "value": "amount",
+                "parameter_type": "value",
+            },
+            "currency": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "currency",
+                "encrypt": False,
+                "value": "INR",
+                "parameter_type": "slot",
+            },
+            "notes": []
+        },
+    ]
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 def test_edit_razorpay_action_required_config_missing():
     action_name = "razorpay_action"

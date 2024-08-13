@@ -859,6 +859,9 @@ class RazorpayAction(Auditlog):
     username = EmbeddedDocumentField(CustomActionRequestParameters)
     email = EmbeddedDocumentField(CustomActionRequestParameters)
     contact = EmbeddedDocumentField(CustomActionRequestParameters)
+    notes = ListField(
+        EmbeddedDocumentField(CustomActionRequestParameters), required=False
+    )
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
