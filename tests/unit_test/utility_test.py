@@ -2969,9 +2969,9 @@ class TestUtility:
 
     def test_get_llm_hyperparameters_not_found(self, monkeypatch):
         with pytest.raises(
-            AppException, match="Could not find any hyperparameters for claude LLM."
+            AppException, match="Could not find any hyperparameters for gemini LLM."
         ):
-            Utility.get_llm_hyperparameters("claude")
+            Utility.get_llm_hyperparameters("gemini")
 
     def test_get_client_ip_with_request_client(self):
         request = MagicMock()
