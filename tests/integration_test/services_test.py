@@ -1204,76 +1204,87 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
 
-def test_list_provider_models():
+def test_get_llm_metadata():
     secrets = [
         {
-            "llm_type": "commonllm",
-            "api_key": "common_api_key",
-            "models": ["common_model1", "common_model2"],
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
             "timestamp": datetime.utcnow()
-        }
+        },
     ]
 
     for secret in secrets:
         LLMSecret(**secret).save()
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/llm/models",
+        url=f"/api/bot/{pytest.bot}/metadata/llm",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"] is True
     assert actual["message"] is None
-    assert isinstance(actual["data"], dict)
-    assert "commonllm" in actual["data"]
-    assert actual["data"]["commonllm"] == ["common_model1", "common_model2"]
 
-def test_list_provider_models_bot_specific_model_exists():
-    LLMSecret.objects().delete()
+    assert "data" in actual
+    assert "openai" in actual["data"]
+    assert "model" in actual["data"]["openai"]["properties"]
+    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
+
+    assert "claude" in actual["data"]
+    assert "model" in actual["data"]["claude"]["properties"]
+    assert actual["data"]["claude"]["properties"]["model"]["enum"] == []
+    LLMSecret.objects.delete()
+
+
+def test_get_llm_metadata_bot_specific_model_exists():
+
     secrets = [
         {
-            "llm_type": "testllm",
-            "api_key": "test_api_key",
-            "models": ["model1", "model2", "model3"],
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "llm_type": "claude",
+            "api_key": "common_claude_key",
+            "models": ["common_claude_model1", "common_claude_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "llm_type": "claude",
+            "api_key": "custom_claude_key",
+            "models": ["common_claude_model1", "common_claude_model2", "custom_claude_model1"],
             "bot": pytest.bot,
-            "user": "test-user",
-            "timestamp": datetime.utcnow()
-        },
-        {
-            "llm_type": "testllm",
-            "api_key": "test_api_key2",
-            "models": ["model1", "model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        },
-        {
-            "llm_type": "commonllm",
-            "api_key": "common_api_key",
-            "models": ["common_model1", "common_model2"],
             "user": "123",
             "timestamp": datetime.utcnow()
         }
     ]
-
     for secret in secrets:
         LLMSecret(**secret).save()
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/llm/models",
+        url=f"/api/bot/{pytest.bot}/metadata/llm",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-
+    assert actual["error_code"] == 0
     assert actual["success"] is True
     assert actual["message"] is None
-    assert actual["error_code"] == 0
-    assert isinstance(actual["data"], dict)
-    assert "testllm" in actual["data"]
-    assert "commonllm" in actual["data"]
-    assert actual["data"]["testllm"] == ["model1", "model2", "model3"]
-    assert actual["data"]["commonllm"] == ["common_model1", "common_model2"]
+
+    assert "data" in actual
+    assert "openai" in actual["data"]
+    assert "model" in actual["data"]["openai"]["properties"]
+    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
+
+    assert "claude" in actual["data"]
+    assert "model" in actual["data"]["claude"]["properties"]
+    assert actual["data"]["claude"]["properties"]["model"]["enum"] == ["common_claude_model1", "common_claude_model2", "custom_claude_model1"]
+    LLMSecret.objects.delete()
 
 
 @responses.activate
