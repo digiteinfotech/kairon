@@ -92,7 +92,7 @@ class ChannelMessageDispatcher:
                 "timestamp": time.time(),
                 "sender_id": sender,
                 "data": {
-                    "message": message,
+                    "message": str(message),
                     "channel": channel
                 }
             })
