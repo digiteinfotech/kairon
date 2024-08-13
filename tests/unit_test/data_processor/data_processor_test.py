@@ -9886,6 +9886,10 @@ class TestMongoProcessor:
             'username': {"parameter_type": "sender_id"},
             'email': {"parameter_type": "sender_id"},
             'contact': {"value": "contact", "parameter_type": "slot"},
+            'notes': [
+                {"key": "order_id", "parameter_type": "slot", "value": "order_id"},
+                {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+            ]
         }
         assert processor.add_razorpay_action(action, bot, user)
         assert Actions.objects(name=action_name, status=True, bot=bot).get()
@@ -9952,21 +9956,74 @@ class TestMongoProcessor:
         actions = list(processor.get_razorpay_action_config(bot))
         actions[0].pop("timestamp")
         actions[0].pop("_id")
-        assert actions == [{'name': 'razorpay_action',
-                            'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
-                                        'value': 'API_KEY', 'parameter_type': 'key_vault'},
-                            'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret',
-                                           'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'},
-                            'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False,
-                                       'value': 'amount', 'parameter_type': 'slot'},
-                            'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False,
-                                         'value': 'INR', 'parameter_type': 'value'},
-                            'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False,
-                                         'parameter_type': 'sender_id'},
-                            'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
-                                      'parameter_type': 'sender_id'},
-                            'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
-                                        'value': 'contact', 'parameter_type': 'slot'}}]
+        assert actions == [
+            {
+                'name': 'razorpay_action',
+                'api_key': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_key',
+                    'encrypt': False,
+                    'value': 'API_KEY',
+                    'parameter_type': 'key_vault'
+                },
+                'api_secret': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_secret',
+                    'encrypt': False,
+                    'value': 'API_SECRET',
+                    'parameter_type': 'kay_vault'
+                },
+                'amount': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'amount',
+                    'encrypt': False,
+                    'value': 'amount',
+                    'parameter_type': 'slot'
+                },
+                'currency': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'currency',
+                    'encrypt': False,
+                    'value': 'INR',
+                    'parameter_type': 'value'
+                },
+                'username': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'username',
+                    'encrypt': False,
+                    'parameter_type': 'sender_id'
+                },
+                'email': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'email',
+                    'encrypt': False,
+                    'parameter_type': 'sender_id'
+                },
+                'contact': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'contact',
+                    'encrypt': False,
+                    'value': 'contact',
+                    'parameter_type': 'slot'
+                },
+                'notes': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'order_id',
+                        'encrypt': False,
+                        'value': 'order_id',
+                        'parameter_type': 'slot'
+                    },
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'phone_number',
+                        'encrypt': False,
+                        'value': '9876543210',
+                        'parameter_type': 'value'
+                    }
+                ]
+            }
+        ]
 
     def test_list_razorpay_action_with_false(self):
         processor = MongoProcessor()
@@ -9974,21 +10031,74 @@ class TestMongoProcessor:
         actions = list(processor.get_razorpay_action_config(bot, False))
         actions[0].pop("timestamp")
         assert actions[0].get("_id") is None
-        assert actions == [{'name': 'razorpay_action',
-                            'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
-                                        'value': 'API_KEY', 'parameter_type': 'key_vault'},
-                            'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret',
-                                           'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'},
-                            'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False,
-                                       'value': 'amount', 'parameter_type': 'slot'},
-                            'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False,
-                                         'value': 'INR', 'parameter_type': 'value'},
-                            'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False,
-                                         'parameter_type': 'sender_id'},
-                            'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
-                                      'parameter_type': 'sender_id'},
-                            'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
-                                        'value': 'contact', 'parameter_type': 'slot'}}]
+        assert actions == [
+            {
+                'name': 'razorpay_action',
+                'api_key': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_key',
+                    'encrypt': False,
+                    'value': 'API_KEY',
+                    'parameter_type': 'key_vault'
+                },
+                'api_secret': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_secret',
+                    'encrypt': False,
+                    'value': 'API_SECRET',
+                    'parameter_type': 'kay_vault'
+                },
+                'amount': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'amount',
+                    'encrypt': False,
+                    'value': 'amount',
+                    'parameter_type': 'slot'
+                },
+                'currency': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'currency',
+                    'encrypt': False,
+                    'value': 'INR',
+                    'parameter_type': 'value'
+                },
+                'username': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'username',
+                    'encrypt': False,
+                    'parameter_type': 'sender_id'
+                },
+                'email': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'email',
+                    'encrypt': False,
+                    'parameter_type': 'sender_id'
+                },
+                'contact': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'contact',
+                    'encrypt': False,
+                    'value': 'contact',
+                    'parameter_type': 'slot'
+                },
+                'notes': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'order_id',
+                        'encrypt': False,
+                        'value': 'order_id',
+                        'parameter_type': 'slot'
+                    },
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'phone_number',
+                        'encrypt': False,
+                        'value': '9876543210',
+                        'parameter_type': 'value'
+                    }
+                ]
+            }
+        ]
 
     def test_edit_razorpay_action_not_exists(self):
         processor = MongoProcessor()
@@ -10019,8 +10129,60 @@ class TestMongoProcessor:
             'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
             'amount': {"value": "amount", "parameter_type": "slot"},
             'currency': {"value": "INR", "parameter_type": "value"},
+            'notes': [
+                {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+            ]
         }
         assert not processor.edit_razorpay_action(action, bot, user)
+
+    def test_list_razorpay_action_after_update(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.get_razorpay_action_config(bot))
+        actions[0].pop("timestamp")
+        actions[0].pop("_id")
+        assert actions == [
+            {
+                'name': 'razorpay_action',
+                'api_key': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_key',
+                    'encrypt': False,
+                    'value': 'API_KEY',
+                    'parameter_type': 'key_vault'
+                },
+                'api_secret': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_secret',
+                    'encrypt': False,
+                    'value': 'API_SECRET',
+                    'parameter_type': 'kay_vault'
+                },
+                'amount': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'amount',
+                    'encrypt': False,
+                    'value': 'amount',
+                    'parameter_type': 'slot'
+                },
+                'currency': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'currency',
+                    'encrypt': False,
+                    'value': 'INR',
+                    'parameter_type': 'value'
+                },
+                'notes': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'phone_number',
+                        'encrypt': False,
+                        'value': '9876543210',
+                        'parameter_type': 'value'
+                    }
+                ]
+            }
+        ]
 
     def test_delete_razorpay_action(self):
         processor = MongoProcessor()
