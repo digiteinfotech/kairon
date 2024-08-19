@@ -13,7 +13,6 @@ from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect
-import pytz
 
 from kairon.events.executors.lamda import LambdaExecutor
 from kairon.shared.callback.data_objects import CallbackConfig
@@ -13736,4 +13735,3 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_jobstore, mock_e
     assert args[1].__self__.__class__.__name__ == 'LambdaExecutor'
     assert args[2].run_date.strftime("%Y-%m-%d %H:%M:%S") == date_str
     assert args[2].run_date.tzinfo.zone == timezone
-
