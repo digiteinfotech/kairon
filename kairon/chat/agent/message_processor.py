@@ -87,6 +87,7 @@ class KaironMessageProcessor(MessageProcessor):
 
         # action loop. predicts actions until we hit action listen
         predicted_action_count = 0
+        last_predicted_action = None
         while should_predict_another_action and self._should_handle_message(tracker):
             # this actually just calls the policy's method by the same name
             try:
@@ -96,14 +97,20 @@ class KaironMessageProcessor(MessageProcessor):
                     )
 
                 action, prediction = self.predict_next_with_tracker_if_should(tracker)
-                actions_predicted.append(
-                    {
-                        "action_name": action.name(),
-                        "max_confidence": prediction.max_confidence,
-                        "policy_name": prediction.policy_name,
-                    }
-                )
-                predicted_action_count += 1
+                if action.name() != last_predicted_action:
+                    actions_predicted.append(
+                        {
+                            "action_name": action.name(),
+                            "max_confidence": prediction.max_confidence,
+                            "policy_name": prediction.policy_name,
+                        }
+                    )
+                    predicted_action_count += 1
+                    last_predicted_action = action.name()
+                else:
+                    raise ActionLimitReached(
+                        "Same action has been predicted again"
+                    )
             except ActionLimitReached:
                 logger.warning(
                     "Circuit breaker tripped. Stopped predicting "

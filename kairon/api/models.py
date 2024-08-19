@@ -1309,7 +1309,7 @@ class ScheduleActionRequest(BaseModel):
     timezone: str = None
     schedule_action: str
     response_text: Optional[str]
-    params_list: Optional[List[CustomActionParameter]]
+    params_list: Optional[List[HttpActionParameters]]
     dispatch_bot_response: bool = True
 
     @root_validator
