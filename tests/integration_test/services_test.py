@@ -3012,6 +3012,39 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual["data"][0]["dispatch_response"]
 
 
+def test_add_schedule_action_with_invalid_params_list_values():
+    schedule_action_data = {
+        "name": "test_schedule_action",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "test_pyscript",
+        "response_text": "action scheduled",
+        "params_list": [
+            {
+                "value": "param_1",
+                "parameter_type": "value",
+                "count": 0
+            }
+        ],
+        "dispatch_bot_response": True
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        json=schedule_action_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert not actual["data"]
+    assert actual["message"] ==  [
+        {'loc': ['body', 'params_list', 0, 'key'], 'msg': 'field required', 'type': 'value_error.missing'}, 
+        {'loc': ['body', 'params_list', 0, '__root__'], 'msg': 'key cannot be empty', 'type': 'value_error'}
+    ]
+    assert actual["error_code"] == 422
+
+
+
 def test_add_schedule_action():
     schedule_action_data = {
         "name": "test_schedule_action",
@@ -3021,6 +3054,7 @@ def test_add_schedule_action():
         "response_text": "action scheduled",
         "params_list": [
             {
+                "key": "param_key",
                 "value": "param_1",
                 "parameter_type": "value",
                 "count": 0
@@ -3062,6 +3096,39 @@ def test_add_schedule_action_exists():
     assert actual["message"] == "Action exists!"
 
 
+def test_list_schedule_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    data = actual["data"]
+    for item in data:
+        item.pop('_id')
+    assert data == [
+        {
+            'name': 'test_schedule_action', 
+            'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'}, 
+            'timezone': 'UTC', 
+            'schedule_action': 'test_pyscript',
+            'response_text': 'action scheduled',
+            'params_list': [
+                {
+                    '_cls': 'CustomActionRequestParameters', 
+                    'key': 'param_key', 
+                    'encrypt': False, 
+                    'value': 'param_1',
+                    'parameter_type': 'value'
+                }
+            ], 
+            'dispatch_bot_response': True
+        }
+    ]
+
+
 def test_update_schedule_action_update_scheduled_action():
     schedule_action_data = {
         "name": "test_schedule_action",
@@ -3071,6 +3138,7 @@ def test_update_schedule_action_update_scheduled_action():
         "response_text": "action scheduled, will be notified",
         "params_list": [
             {
+                "key": "updated_key",
                 "value": "param_2",
                 "parameter_type": "value",
                 "count": 0
@@ -3092,6 +3160,39 @@ def test_update_schedule_action_update_scheduled_action():
     action = action.to_mongo().to_dict()
     assert action.get("schedule_action") == "test_pyscript_new"
     assert action.get("response_text") == "action scheduled, will be notified"
+
+
+def test_list_schedule_action_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    data = actual["data"]
+    for item in data:
+        item.pop('_id')
+    assert data == [
+        {
+            'name': 'test_schedule_action', 
+            'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'}, 
+            'timezone': 'UTC', 
+            'schedule_action': 'test_pyscript_new', 
+            'response_text': 'action scheduled, will be notified', 
+            'params_list': [
+                {
+                    '_cls': 'CustomActionRequestParameters', 
+                    'key': 'updated_key',
+                    'encrypt': False, 
+                    'value': 'param_2', 
+                    'parameter_type': 'value'
+                }
+            ], 
+            'dispatch_bot_response': True
+        }
+    ]
 
 
 def test_initiate_bsp_onboarding_for_broadcast(monkeypatch):

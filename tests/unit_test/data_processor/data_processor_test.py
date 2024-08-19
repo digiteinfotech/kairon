@@ -16711,7 +16711,13 @@ class TestModelProcessor:
             "timezone": None,
             "schedule_action": "test_pyscript",
             "response_text": "action scheduled",
-            "params_list": [],
+            "params_list": [
+                {
+                    "key": "param_key",
+                    "value": "param_1",
+                    "parameter_type": "value",
+                }
+            ],
             "dispatch_bot_response": True
         }
 
@@ -16720,6 +16726,27 @@ class TestModelProcessor:
 
         actual_data = list(processor.list_schedule_action(bot))
         assert expected_data.get("name") == actual_data[0]["name"]
+        for data in actual_data:
+            data.pop("_id")
+        assert actual_data == [
+            {
+                'name': 'test_schedule_action',
+                'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'},
+                'timezone': 'UTC',
+                'schedule_action': 'test_pyscript',
+                'response_text': 'action scheduled',
+                'params_list': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'param_key',
+                        'encrypt': False,
+                        'value': 'param_1',
+                        'parameter_type': 'value'
+                    }
+                ],
+                'dispatch_bot_response': True
+            }
+        ]
 
     def test_add_schedule_action_duplicate(self):
         bot = "testbot"
@@ -16811,6 +16838,53 @@ class TestModelProcessor:
         actual_data = list(processor.list_schedule_action(bot))
         assert expected_data.get("name") == actual_data[0]["name"]
         assert expected_data.get("schedule_action") == actual_data[0]["schedule_action"]
+
+    def test_update_schedule_action_params_list(self):
+        bot = "testbot"
+        user = "testuser"
+        expected_data = {
+            "name": "test_schedule_action",
+            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": "test_pyscript_new",
+            "response_text": "action scheduled",
+            "params_list": [
+                {
+                    "key": "updated_key",
+                    "value": "param_2",
+                    "parameter_type": "value",
+                }
+            ],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        processor.update_schedule_action(expected_data, bot, user)
+
+        actual_data = list(processor.list_schedule_action(bot))
+        assert expected_data.get("name") == actual_data[0]["name"]
+        assert expected_data.get("schedule_action") == actual_data[0]["schedule_action"]
+        for data in actual_data:
+            data.pop("_id")
+        assert actual_data == [
+            {
+                'name': 'test_schedule_action',
+                'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'},
+                'timezone': 'UTC',
+                'schedule_action': 'test_pyscript_new',
+                'response_text': 'action scheduled',
+                'params_list': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'updated_key',
+                        'encrypt': False,
+                        'value': 'param_2',
+                        'parameter_type': 'value'
+                    }
+                ],
+                'dispatch_bot_response': True
+            }
+        ]
 
     def test_update_schedule_action_schedule_time_param_type(self):
         bot = "testbot"
