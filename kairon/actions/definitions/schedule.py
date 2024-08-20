@@ -79,7 +79,7 @@ class ActionSchedule(ActionsBase):
                                                               self.bot)
             logger.info(f"schedule_action: {schedule_action}, schedule_time: {schedule_time}")
 
-            schedule_data, schedule_data_log = ActionUtility.prepare_request(tracker_data,
+            schedule_data, schedule_data_log = ActionUtility.prepare_request_with_bot(tracker_data,
                                                                              action_config['params_list'],
                                                                              self.bot)
             logger.info("schedule_data: " + str(schedule_data_log))
