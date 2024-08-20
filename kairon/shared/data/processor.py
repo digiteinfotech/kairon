@@ -7899,9 +7899,24 @@ class MongoProcessor:
         pyscript_code = request_data.get("pyscript_code")
         validation_secret = request_data.get("validation_secret")
         execution_mode = request_data.get("execution_mode")
+        shorten_token = request_data.get("shorten_token")
+        standalone = request_data.get("standalone")
+        expires_in = request_data.get("expires_in")
+        standalone_id_path = request_data.get("standalone_id_path")
+        if standalone:
+            if len(standalone_id_path) == 0:
+                raise AppException("Standalone id path is required!")
         if not validation_secret:
             validation_secret = str(uuid7().hex)
-        config = CallbackConfig.create_entry(bot, name, pyscript_code, validation_secret, execution_mode)
+        config = CallbackConfig.create_entry(bot,
+                                             name,
+                                             pyscript_code,
+                                             validation_secret,
+                                             execution_mode,
+                                             expires_in,
+                                             shorten_token,
+                                             standalone,
+                                             standalone_id_path)
         config.pop('_id')
         return config
 

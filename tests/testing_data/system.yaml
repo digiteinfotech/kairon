@@ -246,6 +246,7 @@ live_agent:
 
 async_callback_action:
   url: ${ASYNC_CALLBACK_ACTION_SERVER_URL:"http://localhost:5059/callback"}
+  xor_secret: ${ASYNC_CALLBACK_XOR_SECRET:"b9d018suvbgaboueubvsbusnvsvedvsuuawa32_fseubelvs"}
   pyscript:
     trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
 

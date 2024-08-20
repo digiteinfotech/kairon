@@ -1292,6 +1292,10 @@ class CallbackConfigRequest(BaseModel):
     pyscript_code: str
     validation_secret: str = None
     execution_mode: str = CallbackExecutionMode.ASYNC.value
+    standalone: bool = False
+    shorten_token: bool = False
+    standalone_id_path: str = ''
+    expires_in: int = 0
 
 
 class CallbackActionConfigRequest(BaseModel):

@@ -189,6 +189,7 @@ def test_callback_action_execution(aioresponses):
     log.pop('_id')
     log.pop('timestamp')
     log.pop('callback_url')
+    log.pop('identifier')
     assert log == {'type': 'callback_action', 'intent': 'live_agent_action',
                    'action': 'callback_action1', 'sender': 'default',
                    'headers': {}, 'bot_response': 'Hello',
@@ -302,6 +303,7 @@ def test_callback_action_execution_fail_no_callback_config(aioresponses):
     log.pop('_id')
     log.pop('timestamp')
     log.pop('callback_url')
+    log.pop('identifier')
     assert log == {'type': 'callback_action', 'intent': 'live_agent_action',
                    'action': 'callback_action2', 'sender': 'default',
                    'headers': {}, 'bot_response': 'Hello',

@@ -69,6 +69,7 @@ class ActionCallback(ActionsBase):
         callback_url = None
         metadata_log = []
         dynamic_url_slot_name = None
+        identifier = None
         try:
             action_config = self.retrieve_config()
             dispatch_bot_response = action_config.get('dispatch_bot_response', True)
@@ -81,16 +82,19 @@ class ActionCallback(ActionsBase):
             channel = CONST_AVAILABLE_CHANNEL_NAME_MAP.get(channel_key, f'unsupported ({channel_key})')
             tracker_data = ActionUtility.build_context(tracker, True)
             tracker_data.update({'bot': self.bot})
-            metadata, metadata_log = ActionUtility.prepare_request(tracker_data, metadata_list, self.bot)
-            callback_url = CallbackData.create_entry(
+            metadata, metadata_log = ActionUtility.prepare_request_with_bot(tracker_data, metadata_list, self.bot)
+            callback_url, identifier, standalone = CallbackData.create_entry(
                 name=self.name,
                 callback_config_name=callback_name,
                 bot=self.bot,
                 sender_id=sender_id,
                 channel=channel,
-                metadata=metadata
+                metadata=metadata,
             )
-            filled_slots.update({dynamic_url_slot_name: callback_url})
+            if standalone:
+                filled_slots.update({dynamic_url_slot_name: identifier})
+            else:
+                filled_slots.update({dynamic_url_slot_name: callback_url})
 
         except Exception as e:
             exception = e
@@ -100,7 +104,8 @@ class ActionCallback(ActionsBase):
             bot_response = bot_response if bot_response else "Sorry, I am unable to process your request at the moment."
         finally:
             if dispatch_bot_response:
-                bot_response = bot_response.replace("{callback_url}", callback_url)
+                if bot_response and callback_url:
+                    bot_response = bot_response.replace("{callback_url}", callback_url)
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, DispatchType.text.value, bot_response)
                 if message:
                     msg_logger.append(message)
@@ -117,6 +122,7 @@ class ActionCallback(ActionsBase):
                 user_msg=tracker.latest_message.get('text'),
                 callback_url=callback_url,
                 callback_url_slot=dynamic_url_slot_name,
+                identifier=identifier,
                 metadata=metadata_log
             ).save()
         return filled_slots

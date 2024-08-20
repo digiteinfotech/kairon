@@ -1,4 +1,6 @@
+import json
 import os
+from datetime import time
 
 import pytest
 from unittest.mock import patch, MagicMock
@@ -13,6 +15,9 @@ from kairon.exceptions import AppException
 from kairon.shared.callback.data_objects import (
     check_nonempty_string,
     encrypt_secret,
+    decrypt_secret,
+    xor_encrypt_secret,
+    xor_decrypt_secret,
     CallbackConfig,
     CallbackData,
     CallbackRecordStatusType,
@@ -28,20 +33,20 @@ def mock_environment(monkeypatch):
     callback_data_1 = {"action_name": "callback_action1", "callback_name": "callback_script2",
                        "bot": "6697add6b8e47524eb983373", "sender_id": "5489844732", "channel": "telegram",
                        "metadata": {"happy": "i am happy : )"}, "identifier": "019107c7570577a6b0f279b4038c4a8f",
-                       "callback_url": "http://localhost:5059/callback/6697add6b8e47524eb983373/callback_action1/019107c7570577a6b0f279b4038c4a8f?token=gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox-CLU5_s7f-uMyncxWyaPV0i0oLE9skkZA",
+                       "callback_url": "http://localhost:5059/callback/d/01916946f81c7eba899dd82b45350784/VQEBBAcPVwVeD18HB1IBUVNeVVsLUgBUBABZV1JSBFM=",
                        "execution_mode": "sync"}
     callback_data_2 = {"action_name": "callback_action2", "callback_name": "callback_script3",
                        "bot": "6697add6b8e47524eb983373", "sender_id": "5489844732", "channel": "telegram",
                        "metadata": {"happy": "i am happy : )"}, "identifier": "019107c7570577a6b0f279b4038c4a8a",
-                       "callback_url": "http://localhost:5059/callback/6697add6b8e47524eb983373/callback_action1/019107c7570577a6b0f279b4038c4a8f?token=gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox-CLU5_s7f-uMyncxWyaPV0i0oLE9skkZA",
+                       "callback_url": "http://localhost:5059/callback/d/01916946f81c7eba899dd82b45350784/VQEBBAcPVwVeD18HB1IBUVNeVVsLUgBUBABZV1JSBFM=",
                        "execution_mode": "sync"}
     callback_config_1 = {"name": "callback_script2",
                          "pyscript_code": "bot_response = f\"{req['dynamic_param']} {metadata['happy']}\"",
-                         "validation_secret": "gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox-CLU5_s7f-uMyncxWyaPV0i0oLE9skkZA",
+                         "validation_secret": "0191695805617deabc2ba8ea5ee774da",
                          "execution_mode": "sync", "bot": "6697add6b8e47524eb983373"}
     callback_config_2 = {"name": "callback_script3",
                          "pyscript_code": "bot_response = f\"{req['dynamic_param']} {metadata['happy']}\"",
-                         "validation_secret": "gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox-CLU5_s7f-uMyncxWyaPV0i0oLE9skkZA",
+                         "validation_secret": "0191695805617deabc2ba8ea5ee774da",
                          "execution_mode": "async", "bot": "6697add6b8e47524eb983373"}
 
     CallbackData.objects.insert(CallbackData(**callback_data_1))
@@ -64,7 +69,15 @@ def test_check_nonempty_string():
 def test_encrypt_secret():
     secret = "my_secret"
     encrypted = encrypt_secret(secret)
-    assert len(encrypted) == 24
+    decrypted_secret = decrypt_secret(encrypted)
+    assert len(encrypted) == 100
+    assert decrypted_secret == secret
+
+def test_xor_encrypt_secret():
+    secret = "my_secret"
+    encrypted = xor_encrypt_secret(secret)
+    decrypted_secret = xor_decrypt_secret(encrypted)
+    assert decrypted_secret == secret
 
 @patch("kairon.shared.callback.data_objects.CallbackConfig.save", MagicMock())
 def test_create_callback_config():
@@ -103,7 +116,7 @@ def test_get_callback_config_not_found(mock_objects):
 
 
 @patch("kairon.shared.callback.data_objects.CallbackData.save", MagicMock())
-@patch("kairon.shared.callback.data_objects.CallbackConfig.get_auth_token", MagicMock(return_value="auth_token"))
+@patch("kairon.shared.callback.data_objects.CallbackConfig.get_auth_token", MagicMock(return_value=("auth_token", False)))
 def test_create_callback_data():
     data = {
         "name": "test_action",
@@ -113,9 +126,38 @@ def test_create_callback_data():
         "channel": "test_channel",
         "metadata": {}
     }
-    url = CallbackData.create_entry(**data)
-    assert "/callback/test_bot/test_action/" in url
-    assert "?token=auth_token" in url
+    url, identifier, is_standalone = CallbackData.create_entry(**data)
+    assert "/callback/d" in url
+    assert "/auth_token" in url
+
+
+def test_get_value_from_json():
+    json_obj = {"key1": {"key2": "value"}}
+    path = "key1.key2"
+    assert CallbackData.get_value_from_json(json_obj, path) == "value"
+
+    json_obj = {"key1": {"key2": {
+        "apple": 'my apple',
+        "banana": 'my banana',
+    }}}
+    path = "key1.key2.banana"
+    assert CallbackData.get_value_from_json(json_obj, path) == "my banana"
+
+    json_obj = {"key1": {"key2": ["value0", "value1", "value2"]}}
+    path = "key1.key2.1"
+    assert CallbackData.get_value_from_json(json_obj, path) == "value1"
+
+    json_obj = {"key1": {"key2": {"key3": "value"}}}
+    path = "key1.key2.key4"
+    with pytest.raises(AppException, match="Cannot find identifier at path 'key1.key2.key4' in request data!"):
+        CallbackData.get_value_from_json(json_obj, path)
+
+    json_obj = "invalid_json"
+    path = "key1.key2.key3"
+    with pytest.raises(AppException):
+        CallbackData.get_value_from_json(json_obj, path)
+
+
 
 
 @patch("kairon.shared.callback.data_objects.CallbackLog.save", MagicMock())
@@ -158,26 +200,68 @@ def test_create_callback_log_failure():
     assert result["status"] == CallbackRecordStatusType.FAILED.value
 
 
-def test_validate_callback_data():
-    # Test case where all parameters are valid
+
+def test_validate_entry():
+    # Arrange
+    mock_token = "mock_token"
+    mock_identifier = "mock_identifier"
+    mock_request_body = {"key": "value"}
+
+    with patch('kairon.shared.callback.data_objects.check_nonempty_string'), \
+         patch.object(CallbackConfig, 'verify_auth_token') as mock_verify_auth_token, \
+         patch.object(CallbackData, 'get_value_from_json') as mock_get_value_from_json, \
+         patch('kairon.shared.callback.data_objects.CallbackData.objects') as mock_objects, \
+         patch('kairon.shared.callback.data_objects.time.time') as mock_time:
+
+        mock_config_entry = MagicMock()
+        mock_config_entry.standalone = False
+        mock_config_entry.expire_in = 0
+        mock_config_entry.bot = "mock_bot"
+        mock_config_entry.to_mongo().to_dict.return_value = {"config": "entry"}
+
+        mock_record = MagicMock()
+        mock_record.is_valid = True
+        mock_record.timestamp = 0
+        mock_mongo = MagicMock()
+        mock_mongo.to_dict.return_value = {"record": "entry"}
+        mock_record.to_mongo.return_value = mock_mongo
+
+        mock_verify_auth_token.return_value = mock_config_entry
+        mock_get_value_from_json.return_value = mock_identifier
+        mock_objects.first.return_value = mock_record
+        mock_time.return_value = 0
+
+        # Act
+        result = CallbackData.validate_entry(mock_token, mock_identifier, mock_request_body)
+
+        # Assert
+        assert result[1] == {"config": "entry"}
+
+
+@patch("kairon.shared.callback.data_objects.CallbackConfig.verify_auth_token")
+def test_validate_callback_data(mock_verify_auth_token):
+    # Create a mock config_entry object
+    mock_config_entry = MagicMock()
+    mock_config_entry.standalone = False
+    mock_config_entry.expire_in = 0
+    mock_config_entry.bot = "6697add6b8e47524eb983373"
+    mock_config_entry.to_mongo().to_dict.return_value = {"config": "entry"}
+
+    mock_verify_auth_token.return_value = mock_config_entry
+
     with patch("kairon.Utility.is_exist", return_value=True):
-        result = CallbackData.validate_entry("6697add6b8e47524eb983373", "callback_action1", "019107c7570577a6b0f279b4038c4a8f", "gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox")
-        assert result["identifier"] == "019107c7570577a6b0f279b4038c4a8f", "Expected identifier to be 'new_identifier'"
+        result = CallbackData.validate_entry("VQEBBAcPVwVeD18HB1IBUVNeVVsLUgBUBABZV1JSBFM=", "019107c7570577a6b0f279b4038c4a8f", {})
+        print(result)
+        assert result == ({'action_name': 'callback_action1', 'callback_name': 'callback_script2', 'bot': '6697add6b8e47524eb983373', 'sender_id': '5489844732', 'channel': 'telegram', 'metadata': {'happy': 'i am happy : )'}, 'identifier': '019107c7570577a6b0f279b4038c4a8f', 'callback_url': 'http://localhost:5059/callback/d/01916946f81c7eba899dd82b45350784/VQEBBAcPVwVeD18HB1IBUVNeVVsLUgBUBABZV1JSBFM=', 'execution_mode': 'sync', 'state': 0, 'is_valid': True}, {'config': 'entry'})
 
-    # Test case where action_name does not match
-    with pytest.raises(AppException, match="Invalid identifier!"):
-        CallbackData.validate_entry("6697add6b8e47524eb983373", "callback_action1ad", "019107c7570577a6b0f279b4038c4a8f", "gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox")
+        mock_verify_auth_token.assert_called_once_with("VQEBBAcPVwVeD18HB1IBUVNeVVsLUgBUBABZV1JSBFM=")
 
-    # Test case where validation_secret is invalid
-    with patch("kairon.Utility.is_exist", return_value=False):
-        with pytest.raises(AppException, match="Invalid validation secret!"):
-            CallbackData.validate_entry("6697add6b8e47524eb983373", "callback_action1", "019107c7570577a6b0f279b4038c4a8f", "wrong_secret")
 
 @patch("kairon.shared.callback.data_objects.CallbackData.objects")
 def test_validate_callback_data_invalid(mock_objects):
     mock_objects.return_value.first.return_value = None
     with pytest.raises(AppException):
-        CallbackData.validate_entry("6697add6b8e47524eb983373", "test_name", "identifier", "valid_secret")
+        CallbackData.validate_entry("VQEBBAcPVwVeD18HB1IBUVNeVVsLUgBUBABZV1JSBFM=", "test_name", {})
 
 @pytest.mark.asyncio
 async def test_handle_whatsapp():
@@ -235,7 +319,6 @@ async def test_handle_default():
 @patch('kairon.async_callback.channel_message_dispacher.ChatDataProcessor.get_channel_config')
 @patch('kairon.async_callback.channel_message_dispacher.MessageBroadcastProcessor.get_db_client')
 async def test_dispatch_message_channel(mock_get_db_client, mock_get_channel_config, mock_handle_default, mock_handle_instagram, mock_handle_facebook, mock_handle_telegram, mock_handle_whatsapp):
-    # Arrange
     bot = 'Test bot'
     sender = 'Test sender'
     message = 'Test message'
@@ -244,10 +327,8 @@ async def test_dispatch_message_channel(mock_get_db_client, mock_get_channel_con
     mock_db_collection = MagicMock()
     mock_get_db_client.return_value = mock_db_collection
 
-    # Act
     await ChannelMessageDispatcher.dispatch_message(bot, sender, message, channel)
 
-    # Assert
     mock_handle_whatsapp.assert_called_once_with(bot, mock_get_channel_config.return_value['config'], sender, message)
     mock_get_db_client.assert_called_once_with(bot)
     mock_db_collection.insert_one.assert_called_once()
@@ -303,7 +384,6 @@ from kairon.async_callback.processor import CallbackProcessor
 @patch('kairon.async_callback.processor.CloudUtility')
 @patch('kairon.async_callback.processor.Utility')
 def test_run_pyscript(mock_utility, mock_cloud_utility):
-    # Arrange
     mock_utility.environment = {'async_callback_action': {'pyscript': {'trigger_task': True}}}
     mock_cloud_utility.trigger_lambda.return_value = {
         'Payload': {
@@ -323,7 +403,7 @@ def test_run_pyscript(mock_utility, mock_cloud_utility):
         'predefined_objects': predefined_objects
     })
     mock_cloud_utility.lambda_execution_failed.assert_called_once_with(mock_cloud_utility.trigger_lambda.return_value)
-    assert result == 'Test response'
+    assert result == {'bot_response': 'Test response'}
 
 
 import asyncio
@@ -352,7 +432,7 @@ def mock_executor():
 async def test_run_pyscript_async_success(mock_script, mock_predefined_objects, mock_callback, mock_executor):
     with patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript', return_value="execution_result"):
         CallbackProcessor.run_pyscript_async(mock_script, mock_predefined_objects, mock_callback)
-        await asyncio.sleep(0.1)  # Give time for the async task to complete
+        await asyncio.sleep(0.1)
 
         mock_callback.assert_called_once_with({'result': 'execution_result'})
 
@@ -360,7 +440,7 @@ async def test_run_pyscript_async_success(mock_script, mock_predefined_objects, 
 async def test_run_pyscript_async_exception(mock_script, mock_predefined_objects, mock_callback, mock_executor):
     with patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript', side_effect=AppException("execution_error")):
         CallbackProcessor.run_pyscript_async(mock_script, mock_predefined_objects, mock_callback)
-        await asyncio.sleep(0.1)  # Give time for the async task to complete
+        await asyncio.sleep(0.1)
 
         mock_callback.assert_called_once_with({'error': 'execution_error'})
 
@@ -375,10 +455,10 @@ async def test_run_pyscript_async_submit_exception(mock_script, mock_predefined_
 @patch('kairon.async_callback.processor.ChannelMessageDispatcher.dispatch_message')
 @patch('kairon.async_callback.processor.CallbackLog.create_success_entry')
 @patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
-async def test_async_callback(mock_failure_entry, mock_success_entry, mock_dispatch_message):
-    # Arrange
-    obj = {'result': 'Test result'}
-    ent = {'action_name': 'Test action', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
+@patch('kairon.shared.callback.data_objects.CallbackData.update_state')
+async def test_async_callback(mock_update_state, mock_failure_entry, mock_success_entry, mock_dispatch_message):
+    obj = {'result': {'bot_response': 'Test result'}}
+    ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
     cb = {'pyscript_code': 'Test code'}
     c_src = 'Test source'
     bot_id = 'Test bot'
@@ -388,11 +468,11 @@ async def test_async_callback(mock_failure_entry, mock_success_entry, mock_dispa
 
     await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
 
-    mock_dispatch_message.assert_called_once_with(bot_id, sid, obj['result'], chnl)
+    mock_dispatch_message.assert_called_once_with(bot_id, sid, obj['result']['bot_response'], chnl)
     mock_success_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id,
                                                channel=chnl,
                                                identifier=ent['identifier'],
-                                               pyscript_code=cb['pyscript_code'], sender_id=sid, log=obj['result'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+                                               pyscript_code=cb['pyscript_code'], sender_id=sid, log=obj['result']['bot_response'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
     mock_failure_entry.assert_not_called()
 
 @pytest.mark.asyncio
@@ -415,12 +495,40 @@ async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_
     mock_success_entry.assert_not_called()
     mock_failure_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
                                                channel=chnl,
-                                               pyscript_code=cb['pyscript_code'], sender_id=sid,
-                                               error_log=f"Error while executing pyscript: {obj['error']}",
-                                               request_data=rd, metadata=ent['metadata'],
-                                               callback_url=ent['callback_url'], callback_source=c_src
-                                               )
+                                               pyscript_code=cb['pyscript_code'], sender_id=sid, error_log=f"Error while executing pyscript: {obj['error']}", request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
 
 
 
 
+@patch('kairon.shared.callback.data_objects.CallbackConfig.objects')
+@patch('kairon.shared.callback.data_objects.xor_decrypt_secret')
+@patch('kairon.shared.callback.data_objects.decrypt_secret')
+def test_verify_auth_token(mock_decrypt_secret, mock_xor_decrypt_secret, mock_objects):
+    # Mock the CallbackConfig objects
+    mock_config = MagicMock()
+    mock_config.bot = "test_bot"
+    mock_config.name = "test_name"
+    mock_config.validation_secret = "test_secret"
+
+    # Use the same mock_config for both the first() and objects.first() calls
+    mock_objects.first.return_value = mock_config
+    mock_objects.return_value.first.return_value = mock_config
+
+    # Mock the decrypt_secret and xor_decrypt_secret functions
+    mock_decrypt_secret.return_value = json.dumps({
+        "bot": "test_bot",
+        "callback_name": "test_name",
+        "validation_secret": "test_secret"
+    })
+    mock_xor_decrypt_secret.return_value = "test_key"
+
+    # Test with valid token
+    token = "valid_token"
+    result = CallbackConfig.verify_auth_token(token)
+    assert result == mock_config, "Expected the returned config to be the mock config"
+
+
+def test_verify_auth_token_invalid():
+    token = "VABBBAcPVwVeD18HB1IBUVNeVVsLUgBUBABZV1JSBFM="
+    with pytest.raises(AppException, match="Invalid token!"):
+        CallbackConfig.verify_auth_token(token)

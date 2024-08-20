@@ -1,10 +1,14 @@
+import base64
+import time
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 import json
 from uuid6 import uuid7
+import hashlib
 
-from mongoengine import StringField, DictField, DateTimeField, Document, DynamicField
+from mongoengine import StringField, DictField, DateTimeField, Document, DynamicField, IntField, BooleanField, \
+    FloatField
 
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -22,9 +26,32 @@ def check_nonempty_string(value, msg="Value must be a non-empty string"):
 def encrypt_secret(secret: str) -> str:
     secret = secret.encode("utf-8")
     fernet = Fernet(Utility.environment['security']['fernet_key'].encode("utf-8"))
-    sec = fernet.encrypt(secret).decode("utf-8")
-    return sec[:24]
+    return fernet.encrypt(secret).decode("utf-8")
 
+
+def decrypt_secret(encrypted_secret: str) -> str:
+    fernet = Fernet(Utility.environment['security']['fernet_key'].encode("utf-8"))
+    return fernet.decrypt(encrypted_secret.encode("utf-8")).decode("utf-8")
+
+
+def xor_encrypt_secret(secret: str) -> str:
+    key = Utility.environment['async_callback_action']['xor_secret']
+    key_hash = hashlib.md5(key.encode()).hexdigest()
+    xor_result = ''.join(chr(ord(c) ^ ord(key_hash[i % len(key_hash)])) for i, c in enumerate(secret))
+    encoded_result = base64.b64encode(xor_result.encode()).decode()
+    return encoded_result
+
+
+def xor_decrypt_secret(encoded_secret: str) -> str:
+    key = Utility.environment['async_callback_action']['xor_secret']
+    key_hash = hashlib.md5(key.encode()).hexdigest()
+    secret = None
+    try:
+        xor_result = base64.b64decode(encoded_secret).decode()
+        secret = ''.join(chr(ord(c) ^ ord(key_hash[i % len(key_hash)])) for i, c in enumerate(xor_result))
+        return secret
+    except Exception as e:
+        raise AppException(f"Invalid token")
 
 
 class CallbackExecutionMode(Enum):
@@ -39,6 +66,12 @@ class CallbackConfig(Auditlog):
     validation_secret = StringField(required=True)
     execution_mode = StringField(default=CallbackExecutionMode.ASYNC.value,
                                  choices=[v.value for v in CallbackExecutionMode.__members__.values()])
+    expire_in = IntField(default=0)
+    shorten_token = BooleanField(default=False)
+    token_hash = StringField()
+    token_value = StringField()
+    standalone = BooleanField(default=False)
+    standalone_id_path = StringField(default='')
     bot = StringField(required=True)
     meta = {"indexes": [{"fields": ["bot", "name"]}]}
 
@@ -62,8 +95,14 @@ class CallbackConfig(Auditlog):
                      pyscript_code: str,
                      validation_secret: str,
                      execution_mode: str = CallbackExecutionMode.ASYNC.value,
+                     expire_in: int = 30,
+                     shorten_token: bool = False,
+                     standalone: bool = False,
+                     standalone_id_path: str = '',
                      **kwargs):
         check_nonempty_string(name)
+        if standalone and not standalone_id_path:
+            raise AppException("Standalone ID path is required for standalone callbacks!")
         Utility.is_exist(
             CallbackConfig,
             exp_message=f"Callback Configuration with name '{name}' exists!",
@@ -73,22 +112,66 @@ class CallbackConfig(Auditlog):
         )
         check_nonempty_string(pyscript_code)
         check_nonempty_string(validation_secret)
-        validation_secret = encrypt_secret(validation_secret)
+        validation_secret = validation_secret
+        token_hash = None
+        if shorten_token:
+            token_hash = uuid7().hex
         config = CallbackConfig(name=name,
                                 bot=bot,
                                 pyscript_code=pyscript_code,
                                 validation_secret=validation_secret,
                                 execution_mode=execution_mode,
+                                expire_in=expire_in,
+                                shorten_token=shorten_token,
+                                token_hash=token_hash,
+                                standalone=standalone,
+                                standalone_id_path=standalone_id_path,
                                 **kwargs)
         config.save()
         return config.to_mongo().to_dict()
 
     @staticmethod
-    def get_auth_token(bot, name) -> str:
+    def get_auth_token(bot, name) -> tuple[str, bool]:
         entry = CallbackConfig.objects(bot=bot, name__iexact=name).first()
         if not entry:
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
-        return entry.validation_secret
+
+        info = {
+            "bot": entry.bot,
+            "callback_name": entry.name,
+            "validation_secret": entry.validation_secret,
+            "expire_in": entry.expire_in,
+        }
+
+        token = encrypt_secret(json.dumps(info))
+
+        if entry.shorten_token:
+            entry.token_value = token
+            entry.save()
+            return xor_encrypt_secret(entry.token_hash), entry.standalone
+        else:
+            return token, entry.standalone
+
+    @staticmethod
+    def verify_auth_token(token: str):
+        info = None
+        if len(token) < 64:
+            search_key = xor_decrypt_secret(token)
+            config = CallbackConfig.objects(token_hash=search_key, shorten_token=True).first()
+            if config:
+                info = json.loads(decrypt_secret(config.token_value))
+        else:
+            info = json.loads(decrypt_secret(token))
+        if not info:
+            raise AppException("Invalid token!")
+
+        config = CallbackConfig.objects(bot=info['bot'],
+                                        name__iexact=info['callback_name'],
+                                        validation_secret=info['validation_secret']
+                                        ).first()
+        if not config:
+            raise AppException("Invalid token!")
+        return config
 
     @staticmethod
     def edit(bot: str, name: str, **kwargs):
@@ -96,15 +179,14 @@ class CallbackConfig(Auditlog):
         config = CallbackConfig.objects(bot=bot, name__iexact=name).first()
         if not config:
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
-        if kwargs.get('validation_secret') == 'new':
-            kwargs.pop('validation_secret')
-            kwargs['validation_secret'] = uuid7().hex
-
-        if kwargs.get('validation_secret'):
-            kwargs['validation_secret'] = encrypt_secret(kwargs['validation_secret'])
+        if secret := kwargs.get('validation_secret'):
+            if secret == 'new':
+                secret = uuid7().hex
+                config.validation_secret = secret
+            if config.shorten_token:
+                config.token_hash = uuid7().hex
+        kwargs.pop('validation_secret')
         for key, value in kwargs.items():
-            if not value:
-                continue
             setattr(config, key, value)
         config.save()
         return config.to_mongo().to_dict()
@@ -112,14 +194,23 @@ class CallbackConfig(Auditlog):
     @staticmethod
     def delete_entry(bot: str, name: str):
         check_nonempty_string(name)
-        callback_action_count = CallbackActionConfig.objects(bot=bot, callback_name=name).count()
-        if callback_action_count > 0:
-            raise AppException(f"Cannot delete Callback Configuration '{name}' as it is attached to some callback action!")
+        callback_action = CallbackActionConfig.objects(bot=bot, callback_name=name).first()
+        if callback_action:
+            raise AppException(f"Cannot delete Callback Configuration '{name}' as it is attached to {callback_action.name} callback action!")
         config = CallbackConfig.objects(bot=bot, name__iexact=name).first()
         if not config:
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
         config.delete()
         return config.name
+
+    @staticmethod
+    def get_callback_url(bot: str, name: str):
+        base_url = Utility.environment['async_callback_action']['url']
+        auth_token, is_standalone = CallbackConfig.get_auth_token(bot, name)
+        if not is_standalone:
+            raise AppException(f"Callback Configuration with name '{name}' is not standalone!")
+        callback_url = f"{base_url}/s/{auth_token}"
+
 
 
 class CallbackRecordStatusType(Enum):
@@ -136,10 +227,12 @@ class CallbackData(Document):
     channel = StringField(required=True)
     metadata = DictField()
     identifier = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = FloatField(default=time.time)
     callback_url = StringField()
     execution_mode = StringField(default=CallbackExecutionMode.ASYNC.value,
                                  choices=[v.value for v in CallbackExecutionMode.__members__.values()])
+    state = DynamicField(default=0)
+    is_valid = BooleanField(default=True)
     meta = {"indexes": [{"fields": ["bot", "identifier"]}]}
 
     @staticmethod
@@ -151,8 +244,13 @@ class CallbackData(Document):
         check_nonempty_string(channel)
         identifier = f"{uuid7().hex}"
         base_url = Utility.environment['async_callback_action']['url']
-        auth_token = CallbackConfig.get_auth_token(bot, callback_config_name)
-        callback_url = f"{base_url}/{bot}/{name}/{identifier}?token={auth_token}"
+        auth_token, is_standalone = CallbackConfig.get_auth_token(bot, callback_config_name)
+        callback_url = f"{base_url}/"
+        if is_standalone:
+            callback_url += f"s/{auth_token}"
+        else:
+            callback_url += f"d/{identifier}/{auth_token}"
+
         record = CallbackData(action_name=name,
                               callback_name=callback_config_name,
                               bot=bot,
@@ -161,33 +259,60 @@ class CallbackData(Document):
                               metadata=metadata,
                               identifier=identifier,
                               callback_url=callback_url,
-                              timestamp=datetime.utcnow(),
+                              timestamp=time.time(),
+                              is_valid=True,
                               **kwargs)
         record.save()
-        return callback_url
+        return callback_url, identifier, is_standalone
 
     @staticmethod
-    def validate_entry(bot: str, name : str, dynamic_param: str, validation_secret: str):
-        check_nonempty_string(bot)
-        check_nonempty_string(validation_secret)
-        record = CallbackData.objects(bot=bot, identifier=dynamic_param).first()
+    def get_value_from_json(json_obj, path):
+        keys = path.split('.')
+        value = json_obj
+        try:
+            for key in keys:
+                if isinstance(value, list):
+                    key = int(key)
+                value = value[key]
+        except (KeyError, IndexError, ValueError, TypeError):
+            raise AppException(f"Cannot find identifier at path '{path}' in request data!")
+
+        return value
+
+    @staticmethod
+    def validate_entry(token: str, identifier: Optional[str] = None, request_body: Any = None):
+        check_nonempty_string(token)
+        config_entry = CallbackConfig.verify_auth_token(token)
+
+        if config_entry.standalone:
+            if not request_body:
+                raise AppException("Request data is required for standalone callbacks!")
+            identifier = CallbackData.get_value_from_json(request_body, config_entry.standalone_id_path)
+
+        record = CallbackData.objects(bot=config_entry.bot, identifier=identifier).first()
         if not record:
             raise AppException("Callback Record does not exist, invalid identifier!")
-        if name != record.action_name:
-            raise AppException("Invalid identifier!")
-        config_exists = Utility.is_exist(
-            CallbackConfig,
-            name__iexact=record.callback_name,
-            validation_secret__iexact=validation_secret,
-            bot=bot,
-            raise_error=False
-        )
-        if not config_exists:
-            raise AppException("Invalid validation secret!")
+        if not record.is_valid:
+            raise AppException("Callback has been invalidated!")
+        if config_entry.expire_in > 0:
+            exp_time = record.timestamp + config_entry.expire_in
+            if exp_time < time.time():
+                raise AppException("Callback time-limit expired")
         entry_dict = record.to_mongo().to_dict()
         entry_dict.pop('_id')
         entry_dict.pop('timestamp')
-        return entry_dict
+        callback_dict = config_entry.to_mongo().to_dict()
+        return entry_dict, callback_dict
+
+    @staticmethod
+    def update_state(bot: str, identifier: str, state: dict, invalidate: bool):
+        record = CallbackData.objects(bot=bot, identifier=identifier).first()
+        if not record:
+            raise AppException("Callback Record does not exist, invalid identifier!")
+        record.state = state
+        record.is_valid = not invalidate
+        record.save()
+        return record.to_mongo().to_dict()
 
 
 @push_notification.apply
