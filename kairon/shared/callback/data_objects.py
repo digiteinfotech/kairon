@@ -16,6 +16,8 @@ from kairon.shared.actions.data_objects import CallbackActionConfig
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
 
 def check_nonempty_string(value, msg="Value must be a non-empty string"):
@@ -35,23 +37,32 @@ def decrypt_secret(encrypted_secret: str) -> str:
 
 
 def xor_encrypt_secret(secret: str) -> str:
-    key = Utility.environment['async_callback_action']['xor_secret']
-    key_hash = hashlib.md5(key.encode()).hexdigest()
-    xor_result = ''.join(chr(ord(c) ^ ord(key_hash[i % len(key_hash)])) for i, c in enumerate(secret))
-    encoded_result = base64.b64encode(xor_result.encode()).decode()
+    key = Utility.environment['async_callback_action']['short_secret']['aes_key']
+    iv = Utility.environment['async_callback_action']['short_secret']['aes_iv']
+    key = bytes.fromhex(key)
+    iv = bytes.fromhex(iv)
+    secret_bytes = secret.encode()
+    cipher = Cipher(algorithms.AES(key), modes.CTR(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(secret_bytes) + encryptor.finalize()
+    encoded_result = base64.urlsafe_b64encode(ciphertext).decode().rstrip("=")
     return encoded_result
 
 
 def xor_decrypt_secret(encoded_secret: str) -> str:
-    key = Utility.environment['async_callback_action']['xor_secret']
-    key_hash = hashlib.md5(key.encode()).hexdigest()
+    key = Utility.environment['async_callback_action']['short_secret']['aes_key']
+    iv = Utility.environment['async_callback_action']['short_secret']['aes_iv']
+    key = bytes.fromhex(key)
+    iv = bytes.fromhex(iv)
     secret = None
     try:
-        xor_result = base64.b64decode(encoded_secret).decode()
-        secret = ''.join(chr(ord(c) ^ ord(key_hash[i % len(key_hash)])) for i, c in enumerate(xor_result))
-        return secret
+        decoded_secret = base64.urlsafe_b64decode(encoded_secret + "=" * (4 - len(encoded_secret) % 4))
+        cipher = Cipher(algorithms.AES(key), modes.CTR(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+        secret = decryptor.update(decoded_secret) + decryptor.finalize()
+        return secret.decode()
     except Exception:
-        raise AppException("Invalid token")
+        raise AppException("Invalid token!")
 
 
 class CallbackExecutionMode(Enum):

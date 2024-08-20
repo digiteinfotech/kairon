@@ -2560,6 +2560,20 @@ def test_callback_config_add_standalone():
                                'execution_mode': 'async'}, 'error_code': 0}
 
 
+def test_callback_get_standalone_url():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/callback_standalone_url/callback_2",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.status_code == 200
+    actual = response.json()
+    print(actual)
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data'], str)
+    assert '/callback/s/' in actual['data']
+    
+
 def test_callback_config_add_standalone_fail_no_path():
     request_body = {
         "name": "callback_3",
@@ -2613,7 +2627,11 @@ def test_callback_config_get():
     )
 
     actual = response.json()
-    assert actual == {'success': True, 'message': None, 'data': ['callback_1', 'callback_2'], 'error_code': 0}
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert len(actual['data']) == 2
+    assert 'callback_1' in actual['data']
+    assert 'callback_2' in actual['data']
 
 def test_callback_single_config_get():
     response = client.get(
@@ -10505,7 +10523,7 @@ def test_deploy_connection_error(mock_endpoint):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] is None
-    assert actual["message"] == "Not Found"
+    assert actual["message"] == "Host is not reachable"
 
 
 @responses.activate

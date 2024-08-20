@@ -92,7 +92,7 @@ def setup():
       },
       "identifier": "019170001814712f8921076fd134a083",
       "timestamp": 1724160940.057088,
-      "callback_url": "http://localhost:5059/callback/d/019170001814712f8921076fd134a083/VQEBBAdQAgQKDgECBwcHAQsKUg9XVVZUAAcBAAEBUVE=",
+      "callback_url": "http://localhost:5059/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg",
       "execution_mode": "sync",
       "state": 0,
       "is_valid": True
@@ -152,7 +152,7 @@ def setup():
       },
       "identifier": "01917036016877eb8ffb3930e40f6162",
       "timestamp": 1724164473.1961515,
-      "callback_url": "http://localhost:5059/callback/s/VQEBBAYGV1EPD19eB1UHVgsBAw5SBQEGAAIJCwFVBlY=",
+      "callback_url": "http://localhost:5059/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8",
       "execution_mode": "sync",
       "state": 0,
       "is_valid": True
@@ -284,7 +284,7 @@ async def test_dispatch_message_failure(mock_dispatch_message, mock_run_pyscript
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_get_callback_url_shorten(mock_dispatch_message):
-    response = client.get('/callback/d/019170001814712f8921076fd134a083/VQEBBAdQAgQKDgECBwcHAQsKUg9XVVZUAAcBAAEBUVE=')
+    response = client.get('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg')
     assert response.status_code == 200
     assert response.json() == {"message": "success", "data": "hello -> {'type': 'GET', 'body': None, 'params': {}}", "error_code": 0, "success": True}
 
@@ -295,7 +295,7 @@ async def test_post_callback_url_shorten(mock_dispatch_message):
     req_body = {
         'key_1': 'value_1'
     }
-    response = client.post('/callback/d/019170001814712f8921076fd134a083/VQEBBAdQAgQKDgECBwcHAQsKUg9XVVZUAAcBAAEBUVE=',
+    response = client.post('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg',
                             json=req_body)
     assert response.status_code == 200
     assert response.json() == {"message": "success", "data": "hello -> {'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}}", "error_code": 0, "success": True}
@@ -307,7 +307,7 @@ async def test_put_callback_url_shorten(mock_dispatch_message):
     req_body = {
         'key_1': 'value_1'
     }
-    response = client.put('/callback/d/019170001814712f8921076fd134a083/VQEBBAdQAgQKDgECBwcHAQsKUg9XVVZUAAcBAAEBUVE=',
+    response = client.put('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg',
                             json=req_body)
     assert response.status_code == 200
     assert response.json() == {"message": "success", "data": "hello -> {'type': 'PUT', 'body': {'key_1': 'value_1'}, 'params': {}}", "error_code": 0, "success": True}
@@ -362,7 +362,7 @@ async def test_post_callback_standalone_url_shorten(mock_dispatch_message):
             'id': '01917036016877eb8ffb3930e40f6162'
         }
     }
-    response = client.post('/callback/s/VQEBBAYGV1EPD19eB1UHVgsBAw5SBQEGAAIJCwFVBlY=',
+    response = client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
                             json=req_body)
     assert response.status_code == 200
     assert response.json() == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True}
@@ -378,7 +378,7 @@ async def test_post_callback_standalone_url_shorten_wrong_url(mock_dispatch_mess
     response = client.post('/callback/s/VQEBBAYGV1EPD19eB1UHVgsBAw5SBQEGAAIJCwGVBlK=',
                             json=req_body)
     assert response.status_code == 200
-    assert response.json() == {"message": "Invalid token", "data": None, "error_code": 400, "success": False}
+    assert response.json() == {"message": "Invalid token!", "data": None, "error_code": 400, "success": False}
 
 
 @pytest.mark.asyncio
@@ -389,17 +389,17 @@ async def test_post_callback_statechange(mock_dispatch_message):
             'id': '01917036016877eb8ffb3930e40f6162'
         }
     }
-    response = client.post('/callback/s/VQEBBAYGV1EPD19eB1UHVgsBAw5SBQEGAAIJCwFVBlY=',
+    response = client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
                             json=req_body)
     assert response.status_code == 200
     assert response.json() == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True}
 
-    response = client.post('/callback/s/VQEBBAYGV1EPD19eB1UHVgsBAw5SBQEGAAIJCwFVBlY=',
+    response = client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
                             json=req_body)
     assert response.status_code == 200
     assert response.json() == {"message": "success", "data": "state -> 2", "error_code": 0, "success": True}
 
-    response = client.post('/callback/s/VQEBBAYGV1EPD19eB1UHVgsBAw5SBQEGAAIJCwFVBlY=',
+    response = client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
                             json=req_body)
     assert response.status_code == 200
     assert response.json() == {"message": "success", "data": "state -> 3", "error_code": 0, "success": True}

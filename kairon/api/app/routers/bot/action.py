@@ -621,8 +621,9 @@ async def get_callback(
     info = mongo_processor.get_callback(current_user.get_bot(), name)
     return Response(data=info)
 
+
 @router.get("/callback_standalone_url/{name}", response_model=Response)
-async def get_callback(
+async def get_callback_standalone_url(
         name: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):

@@ -252,7 +252,9 @@ live_agent:
 
 async_callback_action:
   url: ${ASYNC_CALLBACK_ACTION_SERVER_URL:"http://localhost:5059/callback"}
-  xor_secret: ${ASYNC_CALLBACK_XOR_SECRET:"b9d018suvbgaboueubvsbusnvsvedvsuuawa32_fseubelvs"}
+  short_secret:
+    aes_key: ${ASYNC_CALLBACK_AES_KEY:"3b1fbd562a0b5a29cc9a1b29b2c2d17a8a62b0d94f7637f1088e07fa1dbdcd14"}
+    aes_iv: ${ASYNC_CALLBACK_AES_IV:"2f7b56a2c3e4d5f681d8ab92bc9d8f47"}
   pyscript:
     trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
 
