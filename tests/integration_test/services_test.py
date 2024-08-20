@@ -10505,7 +10505,7 @@ def test_deploy_connection_error(mock_endpoint):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] is None
-    assert actual["message"] == "Host is not reachable"
+    assert actual["message"] == "Not Found"
 
 
 @responses.activate

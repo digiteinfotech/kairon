@@ -50,8 +50,8 @@ def xor_decrypt_secret(encoded_secret: str) -> str:
         xor_result = base64.b64decode(encoded_secret).decode()
         secret = ''.join(chr(ord(c) ^ ord(key_hash[i % len(key_hash)])) for i, c in enumerate(xor_result))
         return secret
-    except Exception as e:
-        raise AppException(f"Invalid token")
+    except Exception:
+        raise AppException("Invalid token")
 
 
 class CallbackExecutionMode(Enum):
@@ -188,6 +188,8 @@ class CallbackConfig(Auditlog):
         kwargs.pop('validation_secret')
         for key, value in kwargs.items():
             setattr(config, key, value)
+        if config.shorten_token and not config.token_hash:
+            config.token_hash = uuid7().hex
         config.save()
         return config.to_mongo().to_dict()
 
@@ -210,6 +212,7 @@ class CallbackConfig(Auditlog):
         if not is_standalone:
             raise AppException(f"Callback Configuration with name '{name}' is not standalone!")
         callback_url = f"{base_url}/s/{auth_token}"
+        return callback_url
 
 
 

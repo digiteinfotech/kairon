@@ -7903,8 +7903,7 @@ class MongoProcessor:
         standalone = request_data.get("standalone")
         expires_in = request_data.get("expires_in")
         standalone_id_path = request_data.get("standalone_id_path")
-        if standalone:
-            if len(standalone_id_path) == 0:
+        if standalone and len(standalone_id_path) == 0:
                 raise AppException("Standalone id path is required!")
         if not validation_secret:
             validation_secret = str(uuid7().hex)

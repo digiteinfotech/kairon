@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Path, Security, Depends, Request
 
+from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
@@ -619,6 +620,14 @@ async def get_callback(
 ):
     info = mongo_processor.get_callback(current_user.get_bot(), name)
     return Response(data=info)
+
+@router.get("/callback_standalone_url/{name}", response_model=Response)
+async def get_callback(
+        name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    url = CallbackConfig.get_callback_url(current_user.get_bot(), name)
+    return Response(data=url)
 
 
 @router.post("/callback", response_model=Response)
