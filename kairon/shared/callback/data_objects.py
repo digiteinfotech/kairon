@@ -103,7 +103,6 @@ class CallbackConfig(Auditlog):
     def create_entry(bot: str,
                      name: str,
                      pyscript_code: str,
-                     validation_secret: str,
                      execution_mode: str = CallbackExecutionMode.ASYNC.value,
                      expire_in: int = 30,
                      shorten_token: bool = False,
@@ -121,8 +120,7 @@ class CallbackConfig(Auditlog):
             raise_error=True
         )
         check_nonempty_string(pyscript_code)
-        check_nonempty_string(validation_secret)
-        validation_secret = validation_secret
+        validation_secret = encrypt_secret(uuid7().hex)
         token_hash = None
         if shorten_token:
             token_hash = uuid7().hex
@@ -149,7 +147,7 @@ class CallbackConfig(Auditlog):
         info = {
             "bot": entry.bot,
             "callback_name": entry.name,
-            "validation_secret": entry.validation_secret,
+            "validation_secret": decrypt_secret(entry.validation_secret),
             "expire_in": entry.expire_in,
         }
 
@@ -177,9 +175,10 @@ class CallbackConfig(Auditlog):
 
         config = CallbackConfig.objects(bot=info['bot'],
                                         name__iexact=info['callback_name'],
-                                        validation_secret=info['validation_secret']
                                         ).first()
         if not config:
+            raise AppException("Invalid token!")
+        if decrypt_secret(config.validation_secret) != info['validation_secret']:
             raise AppException("Invalid token!")
         return config
 
@@ -189,13 +188,6 @@ class CallbackConfig(Auditlog):
         config = CallbackConfig.objects(bot=bot, name__iexact=name).first()
         if not config:
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
-        if secret := kwargs.get('validation_secret'):
-            if secret == 'new':
-                secret = uuid7().hex
-                config.validation_secret = secret
-            if config.shorten_token:
-                config.token_hash = uuid7().hex
-        kwargs.pop('validation_secret')
         for key, value in kwargs.items():
             setattr(config, key, value)
         if config.shorten_token and not config.token_hash:

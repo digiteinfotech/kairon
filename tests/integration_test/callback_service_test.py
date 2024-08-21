@@ -7,7 +7,7 @@ from mongoengine import connect
 
 from kairon import Utility
 from fastapi.testclient import TestClient
-from kairon.shared.callback.data_objects import CallbackData, CallbackConfig
+from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, encrypt_secret
 
 
 @pytest.fixture(autouse=True, scope='class')
@@ -28,17 +28,17 @@ def setup():
                        "execution_mode": "sync"}
     callback_config_1 = {"name": "callback_script2",
                          "pyscript_code": "bot_response = f\"{req} {metadata['happy']}\"",
-                         "validation_secret": "0191693df8f972529fc22d83413f19b1",
+                         "validation_secret": encrypt_secret("0191693df8f972529fc22d83413f19b1"),
                          "execution_mode": "sync", "bot": "6697add6b8e47524eb983373"}
     callback_config_2 = {"name": "callback_script3",
                          "pyscript_code": "bot_response = f\"{req} {metadata['happy']}\"",
-                         "validation_secret": "0191693df8f972529fc22d83413f19b1",
+                         "validation_secret": encrypt_secret("0191693df8f972529fc22d83413f19b1"),
                          "execution_mode": "async", "bot": "6697add6b8e47524eb983373"}
 
     callback_config_3 = {
       "name": "callback_script4",
       "pyscript_code": "bot_response = f'hello -> {req}'",
-      "validation_secret": "01916febcbe67a8a9a151842320697d2",
+      "validation_secret": encrypt_secret("01916febcbe67a8a9a151842320697d2"),
       "execution_mode": "async",
       "expire_in": 0,
       "shorten_token": False,
@@ -69,7 +69,7 @@ def setup():
     callback_config_4 = {
         "name": "callback_script5",
         "pyscript_code": "bot_response = f'hello -> {req}'",
-        "validation_secret": "01916ffe298b7c1bb951ef9c9cbd1d74",
+        "validation_secret": encrypt_secret("01916ffe298b7c1bb951ef9c9cbd1d74"),
         "execution_mode": "sync",
         "expire_in": 0,
         "shorten_token": True,
@@ -101,7 +101,7 @@ def setup():
     callback_config_5 = {
         "name": "callback_script6",
         "pyscript_code": "bot_response = f'standalone -> {req}'",
-        "validation_secret": "0191702079f47e4392f3bd4460d95409",
+        "validation_secret": encrypt_secret("0191702079f47e4392f3bd4460d95409"),
         "execution_mode": "sync",
         "expire_in": 0,
         "shorten_token": False,
@@ -130,7 +130,7 @@ def setup():
     callback_config_6 = {
       "name": "callback_script7",
       "pyscript_code": "state += 1\nbot_response = f'state -> {state}'",
-      "validation_secret": "0191703078f779199d90c1a91fe9839f",
+      "validation_secret": encrypt_secret("0191703078f779199d90c1a91fe9839f"),
       "execution_mode": "sync",
       "expire_in": 0,
       "shorten_token": True,

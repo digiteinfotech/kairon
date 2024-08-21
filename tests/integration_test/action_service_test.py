@@ -15,7 +15,7 @@ from jira import JIRAError
 from mongoengine import connect
 
 from kairon.events.executors.lamda import LambdaExecutor
-from kairon.shared.callback.data_objects import CallbackConfig
+from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
 from kairon.shared.utils import Utility
 
 Utility.load_system_metadata()
@@ -92,7 +92,7 @@ def test_callback_action_execution(aioresponses):
     CallbackConfig(
         name="callback_script2",
         pyscript_code="bot_response='hello world'",
-        validation_secret="gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox",
+        validation_secret=encrypt_secret("gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox"),
         execution_mode="sync",
         bot="6697add6b8e47524eb983373",
     ).save()

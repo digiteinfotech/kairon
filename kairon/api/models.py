@@ -1290,11 +1290,10 @@ class IDPConfig(BaseModel):
 class CallbackConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     pyscript_code: str
-    validation_secret: str = None
     execution_mode: str = CallbackExecutionMode.ASYNC.value
     standalone: bool = False
     shorten_token: bool = False
-    standalone_id_path: str = ''
+    standalone_id_path: Optional[str] = None
     expires_in: int = 0
 
 

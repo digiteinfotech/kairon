@@ -7897,20 +7897,16 @@ class MongoProcessor:
         """
         name = request_data.get("name")
         pyscript_code = request_data.get("pyscript_code")
-        validation_secret = request_data.get("validation_secret")
         execution_mode = request_data.get("execution_mode")
         shorten_token = request_data.get("shorten_token")
         standalone = request_data.get("standalone")
         expires_in = request_data.get("expires_in")
         standalone_id_path = request_data.get("standalone_id_path")
-        if standalone and len(standalone_id_path) == 0:
-                raise AppException("Standalone id path is required!")
-        if not validation_secret:
-            validation_secret = str(uuid7().hex)
+        if standalone and not standalone_id_path:
+            raise AppException("Standalone id path is required!")
         config = CallbackConfig.create_entry(bot,
                                              name,
                                              pyscript_code,
-                                             validation_secret,
                                              execution_mode,
                                              expires_in,
                                              shorten_token,
@@ -7935,7 +7931,7 @@ class MongoProcessor:
     def delete_callback(self, bot: str, name: str):
         """
         Delete callback config.
-
+        :param bot: bot id
         :param name: callback name
         """
         CallbackConfig.delete_entry(bot, name)
