@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Request
 
 from loguru import logger
@@ -8,18 +10,16 @@ from kairon.exceptions import AppException
 router = APIRouter()
 
 
-async def process_router_message(bot: str, name: str, dynamic_param, req_type: str = 'GET', request: Request = None):
+async def process_router_message(token: str, identifier: Optional[str] = None, req_type: str = 'GET', request: Request = None):
     if not request:
         raise AppException("Request is not valid!")
     data = {
         'type': req_type,
-        'dynamic_param': dynamic_param,
         'body': None,
         'params': {},
     }
     if request.query_params:
         data['params'].update({key: request.query_params[key] for key in request.query_params})
-    token = data['params'].get('token')
     try:
         req_data = None
         try:
@@ -36,10 +36,8 @@ async def process_router_message(bot: str, name: str, dynamic_param, req_type: s
             data.update({"body": req_data})
         request_source = request.client.host
         logger.info(f"data from request: ${data}")
-        data, message, error_code = await CallbackProcessor.process_async_callback_request(bot,
-                                                                                           name,
-                                                                                           dynamic_param,
-                                                                                           token,
+        data, message, error_code = await CallbackProcessor.process_async_callback_request(token,
+                                                                                           identifier,
                                                                                            data,
                                                                                            request_source)
 
@@ -50,26 +48,41 @@ async def process_router_message(bot: str, name: str, dynamic_param, req_type: s
         return Response(message=str(e), error_code=400, success=False)
 
 
-@router.get('/callback/{bot}/{name}/{dynamic_param}', response_model=Response)
-async def execute_async_action(bot: str, name: str, dynamic_param: str, request: Request):
-    return await process_router_message(bot, name, dynamic_param, 'GET', request)
+@router.get('/callback/d/{identifier}/{token}', response_model=Response)
+async def execute_async_action_get(identifier: str, token: str, request: Request):
+    return await process_router_message(token, identifier, 'GET', request)
 
 
-@router.post('/callback/{bot}/{name}/{dynamic_param}', response_model=Response)
-async def execute_async_action_post(bot: str, name: str, dynamic_param: str, request: Request):
-    return await process_router_message(bot, name, dynamic_param, 'POST', request)
+@router.post('/callback/d/{identifier}/{token}', response_model=Response)
+async def execute_async_action_post(identifier: str, token: str, request: Request):
+    return await process_router_message(token, identifier, 'POST', request)
 
 
-@router.put('/callback/{bot}/{name}/{dynamic_param}', response_model=Response)
-async def execute_async_action_put(bot: str, name: str, dynamic_param: str, request: Request):
-    return await process_router_message(bot, name, dynamic_param, 'PUT', request)
+@router.put('/callback/d/{identifier}/{token}', response_model=Response)
+async def execute_async_action_put(identifier: str, token: str, request: Request):
+    return await process_router_message(token, identifier, 'PUT', request)
 
 
-@router.patch('/callback/{bot}/{name}/{dynamic_param}', response_model=Response)
-async def execute_async_action_patch(bot: str, name: str, dynamic_param: str, request: Request):
-    return await process_router_message(bot, name, dynamic_param, 'PATCH', request)
+@router.patch('/callback/d/{identifier}/{token}', response_model=Response)
+async def execute_async_action_patch(identifier: str, token: str, request: Request):
+    return await process_router_message(token, identifier, 'PATCH', request)
 
 
-@router.delete('/callback/{bot}/{name}/{dynamic_param}', response_model=Response)
-async def execute_async_action_delete(bot: str, name: str, dynamic_param: str, request: Request):
-    return await process_router_message(bot, name, dynamic_param, 'DELETE', request)
+@router.delete('/callback/d/{identifier}/{token}', response_model=Response)
+async def execute_async_action_delete(identifier: str, token: str, request: Request):
+    return await process_router_message(token, identifier, 'DELETE', request)
+
+
+@router.post('/callback/s/{token}', response_model=Response)
+async def execute_async_action_standalone_post(token: str, request: Request):
+    return await process_router_message(token, None, 'POST', request)
+
+
+@router.put('/callback/s/{token}', response_model=Response)
+async def execute_async_action_standalone_put(token: str, request: Request):
+    return await process_router_message(token, None, 'POST', request)
+
+
+@router.patch('/callback/s/{token}', response_model=Response)
+async def execute_async_action_standalone_patch(token: str, request: Request):
+    return await process_router_message(token, None, 'POST', request)
