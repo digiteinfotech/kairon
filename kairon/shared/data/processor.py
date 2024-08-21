@@ -7900,7 +7900,7 @@ class MongoProcessor:
         execution_mode = request_data.get("execution_mode")
         shorten_token = request_data.get("shorten_token")
         standalone = request_data.get("standalone")
-        expires_in = request_data.get("expires_in")
+        expire_in = request_data.get("expire_in")
         standalone_id_path = request_data.get("standalone_id_path")
         if standalone and not standalone_id_path:
             raise AppException("Standalone id path is required!")
@@ -7908,7 +7908,7 @@ class MongoProcessor:
                                              name,
                                              pyscript_code,
                                              execution_mode,
-                                             expires_in,
+                                             expire_in,
                                              shorten_token,
                                              standalone,
                                              standalone_id_path)
