@@ -2522,8 +2522,76 @@ def test_callback_config_add():
     actual['data'].pop('validation_secret')
     actual['data'].pop('bot')
     assert actual == {'success': True, 'message': 'Callback added successfully!',
-                      'data': {'name': 'callback_1', 'pyscript_code': "bot_response = 'Hello World!'",
+                      'data': {'name': 'callback_1',
+                               'pyscript_code': "bot_response = 'Hello World!'",
+                                'expire_in': 0,
+                               'shorten_token': False,
+                               'standalone': False,
+                               'standalone_id_path': '',
                       'execution_mode': 'async' }, 'error_code': 0}
+
+
+def test_callback_config_add_standalone():
+    request_body = {
+        "name": "callback_2",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "standalone": True,
+        "standalone_id_path": "data.id"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    actual['data'].pop('validation_secret')
+    actual['data'].pop('bot')
+    assert actual == {'success': True, 'message': 'Callback added successfully!',
+                      'data': {'name': 'callback_2',
+                               'pyscript_code': "bot_response = 'Hello World!'",
+                               'expire_in': 0,
+                               'shorten_token': False,
+                               'standalone': True,
+                               'standalone_id_path': 'data.id',
+                               'execution_mode': 'async'}, 'error_code': 0}
+
+
+def test_callback_get_standalone_url():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/callback_standalone_url/callback_2",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.status_code == 200
+    actual = response.json()
+    print(actual)
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data'], str)
+    assert '/callback/s/' in actual['data']
+    
+
+def test_callback_config_add_standalone_fail_no_path():
+    request_body = {
+        "name": "callback_3",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "standalone": True
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual == {'success': False, 'message': 'Standalone id path is required!',
+                      'data': None, 'error_code': 422}
 
 def test_callback_config_edit():
     request_body = {
@@ -2545,6 +2613,10 @@ def test_callback_config_edit():
     actual['data'].pop('bot')
     assert actual == {'success': True, 'message': 'Callback updated successfully!',
                       'data': {'name': 'callback_1', 'pyscript_code': "bot_response = 'Hello World2!'",
+                               'expire_in': 0,
+                               'shorten_token': False,
+                               'standalone': False,
+                               'standalone_id_path': '',
                                'execution_mode': 'async'}, 'error_code': 0}
 
 
@@ -2555,7 +2627,11 @@ def test_callback_config_get():
     )
 
     actual = response.json()
-    assert actual == {'success': True, 'message': None, 'data': ['callback_1'], 'error_code': 0}
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert len(actual['data']) == 2
+    assert 'callback_1' in actual['data']
+    assert 'callback_2' in actual['data']
 
 def test_callback_single_config_get():
     response = client.get(
@@ -2571,7 +2647,7 @@ def test_callback_single_config_get():
 
 def test_callback_config_delete():
     response = client.delete(
-        url=f"/api/bot/{pytest.bot}/action/callback/callback_1",
+        url=f"/api/bot/{pytest.bot}/action/callback/callback_2",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2581,7 +2657,7 @@ def test_callback_config_delete():
 def test_callback_action_add_fail_no_callback_config():
     request_body = {
         "name": "callback_action1",
-        "callback_name": "callback_1",
+        "callback_name": "callback_12",
         "dynamic_url_slot_name": "string",
         "metadata_list": [],
         "bot_response": "string",
@@ -2595,7 +2671,7 @@ def test_callback_action_add_fail_no_callback_config():
     )
 
     actual = response.json()
-    assert actual == {'success': False, 'message': "Callback with name 'callback_1' not found!", 'data': None, 'error_code': 422}
+    assert actual == {'success': False, 'message': "Callback with name 'callback_12' not found!", 'data': None, 'error_code': 422}
 
 
 

@@ -1,3 +1,6 @@
+import time
+
+import ujson as json
 import logging
 import re
 import time
@@ -204,6 +207,23 @@ class ActionUtility:
             if not ActionUtility.is_empty(value):
                 log_value = Utility.get_masked_value(value)
         return value, log_value
+
+    @staticmethod
+    def prepare_request_with_bot(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody], bot: Text):
+        """
+        Prepares request body:
+        1. Fetches value of parameter from slot(Tracker) if parameter_type is slot and adds to request body
+        2. Adds value of parameter directly if parameter_type is value
+        3. Adds value of parameter as the sender_id.
+        4. Adds value of parameter as user_message.
+        @param tracker_data: Tracker data for the Http Action
+        @param http_action_config_params: User defined request body parameters <key, value, parameter_type>
+        @param bot: bot id
+        :return: Request body for the HTTP request
+        """
+        request_body, request_body_log = ActionUtility.prepare_request(tracker_data, http_action_config_params, bot)
+        request_body['bot'] = bot
+        return request_body, request_body_log
 
     @staticmethod
     def retrieve_value_for_custom_action_parameter(tracker_data: dict, action_config_param: dict, bot: Text):

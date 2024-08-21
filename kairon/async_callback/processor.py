@@ -33,15 +33,23 @@ class CallbackProcessor:
                 if CloudUtility.lambda_execution_failed(lambda_response):
                     err = lambda_response['Payload'].get('body') or lambda_response
                     raise AppException(f"{err}")
+                if err := lambda_response["Payload"].get('errorMessage'):
+                    raise AppException(f"{err}")
                 result = lambda_response["Payload"].get('body')
-                return result.get('bot_response')
+                return result
             else:
                 logger.info("Triggering local_evaluator for pyscript evaluation")
-                response = EvaluatorProcessor.evaluate_pyscript(source_code=script, predefined_objects=predefined_objects)
-
-            return response.get('bot_response')
+                result = EvaluatorProcessor.evaluate_pyscript(source_code=script, predefined_objects=predefined_objects)
+                return result
         except AppException as e:
             raise AppException(f"Error while executing pyscript: {str(e)}")
+
+    @staticmethod
+    def parse_pyscript_data(data: dict):
+        bot_response = data.get('bot_response')
+        state = data.get('state')
+        invalidate = data.get('invalidate')
+        return bot_response, state, invalidate
 
     @staticmethod
     def run_pyscript_async(script: str, predefined_objects: dict, callback: Any):
@@ -72,14 +80,16 @@ class CallbackProcessor:
             if not obj:
                 raise AppException("No response received from callback script")
             elif res := obj.get('result'):
-                await ChannelMessageDispatcher.dispatch_message(bot_id, sid, res, chnl)
+                bot_response, state, invalidate = CallbackProcessor.parse_pyscript_data(res)
+                CallbackData.update_state(ent['bot'], ent['identifier'], state, invalidate)
+                await ChannelMessageDispatcher.dispatch_message(bot_id, sid, bot_response, chnl)
                 CallbackLog.create_success_entry(name=ent.get("action_name"),
                                                  bot=bot_id,
                                                  channel=chnl,
                                                  identifier=ent.get("identifier"),
                                                  pyscript_code=cb.get("pyscript_code"),
                                                  sender_id=sid,
-                                                 log=str(res),
+                                                 log=str(bot_response),
                                                  request_data=rd,
                                                  metadata=ent.get("metadata"),
                                                  callback_url=ent.get("callback_url"),
@@ -89,41 +99,38 @@ class CallbackProcessor:
             else:
                 raise AppException("No response received from callback script")
         except Exception as e:
-            error = str(e)
-            logger.exception(error)
+            error_msg = str(e)
+            logger.exception(error_msg)
             CallbackLog.create_failure_entry(name=ent.get("action_name"),
                                              bot=bot_id,
                                              channel=chnl,
                                              identifier=ent.get("identifier"),
                                              pyscript_code=cb.get("pyscript_code"),
                                              sender_id=sid,
-                                             error_log=error,
+                                             error_log=error_msg,
                                              request_data=rd,
                                              metadata=ent.get("metadata"),
                                              callback_url=ent.get("callback_url"),
                                              callback_source=c_src)
 
     @staticmethod
-    async def process_async_callback_request(bot: str,
-                                             name: str,
-                                             dynamic_param: str,
-                                             token: str,
+    async def process_async_callback_request(token: str,
+                                             identifier: Optional[str] = None,
                                              request_data: Optional[dict] = None,
                                              callback_source: Optional[str] = None):
         """
         Process async callback request
         """
         predefined_objects = {
-            "bot": bot,
             "req": request_data,
             "req_host": callback_source,
         }
         error_code = 0
         message = "success"
         data = None
-        entry = CallbackData.validate_entry(bot=bot, name=name, dynamic_param=dynamic_param, validation_secret=token)
+        entry, callback = CallbackData.validate_entry(token, identifier, request_data.get('body'))
         predefined_objects.update(entry)
-        callback = CallbackConfig.get_entry(name=entry.get("callback_name"), bot=bot)
+        bot = entry.get("bot")
         execution_mode = callback.get("execution_mode")
         try:
             if execution_mode == CallbackExecutionMode.ASYNC.value:
@@ -133,11 +140,17 @@ class CallbackProcessor:
                     copied_func = functools.partial(CallbackProcessor.async_callback, rsp, entry, callback, callback_source, bot, entry.get("sender_id"), entry.get("channel"), request_data)
                     await copied_func()
 
-                CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"), predefined_objects=predefined_objects, callback=callback_function)
+                CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"),
+                                                     predefined_objects=predefined_objects,
+                                                     callback=callback_function)
             elif execution_mode == CallbackExecutionMode.SYNC.value:
                 logger.info(f"Executing sync callback. Identifier: {entry.get('identifier')}")
-                data = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"), predefined_objects=predefined_objects)
-                logger.info(f'Pyscript output: {data}')
+                result = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"),
+                                                        predefined_objects=predefined_objects)
+                bot_response, state, invalidate = CallbackProcessor.parse_pyscript_data(result)
+                CallbackData.update_state(entry['bot'], entry['identifier'], state, invalidate)
+                data = bot_response
+                logger.info(f'Pyscript output: {bot_response, state, invalidate}')
                 await ChannelMessageDispatcher.dispatch_message(bot, entry.get("sender_id"), data, entry.get("channel"))
                 CallbackLog.create_success_entry(name=entry.get("action_name"),
                                                  bot=bot,
