@@ -1294,7 +1294,7 @@ class CallbackConfigRequest(BaseModel):
     standalone: bool = False
     shorten_token: bool = False
     standalone_id_path: Optional[str] = None
-    expires_in: int = 0
+    expire_in: int = 0
 
 
 class CallbackActionConfigRequest(BaseModel):
