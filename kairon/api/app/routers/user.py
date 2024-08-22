@@ -72,6 +72,8 @@ async def allow_bot_for_user(
                                                                        current_user.account, allow_bot.role)
     if Utility.email_conf["email"]["enable"]:
         accessor_name = AccountProcessor.get_user(allow_bot.email, raise_error=False)
+        if not accessor_name:
+            accessor_name = {}
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member', email=allow_bot.email, url=url,
                                   first_name=f'{current_user.first_name} {current_user.last_name}',
                                   bot_name=bot_name, role=allow_bot.role.value,
