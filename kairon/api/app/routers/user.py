@@ -72,12 +72,12 @@ async def allow_bot_for_user(
                                                                        current_user.account, allow_bot.role)
     if Utility.email_conf["email"]["enable"]:
         accessor_name = AccountProcessor.get_user(allow_bot.email, raise_error=False)
-        if not accessor_name:
-            accessor_name = {}
+        accessor = "Buddy"
+        if accessor_name:
+            accessor = f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}"
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member', email=allow_bot.email, url=url,
                                   first_name=f'{current_user.first_name} {current_user.last_name}',
-                                  bot_name=bot_name, role=allow_bot.role.value,
-                                  accessor_name=f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}")
+                                  bot_name=bot_name, role=allow_bot.role.value, accessor_name=accessor)
         return Response(message='An invitation has been sent to the user')
     else:
         return {"message": "User added"}
