@@ -529,7 +529,7 @@ def test_scheduled_event_request_dispatch(mock_dispatch_event):
     event = args[1]
     assert event.code == EVENT_JOB_ADDED
     assert event.job_id == 'test'
-    assert event.jobstore == 'default'
+    assert event.jobstore == 'kscheduler'
     assert isinstance(args[1], JobEvent)
     assert isinstance(args[0], BackgroundScheduler)
 
