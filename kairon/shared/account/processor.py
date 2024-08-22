@@ -41,7 +41,6 @@ from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, INTEGRATI
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
-from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.models import User as UserModel
 
 Utility.load_email_configuration()
