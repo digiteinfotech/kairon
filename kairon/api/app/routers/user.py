@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
 
+from kairon.shared.account.data_objects import Bot
+from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.multilingual.utils.translator import Translator
