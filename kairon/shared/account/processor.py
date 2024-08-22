@@ -41,6 +41,7 @@ from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
+from kairon.shared.models import User as UserModel
 
 Utility.load_email_configuration()
 
@@ -1386,8 +1387,11 @@ class AccountProcessor:
     @staticmethod
     async def process_leave_bot(bot: str, current_user: UserModel, account):
 
-        bot_data = AccountProcessor.get_bot(bot)
-        if not bot_data:
+        try:
+            bot_data = AccountProcessor.get_bot(bot)
+            if bot_data["account"] != account:
+                raise AppException("Bot not found")
+        except DoesNotExist:
             raise AppException("Bot not found")
 
         owner_info = AccountProcessor.get_bot_owner(bot)
@@ -1397,6 +1401,9 @@ class AccountProcessor:
         from kairon.shared.authorization.data_objects import Integration
 
         tokens_data=(Integration.objects(bot=bot, user=current_user.email, status__ne=INTEGRATION_STATUS.DELETED.value))
+        # tokens_data = list(IntegrationProcessor.get_integrations(current_user.get_bot()))
+        # user_tokens = [token for token in tokens_data if token['user'] == current_user.email]
+
         if tokens_data:
             raise AppException("You must delete all your integration tokens before leaving the bot")
 
