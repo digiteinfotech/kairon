@@ -11,6 +11,7 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.scheduler.base import EventSchedulerBase
 from kairon.exceptions import AppException
 from datetime import datetime
+from apscheduler.events import JobEvent, EVENT_JOB_ADDED
 
 import logging
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
@@ -69,3 +70,7 @@ class KScheduler(EventSchedulerBase):
         except JobLookupError as e:
             logger.exception(e)
             raise AppException(e)
+
+    def dispatch_event(self, event_id):
+        event = JobEvent(EVENT_JOB_ADDED, event_id, 'default')
+        KScheduler.__scheduler._dispatch_event(event)
