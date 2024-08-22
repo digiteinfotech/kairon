@@ -138,3 +138,9 @@ def update_scheduled_event(
 @app.delete("/api/events/{event_id}", response_model=Response)
 def delete_scheduled_event(event_id: Text = Path(description="Event id")):
     return {"data": KScheduler().delete_job(event_id), "message": "Scheduled event deleted!"}
+
+
+@app.get("/api/events/dispatch/{event_id}", response_model=Response)
+def dispatch_scheduled_event(event_id: Text = Path(description="Event id")):
+    KScheduler().dispatch_event(event_id)
+    return {"data": None, "message": "Scheduled event dispatch!"}

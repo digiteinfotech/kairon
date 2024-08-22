@@ -8,6 +8,8 @@ from starlette.testclient import TestClient
 
 from kairon.shared.constants import EventClass, EventExecutor
 from kairon.shared.utils import Utility
+from apscheduler.events import EVENT_JOB_ADDED, JobEvent
+from apscheduler.schedulers.background import BackgroundScheduler
 
 os_patch = patch.dict(
     os.environ,
@@ -508,5 +510,27 @@ def test_delete_scheduled_event_request(mock_delet_job):
         "error_code": 0,
         "message": "Scheduled event deleted!",
     }
+
+
+@patch("apscheduler.schedulers.base.BaseScheduler._dispatch_event", autospec=True)
+def test_scheduled_event_request_dispatch(mock_dispatch_event):
+    response = client.get(
+        f"/api/events/dispatch/test",
+    )
+    response_json = response.json()
+    assert response_json == {
+        "data": None,
+        "success": True,
+        "error_code": 0,
+        "message": "Scheduled event dispatch!",
+    }
+
+    args, kwargs = mock_dispatch_event.call_args
+    event = args[1]
+    assert event.code == EVENT_JOB_ADDED
+    assert event.job_id == 'test'
+    assert event.jobstore == 'default'
+    assert isinstance(args[1], JobEvent)
+    assert isinstance(args[0], BackgroundScheduler)
 
 os_patch.stop()
