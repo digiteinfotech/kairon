@@ -37,11 +37,10 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import UserActivityType, PluginTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, INTEGRATION_STATUS
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
-from kairon.shared.models import User as UserModel
 
 Utility.load_email_configuration()
 
