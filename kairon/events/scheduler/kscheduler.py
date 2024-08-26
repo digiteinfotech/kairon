@@ -72,5 +72,6 @@ class KScheduler(EventSchedulerBase):
             raise AppException(e)
 
     def dispatch_event(self, event_id):
-        event = JobEvent(EVENT_JOB_ADDED, event_id, 'default')
+        event = JobEvent(EVENT_JOB_ADDED, event_id, KScheduler.__job_store_name)
         KScheduler.__scheduler._dispatch_event(event)
+        KScheduler.__scheduler.wakeup()
