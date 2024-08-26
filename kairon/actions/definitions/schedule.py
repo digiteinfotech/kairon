@@ -1,32 +1,30 @@
+from calendar import timegm
+from datetime import datetime
+from pickle import dumps, HIGHEST_PROTOCOL
 from typing import Text, Dict, Any
 
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.util import astimezone
+from apscheduler.util import obj_to_ref
+from bson import Binary
 from dateutil import parser as date_parser
-from lazy_object_proxy.utils import await_
 from loguru import logger
 from mongoengine import DoesNotExist
+from pymongo import MongoClient
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
+from tzlocal import get_localzone
 from uuid6 import uuid7
 
 from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
+from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
-from kairon.shared.constants import EventClass
-from datetime import datetime
-from apscheduler.triggers.date import DateTrigger
-from apscheduler.util import astimezone
-from pymongo import MongoClient
-from pickle import dumps, HIGHEST_PROTOCOL
-from calendar import timegm
-from bson import Binary
-from tzlocal import get_localzone
-from kairon.events.executors.factory import ExecutorFactory
-from apscheduler.util import obj_to_ref
 
 
 class ActionSchedule(ActionsBase):
@@ -141,8 +139,8 @@ class ActionSchedule(ActionsBase):
                                kwargs=None):
         func = obj_to_ref(ExecutorFactory.get_executor().execute_task)
 
-        id = uuid7().hex
-        data['predefined_objects']['event'] = id
+        _id = uuid7().hex
+        data['predefined_objects']['event'] = _id
         args = (func, "scheduler_evaluator", data,)
         trigger = DateTrigger(run_date=date_time, timezone=timezone)
 
@@ -155,7 +153,7 @@ class ActionSchedule(ActionsBase):
             'func': func,
             'args': tuple(args) if args is not None else (),
             'kwargs': dict(kwargs) if kwargs is not None else {},
-            'id': id,
+            '_id': _id,
             'name': "execute_task",
             'misfire_grace_time': 7200,
             'coalesce': True,
@@ -165,12 +163,12 @@ class ActionSchedule(ActionsBase):
 
         logger.info(job_kwargs)
 
-        self.__save_job(id, job_kwargs, next_run_time)
+        self.__save_job(_id, job_kwargs, next_run_time)
 
         event_server = Utility.environment['events']['server_url']
 
         http_response, status_code, _, _ = await ActionUtility.execute_request_async(
-            f"{event_server}/api/events/dispatch/{id}",
+            f"{event_server}/api/events/dispatch/{_id}",
             "GET")
 
         if status_code != 200:
@@ -186,9 +184,9 @@ class ActionSchedule(ActionsBase):
     def response(self):
         return self.__response
 
-    def __save_job(self, id, job_kwargs, next_run_time):
+    def __save_job(self, _id, job_kwargs, next_run_time):
         self.__client.get_database(self.__events_db).get_collection(self.__job_store_name).insert_one({
-            '_id': id,
+            '_id': _id,
             'next_run_time': self.datetime_to_utc_timestamp(next_run_time),
             'job_state': Binary(dumps(job_kwargs, HIGHEST_PROTOCOL))
         })
