@@ -1,7 +1,7 @@
 from operator import itemgetter
 from collections import deque, Counter
 import re
-import fitz
+import pymupdf
 from docx import Document
 
 
@@ -139,7 +139,7 @@ class DocumentParser:
         :return: list of sentences and dictionary structure of the document
         """
         document = path
-        doc = fitz.open(document)
+        doc = pymupdf.open(document)
 
         # get the allowed font sizes
         font_counts, styles = DocumentParser.fonts(doc, granularity=False)
