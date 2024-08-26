@@ -19,7 +19,7 @@ jira==3.8.0
 pipedrive-python-lib==1.2.3
 google-cloud-translate==3.15.3
 blinker==1.8.2
-pymupdf==1.24.5
+pymupdf==1.24.9
 python-docx==1.1.2
 python-multipart==0.0.9
 pandas==2.2.2
@@ -59,7 +59,7 @@ opentelemetry-instrumentation-requests==0.47b0
 opentelemetry-instrumentation-system-metrics==0.47b0
 opentelemetry-instrumentation-grpc==0.47b0
 opentelemetry-instrumentation-asgi==0.47b0
-opentelemetry-instrumentation-requests==0.47b
+opentelemetry-instrumentation-requests==0.47b0
 pykwalify==1.8.0
 gunicorn==22.0.0
 litellm==1.39.5
