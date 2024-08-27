@@ -1,6 +1,6 @@
 from calendar import timegm
 from datetime import datetime
-from pickle import dumps, HIGHEST_PROTOCOL
+import pickle
 from typing import Text, Dict, Any
 
 from apscheduler.triggers.date import DateTrigger
@@ -188,7 +188,7 @@ class ActionSchedule(ActionsBase):
         self.__client.get_database(self.__events_db).get_collection(self.__job_store_name).insert_one({
             '_id': _id,
             'next_run_time': self.datetime_to_utc_timestamp(next_run_time),
-            'job_state': Binary(dumps(job_kwargs, HIGHEST_PROTOCOL))
+            'job_state': Binary(pickle.dumps(job_kwargs, pickle.HIGHEST_PROTOCOL))
         })
 
     def datetime_to_utc_timestamp(self, timeval):
