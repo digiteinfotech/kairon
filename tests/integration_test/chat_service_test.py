@@ -2945,7 +2945,7 @@ def test_whatsapp_valid_unsupported_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
 
     with patch.object(
             MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
