@@ -119,12 +119,10 @@ class Whatsapp:
                 message_body = item.get('data')
                 if not message_type:
                     c.send({'body': f"{message_body}", 'preview_url': True}, recipient_id, "text")
-
-                converter_instance = ConverterFactory.getConcreteInstance(item.get('type'), ChannelTypes.WHATSAPP.value)
-                response = await converter_instance.messageConverter(message_body)
-                c.send(response, recipient_id, message_type)
-
-
+                else:
+                    converter_instance = ConverterFactory.getConcreteInstance(item.get('type'), ChannelTypes.WHATSAPP.value)
+                    response = await converter_instance.messageConverter(message_body)
+                    c.send(response, recipient_id, message_type)
 
     async def handle_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
         msg = "success"

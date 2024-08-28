@@ -26,7 +26,7 @@ class TestWhatsappOnPremise:
             mock_post.return_value.json.return_value = {"messages": [{"id": "test_id"}]}
             response = whatsapp_on_premise.send_action(payload={"text": "Hi"})
             mock_post.assert_called_once_with(
-                'https://graph.facebook.com/v13.0/messages',
+                'https://graph.facebook.com/v19.0/messages',
                 headers=whatsapp_on_premise.auth_args,
                 json={'text': 'Hi'}, timeout=None
             )
@@ -37,7 +37,7 @@ class TestWhatsappOnPremise:
             mock_post.return_value.json.return_value = {"error": {"message": "Message Undeliverable", "code": 400}}
             response = whatsapp_on_premise.send_action(payload={"text": " "})
             mock_post.assert_called_once_with(
-                'https://graph.facebook.com/v13.0/messages',
+                'https://graph.facebook.com/v19.0/messages',
                 headers=whatsapp_on_premise.auth_args,
                 json={'text': ' '}, timeout=None
             )
@@ -48,7 +48,7 @@ class TestWhatsappOnPremise:
             mock_get.return_value.json.return_value = {"type": "document", "media_id": "test_media_id"}
             response = whatsapp_on_premise.get_attachment(media_id="test_media_id")
             mock_get.assert_called_once_with(
-                'https://graph.facebook.com/v13.0/media/test_media_id',
+                'https://graph.facebook.com/v19.0/media/test_media_id',
                 headers=whatsapp_on_premise.auth_args,
                 timeout=None
             )
@@ -59,7 +59,7 @@ class TestWhatsappOnPremise:
             mock_get.return_value.json.return_value = {"error": {"message": "media_id is not valid", "code": 400}}
             response = whatsapp_on_premise.get_attachment(media_id="invalid_id")
             mock_get.assert_called_once_with(
-                'https://graph.facebook.com/v13.0/media/invalid_id',
+                'https://graph.facebook.com/v19.0/media/invalid_id',
                 headers=whatsapp_on_premise.auth_args,
                 timeout=None
             )
@@ -70,7 +70,7 @@ class TestWhatsappOnPremise:
             mock_put.return_value.json.return_value = {"id": "test_msg_id"}
             response = whatsapp_on_premise.mark_as_read(msg_id="test_msg_id")
             mock_put.assert_called_once_with(
-                'https://graph.facebook.com/v13.0/messages/test_msg_id',
+                'https://graph.facebook.com/v19.0/messages/test_msg_id',
                 headers=whatsapp_on_premise.auth_args,
                 json={'status': 'read'}, timeout=None
             )
@@ -81,7 +81,7 @@ class TestWhatsappOnPremise:
             mock_put.return_value.json.return_value = {"error": {"message": "msg_id is not valid", "code": 400}}
             response = whatsapp_on_premise.mark_as_read(msg_id="invalid_id")
             mock_put.assert_called_once_with(
-                'https://graph.facebook.com/v13.0/messages/invalid_id',
+                'https://graph.facebook.com/v19.0/messages/invalid_id',
                 headers=whatsapp_on_premise.auth_args,
                 json={'status': 'read'}, timeout=None
             )

@@ -1833,7 +1833,7 @@ def test_whatsapp_valid_text_message_request():
     async def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
 
     with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
         with patch.object(
@@ -1900,7 +1900,7 @@ def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
     mock_process_message.side_effect = Exception
     with patch.object(
             MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
@@ -1953,7 +1953,7 @@ def test_whatsapp_valid_button_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
 
     with patch.object(
             MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
@@ -2034,7 +2034,7 @@ def test_whatsapp_valid_button_message_request_without_payload_value():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
 
     with patch.object(
             MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
@@ -2119,7 +2119,7 @@ def test_whatsapp_valid_button_message_request_without_payload_value():
 @patch.object(ActorFactory, "get_instance")
 @patch.object(MessengerHandler, "validate_hub_signature")
 def test_whatsapp_valid_button_message_request_without_payload_key(mock_validate, mock_actor):
-    responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
     mock_validate.return_value = True
     executor = Mock()
     mock_actor.return_value = executor
@@ -2184,7 +2184,7 @@ def test_whatsapp_valid_attachment_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
     responses.add(
         "GET",
         "https://graph.facebook.com/v13.0/sdfghj567",
