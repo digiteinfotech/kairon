@@ -2269,6 +2269,110 @@ def test_whatsapp_valid_attachment_message_request():
 
 
 @responses.activate
+def test_whatsapp_payment_message_request():
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
+
+    with patch.object(
+            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+    ):
+        with mock.patch(
+                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                autospec=True,
+        ) as whatsapp_msg_handler:
+            response = client.post(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "190133580861200",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "918657459321",
+                                            "phone_number_id": "257191390803220",
+                                        },
+                                        "statuses": [
+                                            {
+                                                "id": "wamid.HBgMOTE5NTR1OTkxNjg1FQIAEhgKNDBzOTkxOTI5NgA=",
+                                                "status": "captured",
+                                                "timestamp": "1724764153",
+                                                "recipient_id": "919515991234",
+                                                "type": "payment",
+                                                "payment": {
+                                                    "reference_id": "BM3-43D-12",
+                                                    "amount": {"value": 100, "offset": 100},
+                                                    "currency": "INR",
+                                                    "transaction": {
+                                                        "id": "order_Ovpn6PVVFYbmK3",
+                                                        "type": "razorpay",
+                                                        "status": "success",
+                                                        "created_timestamp": 1724764153,
+                                                        "updated_timestamp": 1724764153,
+                                                        "amount": {"value": 100, "offset": 100},
+                                                        "currency": "INR",
+                                                        "method": {"type": "upi"},
+                                                    },
+                                                    "receipt": "receipt-value",
+                                                    "notes": {"key1": "value1", "key2": "value2"},
+                                                },
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+    actual = response.json()
+    assert actual == "success"
+    time.sleep(5)
+    assert len(whatsapp_msg_handler.call_args[0]) == 5
+    assert whatsapp_msg_handler.call_args[0][1] == '/k_payment_msg{"payment": {"reference_id": "BM3-43D-12", "amount": {"value": 100, "offset": 100}, "currency": "INR", "transaction": {"id": "order_Ovpn6PVVFYbmK3", "type": "razorpay", "status": "success", "created_timestamp": 1724764153, "updated_timestamp": 1724764153, "amount": {"value": 100, "offset": 100}, "currency": "INR", "method": {"type": "upi"}}, "receipt": "receipt-value", "notes": {"key1": "value1", "key2": "value2"}}}'
+    assert whatsapp_msg_handler.call_args[0][2] == "918657459321"
+    metadata = whatsapp_msg_handler.call_args[0][3]
+    metadata.pop("timestamp")
+    assert metadata == {
+        'id': 'wamid.HBgMOTE5NTR1OTkxNjg1FQIAEhgKNDBzOTkxOTI5NgA=',
+        'status': 'captured',
+        'recipient_id': '919515991234',
+        'type': 'payment',
+        'payment': {
+            'reference_id': 'BM3-43D-12',
+            'amount': {'value': 100, 'offset': 100},
+            'currency': 'INR',
+            'transaction': {
+                'id': 'order_Ovpn6PVVFYbmK3',
+                'type': 'razorpay', 'status': 'success',
+                'created_timestamp': 1724764153,
+                'updated_timestamp': 1724764153,
+                'amount': {'value': 100, 'offset': 100},
+                'currency': 'INR',
+                'method': {'type': 'upi'}},
+            'receipt': 'receipt-value',
+            'notes': {'key1': 'value1', 'key2': 'value2'}},
+        'from': '918657459321',
+        'is_integration_user': True,
+        'bot': bot,
+        'account': 1,
+        'channel_type': 'whatsapp',
+        'bsp_type': 'meta',
+        'tabname': 'default',
+        'display_phone_number': '918657459321',
+        'phone_number_id': '257191390803220'
+    }
+    assert whatsapp_msg_handler.call_args[0][4] == bot
+
+
+@responses.activate
 def test_whatsapp_valid_order_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -2556,6 +2660,7 @@ def test_whatsapp_valid_statuses_with_sent_request():
     }
     assert log["initiator"] == "business_initated"
     assert log["status"] == "sent"
+    assert log["recipient"] == "91551234567"
 
 
 @responses.activate
@@ -2634,6 +2739,7 @@ def test_whatsapp_valid_statuses_with_delivered_request():
     }
     assert log["initiator"] == "user_initiated"
     assert log["status"] == "delivered"
+    assert log["recipient"] == "91551234567"
 
 
 @responses.activate
@@ -2698,6 +2804,7 @@ def test_whatsapp_valid_statuses_with_read_request():
     assert log.get("data") == {}
     assert log.get("initiator") is None
     assert log.get("status") == "read"
+    assert log.get("recipient") == "91551234567"
 
     logs = ChannelLogs.objects(bot=bot, user="919876543210")
     assert len(ChannelLogs.objects(bot=bot, user="919876543210")) == 3
@@ -2796,6 +2903,7 @@ def test_whatsapp_valid_statuses_with_errors_request():
             "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/",
         }
     ]
+    assert log.get("recipient") == "15551234567"
 
 
 @responses.activate

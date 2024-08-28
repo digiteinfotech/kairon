@@ -11,7 +11,7 @@ from kairon.exceptions import AppException
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_API_VERSION = 13.0
+DEFAULT_API_VERSION = 19.0
 
 
 class WhatsappCloud(object):
