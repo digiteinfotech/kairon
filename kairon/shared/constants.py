@@ -152,6 +152,7 @@ class KaironSystemSlots(str, Enum):
     document = "document"
     doc_url = "doc_url"
     order = "order"
+    payment = "payment"
     longitude = "longitude"
     latitude = "latitude"
     flow_reply = "flow_reply"
