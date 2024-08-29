@@ -66,6 +66,10 @@ class Whatsapp:
             logger.debug(message['order'])
             entity = json.dumps({message["type"]: message['order']})
             text = f"/k_order_msg{entity}"
+        elif message.get("type") == "payment":
+            logger.debug(message['payment'])
+            entity = json.dumps({message["type"]: message['payment']})
+            text = f"/k_payment_msg{entity}"
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
@@ -87,7 +91,12 @@ class Whatsapp:
                     statuses = changes.get("value", {}).get("statuses")
                     user = metadata.get('display_phone_number')
                     for status_data in statuses:
-                        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, ChannelTypes.WHATSAPP.value)
+                        recipient = status_data.get('recipient_id')
+                        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, recipient,
+                                                                  ChannelTypes.WHATSAPP.value)
+                        if status_data.get('type') == "payment":
+                            status_data["from"] = user
+                            await self.message(status_data, metadata, bot)
                 for message in messages or []:
                     await self.message(message, metadata, bot)
 
