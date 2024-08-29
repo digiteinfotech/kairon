@@ -272,14 +272,14 @@ async def test_handle_whatsapp():
 
 @pytest.mark.asyncio
 async def test_handle_telegram_text_message():
-    config = {'access_token': 'dummy_token'}
+    config = {'access_token': '270485614:AAHfiqksKZ8WmR2zSjiQ7_v4TMAKdiHm9T0'}
     with patch('kairon.chat.handlers.channels.telegram.TelegramOutput.send_text_message', new_callable=AsyncMock) as mock_send_message:
         await ChannelMessageDispatcher.handle_telegram('bot', config, 'sender', 'text message')
         mock_send_message.assert_called_once_with('sender', 'text message')
 
 @pytest.mark.asyncio
 async def test_handle_telegram_custom_json():
-    config = {'access_token': 'dummy_token'}
+    config = {'access_token': '270485614:AAHfiqksKZ8WmR2zSjiQ7_v4TMAKdiHm9T0'}
     with patch('kairon.chat.handlers.channels.telegram.TelegramOutput.send_custom_json', new_callable=AsyncMock) as mock_send_custom_json:
         await ChannelMessageDispatcher.handle_telegram('bot', config, 'sender', {'key': 'value'})
         mock_send_custom_json.assert_called_once_with('sender', {'key': 'value'})
