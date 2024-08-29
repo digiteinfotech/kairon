@@ -37,10 +37,11 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import UserActivityType, PluginTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, INTEGRATION_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
+from kairon.shared.models import User as UserModel
 
 Utility.load_email_configuration()
 
@@ -900,6 +901,7 @@ class AccountProcessor:
                     "template/emails/addTrustedDevice.html", "r"
                 ).read(),
                 button_template=open("template/emails/button.html", "r").read(),
+                leave_bot_owner_notification=open("template/emails/leaveBotOwnerNotification.html", "r").read(),
             )
             system_properties = (
                 SystemProperties(mail_templates=mail_templates)
@@ -952,6 +954,8 @@ class AccountProcessor:
         Utility.email_conf["email"]["templates"]["button_template"] = system_properties[
             "mail_templates"
         ]["button_template"]
+        Utility.email_conf["email"]["templates"]["leave_bot_owner_notification"] = system_properties["mail_templates"][
+            "leave_bot_owner_notification"]
 
     @staticmethod
     async def confirm_email(token: str):
@@ -1379,3 +1383,28 @@ class AccountProcessor:
             bot_accuracies[bot["_id"]] = accuracy
 
         return bot_accuracies
+
+    @staticmethod
+    async def process_leave_bot(bot: str, current_user: UserModel, account):
+
+        bot_data = AccountProcessor.get_bot(bot)
+        if not bot_data:
+            raise AppException("Bot not found")
+
+        owner_info = AccountProcessor.get_bot_owner(bot)
+        if owner_info["accessor_email"] == current_user.email:
+            raise AppException("Owner cannot leave the bot")
+
+        from kairon.shared.authorization.data_objects import Integration
+
+        tokens_data=(Integration.objects(bot=bot, user=current_user.email, status__ne=INTEGRATION_STATUS.DELETED.value))
+        if tokens_data:
+            raise AppException("You must delete all your integration tokens before leaving the bot")
+
+        # Remove user from bot
+        AccountProcessor.remove_bot_access(bot, accessor_email=current_user.email)
+
+        return {
+            "bot_data": bot_data,
+            "owner_info": owner_info
+        }
