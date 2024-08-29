@@ -2187,7 +2187,7 @@ def test_whatsapp_valid_attachment_message_request():
     responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
     responses.add(
         "GET",
-        "https://graph.facebook.com/v13.0/sdfghj567",
+        "https://graph.facebook.com/v19.0/sdfghj567",
         json={
             "messaging_product": "whatsapp",
             "url": "http://kairon-media.url",
