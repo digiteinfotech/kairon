@@ -92,12 +92,11 @@ class Whatsapp:
                     user = metadata.get('display_phone_number')
                     for status_data in statuses:
                         recipient = status_data.get('recipient_id')
+                        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, recipient,
+                                                                  ChannelTypes.WHATSAPP.value)
                         if status_data.get('type') == "payment":
                             status_data["from"] = user
                             await self.message(status_data, metadata, bot)
-                        else:
-                            ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, recipient,
-                                                                      ChannelTypes.WHATSAPP.value)
                 for message in messages or []:
                     await self.message(message, metadata, bot)
 

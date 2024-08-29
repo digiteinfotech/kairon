@@ -2270,6 +2270,8 @@ def test_whatsapp_valid_attachment_message_request():
 
 @responses.activate
 def test_whatsapp_payment_message_request():
+    from kairon.shared.chat.data_objects import ChannelLogs
+
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
@@ -2370,6 +2372,38 @@ def test_whatsapp_payment_message_request():
         'phone_number_id': '257191390803220'
     }
     assert whatsapp_msg_handler.call_args[0][4] == bot
+
+    log = (
+        ChannelLogs.objects(
+            bot=bot,
+            message_id="wamid.HBgMOTE5NTR1OTkxNjg1FQIAEhgKNDBzOTkxOTI5NgA=",
+        )
+        .get()
+        .to_mongo()
+        .to_dict()
+    )
+    assert log["data"] == {
+        'reference_id': 'BM3-43D-12',
+        'amount': {'value': 100, 'offset': 100},
+        'currency': 'INR',
+        'transaction': {
+            'id': 'order_Ovpn6PVVFYbmK3',
+            'type': 'razorpay',
+            'status': 'success',
+            'created_timestamp': 1724764153,
+            'updated_timestamp': 1724764153,
+            'amount': {'value': 100, 'offset': 100},
+            'currency': 'INR',
+            'method': {'type': 'upi'}
+        },
+        'receipt': 'receipt-value',
+        'notes': {
+            'key1': 'value1',
+            'key2': 'value2'
+        }
+    }
+    assert log["status"] == "captured"
+    assert log["recipient"] == "919515991234"
 
 
 @responses.activate

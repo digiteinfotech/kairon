@@ -152,10 +152,12 @@ class ChatDataProcessor:
         if msg_id and status in {"delivered", "read"}:
             campaign_id = MessageBroadcastProcessor.get_campaign_id(msg_id)
 
+        data = status_data.get('payment') if status == "captured" else status_data.get('conversation')
+
         ChannelLogs(
             type=channel_type,
             status=status,
-            data=status_data.get('conversation'),
+            data=data,
             initiator=status_data.get('conversation', {}).get('origin', {}).get('type'),
             message_id=msg_id,
             errors=status_data.get('errors', []),
