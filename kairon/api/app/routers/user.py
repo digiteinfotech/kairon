@@ -251,9 +251,6 @@ async def leave_bot(
     """
     result = await AccountProcessor.process_leave_bot(bot, current_user, current_user.bot_account)
 
-    # if isinstance(result, Response):
-    #     return result
-
     bot_data = result.get("bot_data")
     owner_info = result.get("owner_info")
     from kairon.shared.account.data_objects import User as User_data_object
