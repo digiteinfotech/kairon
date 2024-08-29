@@ -9,7 +9,7 @@ from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_API_VERSION = 19.0
+DEFAULT_API_VERSION = 13.0
 
 
 class WhatsappOnPremise(WhatsappCloud):
