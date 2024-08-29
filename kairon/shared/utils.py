@@ -2443,6 +2443,7 @@ class MailUtility:
             "untrusted_login": MailUtility.__handle_untrusted_login,
             "add_trusted_device": MailUtility.__handle_add_trusted_device,
             "book_a_demo": MailUtility.__handle_book_a_demo,
+            "member_left_bot": MailUtility.__handle_member_left_bot,
         }
         base_url = kwargs.get("base_url")
         if not base_url:
@@ -2710,4 +2711,16 @@ class MailUtility:
         subject = Utility.email_conf["email"]["templates"]["book_a_demo_subject"]
         body = body.replace("CUSTOM_TEXT", user_details)
         body = body.replace("SUBJECT", subject)
+        return body, subject
+
+    @staticmethod
+    def __handle_member_left_bot(**kwargs):
+        owner_name = kwargs.get("first_name", "")
+        user_name = kwargs.get("user_name", "")
+        bot_name = kwargs.get("bot_name", "")
+        body = Utility.email_conf["email"]["templates"]["leave_bot_owner_notification"]
+        body = body.replace("BOT_OWNER_NAME", owner_name)
+        body = body.replace("MEMBER_NAME", user_name)
+        body = body.replace("BOT_NAME", bot_name)
+        subject = f"Notification: {user_name} has left the {bot_name} bot"
         return body, subject

@@ -5,10 +5,6 @@
 
 
 
-# Kairon : You can directly converse with Kairon on Whatsapp and stay informed of our latest releases !
-
-![qrcode](https://user-images.githubusercontent.com/7289292/233619670-4b9adad4-b736-4a18-ad38-0b9e58d506ea.jpeg)
-
 Kairon is now envisioned as a conversational digital transformation platform that helps build LLM based digital assistants at scale. It is designed to make the lives of those who work with ai-assistants easy, by giving them a no-coding web interface to adapt , train , test and maintain such assistants . We are now enhancing the backbone of Kairon with a full fledged context management system to build proactive digital assistants . 
 
 **What is Kairon?**

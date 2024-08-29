@@ -23,3 +23,6 @@ email:
         password_generated_subject: ${EMAIL_TEMPLATES_PASSWORD_GENERATED_SUBJECT:"Welcome to kAIron!"}
         untrusted_login_subject: ${EMAIL_TEMPLATES_UNTRUSTED_LOGIN_SUBJECT:"Suspicious sign-in detected!"}
         book_a_demo_subject: ${EMAIL_TEMPLATES_BOOK_A_DEMO_SUBJECT:"kAIron Demo Requested"}
+        member_left_bot_subject: ${EMAIL_TEMPLATES_USER_LEFT_BOT_SUBJECT:"User has left the BOT_NAME bot"}
+        member_left_bot_mail_body: ${EMAIL_TEMPLATES_USER_LEFT_BOT_BODY:"User USER_NAME has left the BOT_NAME bot."}
+

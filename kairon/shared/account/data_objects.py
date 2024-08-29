@@ -149,6 +149,7 @@ class MailTemplates(EmbeddedDocument):
     untrusted_login = StringField()
     add_trusted_device = StringField()
     button_template = StringField()
+    leave_bot_owner_notification = StringField()
 
 
 class SystemProperties(Document):
