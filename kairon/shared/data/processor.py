@@ -1345,7 +1345,7 @@ class MongoProcessor:
         non_conversational_slots = {
             KaironSystemSlots.kairon_action_response.value, KaironSystemSlots.bot.value,
             KaironSystemSlots.order.value, KaironSystemSlots.flow_reply.value,
-            KaironSystemSlots.http_status_code.value
+            KaironSystemSlots.http_status_code.value, KaironSystemSlots.payment.value
         }
         for slot in [s for s in KaironSystemSlots if s.value in non_conversational_slots]:
             initial_value = None

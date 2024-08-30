@@ -48,13 +48,6 @@ class KScheduler(EventSchedulerBase):
         KScheduler.__scheduler.add_job(func, trigger, args, id=event_id, name=func.__name__,
                                        jobstore=KScheduler.__job_store_name)
 
-    def add_job_for_date(self, event_id: Text, datetime: datetime, event_class: Text, data: dict, timezone=None):
-        func = ExecutorFactory.get_executor().execute_task
-        args = (event_class, data,)
-        trigger = DateTrigger(run_date=datetime, timezone=timezone)
-        KScheduler.__scheduler.add_job(func, trigger, args=args, id=event_id, name=func.__name__,
-                                       jobstore=KScheduler.__job_store_name)
-
     def list_jobs(self):
         return [job.id for job in KScheduler.__scheduler.get_jobs(jobstore=KScheduler.__job_store_name)]
 
@@ -72,5 +65,6 @@ class KScheduler(EventSchedulerBase):
             raise AppException(e)
 
     def dispatch_event(self, event_id):
-        event = JobEvent(EVENT_JOB_ADDED, event_id, 'default')
+        event = JobEvent(EVENT_JOB_ADDED, event_id, KScheduler.__job_store_name)
         KScheduler.__scheduler._dispatch_event(event)
+        KScheduler.__scheduler.wakeup()

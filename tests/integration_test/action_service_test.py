@@ -9,12 +9,13 @@ import numpy as np
 import pytest
 import responses
 import ujson as json
+from apscheduler.util import obj_to_ref
 from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect
 
-from kairon.events.executors.lamda import LambdaExecutor
+from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
 from kairon.shared.utils import Utility
 
@@ -42,6 +43,8 @@ from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSet
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.vector_embeddings.db.qdrant import Qdrant
 from kairon.shared.llm.processor import LLMProcessor
+import re
+import pickle
 
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -522,118 +525,6 @@ def test_live_agent_action_execution_no_agent_available(aioresponses):
     assert response.status_code == 200
     assert len(response_json['responses']) == 1
     assert response_json['responses'][0]['text'] == 'live agent is not available'
-
-
-def test_live_agent_action_execution_with_exception(aioresponses):
-    bot_settings = BotSettings(bot='5f50fd0a56b698ca10d35d21', user='user')
-    bot_settings.live_agent_enabled = True
-    bot_settings.save()
-
-    action_name = "test_live_agent_action_execution_with_exception"
-    Actions(name=action_name, type=ActionType.live_agent_action.value,
-            bot="5f50fd0a56b698ca10d35d21", user="user").save()
-    LiveAgentActionConfig(
-        name="live_agent_action",
-        bot_response="Connecting to live agent",
-        dispatch_bot_response=True,
-        bot="5f50fd0a56b698ca10d35d21",
-        user="user"
-    ).save()
-
-    aioresponses.add(
-        method="POST",
-        url=f"{Utility.environment['live_agent']['url']}/conversation/request",
-        payload={"success": False, "data": None, "message": "invalid request body", "error_code": 422},
-        body={'bot_id': '5f50fd0a56b698ca10d35d21', 'sender_id': 'default', 'channel': 'invalid'},
-        status=400
-    )
-
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "default",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d21", "location": "Bangalore", "langauge": "Kannada"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'live_agent_action'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [
-                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
-                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
-                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
-                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
-                                       "parse_data": {
-                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
-                                           "entities": [], "intent_ranking": [
-                                               {"name": "test intent", "confidence": 0.253578245639801},
-                                               {"name": "goodbye", "confidence": 0.1504897326231},
-                                               {"name": "greet", "confidence": 0.138640150427818},
-                                               {"name": "affirm", "confidence": 0.0857767835259438},
-                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                               {"name": "deny", "confidence": 0.069614589214325},
-                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                           "response_selector": {
-                                               "default": {"response": {"name": None, "confidence": 0},
-                                                           "ranking": [], "full_retrieval_intent": None}},
-                                           "text": "can't"}, "input_channel": "facebook",
-                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}},
-                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
-                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
-                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
-                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
-                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
-                                                   {"name": "goodbye", "confidence": 0.1504897326231},
-                                                   {"name": "greet", "confidence": 0.138640150427818},
-                                                   {"name": "affirm", "confidence": 0.0857767835259438},
-                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
-                                                   {"name": "deny", "confidence": 0.069614589214325},
-                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
-                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
-                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
-                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
-                                "response_selector": {
-                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
-                                                "full_retrieval_intent": None}}, "text": "can\"t"},
-                 "input_channel": "facebook", "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
-                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
-                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
-                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
-                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
-                          "image": None, "custom": None}, "metadata": {}}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d21"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['responses']) == 1
-    assert response_json['responses'][0]['text'] == 'Connecting to live agent'
-    assert response_json == {'events': [], 'responses': [
-        {'text': 'Connecting to live agent', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-         'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_live_agent_action_execution_with_exception(aioresponses):
@@ -13541,110 +13432,215 @@ def test_schedule_action_invalid_callback():
                    'exception': 'Callback Configuration with name \'invalid_callback\' does not exist!'}
 
 
-@mock.patch("pymongo.collection.Collection.create_index")
-@mock.patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
-@mock.patch("kairon.events.executors.factory.ExecutorFactory.get_executor", autospec=True)
-@mock.patch("apscheduler.schedulers.base.BaseScheduler.add_job", autospec=True)
-def test_schedule_action_execution(mock_jobstore, mock_execute_factory, mock_collection, mock_scheduler):
-    mock_execute_factory.return_value = LambdaExecutor()
+@mock.patch("pymongo.collection.Collection.insert_one", autospec=True)
+def test_schedule_action_execution(mock_add_job, aioresponses):
+    mock_env = Utility.environment.copy()
+    mock_env['events']['executor']['type'] = 'aws_lambda'
+
     bot = '6697add6b8e47524eb983374'
     user = 'test'
     action_name = "test_schedule_action_execution"
     callback_script = "test_schedule_action_script"
     date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     timezone = "Asia/Kolkata"
-    Actions(name=action_name, type=ActionType.schedule_action.value,
-            bot=bot, user=user).save()
 
-    CallbackConfig(
-        name=callback_script,
-        pyscript_code="bot_response='hello world'",
-        validation_secret="test",
-        execution_mode="async",
-        bot=bot,
-    ).save()
+    pattern = re.compile(rf'^{Utility.environment["events"]["server_url"]}/api/events/dispatch/.*')
+    aioresponses.get(pattern, status=200, payload={'message': "Scheduled event dispatch!", 'data': None})
+    with mock.patch.dict(Utility.environment, mock_env):
+        Actions(name=action_name, type=ActionType.schedule_action.value,
+                bot=bot, user=user).save()
 
-    ScheduleAction(
-        name=action_name,
-        bot=bot,
-        user=user,
-        schedule_time=CustomActionDynamicParameters(parameter_type='value',
-                                                    value=date_str),
-        schedule_action=callback_script,
-        timezone=timezone,
-        response_text="Action schedule",
-        params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
-                     CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
-    ).save()
+        CallbackConfig(
+            name=callback_script,
+            pyscript_code="bot_response='hello world'",
+            validation_secret="test",
+            execution_mode="async",
+            bot=bot,
+        ).save()
 
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "default",
-            "conversation_id": "default",
-            "slots": {"bot": bot},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": bot},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['responses']) == 1
-    assert response_json == {'events': [], 'responses': [
-        {'text': 'Action schedule', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
-         'image': None, 'attachment': None}]}
+        ScheduleAction(
+            name=action_name,
+            bot=bot,
+            user=user,
+            schedule_time=CustomActionDynamicParameters(parameter_type='value',
+                                                        value=date_str),
+            schedule_action=callback_script,
+            timezone=timezone,
+            response_text="Action schedule",
+            params_list=[CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
+        ).save()
 
-    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-    assert log == {'type': 'schedule_action', 'intent': 'test_run',
-                   'action': 'test_schedule_action_execution', 'sender': 'default', 'headers': {},
-                   'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
-                   'status': 'SUCCESS',
-                   'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
-                   'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                   'pyscript_code': "bot_response='hello world'",
-                   'data': {'bot': '**********************74', 'user': '1011'}}
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": bot},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert len(response_json['responses']) == 1
+        assert response_json == {'events': [], 'responses': [
+            {'text': 'Action schedule', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+             'image': None, 'attachment': None}]}
 
-    args, kwargs = mock_jobstore.call_args
-    assert kwargs['args'][0] == 'scheduler_evaluator'
-    assert kwargs['args'][1] == {'source_code': "bot_response='hello world'",
-                                 'predefined_objects': {'bot': '6697add6b8e47524eb983374',
-                                                        'user': '1011'}}
-    assert kwargs['id']
-    assert kwargs['name'] == 'execute_task'
-    assert kwargs['jobstore'] == 'kscheduler'
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {'type': 'schedule_action', 'intent': 'test_run',
+                       'action': 'test_schedule_action_execution', 'sender': 'default', 'headers': {},
+                       'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
+                       'status': 'SUCCESS',
+                       'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
+                       'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                       'pyscript_code': "bot_response='hello world'",
+                       'data': {'user': '1011'}}
 
-    assert args[1].__name__ == 'execute_task'
-    assert args[1].__self__.__class__.__name__ == 'LambdaExecutor'
-    assert args[2].run_date.strftime("%Y-%m-%d %H:%M:%S") == date_str
-    assert args[2].run_date.tzinfo.zone == timezone
+        args, kwargs = mock_add_job.call_args
+        assert args[1]['_id']
+        assert args[1]['next_run_time']
+        assert args[1]['job_state']
+        job_state = pickle.loads(args[1]['job_state'])
+        assert job_state['args'][0] == obj_to_ref(ExecutorFactory.get_executor().execute_task)
+        assert job_state['args'][1] == 'scheduler_evaluator'
+        assert not DeepDiff(list(job_state['args'][2]['predefined_objects'].keys()), ['bot', 'event', 'user'], ignore_order=True)
+        assert job_state['args'][2]['predefined_objects']['bot'] == bot
+        assert job_state['args'][2]['predefined_objects']['user'] == '1011'
+        assert 'event' in job_state['args'][2]['predefined_objects']
 
-@mock.patch("pymongo.collection.Collection.create_index")
-@mock.patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
-@mock.patch("kairon.events.executors.factory.ExecutorFactory.get_executor", autospec=True)
-@mock.patch("apscheduler.schedulers.base.BaseScheduler.add_job", autospec=True)
-def test_schedule_action_execution_schedule_time_from_slot(mock_jobstore, mock_execute_factory, mock_collection, mock_scheduler):
-    mock_execute_factory.return_value = LambdaExecutor()
+
+@mock.patch("pymongo.collection.Collection.insert_one", autospec=True)
+def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponses):
+    mock_env = Utility.environment.copy()
+    mock_env['events']['executor']['type'] = 'aws_lambda'
+
+    bot = '6697add6b8e47524eb983374'
+    user = 'test'
+    action_name = "test_schedule_action_execution_schedule_empty_data"
+    callback_script = "test_schedule_action_script"
+    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    slot_name = "schedule_slot"
+    timezone = "Asia/Kolkata"
+
+    pattern = re.compile(rf'^{Utility.environment["events"]["server_url"]}/api/events/dispatch/.*')
+    aioresponses.get(pattern, status=200, payload={'message': "Scheduled event dispatch!", 'data': None})
+    with mock.patch.dict(Utility.environment, mock_env):
+        Actions(name=action_name, type=ActionType.schedule_action.value,
+                bot=bot, user=user).save()
+
+        CallbackConfig(
+            name=callback_script,
+            pyscript_code="bot_response='hello world'",
+            validation_secret="test",
+            execution_mode="async",
+            bot=bot,
+        ).save()
+
+        ScheduleAction(
+            name=action_name,
+            bot=bot,
+            user=user,
+            schedule_time=CustomActionDynamicParameters(parameter_type=ActionParameterType.slot.value,
+                                                        value=slot_name),
+            schedule_action=callback_script,
+            timezone=timezone,
+            response_text="Action schedule",
+            params_list=[]
+        ).save()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, "schedule_slot": date_str},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": bot},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert len(response_json['responses']) == 1
+        assert response_json == {'events': [], 'responses': [
+            {'text': 'Action schedule', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+             'image': None, 'attachment': None}]}
+
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {'type': 'schedule_action', 'intent': 'test_run',
+                       'action': 'test_schedule_action_execution_schedule_empty_data', 'sender': 'default', 'headers': {},
+                       'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
+                       'status': 'SUCCESS',
+                       'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
+                       'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                       'pyscript_code': "bot_response='hello world'",
+                       'data': {}}
+
+        args, kwargs = mock_add_job.call_args
+        assert args[1]['_id']
+        assert args[1]['next_run_time']
+        assert args[1]['job_state']
+
+        args, kwargs = mock_add_job.call_args
+        assert args[1]['_id']
+        assert args[1]['next_run_time']
+        assert args[1]['job_state']
+        job_state = pickle.loads(args[1]['job_state'])
+        assert job_state['args'][0] == obj_to_ref(ExecutorFactory.get_executor().execute_task)
+        assert job_state['args'][1] == 'scheduler_evaluator'
+        assert not DeepDiff(list(job_state['args'][2]['predefined_objects'].keys()), ['bot', 'event'], ignore_order=True)
+        assert job_state['args'][2]['predefined_objects']['bot'] == bot
+        assert 'event' in job_state['args'][2]['predefined_objects']
+
+
+
+@mock.patch("pymongo.collection.Collection.insert_one", autospec=True)
+def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresponses):
+    mock_env = Utility.environment.copy()
+    mock_env['events']['executor']['type'] = 'aws_lambda'
+
     bot = '6697add6b8e47524eb983374'
     user = 'test'
     action_name = "test_schedule_action_execution_slot"
@@ -13652,88 +13648,91 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_jobstore, mock_e
     date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     slot_name = "schedule_slot"
     timezone = "Asia/Kolkata"
-    Actions(name=action_name, type=ActionType.schedule_action.value,
-            bot=bot, user=user).save()
 
-    CallbackConfig(
-        name=callback_script,
-        pyscript_code="bot_response='hello world'",
-        validation_secret="test",
-        execution_mode="async",
-        bot=bot,
-    ).save()
+    pattern = re.compile(rf'^{Utility.environment["events"]["server_url"]}/api/events/dispatch/.*')
+    aioresponses.get(pattern, status=200, payload={'message': "Scheduled event dispatch!", 'data': None})
+    with mock.patch.dict(Utility.environment, mock_env):
+        Actions(name=action_name, type=ActionType.schedule_action.value,
+                bot=bot, user=user).save()
 
-    ScheduleAction(
-        name=action_name,
-        bot=bot,
-        user=user,
-        schedule_time=CustomActionDynamicParameters(parameter_type=ActionParameterType.slot.value,
-                                                    value=slot_name),
-        schedule_action=callback_script,
-        timezone=timezone,
-        response_text="Action schedule",
-        params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
-                     CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
-    ).save()
+        CallbackConfig(
+            name=callback_script,
+            pyscript_code="bot_response='hello world'",
+            validation_secret="test",
+            execution_mode="async",
+            bot=bot,
+        ).save()
 
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "default",
-            "conversation_id": "default",
-            "slots": {"bot": bot, "schedule_slot": date_str},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": bot},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['responses']) == 1
-    assert response_json == {'events': [], 'responses': [
-        {'text': 'Action schedule', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
-         'image': None, 'attachment': None}]}
+        ScheduleAction(
+            name=action_name,
+            bot=bot,
+            user=user,
+            schedule_time=CustomActionDynamicParameters(parameter_type=ActionParameterType.slot.value,
+                                                        value=slot_name),
+            schedule_action=callback_script,
+            timezone=timezone,
+            response_text="Action schedule",
+            params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
+        ).save()
 
-    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-    assert log == {'type': 'schedule_action', 'intent': 'test_run',
-                   'action': 'test_schedule_action_execution_slot', 'sender': 'default', 'headers': {},
-                   'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
-                   'status': 'SUCCESS',
-                   'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
-                   'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                   'pyscript_code': "bot_response='hello world'",
-                   'data': {'bot': '**********************74', 'user': '1011'}}
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, "schedule_slot": date_str},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": bot},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert len(response_json['responses']) == 1
+        assert response_json == {'events': [], 'responses': [
+            {'text': 'Action schedule', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+             'image': None, 'attachment': None}]}
 
-    args, kwargs = mock_jobstore.call_args
-    assert kwargs['args'][0] == 'scheduler_evaluator'
-    assert kwargs['args'][1] == {'source_code': "bot_response='hello world'",
-                                 'predefined_objects': {'bot': '6697add6b8e47524eb983374',
-                                                        'user': '1011'}}
-    assert kwargs['id']
-    assert kwargs['name'] == 'execute_task'
-    assert kwargs['jobstore'] == 'kscheduler'
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {'type': 'schedule_action', 'intent': 'test_run',
+                       'action': 'test_schedule_action_execution_slot', 'sender': 'default', 'headers': {},
+                       'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
+                       'status': 'SUCCESS',
+                       'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
+                       'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                       'pyscript_code': "bot_response='hello world'",
+                       'data': {'bot': '**********************74', 'user': '1011'}}
 
-    assert args[1].__name__ == 'execute_task'
-    assert args[1].__self__.__class__.__name__ == 'LambdaExecutor'
-    assert args[2].run_date.strftime("%Y-%m-%d %H:%M:%S") == date_str
-    assert args[2].run_date.tzinfo.zone == timezone
+        args, kwargs = mock_add_job.call_args
+        assert args[1]['_id']
+        assert args[1]['next_run_time']
+        assert args[1]['job_state']
+        job_state = pickle.loads(args[1]['job_state'])
+        assert job_state['args'][0] == obj_to_ref(ExecutorFactory.get_executor().execute_task)
+        assert job_state['args'][1] == 'scheduler_evaluator'
+        print(job_state['args'][2]['predefined_objects'])
+        assert not DeepDiff(list(job_state['args'][2]['predefined_objects'].keys()), ['bot', 'user', 'event'], ignore_order=True)
+        assert job_state['args'][2]['predefined_objects']['bot'] == bot
+        assert job_state['args'][2]['predefined_objects']['user'] == '1011'
+        assert 'event' in job_state['args'][2]['predefined_objects']
