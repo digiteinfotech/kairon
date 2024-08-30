@@ -46,7 +46,7 @@ orjson==3.10.7
 opentelemetry-distro[otlp]==0.47b0
 opentelemetry-sdk-extension-aws==2.0.2
 opentelemetry-propagator-aws-xray==1.0.1
-opentelemetry-instrumentation-fastapi==0.47b0
+opentelemetry-instrumentation-fastapi==0.48b0
 opentelemetry-instrumentation-aiohttp-client==0.47b0
 opentelemetry-instrumentation-asyncio==0.47b0
 opentelemetry-instrumentation-aws-lambda==0.47b0
