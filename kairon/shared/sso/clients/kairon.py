@@ -1,5 +1,5 @@
 import ujson as json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union, Literal
 from loguru import logger as logging
 import httpx
 from fastapi_sso.sso.base import SSOBase, OpenID
@@ -9,8 +9,15 @@ from starlette.requests import Request
 class KaironSSO(SSOBase):
 
     async def process_login(
-            self, code: str, request: Request, *, params: Optional[Dict[str, Any]] = None,
-            additional_headers: Optional[Dict[str, Any]] = None, redirect_uri: Optional[str] = None
+            self,
+            code: str,
+            request: Request,
+            *,
+            params: Optional[Dict[str, Any]] = None,
+            additional_headers: Optional[Dict[str, Any]] = None,
+            redirect_uri: Optional[str] = None,
+            pkce_code_verifier: Optional[str] = None,
+            convert_response: Union[Literal[True], Literal[False]] = True,
     ) -> Optional[OpenID]:
         """This method should be called from callback endpoint to verify the user and request user info endpoint.
         This is low level, you should use {verify_and_process} instead.
