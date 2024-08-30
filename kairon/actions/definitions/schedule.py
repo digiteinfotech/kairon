@@ -153,7 +153,7 @@ class ActionSchedule(ActionsBase):
             'func': func,
             'args': tuple(args) if args is not None else (),
             'kwargs': dict(kwargs) if kwargs is not None else {},
-            '_id': _id,
+            'id': _id,
             'name': "execute_task",
             'misfire_grace_time': 7200,
             'coalesce': True,

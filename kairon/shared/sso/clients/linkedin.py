@@ -59,7 +59,8 @@ class LinkedinSSO(KaironSSO):
         }
 
     async def process_login(
-            self, code: str,
+            self,
+            code: str,
             request: Request,
             *,
             params: Optional[Dict[str, Any]] = None,
