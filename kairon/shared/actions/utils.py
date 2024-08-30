@@ -42,7 +42,10 @@ class ActionUtility:
     """
 
     @staticmethod
-    async def execute_request_async(http_url: str, request_method: str, request_body=None, headers=None,
+    async def execute_request_async(http_url: str,
+                                    request_method: str,
+                                    request_body=None,
+                                    headers=None,
                                     content_type: str = HttpRequestContentType.json.value):
         """
         Executes http urls provided in asynchronous fashion.

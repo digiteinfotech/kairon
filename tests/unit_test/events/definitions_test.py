@@ -755,7 +755,7 @@ class TestEventDefinitions:
     def test_trigger_website_data_generation_execute_presteps(self):
         bot = 'test_data_generation_bot'
         user = 'test_user'
-        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
         source_type = TrainingDataSourceType.website
         DataGenerationEvent(bot, user, website_url=website_url).validate()
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
@@ -764,7 +764,7 @@ class TestEventDefinitions:
     def test_trigger_website_data_generation_invalid_depth(self):
         bot = 'test_data_generation_bot'
         user = 'test_user'
-        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
         source_type = TrainingDataSourceType.website
         with pytest.raises(AppException, match="depth should be between 0 and 2"):
             DataGenerationEvent(bot, user, website_url=website_url, depth=3).validate()
@@ -775,7 +775,7 @@ class TestEventDefinitions:
     def test_trigger_website_data_generation_enqueue(self):
         bot = 'test_data_generation_bot'
         user = 'test_user'
-        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
         source_type = TrainingDataSourceType.website
         event_url = urljoin(Utility.environment['events']['server_url'],
                             f"/api/events/execute/{EventClass.data_generator}")
@@ -784,7 +784,7 @@ class TestEventDefinitions:
                       json={"message": "Event triggered successfully!", "success": True},
                       status=200,
                       match=[
-                          responses.json_params_matcher(
+                          responses.matchers.json_params_matcher(
                               {"data": {'bot': bot, 'user': user, 'type': '--from-website', 'website_url': website_url,
                                'depth': 0}, "cron_exp": None, "timezone": None})]
                       )
@@ -799,7 +799,7 @@ class TestEventDefinitions:
     def test_trigger_website_data_generation_in_progress(self):
         bot = 'test_data_generation_bot'
         user = 'test_user'
-        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
         source_type = TrainingDataSourceType.website
         with pytest.raises(AppException, match="Event already in progress! Check logs."):
             DataGenerationEvent(bot, user, website_url=website_url).validate()
@@ -810,7 +810,7 @@ class TestEventDefinitions:
     def test_trigger_website_data_generation(self):
         bot = 'test_data_generation_bot'
         user = 'test_user'
-        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
         source_type = TrainingDataSourceType.website
         DataGenerationEvent(bot, user, website_url=website_url).execute()
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
@@ -826,7 +826,7 @@ class TestEventDefinitions:
     def test_trigger_website_data_generation_no_data_found(self, monkeypatch):
         bot = 'test_data_generation_bot'
         user = 'test_user'
-        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
         source_type = TrainingDataSourceType.website
 
         def _mock_get_qna(*args, **kwargs):

@@ -125,20 +125,17 @@ class WebsiteParser:
                         next_tag = tag
                         ans = ''
                         # consider all paragraph texts between 2 headers as the answer for a given qn
-                        while next_tag.find_next().name not in heading_tags:
-                            next_tag = next_tag.find_next()
-                            if next_tag.name == "p":
-                                ans = ans + next_tag.text
-                            elif next_tag.name == 'ul':
-                                li = next_tag.find_all('li')
+                        for sibling in next_tag.find_next_siblings():
+                            if sibling.name == "p":
+                                ans = ans + sibling.text
+                            elif sibling.name == 'ul':
+                                li = sibling.find_all('li')
                                 ul_text = ""
                                 for ind, i in enumerate(li):
                                     ul_text = ul_text + '\n' + ' (' + str(ind + 1) + ') ' + i.text
                                 ans = ans + ul_text + '\n'
                             else:
-                                pass
-                            if next_tag.find_next() is None:
-                                break
+                                ans = ans + sibling.text
                         # truncate lengthy answers and leave a link
                         if len(ans):
                             questions.append(qn)
