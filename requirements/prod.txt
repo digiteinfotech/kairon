@@ -57,7 +57,7 @@ opentelemetry-instrumentation-logging==0.47b0
 opentelemetry-instrumentation-pymongo==0.47b0
 opentelemetry-instrumentation-requests==0.47b0
 opentelemetry-instrumentation-system-metrics==0.47b0
-opentelemetry-instrumentation-grpc==0.47b0
+opentelemetry-instrumentation-grpc==0.48b0
 opentelemetry-instrumentation-asgi==0.47b0
 opentelemetry-instrumentation-requests==0.47b
 pykwalify==1.8.0
