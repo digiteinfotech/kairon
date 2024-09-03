@@ -282,12 +282,12 @@ class Utility:
 
         :return: None
         """
-        parent_dir = "./metadata"
-        files = next(os.walk(parent_dir), (None, None, []))[2]
-        for file in files:
-            Utility.system_metadata.update(
-                Utility.load_yaml(os.path.join(parent_dir, file))
-            )
+        parent_dir = "./metadata/**.yml"
+        for file in glob(parent_dir):
+            if file != Utility.llm_metadata_file_path:
+                Utility.system_metadata.update(
+                    Utility.load_yaml(file)
+                )
 
     @staticmethod
     def load_llm_metadata(file_path: str = llm_metadata_file_path):
