@@ -1220,8 +1220,9 @@ class TestEventExecution:
             }
         ]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1355,8 +1356,9 @@ class TestEventExecution:
             }
         ]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1467,8 +1469,9 @@ class TestEventExecution:
             ]
         }
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1573,7 +1576,7 @@ class TestEventExecution:
             ]
         }
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1630,7 +1633,7 @@ class TestEventExecution:
             ]
         }
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1673,7 +1676,7 @@ class TestEventExecution:
             ]
         }
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1763,8 +1766,9 @@ class TestEventExecution:
             ]
 
         mock_bsp_auth_token.return_value = "kdjfnskjksjfksjf"
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "agronomy_support"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "agronomy_support"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1933,8 +1937,9 @@ class TestEventExecution:
                 }
             ]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -2050,7 +2055,7 @@ class TestEventExecution:
             "retry_count": 0
         }
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -2104,7 +2109,7 @@ class TestEventExecution:
             "retry_count": 0
         }
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -2199,8 +2204,9 @@ class TestEventExecution:
             }
         ]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -2557,8 +2563,9 @@ class TestEventExecution:
             }
         ]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -2912,8 +2919,9 @@ class TestEventExecution:
             }
         ]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -3349,8 +3357,9 @@ class TestEventExecution:
             }
         ]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -3904,8 +3913,9 @@ class TestEventExecution:
             }
         ]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        template_url = 'https://hub.360dialog.io/api/v2/partners/sdfghjkjhgfddfghj/waba_accounts/asdfghjk/waba_templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
