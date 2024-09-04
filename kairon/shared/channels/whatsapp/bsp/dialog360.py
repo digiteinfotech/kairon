@@ -8,6 +8,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
 
@@ -89,12 +90,12 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         try:
             Utility.validate_create_template_request(data)
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
-            partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
-            waba_account_id = config.get("config", {}).get("waba_account_id")
-            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates'
-            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
-            url = f"{base_url}{template_endpoint}"
+            api_key = config.get("config", {}).get("api_key")
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+            header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+
+            headers = {header: api_key}
+            url = f"{base_url}/v1/configs/templates"
             resp = Utility.execute_http_request(request_method="POST", http_url=url, request_body=data, headers=headers,
                                                 validate_status=True, err_msg="Failed to add template: ",
                                                 expected_status_code=201)
@@ -124,14 +125,15 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             logger.exception(e)
             raise AppException(str(e))
 
-    def delete_template(self, template_id: str):
+    def delete_template(self, template_name: str):
         try:
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
-            partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
-            waba_account_id = config.get("config", {}).get("waba_account_id")
-            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            template_endpoint = f'/v1/partners/{partner_id}/waba_accounts/{waba_account_id}/waba_templates/{template_id}'
-            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
+            api_key = config.get("config", {}).get("api_key")
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+            header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+
+            headers = {header: api_key}
+            template_endpoint = f'/v1/configs/templates/{template_name}'
             url = f"{base_url}{template_endpoint}"
             resp = Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
                                                 validate_status=True, err_msg="Failed to delete template: ")
@@ -149,12 +151,12 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             if kwargs:
                 filters = str(kwargs).replace('\'', "\"")
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
-            account_id = config.get("config", {}).get("waba_account_id")
-            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            partner_id = config.get("config", {}).get("partner_id", Utility.environment["channels"]["360dialog"]["partner_id"])
-            template_endpoint = f'/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={filters}&sort=business_templates.name'
-            headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
-            url = f"{base_url}{template_endpoint}"
+            api_key = config.get("config", {}).get("api_key")
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+            header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+
+            headers = {header: api_key}
+            url = f"{base_url}/v1/configs/templates?filters={filters}&sort=business_templates.name"
             resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers,
                                                 validate_status=True, err_msg="Failed to get template: ")
             return resp.get("waba_templates")
