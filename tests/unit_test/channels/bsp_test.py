@@ -432,8 +432,6 @@ class TestBusinessServiceProvider:
     def test_add_template_failure(self, monkeypatch):
         with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
             bot = "62bc24b493a0d6b7a46328ff"
-            partner_id = "new_partner_id"
-            waba_account_id = "Cyih7GWA"
             data = {
                 "name": "Introduction template",
                 "category": "MARKETING",
@@ -619,9 +617,7 @@ class TestBusinessServiceProvider:
     def test_delete_template(self, monkeypatch):
         with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
             bot = "62bc24b493a0d6b7a46328ff"
-            template_id = "test_id"
-            partner_id = "new_partner_id"
-            waba_account_id = "Cyih7GWA"
+            template_name = "test_id"
             api_resp = {
                 "meta": {
                     "developer_message": "template name=Introduction template was deleted",
@@ -630,15 +626,10 @@ class TestBusinessServiceProvider:
                 }
             }
 
-            def _get_partners_auth_token(*args, **kwargs):
-                return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
-
-            monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
-
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
-            url = f"{base_url}/v1/configs/templates/{template_id}"
+            url = f"{base_url}/v1/configs/templates/{template_name}"
             responses.add("DELETE", json=api_resp, url=url)
-            template = BSP360Dialog(bot, "test").delete_template(template_id)
+            template = BSP360Dialog(bot, "test").delete_template(template_name)
             assert template == {'meta': {'developer_message': 'template name=Introduction template was deleted', 'http_code': 200, 'success': True}}
 
     @responses.activate
@@ -646,8 +637,6 @@ class TestBusinessServiceProvider:
         with mock.patch.dict(Utility.environment, {'channels': {"360dialog": {"partner_id": "new_partner_id"}}}):
             bot = "62bc24b493a0d6b7a46328ff"
             template_id = "test_id"
-            partner_id = "new_partner_id"
-            waba_account_id = "Cyih7GWA"
 
             def _get_partners_auth_token(*args, **kwargs):
                 return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"

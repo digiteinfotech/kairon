@@ -8,7 +8,6 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
-from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
 
