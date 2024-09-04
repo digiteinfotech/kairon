@@ -94,6 +94,8 @@ class Utility:
     environment = {}
     email_conf = {}
     system_metadata = {}
+    llm_metadata = {}
+    llm_metadata_file_path = "./metadata/llm_metadata.yml"
     password_policy = PasswordPolicy.from_names(
         length=10,  # min length: 8
         uppercase=1,  # need min. 1 uppercase letters
@@ -269,6 +271,8 @@ class Utility:
         """
         Utility.environment = ConfigLoader(os.getenv(env, "./system.yaml")).get_config()
         Utility.load_system_metadata()
+        llm_metadata_file = Utility.environment.get("llm_metadata_file", Utility.llm_metadata_file_path)
+        Utility.load_llm_metadata(file_path=llm_metadata_file)
 
     @staticmethod
     def load_system_metadata():
@@ -278,12 +282,22 @@ class Utility:
 
         :return: None
         """
-        parent_dir = "./metadata"
-        files = next(os.walk(parent_dir), (None, None, []))[2]
-        for file in files:
-            Utility.system_metadata.update(
-                Utility.load_yaml(os.path.join(parent_dir, file))
-            )
+        parent_dir = "./metadata/**.yml"
+        for file in glob(parent_dir):
+            if file != Utility.llm_metadata_file_path:
+                Utility.system_metadata.update(
+                    Utility.load_yaml(file)
+                )
+
+    @staticmethod
+    def load_llm_metadata(file_path: str = llm_metadata_file_path):
+        """
+        Loads the metadata for LLM from the llm_metadata.yml file.
+
+        :return: None
+        """
+        Utility.llm_metadata = Utility.load_yaml(file_path)
+
 
     @staticmethod
     def retrieve_field_values(document: Document, field: str, *args, **kwargs):
@@ -634,7 +648,7 @@ class Utility:
     @staticmethod
     def get_local_mongo_store(bot: Text, domain):
         """
-            create local mongo tracker
+        create local mongo tracker
 
         :param bot: bot id
         :param domain: domain data
@@ -1878,16 +1892,24 @@ class Utility:
                 param["value"] = Utility.decrypt_message(param["value"])
 
     @staticmethod
-    def create_mongo_client(config: Dict):
+    def create_mongo_client(config: Dict=None):
+        if not config:
+            config = Utility.get_local_db()
         if Utility.environment["env"] == "test":
             from mongomock import MongoClient
 
             return MongoClient(
-                **config
+                host=config['host'],
+                username=config.get('username'),
+                password=config.get('password'),
+                authSource=config['options'].get("authSource") if config['options'].get("authSource") else "admin"
             )
         else:
             from pymongo import MongoClient
-            return MongoClient(**config)
+            return MongoClient(host=config['host'],
+                               username=config.get('username'),
+                               password=config.get('password'),
+                               authSource=config['options'].get("authSource") if config['options'].get("authSource") else "admin")
 
     @staticmethod
     def get_masked_value(value: Text):
@@ -2040,7 +2062,7 @@ class Utility:
 
     @staticmethod
     def get_llms():
-        return Utility.system_metadata.get("llm", {}).keys()
+        return Utility.llm_metadata.keys()
 
     @staticmethod
     def get_default_llm_hyperparameters():
@@ -2049,8 +2071,8 @@ class Utility:
     @staticmethod
     def get_llm_hyperparameters(llm_type):
         hyperparameters = {}
-        if llm_type in Utility.system_metadata["llm"].keys():
-            for key, value in Utility.system_metadata["llm"][llm_type]['properties'].items():
+        if llm_type in Utility.llm_metadata.keys():
+            for key, value in Utility.llm_metadata[llm_type]['properties'].items():
                 hyperparameters[key] = value["default"]
             return hyperparameters
         raise AppException(f"Could not find any hyperparameters for {llm_type} LLM.")
@@ -2059,7 +2081,7 @@ class Utility:
     def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, bot: str, exception_class):
         from jsonschema_rs import JSONSchema, ValidationError as JValidationError
         from .admin.data_objects import LLMSecret
-        schema = Utility.system_metadata["llm"][llm_type]
+        schema = Utility.llm_metadata[llm_type]
         if bot is not None:
             llm_secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
             if llm_secret:
@@ -2433,6 +2455,7 @@ class MailUtility:
             "untrusted_login": MailUtility.__handle_untrusted_login,
             "add_trusted_device": MailUtility.__handle_add_trusted_device,
             "book_a_demo": MailUtility.__handle_book_a_demo,
+            "member_left_bot": MailUtility.__handle_member_left_bot,
         }
         base_url = kwargs.get("base_url")
         if not base_url:
@@ -2588,12 +2611,12 @@ class MailUtility:
         body = Utility.email_conf["email"]["templates"]["add_member_confirmation"]
         body = body.replace("BOT_NAME", kwargs.get("bot_name", ""))
         body = body.replace("ACCESS_TYPE", kwargs.get("role", ""))
-        body = body.replace("INVITED_PERSON_NAME", kwargs.get("accessor_name", "").capitalize())
+        body = body.replace("INVITED_PERSON_NAME", kwargs.get("accessor_name", "buddy").capitalize())
         subject = Utility.email_conf["email"]["templates"][
             "add_member_confirmation_subject"
         ]
         subject = subject.replace(
-            "INVITED_PERSON_NAME", kwargs.get("accessor_name", "").capitalize()
+            "INVITED_PERSON_NAME", kwargs.get("accessor_name", "buddy").capitalize()
         )
         return body, subject
 
@@ -2700,4 +2723,16 @@ class MailUtility:
         subject = Utility.email_conf["email"]["templates"]["book_a_demo_subject"]
         body = body.replace("CUSTOM_TEXT", user_details)
         body = body.replace("SUBJECT", subject)
+        return body, subject
+
+    @staticmethod
+    def __handle_member_left_bot(**kwargs):
+        owner_name = kwargs.get("first_name", "")
+        user_name = kwargs.get("user_name", "")
+        bot_name = kwargs.get("bot_name", "")
+        body = Utility.email_conf["email"]["templates"]["leave_bot_owner_notification"]
+        body = body.replace("BOT_OWNER_NAME", owner_name)
+        body = body.replace("MEMBER_NAME", user_name)
+        body = body.replace("BOT_NAME", bot_name)
+        subject = f"Notification: {user_name} has left the {bot_name} bot"
         return body, subject

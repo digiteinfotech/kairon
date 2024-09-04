@@ -40,7 +40,8 @@ from starlette.requests import Request
 
 from kairon.api import models
 from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
-    SetSlotsUsingActionResponse, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest
+    SetSlotsUsingActionResponse, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest, \
+    ScheduleActionRequest
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
@@ -123,6 +124,25 @@ class TestMongoProcessor:
             return nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config
 
         return _read_and_get_data
+
+    # def test_add_schedule_action_a(self):
+    #     bot = "test"
+    #     user = "test"
+    #     expected_data = {
+    #         "name": "test_schedule_action",
+    #         "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+    #         "timezone": None,
+    #         "schedule_action": "test_pyscript",
+    #         "response_text": "action scheduled",
+    #         "params_list": [],
+    #         "dispatch_bot_response": True
+    #     }
+    #
+    #     processor = MongoProcessor()
+    #     processor.add_schedule_action(expected_data, bot, user)
+    #
+    #     actual_data = list(processor.list_schedule_action(bot))
+    #     assert expected_data.get("name") == actual_data[0]["name"]
 
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()
@@ -1198,7 +1218,7 @@ class TestMongoProcessor:
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 12
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 9
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 10
         multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
         print(multiflow_stories['multiflow_story'][0]['events'][0])
         step_data = multiflow_stories['multiflow_story'][0]['events'][0]['step']
@@ -1210,6 +1230,314 @@ class TestMongoProcessor:
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
+
+    def test_get_collection_data_with_no_collection_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        response = list(processor.list_collection_data(bot))
+
+        assert response == []
+
+    def test_save_collection_data_with_with_keys_not_present(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number", "address"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        processor = CognitionDataProcessor()
+        with pytest.raises(ValidationError, match='is_secure contains keys that are not present in data'):
+            processor.save_collection_data(request_body, user, bot)
+
+
+    def test_save_collection_data_with_collection_name_empty(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "",
+            "is_secure": ["name", "mobile_number"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='collection name is empty'):
+            processor.save_collection_data(request_body, user, bot)
+
+    def test_save_collection_data_with_invalid_is_secure(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "user",
+            "is_secure": "name, mobile_number",
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='is_secure should be list of keys'):
+            processor.save_collection_data(request_body, user, bot)
+
+    def test_save_collection_data_with_invalid_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number"],
+            "data": "Mahesh"
+        }
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='Invalid value for data'):
+            processor.save_collection_data(request_body, user, bot)
+
+    def test_save_collection_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        processor = CognitionDataProcessor()
+        collection_id = processor.save_collection_data(request_body, user, bot)
+        pytest.collection_id = collection_id
+
+    def test_save_collection_data_with_collection_name_already_exist(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": [],
+            "data": {
+                "name": "Hitesh",
+                "age": 25,
+                "mobile_number": "989284928928",
+                "location": "Mumbai"
+            }
+        }
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        processor.save_collection_data(request_body, user, bot)
+
+    def test_get_collection_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        response = list(processor.list_collection_data(bot))
+
+        for coll in response:
+            coll.pop("_id")
+        assert response == [
+            {
+                'collection_name': 'user',
+                'is_secure': ['name', 'mobile_number'],
+                'data': {
+                    'name': 'Mahesh',
+                    'age': 24,
+                    'mobile_number': '9876543210',
+                    'location': 'Bangalore'
+                }
+            },
+            {
+                'collection_name': 'user',
+                'is_secure': [],
+                'data': {
+                    'name': 'Hitesh',
+                    'age': 25,
+                    'mobile_number': '989284928928',
+                    'location': 'Mumbai'
+                }
+            }
+        ]
+
+    def test_update_collection_data_with_keys_not_present(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number", "aadhar"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(ValidationError, match='is_secure contains keys that are not present in data'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_update_collection_data_with_collection_name_empty(self):
+        request_body = {
+            "collection_name": "",
+            "is_secure": ["name", "mobile_number"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='collection name is empty'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_update_collection_data_with_invalid_is_secure(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": "name, mobile_number",
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='is_secure should be list of keys'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_update_collection_data_with_invalid_data(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["name", "mobile_number"],
+            "data": "Mahesh"
+        }
+
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='Invalid value for data'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_update_collection_data(self):
+        request_body = {
+            "collection_name": "user",
+            "is_secure": ["mobile_number", "location"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        pytest.collection_id = processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_update_collection_data_doesnot_exist(self):
+        request_body = {
+            "collection_name": "user_details",
+            "is_secure": ["mobile_number", "location"],
+            "data": {
+                "name": "Mahesh",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore"
+            }
+        }
+
+        bot = 'test_bot'
+        user = 'test_user'
+
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='Collection Data with given id and collection_name not found!'):
+            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+
+    def test_get_collection_data_after_update(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        response = list(processor.list_collection_data(bot))
+
+        for coll in response:
+            coll.pop("_id")
+        assert response == [
+            {
+                'collection_name': 'user',
+                'is_secure': ['mobile_number', 'location'],
+                'data': {
+                    'name': 'Mahesh',
+                    'age': 24,
+                    'mobile_number': '9876543210',
+                    'location': 'Bangalore'
+                }
+            },
+            {
+                'collection_name': 'user',
+                'is_secure': [],
+                'data': {
+                    'name': 'Hitesh',
+                    'age': 25,
+                    'mobile_number': '989284928928',
+                    'location': 'Mumbai'
+                }
+            }
+        ]
+
+    def test_delete_collection_data_doesnot_exist(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='Collection Data does not exists!'):
+            processor.delete_collection_data("66b1d6218d29ff530381eed5", bot, user)
+
+    def test_delete_collection_data(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        processor.delete_collection_data(pytest.collection_id, bot, user)
+
+    def test_get_collection_data_after_delete(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        response = list(processor.list_collection_data(bot))
+
+        for coll in response:
+            coll.pop("_id")
+        assert response == [
+            {
+                'collection_name': 'user',
+                'is_secure': [],
+                'data': {
+                    'name': 'Hitesh',
+                    'age': 25,
+                    'mobile_number': '989284928928',
+                    'location': 'Mumbai'
+                }
+            }
+        ]
 
     def test_add_pyscript_action_empty_name(self):
         bot = 'test_bot'
@@ -1637,15 +1965,14 @@ class TestMongoProcessor:
         assert story_graph.story_steps[1].block_name == 'say goodbye'
         domain = processor.load_domain("test_upload_case_insensitivity")
         assert all(slot.name in ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
-                                'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
-                                'longitude', 'latitude', 'flow_reply', 'quick_reply', 'session_started_metadata',
-                                'requested_slot'] for
-                   slot in domain.slots)
+                                 'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document',
+                                 'doc_url', 'longitude', 'latitude', 'flow_reply', 'quick_reply',
+                                 'session_started_metadata', 'requested_slot'] for slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                             'utter_default'], ignore_order=True)
         assert not DeepDiff(domain.entities,
                             ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
-                             'order', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
+                             'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
                              'longitude', 'latitude', 'flow_reply', 'quick_reply'], ignore_order=True)
         assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
                                 'ask_location': {'required_slots': ['location', 'application_name']}}
@@ -1745,16 +2072,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 24
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 23
+        assert domain.entities.__len__() == 24
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {
@@ -1814,11 +2141,11 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
+        assert domain.slots.__len__() == 23
         assert all(slot.mappings[0]['type'] == 'from_entity' and slot.mappings[0]['entity'] == slot.name for slot in
                    domain.slots if slot.name not in ['requested_slot', 'session_started_metadata'])
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
@@ -1858,9 +2185,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
+        assert domain.slots.__len__() == 23
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 38
@@ -1886,10 +2213,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 14
+        assert domain.slots.__len__() == 15
         assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
         assert domain.responses.keys().__len__() == 11
-        assert domain.entities.__len__() == 13
+        assert domain.entities.__len__() == 14
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
@@ -2136,7 +2463,7 @@ class TestMongoProcessor:
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert slots.__len__() == 14
+        assert slots.__len__() == 15
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
@@ -2169,7 +2496,7 @@ class TestMongoProcessor:
                 for value in actual
             ]
         )
-        assert slots.__len__() == 15
+        assert slots.__len__() == 16
         assert new_slot.name == "ticketid"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
@@ -2212,7 +2539,8 @@ class TestMongoProcessor:
     def test_get_entities(self):
         processor = MongoProcessor()
         expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio',
-                    'doc_url', 'document', 'order', 'quick_reply', 'longitude', 'latitude', 'flow_reply', 'http_status_code']
+                    'doc_url', 'document', 'order', 'payment', 'quick_reply', 'longitude', 'latitude', 'flow_reply',
+                    'http_status_code']
         actual = processor.get_entities("tests")
         assert actual.__len__() == expected.__len__()
         assert all(item["name"] in expected for item in actual)
@@ -4843,16 +5171,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 24
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 23
+        assert domain.entities.__len__() == 24
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -4908,9 +5236,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 22
+        assert domain.slots.__len__() == 23
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 38
         assert domain.intents.__len__() == 29
@@ -4988,16 +5316,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 24
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 23
+        assert domain.entities.__len__() == 24
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -5052,16 +5380,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 24
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 23
+        assert domain.entities.__len__() == 24
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -5102,16 +5430,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 24
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 23
+        assert domain.entities.__len__() == 24
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -5160,16 +5488,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 24
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 23
+        assert domain.entities.__len__() == 24
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -5205,16 +5533,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 24
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 23
+        assert domain.entities.__len__() == 24
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -5260,10 +5588,10 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 16
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 24
         assert domain.intent_properties.__len__() == 33
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 23
+        assert domain.entities.__len__() == 24
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 33
@@ -5338,10 +5666,10 @@ class TestMongoProcessor:
         assert len(rules) == 3
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 24
         assert domain.intent_properties.__len__() == 32
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 23
+        assert domain.entities.__len__() == 24
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 32
@@ -7059,6 +7387,7 @@ class TestMongoProcessor:
             {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'influence_conversation': False,
              '_has_been_set': False},
             {'name': 'order', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'payment', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
             {'name': 'flow_reply', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
             {'name': 'http_status_code', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
             {'name': 'image', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
@@ -7083,7 +7412,7 @@ class TestMongoProcessor:
             {'name': 'occupation', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
             {'name': 'quick_reply', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}
         ]
-        assert len(slots) == 23
+        assert len(slots) == 24
         assert not DeepDiff(slots, expected, ignore_order=True)
 
     def test_update_slot_add_value_intent_and_not_intent(self):
@@ -9171,6 +9500,41 @@ class TestMongoProcessor:
         ]
         processor.delete_complex_story(story_id, 'STORY', bot, user)
 
+    def test_add_schedule_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+
+        expected_data = {
+            "name": "schedule_mp2",
+            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": "test_pyscript",
+            "response_text": "action scheduled",
+            "params_list": [],
+            "dispatch_bot_response": True
+        }
+
+        processor.add_schedule_action(expected_data, bot, user)
+
+
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "schedule_mp2", "type": "SCHEDULE_ACTION"},
+        ]
+        story_dict = {'name': "story with schedule action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_id = processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with schedule action", bot=bot, events__name='schedule_mp2',
+                                status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == 'story with schedule action']
+        assert story_with_form[0]['steps'] == [
+            {'name': 'greet', 'type': 'INTENT'},
+            {'name': 'schedule_mp2', 'type': 'SCHEDULE_ACTION'},
+        ]
+        processor.delete_complex_story(story_id, 'STORY', bot, user)
+
     def test_delete_jira_action(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -9558,6 +9922,10 @@ class TestMongoProcessor:
             'username': {"parameter_type": "sender_id"},
             'email': {"parameter_type": "sender_id"},
             'contact': {"value": "contact", "parameter_type": "slot"},
+            'notes': [
+                {"key": "order_id", "parameter_type": "slot", "value": "order_id"},
+                {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+            ]
         }
         assert processor.add_razorpay_action(action, bot, user)
         assert Actions.objects(name=action_name, status=True, bot=bot).get()
@@ -9624,21 +9992,74 @@ class TestMongoProcessor:
         actions = list(processor.get_razorpay_action_config(bot))
         actions[0].pop("timestamp")
         actions[0].pop("_id")
-        assert actions == [{'name': 'razorpay_action',
-                            'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
-                                        'value': 'API_KEY', 'parameter_type': 'key_vault'},
-                            'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret',
-                                           'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'},
-                            'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False,
-                                       'value': 'amount', 'parameter_type': 'slot'},
-                            'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False,
-                                         'value': 'INR', 'parameter_type': 'value'},
-                            'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False,
-                                         'parameter_type': 'sender_id'},
-                            'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
-                                      'parameter_type': 'sender_id'},
-                            'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
-                                        'value': 'contact', 'parameter_type': 'slot'}}]
+        assert actions == [
+            {
+                'name': 'razorpay_action',
+                'api_key': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_key',
+                    'encrypt': False,
+                    'value': 'API_KEY',
+                    'parameter_type': 'key_vault'
+                },
+                'api_secret': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_secret',
+                    'encrypt': False,
+                    'value': 'API_SECRET',
+                    'parameter_type': 'kay_vault'
+                },
+                'amount': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'amount',
+                    'encrypt': False,
+                    'value': 'amount',
+                    'parameter_type': 'slot'
+                },
+                'currency': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'currency',
+                    'encrypt': False,
+                    'value': 'INR',
+                    'parameter_type': 'value'
+                },
+                'username': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'username',
+                    'encrypt': False,
+                    'parameter_type': 'sender_id'
+                },
+                'email': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'email',
+                    'encrypt': False,
+                    'parameter_type': 'sender_id'
+                },
+                'contact': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'contact',
+                    'encrypt': False,
+                    'value': 'contact',
+                    'parameter_type': 'slot'
+                },
+                'notes': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'order_id',
+                        'encrypt': False,
+                        'value': 'order_id',
+                        'parameter_type': 'slot'
+                    },
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'phone_number',
+                        'encrypt': False,
+                        'value': '9876543210',
+                        'parameter_type': 'value'
+                    }
+                ]
+            }
+        ]
 
     def test_list_razorpay_action_with_false(self):
         processor = MongoProcessor()
@@ -9646,21 +10067,74 @@ class TestMongoProcessor:
         actions = list(processor.get_razorpay_action_config(bot, False))
         actions[0].pop("timestamp")
         assert actions[0].get("_id") is None
-        assert actions == [{'name': 'razorpay_action',
-                            'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
-                                        'value': 'API_KEY', 'parameter_type': 'key_vault'},
-                            'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret',
-                                           'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'},
-                            'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False,
-                                       'value': 'amount', 'parameter_type': 'slot'},
-                            'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False,
-                                         'value': 'INR', 'parameter_type': 'value'},
-                            'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False,
-                                         'parameter_type': 'sender_id'},
-                            'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
-                                      'parameter_type': 'sender_id'},
-                            'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
-                                        'value': 'contact', 'parameter_type': 'slot'}}]
+        assert actions == [
+            {
+                'name': 'razorpay_action',
+                'api_key': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_key',
+                    'encrypt': False,
+                    'value': 'API_KEY',
+                    'parameter_type': 'key_vault'
+                },
+                'api_secret': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_secret',
+                    'encrypt': False,
+                    'value': 'API_SECRET',
+                    'parameter_type': 'kay_vault'
+                },
+                'amount': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'amount',
+                    'encrypt': False,
+                    'value': 'amount',
+                    'parameter_type': 'slot'
+                },
+                'currency': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'currency',
+                    'encrypt': False,
+                    'value': 'INR',
+                    'parameter_type': 'value'
+                },
+                'username': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'username',
+                    'encrypt': False,
+                    'parameter_type': 'sender_id'
+                },
+                'email': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'email',
+                    'encrypt': False,
+                    'parameter_type': 'sender_id'
+                },
+                'contact': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'contact',
+                    'encrypt': False,
+                    'value': 'contact',
+                    'parameter_type': 'slot'
+                },
+                'notes': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'order_id',
+                        'encrypt': False,
+                        'value': 'order_id',
+                        'parameter_type': 'slot'
+                    },
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'phone_number',
+                        'encrypt': False,
+                        'value': '9876543210',
+                        'parameter_type': 'value'
+                    }
+                ]
+            }
+        ]
 
     def test_edit_razorpay_action_not_exists(self):
         processor = MongoProcessor()
@@ -9691,8 +10165,60 @@ class TestMongoProcessor:
             'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
             'amount': {"value": "amount", "parameter_type": "slot"},
             'currency': {"value": "INR", "parameter_type": "value"},
+            'notes': [
+                {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+            ]
         }
         assert not processor.edit_razorpay_action(action, bot, user)
+
+    def test_list_razorpay_action_after_update(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.get_razorpay_action_config(bot))
+        actions[0].pop("timestamp")
+        actions[0].pop("_id")
+        assert actions == [
+            {
+                'name': 'razorpay_action',
+                'api_key': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_key',
+                    'encrypt': False,
+                    'value': 'API_KEY',
+                    'parameter_type': 'key_vault'
+                },
+                'api_secret': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'api_secret',
+                    'encrypt': False,
+                    'value': 'API_SECRET',
+                    'parameter_type': 'kay_vault'
+                },
+                'amount': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'amount',
+                    'encrypt': False,
+                    'value': 'amount',
+                    'parameter_type': 'slot'
+                },
+                'currency': {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'currency',
+                    'encrypt': False,
+                    'value': 'INR',
+                    'parameter_type': 'value'
+                },
+                'notes': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'phone_number',
+                        'encrypt': False,
+                        'value': '9876543210',
+                        'parameter_type': 'value'
+                    }
+                ]
+            }
+        ]
 
     def test_delete_razorpay_action(self):
         processor = MongoProcessor()
@@ -11038,7 +11564,7 @@ class TestMongoProcessor:
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-            'callback_action': [],
+            'callback_action': [], 'schedule_action': [],
         }
 
     def test_add_complex_story_with_action(self):
@@ -11061,7 +11587,7 @@ class TestMongoProcessor:
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
-            'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [],
+            'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
         }
 
     def test_add_complex_story(self):
@@ -11087,7 +11613,7 @@ class TestMongoProcessor:
                                       'kairon_bot_response': [],
                                       'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
                                       'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-                                      'callback_action': [],
+                                      'callback_action': [], 'schedule_action': [],
                                       'utterances': ['utter_greet',
                                                      'utter_cheer_up',
                                                      'utter_did_that_help',
@@ -12923,7 +13449,7 @@ class TestMongoProcessor:
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
-            'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [],
+            'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
             'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
                            'utter_please_rephrase'], 'web_search_action': []}, ignore_order=True)
 
@@ -13033,7 +13559,7 @@ class TestMongoProcessor:
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-            'callback_action': [],
+            'callback_action': [], 'schedule_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',
@@ -13455,6 +13981,7 @@ class TestMongoProcessor:
             email_config['to_email'] = {"value": "", "parameter_type": "slot"}
             with pytest.raises(ValidationError, match="Provide name of the slot as value"):
                 processor.add_email_action(email_config, "TEST", "tests")
+
             email_config['to_email'] = temp
 
             email_config["custom_text"] = {"value": "custom_text_slot", "parameter_type": "sender_id"}
@@ -16176,3 +16703,222 @@ class TestModelProcessor:
         assert auditlog_data[2]["attributes"][0]["value"] == bot
         assert auditlog_data[2]["entity"] == "KeyVault"
         assert auditlog_data[2]["data"]["value"] != value
+
+    def test_add_schedule_action(self):
+        bot = "testbot"
+        user = "testuser"
+        expected_data = {
+            "name": "test_schedule_action",
+            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": "test_pyscript",
+            "response_text": "action scheduled",
+            "params_list": [
+                {
+                    "key": "param_key",
+                    "value": "param_1",
+                    "parameter_type": "value",
+                }
+            ],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        processor.add_schedule_action(expected_data, bot, user)
+
+        actual_data = list(processor.list_schedule_action(bot))
+        assert expected_data.get("name") == actual_data[0]["name"]
+        for data in actual_data:
+            data.pop("_id")
+        assert actual_data == [
+            {
+                'name': 'test_schedule_action',
+                'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'},
+                'timezone': 'UTC',
+                'schedule_action': 'test_pyscript',
+                'response_text': 'action scheduled',
+                'params_list': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'param_key',
+                        'encrypt': False,
+                        'value': 'param_1',
+                        'parameter_type': 'value'
+                    }
+                ],
+                'dispatch_bot_response': True
+            }
+        ]
+
+    def test_add_schedule_action_duplicate(self):
+        bot = "testbot"
+        user = "testuser"
+        expected_data = {
+            "name": "test_schedule_action",
+            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": "test_pyscript",
+            "response_text": "action scheduled",
+            "params_list": [],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_schedule_action(expected_data, bot, user)
+
+    def test_add_schedule_action_with_empty_name(self):
+        bot = "testbot"
+        user = "testuser"
+        expected_data = {
+            "name": "",
+            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": "test_pyscript",
+            "response_text": "action scheduled",
+            "params_list": [],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        with pytest.raises(Exception, match="Schedule action name can not be empty"):
+            scheduled_acition = ScheduleActionRequest(**expected_data)
+            processor.add_schedule_action(scheduled_acition, bot, user)
+
+    def test_add_schedule_action_with_no_schedule_action(self):
+        bot = "testbot"
+        user = "testuser"
+        expected_data = {
+            "name": "test_schedule_action",
+            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": None,
+            "response_text": "action scheduled",
+            "params_list": [],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        with pytest.raises(Exception, match="Schedule action can not be empty, it is needed to execute on schedule time"):
+            scheduled_acition = ScheduleActionRequest(**expected_data)
+            processor.add_schedule_action(scheduled_acition.dict(), bot, user)
+
+    def test_update_schedule_action_schedule_time(self):
+        bot = "testbot"
+        user = "testuser"
+        expected_data = {
+            "name": "test_schedule_action",
+            "schedule_time": {"value": "2024-08-07T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": "test_pyscript",
+            "response_text": "action scheduled",
+            "params_list": [],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        processor.update_schedule_action(expected_data, bot, user)
+        actual_data = list(processor.list_schedule_action(bot))
+        assert expected_data.get("schedule_time").get("value") == actual_data[0]["schedule_time"]["value"]
+
+    def test_update_schedule_action_scheduled_action(self):
+        bot = "testbot"
+        user = "testuser"
+        expected_data = {
+            "name": "test_schedule_action",
+            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": "test_pyscript_new",
+            "response_text": "action scheduled",
+            "params_list": [],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        processor.update_schedule_action(expected_data, bot, user)
+
+        actual_data = list(processor.list_schedule_action(bot))
+        assert expected_data.get("name") == actual_data[0]["name"]
+        assert expected_data.get("schedule_action") == actual_data[0]["schedule_action"]
+
+    def test_update_schedule_action_params_list(self):
+        bot = "testbot"
+        user = "testuser"
+        expected_data = {
+            "name": "test_schedule_action",
+            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": "test_pyscript_new",
+            "response_text": "action scheduled",
+            "params_list": [
+                {
+                    "key": "updated_key",
+                    "value": "param_2",
+                    "parameter_type": "value",
+                }
+            ],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        processor.update_schedule_action(expected_data, bot, user)
+
+        actual_data = list(processor.list_schedule_action(bot))
+        assert expected_data.get("name") == actual_data[0]["name"]
+        assert expected_data.get("schedule_action") == actual_data[0]["schedule_action"]
+        for data in actual_data:
+            data.pop("_id")
+        assert actual_data == [
+            {
+                'name': 'test_schedule_action',
+                'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'},
+                'timezone': 'UTC',
+                'schedule_action': 'test_pyscript_new',
+                'response_text': 'action scheduled',
+                'params_list': [
+                    {
+                        '_cls': 'CustomActionRequestParameters',
+                        'key': 'updated_key',
+                        'encrypt': False,
+                        'value': 'param_2',
+                        'parameter_type': 'value'
+                    }
+                ],
+                'dispatch_bot_response': True
+            }
+        ]
+
+    def test_update_schedule_action_schedule_time_param_type(self):
+        bot = "testbot"
+        user = "testuser"
+        expected_data = {
+            "name": "test_schedule_action",
+            "schedule_time": {"value": "delivery_time", "parameter_type": "slot"},
+            "timezone": None,
+            "schedule_action": "test_pyscript",
+            "response_text": "action scheduled",
+            "params_list": [],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        processor.update_schedule_action(expected_data, bot, user)
+        actual_data = list(processor.list_schedule_action(bot))
+        assert "slot" == actual_data[0]["schedule_time"]["parameter_type"]
+        assert "delivery_time" == actual_data[0]["schedule_time"]["value"]
+
+    def test_get_schedule_action_by_name(self):
+        name = "test_schedule_action"
+        bot = "testbot"
+        user = "testuser"
+        processor = MongoProcessor()
+        action = processor.get_schedule_action(bot, name)
+        assert action is not None
+
+    def test_get_schedule_action_by_name_not_exists(self):
+        name = "test_schedule_action_not_exisits"
+        bot = "testbot"
+        user = "testuser"
+        processor = MongoProcessor()
+        action = processor.get_schedule_action(bot, name)
+        assert action is None

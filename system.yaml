@@ -116,7 +116,7 @@ notifications:
   server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8800/events/"}
 
 events:
-  server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}
+  server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5056"}
   executor:
     type: ${EVENTS_EXECUTOR_TYPE}
     region: ${EVENTS_EXECUTOR_REGION}
@@ -135,6 +135,7 @@ events:
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
     web_search: ${WEB_SEARCH_TASK_DEFINITION}
     pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
+    scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
@@ -251,6 +252,9 @@ live_agent:
 
 async_callback_action:
   url: ${ASYNC_CALLBACK_ACTION_SERVER_URL:"http://localhost:5059/callback"}
+  short_secret:
+    aes_key: ${ASYNC_CALLBACK_AES_KEY:"3b1fbd562a0b5a29cc9a1b29b2c2d17a8a62b0d94f7637f1088e07fa1dbdcd14"}
+    aes_iv: ${ASYNC_CALLBACK_AES_IV:"2f7b56a2c3e4d5f681d8ab92bc9d8f47"}
   pyscript:
     trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
 

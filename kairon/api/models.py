@@ -938,6 +938,28 @@ class CustomActionParameterModel(BaseModel):
         return values
 
 
+class CustomActionDynamicParameterModel(BaseModel):
+    value: Any = None
+    parameter_type: ActionParameterType = ActionParameterType.value
+
+    @validator("parameter_type")
+    def validate_parameter_type(cls, v, values, **kwargs):
+        allowed_values = {ActionParameterType.value, ActionParameterType.slot}
+        if v not in allowed_values:
+            raise ValueError(f"Invalid parameter type. Allowed values: {allowed_values}")
+        return v
+
+    @root_validator
+    def check(cls, values):
+        if values.get('parameter_type') == ActionParameterType.slot and not values.get('value'):
+            raise ValueError("Provide name of the slot as value")
+
+        if values.get('parameter_type') == ActionParameterType.value and Utility.check_empty_string(values.get("value")):
+            raise ValueError("Value can not be blank")
+
+        return values
+
+
 class EmailActionRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)
     smtp_url: str
@@ -1138,6 +1160,35 @@ class CognitionSchemaRequest(BaseModel):
     collection_name: constr(to_lower=True, strip_whitespace=True)
 
 
+class CollectionDataRequest(BaseModel):
+    data: dict
+    is_secure: list = []
+    collection_name: constr(to_lower=True, strip_whitespace=True)
+
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        data = values.get("data")
+        is_secure = values.get("is_secure")
+        collection_name = values.get("collection_name")
+        if Utility.check_empty_string(collection_name):
+            raise ValueError("collection_name should not be empty!")
+
+        if not isinstance(is_secure, list):
+            raise ValueError("is_secure should be list of keys!")
+
+        if is_secure:
+            if not data or not isinstance(data, dict):
+                raise ValueError("data cannot be empty and should be of type dict!")
+            data_keys = set(data.keys())
+            is_secure_set = set(is_secure)
+
+            if not is_secure_set.issubset(data_keys):
+                raise ValueError("is_secure contains keys that are not present in data")
+        return values
+
+
 class CognitiveDataRequest(BaseModel):
     data: Any
     content_type: CognitionDataType = CognitionDataType.text.value
@@ -1165,6 +1216,7 @@ class RazorpayActionRequest(BaseModel):
     username: CustomActionParameter = None
     email: CustomActionParameter = None
     contact: CustomActionParameter = None
+    notes: Optional[List[HttpActionParameters]]
 
 
 class IntegrationRequest(BaseModel):
@@ -1238,14 +1290,39 @@ class IDPConfig(BaseModel):
 class CallbackConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     pyscript_code: str
-    validation_secret: str = None
     execution_mode: str = CallbackExecutionMode.ASYNC.value
+    standalone: bool = False
+    shorten_token: bool = False
+    standalone_id_path: Optional[str] = None
+    expire_in: int = 0
 
 
 class CallbackActionConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     callback_name: str
     dynamic_url_slot_name: Optional[str]
-    metadata_list: list[HttpActionParameters]
+    metadata_list: list[HttpActionParameters] = []
     bot_response: Optional[str]
     dispatch_bot_response: bool = True
+
+
+class ScheduleActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    schedule_time: CustomActionDynamicParameterModel
+    timezone: str = None
+    schedule_action: str
+    response_text: Optional[str]
+    params_list: Optional[List[HttpActionParameters]]
+    dispatch_bot_response: bool = True
+
+    @root_validator
+    def validate_name(cls, values):
+        from kairon.shared.utils import Utility
+
+        if not values.get("name") or Utility.check_empty_string(values.get("name")):
+            raise ValueError("Schedule action name can not be empty")
+
+        if not values.get("schedule_action") or Utility.check_empty_string(values.get("schedule_action")):
+            raise ValueError("Schedule action can not be empty, it is needed to execute on schedule time")
+
+        return values

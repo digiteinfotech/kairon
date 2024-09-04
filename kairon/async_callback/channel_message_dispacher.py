@@ -2,7 +2,7 @@ import time
 from typing import Any
 
 from uuid6 import uuid7
-
+from loguru import logger
 from kairon.chat.handlers.channels.messenger import MessengerClient, MessengerBot
 from kairon.chat.handlers.channels.telegram import TelegramOutput
 from kairon.chat.handlers.channels.whatsapp import Whatsapp
@@ -49,7 +49,7 @@ class ChannelMessageDispatcher:
     async def handle_default(bot: str, config, sender: str, message: Any, channel: str = 'default'):
         chat_database_collection = MessageBroadcastProcessor.get_db_client(bot)
         chat_database_collection.insert_one({
-            "type": "flatten",
+            "type": "flattened",
             "tag": 'callback_message',
             "conversation_id": uuid7().hex,
             "timestamp": time.time(),
@@ -79,19 +79,20 @@ class ChannelMessageDispatcher:
             config = ChatDataProcessor.get_channel_config(connector_type=channel, bot=bot, mask_characters=False)
             handler_func = channel_handlers.get(channel, None)
             if handler_func:
+                logger.info(f"Sending message <{message}> to <{channel} , {sender}>")
                 await handler_func(bot, config['config'], sender, message)
             else:
                 raise ValueError(f"Channel handler not found for {channel}")
 
             chat_database_collection = MessageBroadcastProcessor.get_db_client(bot)
             chat_database_collection.insert_one({
-                "type": "flatten",
+                "type": "flattened",
                 "tag": 'callback_message',
                 "conversation_id": uuid7().hex,
                 "timestamp": time.time(),
                 "sender_id": sender,
                 "data": {
-                    "message": message,
+                    "message": str(message),
                     "channel": channel
                 }
             })

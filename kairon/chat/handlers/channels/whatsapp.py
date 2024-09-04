@@ -66,6 +66,10 @@ class Whatsapp:
             logger.debug(message['order'])
             entity = json.dumps({message["type"]: message['order']})
             text = f"/k_order_msg{entity}"
+        elif message.get("type") == "payment":
+            logger.debug(message['payment'])
+            entity = json.dumps({message["type"]: message['payment']})
+            text = f"/k_payment_msg{entity}"
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
@@ -87,12 +91,19 @@ class Whatsapp:
                     statuses = changes.get("value", {}).get("statuses")
                     user = metadata.get('display_phone_number')
                     for status_data in statuses:
-                        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, ChannelTypes.WHATSAPP.value)
+                        recipient = status_data.get('recipient_id')
+                        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, recipient,
+                                                                  ChannelTypes.WHATSAPP.value)
+                        if status_data.get('type') == "payment":
+                            status_data["from"] = user
+                            await self.message(status_data, metadata, bot)
                 for message in messages or []:
                     await self.message(message, metadata, bot)
 
     async def send_message_to_user(self, message: Any, recipient_id: str):
         """Send a message to the user."""
+        from kairon.chat.converters.channels.response_factory import ConverterFactory
+
         is_bps = self.config.get("bsp_type", "meta") == "360dialog"
         client = WhatsappFactory.get_client(self.config.get("bsp_type", "meta"))
         phone_number_id = self.config.get('phone_number_id')
@@ -101,16 +112,26 @@ class Whatsapp:
         access_token = self.__get_access_token()
         c = client(access_token, from_phone_number_id=phone_number_id)
         message_type = "text"
-        if isinstance(message, dict):
-            if message.get("type") == "image":
-                message_type = "image"
-            elif message.get("type") == "video":
-                message_type = "video"
-            elif message.get("type") == "button":
-                message_type = "interactive"
-        c.send(message, recipient_id, message_type)
-
-
+        if isinstance(message, str):
+            message = {
+                'body': message,
+                'preview_url': True
+            }
+            c.send(message, recipient_id, message_type)
+        else:
+            content_type = {"link": "text", "video": "video", "image": "image", "button": "interactive",
+                            "dropdown": "interactive", "audio": "audio"}
+            if isinstance(message, dict):
+                message = [message]
+            for item in message:
+                message_type = content_type.get(item.get('type'))
+                message_body = item.get('data')
+                if not message_type:
+                    c.send({'body': f"{message_body}", 'preview_url': True}, recipient_id, "text")
+                else:
+                    converter_instance = ConverterFactory.getConcreteInstance(item.get('type'), ChannelTypes.WHATSAPP.value)
+                    response = await converter_instance.messageConverter(message_body)
+                    c.send(response, recipient_id, message_type)
 
     async def handle_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
         msg = "success"

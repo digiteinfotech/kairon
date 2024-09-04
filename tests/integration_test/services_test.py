@@ -30,6 +30,7 @@ from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
 from kairon.shared.utils import Utility, MailUtility
 
 Utility.load_system_metadata()
@@ -39,7 +40,7 @@ from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
@@ -1203,76 +1204,87 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
 
-def test_list_provider_models():
+def test_get_llm_metadata():
     secrets = [
         {
-            "llm_type": "commonllm",
-            "api_key": "common_api_key",
-            "models": ["common_model1", "common_model2"],
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
             "timestamp": datetime.utcnow()
-        }
+        },
     ]
 
     for secret in secrets:
         LLMSecret(**secret).save()
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/llm/models",
+        url=f"/api/bot/{pytest.bot}/metadata/llm",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"] is True
     assert actual["message"] is None
-    assert isinstance(actual["data"], dict)
-    assert "commonllm" in actual["data"]
-    assert actual["data"]["commonllm"] == ["common_model1", "common_model2"]
 
-def test_list_provider_models_bot_specific_model_exists():
-    LLMSecret.objects().delete()
+    assert "data" in actual
+    assert "openai" in actual["data"]
+    assert "model" in actual["data"]["openai"]["properties"]
+    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
+
+    assert "claude" in actual["data"]
+    assert "model" in actual["data"]["claude"]["properties"]
+    assert actual["data"]["claude"]["properties"]["model"]["enum"] == []
+    LLMSecret.objects.delete()
+
+
+def test_get_llm_metadata_bot_specific_model_exists():
+
     secrets = [
         {
-            "llm_type": "testllm",
-            "api_key": "test_api_key",
-            "models": ["model1", "model2", "model3"],
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "llm_type": "claude",
+            "api_key": "common_claude_key",
+            "models": ["common_claude_model1", "common_claude_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "llm_type": "claude",
+            "api_key": "custom_claude_key",
+            "models": ["common_claude_model1", "common_claude_model2", "custom_claude_model1"],
             "bot": pytest.bot,
-            "user": "test-user",
-            "timestamp": datetime.utcnow()
-        },
-        {
-            "llm_type": "testllm",
-            "api_key": "test_api_key2",
-            "models": ["model1", "model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        },
-        {
-            "llm_type": "commonllm",
-            "api_key": "common_api_key",
-            "models": ["common_model1", "common_model2"],
             "user": "123",
             "timestamp": datetime.utcnow()
         }
     ]
-
     for secret in secrets:
         LLMSecret(**secret).save()
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/llm/models",
+        url=f"/api/bot/{pytest.bot}/metadata/llm",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-
+    assert actual["error_code"] == 0
     assert actual["success"] is True
     assert actual["message"] is None
-    assert actual["error_code"] == 0
-    assert isinstance(actual["data"], dict)
-    assert "testllm" in actual["data"]
-    assert "commonllm" in actual["data"]
-    assert actual["data"]["testllm"] == ["model1", "model2", "model3"]
-    assert actual["data"]["commonllm"] == ["common_model1", "common_model2"]
+
+    assert "data" in actual
+    assert "openai" in actual["data"]
+    assert "model" in actual["data"]["openai"]["properties"]
+    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
+
+    assert "claude" in actual["data"]
+    assert "model" in actual["data"]["claude"]["properties"]
+    assert actual["data"]["claude"]["properties"]["model"]["enum"] == ["common_claude_model1", "common_claude_model2", "custom_claude_model1"]
+    LLMSecret.objects.delete()
 
 
 @responses.activate
@@ -1695,6 +1707,628 @@ def test_upload_with_bot_content_event_append_validate_payload_data():
     bot_settings.save()
 
 
+def test_get_collection_data_with_no_collection_data():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    assert actual["data"] == []
+
+
+def test_save_collection_data_with_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number", "aadhar"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_secure contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_save_collection_data_with_collection_name_empty():
+    request_body = {
+        "collection_name": "",
+        "is_secure": ["name", "mobile_number"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'collection_name should not be empty!', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_save_collection_data_with_invalid_is_secure():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": "name, mobile_number",
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'is_secure'],
+                                  'msg': 'value is not a valid list', 'type': 'type_error.list'},
+                                 {'loc': ['body', '__root__'], 'msg': 'is_secure should be list of keys!',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_save_collection_data_with_invalid_data():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "data": "Mahesh"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] ==  [{'loc': ['body', 'data'],
+                                   'msg': 'value is not a valid dict', 'type': 'type_error.dict'},
+                                  {'loc': ['body', '__root__'],
+                                   'msg': 'data cannot be empty and should be of type dict!',
+                                   'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_save_collection_data():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record saved!'
+    assert actual["success"]
+    pytest.collection_id = actual["data"]["_id"]
+
+
+def test_save_collection_data_with_collection_name_already_exist():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": [],
+        "data": {
+            "name": "Hitesh",
+            "age": 25,
+            "mobile_number": "989284928928",
+            "location": "Mumbai"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record saved!'
+    assert actual["success"]
+
+
+def test_save_collection_data_with_valid_data():
+    request_body = {
+        "collection_name": "bank_details",
+        "is_secure": ["account_number", "mobile_number", "ifsc"],
+        "data": {
+            "account_holder_name": "Mahesh",
+            "account_number": "636283263288232",
+            "mobile_number": "9876543210",
+            "location": "Bangalore",
+            "ifsc": "SBIN0000000"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record saved!'
+    assert actual["success"]
+
+
+def test_list_collection_data():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': ['name', 'mobile_number'],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
+            }
+        },
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        },
+        {
+            'collection_name': 'bank_details',
+            'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'data': {
+                'account_holder_name': 'Mahesh',
+                'account_number': '636283263288232',
+                'mobile_number': '9876543210',
+                'location': 'Bangalore',
+                'ifsc': 'SBIN0000000'
+            }
+        }
+    ]
+
+
+def test_get_collection_data():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user?key=name&value=Hitesh",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        }
+    ]
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user?key=location&value=Bangalore",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': ['name', 'mobile_number'],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
+            }
+        }
+    ]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/bank_details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'bank_details',
+            'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'data': {
+                'account_holder_name': 'Mahesh',
+                'account_number': '636283263288232',
+                'mobile_number': '9876543210',
+                'location': 'Bangalore',
+                'ifsc': 'SBIN0000000'
+            }
+        }
+    ]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': ['name', 'mobile_number'],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
+            }
+        },
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        }
+    ]
+
+
+def test_update_collection_data_with_collection_name_empty():
+    request_body = {
+        "collection_name": "",
+        "is_secure": ["name", "mobile_number"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'collection_name should not be empty!', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_collection_data_with_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number", "address"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_secure contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_collection_data_with_invalid_is_secure():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": "name, mobile_number",
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'is_secure'],
+                                  'msg': 'value is not a valid list', 'type': 'type_error.list'},
+                                 {'loc': ['body', '__root__'], 'msg': 'is_secure should be list of keys!',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_collection_data_with_invalid_data():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "data": "Mahesh"
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'data'],
+                                  'msg': 'value is not a valid dict', 'type': 'type_error.dict'},
+                                 {'loc': ['body', '__root__'],
+                                  'msg': 'data cannot be empty and should be of type dict!',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_update_collection_data():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["mobile_number", "location"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record updated!'
+    assert actual["success"]
+
+
+def test_update_collection_data_doesnot_exist():
+    request_body = {
+        "collection_name": "user_details",
+        "is_secure": ["mobile_number", "location"],
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Collection Data with given id and collection_name not found!'
+    assert not actual["success"]
+
+
+def test_get_collection_data_after_update():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': ['mobile_number', 'location'],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
+            }
+        },
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        },
+        {
+            'collection_name': 'bank_details',
+            'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'data': {
+                'account_holder_name': 'Mahesh',
+                'account_number': '636283263288232',
+                'mobile_number': '9876543210',
+                'location': 'Bangalore',
+                'ifsc': 'SBIN0000000'
+            }
+        }
+    ]
+
+
+def test_delete_collection_data_doesnot_exist():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.bot}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Collection Data does not exists!'
+    assert not actual["success"]
+
+
+def test_delete_collection_data():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Record deleted!'
+    assert actual["success"]
+
+
+def test_get_collection_data_after_delete():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    for coll_data in data:
+        coll_data.pop("_id")
+    assert data == [
+        {
+            'collection_name': 'user',
+            'is_secure': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        },
+        {
+            'collection_name': 'bank_details',
+            'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'data': {
+                'account_holder_name': 'Mahesh',
+                'account_number': '636283263288232',
+                'mobile_number': '9876543210',
+                'location': 'Bangalore',
+                'ifsc': 'SBIN0000000'
+            }
+        }
+    ]
+
+
 def test_get_live_agent_with_no_live_agent():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/action/live_agent",
@@ -1888,8 +2522,76 @@ def test_callback_config_add():
     actual['data'].pop('validation_secret')
     actual['data'].pop('bot')
     assert actual == {'success': True, 'message': 'Callback added successfully!',
-                      'data': {'name': 'callback_1', 'pyscript_code': "bot_response = 'Hello World!'",
+                      'data': {'name': 'callback_1',
+                               'pyscript_code': "bot_response = 'Hello World!'",
+                                'expire_in': 0,
+                               'shorten_token': False,
+                               'standalone': False,
+                               'standalone_id_path': '',
                       'execution_mode': 'async' }, 'error_code': 0}
+
+
+def test_callback_config_add_standalone():
+    request_body = {
+        "name": "callback_2",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "standalone": True,
+        "standalone_id_path": "data.id"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    actual['data'].pop('validation_secret')
+    actual['data'].pop('bot')
+    assert actual == {'success': True, 'message': 'Callback added successfully!',
+                      'data': {'name': 'callback_2',
+                               'pyscript_code': "bot_response = 'Hello World!'",
+                               'expire_in': 0,
+                               'shorten_token': False,
+                               'standalone': True,
+                               'standalone_id_path': 'data.id',
+                               'execution_mode': 'async'}, 'error_code': 0}
+
+
+def test_callback_get_standalone_url():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/callback_standalone_url/callback_2",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.status_code == 200
+    actual = response.json()
+    print(actual)
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data'], str)
+    assert '/callback/s/' in actual['data']
+    
+
+def test_callback_config_add_standalone_fail_no_path():
+    request_body = {
+        "name": "callback_3",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "standalone": True
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual == {'success': False, 'message': 'Standalone id path is required!',
+                      'data': None, 'error_code': 422}
 
 def test_callback_config_edit():
     request_body = {
@@ -1911,6 +2613,10 @@ def test_callback_config_edit():
     actual['data'].pop('bot')
     assert actual == {'success': True, 'message': 'Callback updated successfully!',
                       'data': {'name': 'callback_1', 'pyscript_code': "bot_response = 'Hello World2!'",
+                               'expire_in': 0,
+                               'shorten_token': False,
+                               'standalone': False,
+                               'standalone_id_path': '',
                                'execution_mode': 'async'}, 'error_code': 0}
 
 
@@ -1921,7 +2627,11 @@ def test_callback_config_get():
     )
 
     actual = response.json()
-    assert actual == {'success': True, 'message': None, 'data': ['callback_1'], 'error_code': 0}
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert len(actual['data']) == 2
+    assert 'callback_1' in actual['data']
+    assert 'callback_2' in actual['data']
 
 def test_callback_single_config_get():
     response = client.get(
@@ -1937,7 +2647,7 @@ def test_callback_single_config_get():
 
 def test_callback_config_delete():
     response = client.delete(
-        url=f"/api/bot/{pytest.bot}/action/callback/callback_1",
+        url=f"/api/bot/{pytest.bot}/action/callback/callback_2",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -1947,7 +2657,7 @@ def test_callback_config_delete():
 def test_callback_action_add_fail_no_callback_config():
     request_body = {
         "name": "callback_action1",
-        "callback_name": "callback_1",
+        "callback_name": "callback_12",
         "dynamic_url_slot_name": "string",
         "metadata_list": [],
         "bot_response": "string",
@@ -1961,7 +2671,7 @@ def test_callback_action_add_fail_no_callback_config():
     )
 
     actual = response.json()
-    assert actual == {'success': False, 'message': "Callback with name 'callback_1' not found!", 'data': None, 'error_code': 422}
+    assert actual == {'success': False, 'message': "Callback with name 'callback_12' not found!", 'data': None, 'error_code': 422}
 
 
 
@@ -2039,6 +2749,50 @@ def test_callback_action_get():
     assert actual['data']['name'] == 'callback_action1'
     assert actual['data']['callback_name'] == 'callback_1'
     assert actual['data']['dynamic_url_slot_name'] == 'new_slot_name'
+
+
+def test_callback_action_get_all():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/callback_actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data'], list)
+    assert len(actual['data']) == 1
+    assert actual['data'][0]['name'] == 'callback_action1'
+
+def test_callback_get_logs():
+    new_log = CallbackLog(
+        bot=pytest.bot,
+        callback_name="callback_action1",
+        channel="channel",
+        identifier="identifier",
+        pyscript_code="pyscript_code",
+        sender_id="sender_id",
+        log="callback_log",
+        request_data={},
+        metadata={},
+        callback_url="callback_url",
+        callback_source="callback_source",
+        status=CallbackRecordStatusType.FAILED.value,
+        timestamp=datetime.utcnow()).save()
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/callback_logs",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual['success'] == True
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data']['logs'], list)
+    assert len(actual['data']['logs']) == 1
+    assert actual['data']['total_number_of_pages'] == 1
 
 
 def test_callback_action_delete():
@@ -2332,6 +3086,189 @@ def test_list_pyscript_actions_after_action_deleted():
     assert actual["data"][0]["name"] == "test_add_pyscript_action_case_insensitivity"
     assert actual["data"][0]["source_code"] == script2
     assert actual["data"][0]["dispatch_response"]
+
+
+def test_add_schedule_action_with_invalid_params_list_values():
+    schedule_action_data = {
+        "name": "test_schedule_action",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "test_pyscript",
+        "response_text": "action scheduled",
+        "params_list": [
+            {
+                "value": "param_1",
+                "parameter_type": "value",
+                "count": 0
+            }
+        ],
+        "dispatch_bot_response": True
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        json=schedule_action_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert not actual["data"]
+    assert actual["message"] ==  [
+        {'loc': ['body', 'params_list', 0, 'key'], 'msg': 'field required', 'type': 'value_error.missing'}, 
+        {'loc': ['body', 'params_list', 0, '__root__'], 'msg': 'key cannot be empty', 'type': 'value_error'}
+    ]
+    assert actual["error_code"] == 422
+
+
+
+def test_add_schedule_action():
+    schedule_action_data = {
+        "name": "test_schedule_action",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "test_pyscript",
+        "response_text": "action scheduled",
+        "params_list": [
+            {
+                "key": "param_key",
+                "value": "param_1",
+                "parameter_type": "value",
+                "count": 0
+            }
+        ],
+        "dispatch_bot_response": True
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        json=schedule_action_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+
+
+def test_add_schedule_action_exists():
+    schedule_action_data = {
+        "name": "test_schedule_action",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "test_pyscript",
+        "response_text": "action scheduled",
+        "params_list": [],
+        "dispatch_bot_response": True
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        json=schedule_action_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] == False
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action exists!"
+
+
+def test_list_schedule_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    data = actual["data"]
+    for item in data:
+        item.pop('_id')
+    assert data == [
+        {
+            'name': 'test_schedule_action', 
+            'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'}, 
+            'timezone': 'UTC', 
+            'schedule_action': 'test_pyscript',
+            'response_text': 'action scheduled',
+            'params_list': [
+                {
+                    '_cls': 'CustomActionRequestParameters', 
+                    'key': 'param_key', 
+                    'encrypt': False, 
+                    'value': 'param_1',
+                    'parameter_type': 'value'
+                }
+            ], 
+            'dispatch_bot_response': True
+        }
+    ]
+
+
+def test_update_schedule_action_update_scheduled_action():
+    schedule_action_data = {
+        "name": "test_schedule_action",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "test_pyscript_new",
+        "response_text": "action scheduled, will be notified",
+        "params_list": [
+            {
+                "key": "updated_key",
+                "value": "param_2",
+                "parameter_type": "value",
+                "count": 0
+            }
+        ],
+        "dispatch_bot_response": True
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        json=schedule_action_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated!"
+    action = ScheduleAction.objects(bot=pytest.bot, name="test_schedule_action", status=True).get()
+    action = action.to_mongo().to_dict()
+    assert action.get("schedule_action") == "test_pyscript_new"
+    assert action.get("response_text") == "action scheduled, will be notified"
+
+
+def test_list_schedule_action_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    data = actual["data"]
+    for item in data:
+        item.pop('_id')
+    assert data == [
+        {
+            'name': 'test_schedule_action', 
+            'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'}, 
+            'timezone': 'UTC', 
+            'schedule_action': 'test_pyscript_new', 
+            'response_text': 'action scheduled, will be notified', 
+            'params_list': [
+                {
+                    '_cls': 'CustomActionRequestParameters', 
+                    'key': 'updated_key',
+                    'encrypt': False, 
+                    'value': 'param_2', 
+                    'parameter_type': 'value'
+                }
+            ], 
+            'dispatch_bot_response': True
+        }
+    ]
 
 
 def test_initiate_bsp_onboarding_for_broadcast(monkeypatch):
@@ -5434,7 +6371,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 13
+    assert len(actual['data']) == 14
     assert actual["success"]
 
 
@@ -5627,7 +6564,7 @@ def test_list_entities():
     assert actual["error_code"] == 0
     expected = {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                 'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
-                'audio', 'image', 'doc_url', 'document', 'video', 'order', 'latitude',
+                'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
                 'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
@@ -6255,7 +7192,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 20
+    assert len(actual["data"]) == 21
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -7286,11 +8223,12 @@ def test_add_story_invalid_event_type():
                     "WEB_SEARCH_ACTION",
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
-                    "CALLBACK_ACTION"
+                    "CALLBACK_ACTION",
+                    "SCHEDULE_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -7933,7 +8871,7 @@ def test_add_multiflow_story_invalid_event_type():
                    "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
                    "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
                    "'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', "
-                   "'CALLBACK_ACTION'",
+                   "'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -7960,7 +8898,8 @@ def test_add_multiflow_story_invalid_event_type():
                     "WEB_SEARCH_ACTION",
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
-                    "CALLBACK_ACTION"
+                    "CALLBACK_ACTION",
+                    "SCHEDULE_ACTION"
                 ]
             },
         }
@@ -8053,11 +8992,12 @@ def test_update_story_invalid_event_type():
                     "WEB_SEARCH_ACTION",
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
-                    "CALLBACK_ACTION"
+                    "CALLBACK_ACTION",
+                    "SCHEDULE_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -8415,7 +9355,7 @@ def test_update_multiflow_story_invalid_event_type():
                    "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                    "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
                    "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', "
-                   "'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION'",
+                   "'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -8442,7 +9382,8 @@ def test_update_multiflow_story_invalid_event_type():
                     "WEB_SEARCH_ACTION",
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
-                    "CALLBACK_ACTION"
+                    "CALLBACK_ACTION",
+                    "SCHEDULE_ACTION"
                 ]
             },
         }
@@ -9692,6 +10633,130 @@ def test_deploy_server_error(mock_endpoint):
     assert actual["data"] is None
     assert actual["message"] == "An unexpected error occurred."
 
+def test_leave_bot_successfully():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
+    )
+    actual = response.json()
+    assert "access_token" in actual["data"]
+    assert actual["success"]
+
+    response = client.post(
+        f"/api/user/{pytest.bot}/member",
+        json={"email": "integration2@demo.ai", "role": "tester"},
+        headers={
+            "Authorization": f"{actual['data']['token_type']}"+ " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration2@demo.ai", "password": "Welcome@10"},
+    )
+    actual = response.json()
+
+    response = client.get(
+        "/api/account/bot",
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+    assert len(response["data"]["shared"]) == 1
+
+    response = client.delete(
+        f"/api/user/{pytest.bot}/leave",
+        headers={
+            "Authorization": f"{actual['data']['token_type']}"+ " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+    assert response["message"] == "Successfully left the bot"
+    assert response["error_code"] == 0
+    assert response["success"]
+
+def test_leave_bot_owner_forbidden():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
+    )
+    actual = response.json()
+    assert "access_token" in actual["data"]
+    assert actual["success"]
+
+    # Step 2: Attempt to leave the bot
+    response = client.delete(
+        f"/api/user/{pytest.bot}/leave",
+        headers={
+            "Authorization": f"{actual['data']['token_type']}"+ " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+
+    # Step 3: Validate response
+    assert response["message"] == "Owner cannot leave the bot"
+    assert response["error_code"] == 422
+    assert not response["success"]
+
+def test_leave_bot_with_integration_tokens():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
+    )
+    actual = response.json()
+    assert "access_token" in actual["data"]
+    assert actual["success"]
+
+    response = client.post(
+        f"/api/user/{pytest.bot}/member",
+        json={"email": "integration2@demo.ai", "role": "admin"},
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration2@demo.ai", "password": "Welcome@10"},
+    )
+    actual = response.json()
+
+    response = client.post(
+        f"/api/auth/{pytest.bot}/integration/token",
+        json={"name": "integration 100", "expiry_minutes": 1440, "role": "designer"},
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    )
+    token = response.json()
+    print(token)
+    response = client.delete(
+        f"/api/user/{pytest.bot}/leave",
+        headers={
+            "Authorization": actual["data"]["token_type"] + " " + actual["data"]["access_token"]
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "You must delete all your integration tokens before leaving the bot"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+def test_leave_non_existent_bot_1():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
+    )
+    actual = response.json()
+    assert "access_token" in actual["data"]
+    assert actual["success"]
+    response = client.delete(
+        "/api/user/000000abcdefgh/leave",
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Access to bot is denied"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
 
 def test_integration_token():
     response = client.post(
@@ -13728,7 +14793,7 @@ def test_list_actions():
                               'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                               'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
-                              'prompt_action': [], 'callback_action': [],
+                              'prompt_action': [], 'callback_action': [], 'schedule_action': [],
                               'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []}, ignore_order=True)
 
     assert actual["success"]
@@ -14616,10 +15681,11 @@ def test_add_rule_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
+                    "SCHEDULE_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -14709,10 +15775,11 @@ def test_update_rule_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
+                    "SCHEDULE_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -20694,6 +21761,7 @@ def test_add_bot_with_template_name(monkeypatch):
             "pyscript_action": [],
             "live_agent_action": [],
             "callback_action": [],
+            "schedule_action": []
         },
         ignore_order=True,
     )
@@ -23339,6 +24407,10 @@ def test_add_razorpay_action():
         "username": {"parameter_type": "sender_id"},
         "email": {"parameter_type": "sender_id"},
         "contact": {"value": "contact", "parameter_type": "slot"},
+        "notes": [
+            {"key": "order_id", "parameter_type": "slot", "value": "order_id"},
+            {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+        ]
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/razorpay",
@@ -23458,6 +24530,22 @@ def test_list_razorpay_actions():
                 "value": "contact",
                 "parameter_type": "slot",
             },
+            "notes": [
+                {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'order_id',
+                    'encrypt': False,
+                    'value': 'order_id',
+                    'parameter_type': 'slot'
+                },
+                {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'phone_number',
+                    'encrypt': False,
+                    'value': '9876543210',
+                    'parameter_type': 'value'
+                }
+            ]
         },
         {
             "name": "razorpay_action_required_values_only",
@@ -23489,6 +24577,7 @@ def test_list_razorpay_actions():
                 "value": "INR",
                 "parameter_type": "slot",
             },
+            "notes": []
         },
     ]
     assert actual["success"]
@@ -23505,6 +24594,9 @@ def test_edit_razorpay_action():
         "currency": {"value": "INR", "parameter_type": "slot"},
         "email": {"parameter_type": "sender_id"},
         "contact": {"value": "contact", "parameter_type": "value"},
+        "notes": [
+            {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+        ]
     }
 
     response = client.put(
@@ -23517,6 +24609,105 @@ def test_edit_razorpay_action():
     assert actual["error_code"] == 0
     assert actual["message"] == "Action updated!"
 
+
+def test_list_razorpay_actions_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    [v.pop("timestamp") for v in actual["data"]]
+    [action.pop("_id") for action in actual["data"]]
+    print(actual["data"])
+    assert actual["data"] == [
+        {
+            "name": "razorpay_action",
+            "api_key": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_key",
+                "encrypt": False,
+                "value": "API_KEY",
+                "parameter_type": "key_vault",
+            },
+            "api_secret": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_secret",
+                "encrypt": False,
+                "value": "API_SECRET",
+                "parameter_type": "key_vault",
+            },
+            "amount": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "amount",
+                "encrypt": False,
+                "value": "amount",
+                "parameter_type": "value",
+            },
+            "currency": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "currency",
+                "encrypt": False,
+                "value": "INR",
+                "parameter_type": "slot",
+            },
+            "email": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "email",
+                "encrypt": False,
+                "parameter_type": "sender_id",
+            },
+            "contact": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "contact",
+                "encrypt": False,
+                "value": "contact",
+                "parameter_type": "value",
+            },
+            "notes": [
+                {
+                    '_cls': 'CustomActionRequestParameters',
+                    'key': 'phone_number',
+                    'encrypt': False,
+                    'value': '9876543210',
+                    'parameter_type': 'value'
+                }
+            ]
+        },
+        {
+            "name": "razorpay_action_required_values_only",
+            "api_key": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_key",
+                "encrypt": False,
+                "value": "API_KEY",
+                "parameter_type": "value",
+            },
+            "api_secret": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "api_secret",
+                "encrypt": False,
+                "value": "API_SECRET",
+                "parameter_type": "value",
+            },
+            "amount": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "amount",
+                "encrypt": False,
+                "value": "amount",
+                "parameter_type": "value",
+            },
+            "currency": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "currency",
+                "encrypt": False,
+                "value": "INR",
+                "parameter_type": "slot",
+            },
+            "notes": []
+        },
+    ]
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 def test_edit_razorpay_action_required_config_missing():
     action_name = "razorpay_action"
@@ -26236,4 +27427,5 @@ def test_list_system_metadata():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual["data"]) == 17
+    assert len(actual["data"]) == 16
+

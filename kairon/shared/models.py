@@ -30,6 +30,7 @@ class StoryStepType(str, Enum):
     live_agent_action = "LIVE_AGENT_ACTION"
     stop_flow_action = "STOP_FLOW_ACTION"
     callback_action = "CALLBACK_ACTION"
+    schedule_action = "SCHEDULE_ACTION"
 
 
 class StoryType(str, Enum):

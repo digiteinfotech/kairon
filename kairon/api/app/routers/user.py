@@ -72,10 +72,12 @@ async def allow_bot_for_user(
                                                                        current_user.account, allow_bot.role)
     if Utility.email_conf["email"]["enable"]:
         accessor_name = AccountProcessor.get_user(allow_bot.email, raise_error=False)
+        accessor = "Buddy"
+        if accessor_name:
+            accessor = f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}"
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member', email=allow_bot.email, url=url,
                                   first_name=f'{current_user.first_name} {current_user.last_name}',
-                                  bot_name=bot_name, role=allow_bot.role.value,
-                                  accessor_name=f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}")
+                                  bot_name=bot_name, role=allow_bot.role.value, accessor_name=accessor)
         return Response(message='An invitation has been sent to the user')
     else:
         return {"message": "User added"}
@@ -238,3 +240,37 @@ async def get_model_testing_logs_accuracy(
     return Response(data=data)
 
 
+@router.delete("/{bot}/leave", response_model=Response)
+async def leave_bot(
+    background_tasks: BackgroundTasks,
+    bot: str = Path(description="bot id", examples=["613f63e87a1d435607c3c183"]),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Allows a user except owner to leave a bot.
+    """
+    result = await AccountProcessor.process_leave_bot(bot, current_user, current_user.bot_account)
+
+    bot_data = result.get("bot_data")
+    owner_info = result.get("owner_info")
+    from kairon.shared.account.data_objects import User as User_data_object
+
+    if Utility.email_conf["email"]["enable"]:
+        bot_name = bot_data["name"]
+        owner_email = owner_info["accessor_email"]
+        owner_info_name = User_data_object.objects(email=owner_email).first()
+        if owner_info_name:
+            owner_name = f'{owner_info_name["first_name"].capitalize()} {owner_info_name["last_name"].capitalize()}'
+        user_name = f'{current_user.first_name} {current_user.last_name}'
+
+        # Notify the owner of the bot
+        background_tasks.add_task(
+            MailUtility.format_and_send_mail,
+            mail_type='member_left_bot',
+            email=owner_email,
+            first_name=owner_name,
+            user_name=user_name,
+            bot_name=bot_name
+        )
+
+    return Response(message='Successfully left the bot')

@@ -82,7 +82,7 @@ from kairon.shared.actions.data_objects import (
     PyscriptActionConfig,
     WebSearchAction,
     UserQuestion, CustomActionParameters,
-    LiveAgentActionConfig, CallbackActionConfig,
+    LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -157,7 +157,7 @@ from .data_objects import (
     Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
 )
 from .utils import DataUtility
-from ..callback.data_objects import CallbackConfig
+from ..callback.data_objects import CallbackConfig, CallbackLog
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
@@ -1124,6 +1124,7 @@ class MongoProcessor:
         saved_actions = self.__prepare_training_actions(bot)
         for action in actions:
             if action.strip().lower() not in saved_actions:
+                self.__check_for_form_and_action_existance(bot, action)
                 new_action = Actions(name=action, bot=bot, user=user)
                 new_action.clean()
                 yield new_action
@@ -1353,7 +1354,7 @@ class MongoProcessor:
         non_conversational_slots = {
             KaironSystemSlots.kairon_action_response.value, KaironSystemSlots.bot.value,
             KaironSystemSlots.order.value, KaironSystemSlots.flow_reply.value,
-            KaironSystemSlots.http_status_code.value
+            KaironSystemSlots.http_status_code.value, KaironSystemSlots.payment.value
         }
         for slot in [s for s in KaironSystemSlots if s.value in non_conversational_slots]:
             initial_value = None
@@ -3326,6 +3327,7 @@ class MongoProcessor:
         database_actions = set(DatabaseAction.objects(bot=bot, status=True).values_list('name'))
         web_search_actions = set(WebSearchAction.objects(bot=bot, status=True).values_list('name'))
         callback_actions = set(CallbackActionConfig.objects(bot=bot, status=True).values_list('name'))
+        schedule_action = set(ScheduleAction.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -3394,6 +3396,8 @@ class MongoProcessor:
                         step["type"] = StoryStepType.live_agent_action.value
                     elif event['name'] in callback_actions:
                         step["type"] = StoryStepType.callback_action.value
+                    elif event['name'] in schedule_action:
+                        step["type"] = StoryStepType.schedule_action.value
                     elif event['name'] == 'action_listen':
                         step["type"] = StoryStepType.stop_flow_action.value
                         step["name"] = 'stop_flow_action'
@@ -6563,6 +6567,10 @@ class MongoProcessor:
                     [PyscriptActionConfig], name__iexact=name, bot=bot,
                     user=user
                 )
+            elif action.type == ActionType.schedule_action.value:
+                Utility.hard_delete_document(
+                    [ScheduleAction], name__iexact=name, bot=bot
+                )
             action.delete()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
@@ -7812,6 +7820,11 @@ class MongoProcessor:
             if request_data.get("contact")
             else None
         )
+        notes = [
+            CustomActionRequestParameters(**param)
+            for param in request_data.get("notes") or []
+        ]
+        action.notes = notes
         action.user = user
         action.save()
 
@@ -7906,11 +7919,21 @@ class MongoProcessor:
         """
         name = request_data.get("name")
         pyscript_code = request_data.get("pyscript_code")
-        validation_secret = request_data.get("validation_secret")
         execution_mode = request_data.get("execution_mode")
-        if not validation_secret:
-            validation_secret = str(uuid7().hex)
-        config = CallbackConfig.create_entry(bot, name, pyscript_code, validation_secret, execution_mode)
+        shorten_token = request_data.get("shorten_token")
+        standalone = request_data.get("standalone")
+        expire_in = request_data.get("expire_in")
+        standalone_id_path = request_data.get("standalone_id_path")
+        if standalone and not standalone_id_path:
+            raise AppException("Standalone id path is required!")
+        config = CallbackConfig.create_entry(bot,
+                                             name,
+                                             pyscript_code,
+                                             execution_mode,
+                                             expire_in,
+                                             shorten_token,
+                                             standalone,
+                                             standalone_id_path)
         config.pop('_id')
         return config
 
@@ -7930,7 +7953,7 @@ class MongoProcessor:
     def delete_callback(self, bot: str, name: str):
         """
         Delete callback config.
-
+        :param bot: bot id
         :param name: callback name
         """
         CallbackConfig.delete_entry(bot, name)
@@ -8025,8 +8048,6 @@ class MongoProcessor:
 
         update_query = {}
         for key, value in request_data.items():
-            if not value:
-                continue
             if key == 'metadata_list':
                 value = [HttpActionRequestBody(**param)for param in value] or []
 
@@ -8069,3 +8090,154 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([Actions], bot, name__iexact=name)
         Utility.hard_delete_document([CallbackActionConfig], bot=bot, name__iexact=name)
+
+    def add_schedule_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Add Schedule Action
+        :param request_data: data object for schedule action
+        :param bot: bot id
+        :param user: user
+        """
+        Utility.is_exist(
+            Actions,
+            exp_message="Action exists!",
+            name__iexact=request_data.get("name"),
+            bot=bot,
+            status=True,
+        )
+        Utility.is_exist(
+            ScheduleAction,
+            exp_message="Action exists!",
+            name__iexact=request_data.get("name"),
+            bot=bot,
+            status=True,
+        )
+
+        request_data["bot"] = bot
+        request_data["user"] = user
+        action_id = ScheduleAction(**request_data).save().id.__str__()
+        self.add_action(
+            request_data["name"],
+            bot,
+            user,
+            raise_exception=False,
+            action_type=ActionType.schedule_action,
+        )
+        return action_id
+
+    def update_schedule_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Update Schedule Action
+        :param request_data: data object for schedule action
+        :param bot: bot id
+        :param user: user who edit/update this
+        """
+        if not Utility.is_exist(
+                ScheduleAction,
+                raise_error=False,
+                name__iexact=request_data["name"],
+                bot=bot,
+                status=True,
+        ):
+            raise AppException(
+                "No schedule action found for this bot with this name "
+                + bot
+                + " and action "
+                + request_data["name"]
+            )
+        params_list = [
+            CustomActionRequestParameters(**param)
+            for param in request_data.get("params_list") or []
+        ]
+
+        schedule_action = ScheduleAction.objects(bot=bot, name=request_data["name"], status=True).get()
+        schedule_action.name = request_data.get("name")
+        schedule_action.user = user
+        schedule_action.timezone = request_data.get("timezone")
+        schedule_action.response_text = request_data.get("response_text")
+        schedule_action.schedule_time = CustomActionDynamicParameters(**request_data.get("schedule_time"))
+        schedule_action.params_list = params_list
+        schedule_action.schedule_action = request_data.get("schedule_action")
+        schedule_action.dispatch_bot_response = request_data.get("dispatch_response", True)
+        schedule_action.status = request_data.get("status", True)
+        schedule_action.save()
+        return schedule_action.id.__str__()
+
+    def list_schedule_action(self, bot: Text, with_doc_id: bool = True):
+        """
+        List Schedule Action
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        """
+        for action in ScheduleAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
+
+    def get_schedule_action(self, bot: Text, name: str, with_doc_id: bool = True):
+        """
+        Get Schedule Action by name
+        :param bot: bot id
+        :param name: Name of action
+        :param with_doc_id: return document id along with action configuration if True
+        """
+        action = ScheduleAction.objects(bot=bot, name=name, status=True)
+        if action:
+            action = action.get().to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            return action
+
+    def get_all_callback_actions(self, bot: Text):
+        """
+        Retrieve all async callback action config.
+        """
+        async_callback_actions = CallbackActionConfig.objects(bot=bot, status=True)
+        if not async_callback_actions:
+            return []
+
+        action_dict_list = []
+        for action in async_callback_actions:
+            action = action.to_mongo().to_dict()
+            action.pop("_id")
+            action.pop("bot")
+            action.pop("user")
+            action.pop("status")
+            action_dict_list.append(action)
+        return action_dict_list
+
+    def get_callback_service_log(self, bot: str,
+                                 channel: Optional[None] = None,
+                                 name: Optional[str] = None,
+                                 sender_id: Optional[str] = None,
+                                 identifier: Optional[str] = None,
+                                 start: Optional[int] = 0,
+                                 limit: Optional[int] = 100):
+        """
+        Retrieve callback service logs.
+        """
+        query = {"bot": bot}
+        if name:
+            query["callback_name"] = name
+        if sender_id:
+            query["sender_id"] = sender_id
+        if channel:
+            query["channel"] = channel
+        if identifier:
+            query["identifier"] = identifier
+
+        logs, total_count = CallbackLog.get_logs(query, start, limit)
+        return logs, total_count

@@ -11,7 +11,7 @@ class SchedulerFactory:
 
     @staticmethod
     def get_instance():
-        scheduler_type = Utility.environment["event"]["scheduler"]["type"]
+        scheduler_type = Utility.environment["events"]["scheduler"]["type"]
         if scheduler_type not in SchedulerFactory.__implementations.keys():
             raise AppException(f"scheduler type '{scheduler_type}' not implemented!")
-        return SchedulerFactory.__implementations[scheduler_type]
+        return SchedulerFactory.__implementations[scheduler_type]()

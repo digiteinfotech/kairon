@@ -4,23 +4,27 @@ from apscheduler.jobstores.base import JobLookupError
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
 from pymongo import MongoClient
 from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.scheduler.base import EventSchedulerBase
 from kairon.exceptions import AppException
-import logging
+from datetime import datetime
+from apscheduler.events import JobEvent, EVENT_JOB_ADDED
 
-logging.basicConfig()
+import logging
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
+logging.basicConfig()
 
 
 class KScheduler(EventSchedulerBase):
     __client = MongoClient(Utility.environment['database']['url'])
     __events_db = Utility.environment['events']['queue']['name']
     __job_store_name = Utility.environment['events']['scheduler']['collection']
-    __scheduler = BackgroundScheduler(jobstores={__job_store_name: MongoDBJobStore(__events_db, __job_store_name, __client)},
-                                      job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
+    __scheduler = BackgroundScheduler(
+        jobstores={__job_store_name: MongoDBJobStore(__events_db, __job_store_name, __client)},
+        job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
     __scheduler.start()
 
     def update_job(self, event_id: Text, cron_exp: Text, event_class: Text, data: dict, timezone=None):
@@ -41,7 +45,8 @@ class KScheduler(EventSchedulerBase):
         func = ExecutorFactory.get_executor().execute_task
         args = (event_class, data,)
         trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
-        KScheduler.__scheduler.add_job(func, trigger, args, id=event_id, name=func.__name__, jobstore=KScheduler.__job_store_name)
+        KScheduler.__scheduler.add_job(func, trigger, args, id=event_id, name=func.__name__,
+                                       jobstore=KScheduler.__job_store_name)
 
     def list_jobs(self):
         return [job.id for job in KScheduler.__scheduler.get_jobs(jobstore=KScheduler.__job_store_name)]
@@ -58,3 +63,8 @@ class KScheduler(EventSchedulerBase):
         except JobLookupError as e:
             logger.exception(e)
             raise AppException(e)
+
+    def dispatch_event(self, event_id):
+        event = JobEvent(EVENT_JOB_ADDED, event_id, KScheduler.__job_store_name)
+        KScheduler.__scheduler._dispatch_event(event)
+        KScheduler.__scheduler.wakeup()

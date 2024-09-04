@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Path, Security, Depends
+from fastapi import APIRouter, Path, Security, Depends, Request
 
+from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
@@ -7,7 +8,8 @@ from kairon.api.models import (
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
-    WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest
+    WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest,
+    ScheduleActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -620,6 +622,15 @@ async def get_callback(
     return Response(data=info)
 
 
+@router.get("/callback_standalone_url/{name}", response_model=Response)
+async def get_callback_standalone_url(
+        name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    url = CallbackConfig.get_callback_url(current_user.get_bot(), name)
+    return Response(data=url)
+
+
 @router.post("/callback", response_model=Response)
 async def add_callback(
         request_data: CallbackConfigRequest,
@@ -636,6 +647,15 @@ async def edit_callback(
 ):
     info = mongo_processor.edit_callback(request_data.dict(), current_user.get_bot())
     return Response(data=info, message="Callback updated successfully!")
+
+
+@router.get("/callback_actions", response_model=Response)
+async def get_all_callback_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    actions = list(mongo_processor.get_all_callback_actions(current_user.get_bot()))
+    msg = "No callback actions found!" if not actions else "success!"
+    return Response(data=actions, message=msg)
 
 
 @router.delete("/callback/{name}", response_model=Response)
@@ -683,6 +703,43 @@ async def delete_callback_action(
     return Response(message="Callback action deleted successfully!")
 
 
+@router.get('/callback_logs')
+async def get_callback_logs(
+    request: Request,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+):
+    '''
+    Provides callback logs for the bot
+    Request Parameters:
+    channel: str
+    offset: int
+    limit: int
+    name: str
+    sender_id: str
+    identifier: str
+
+    '''
+    channel = None
+    offset = 0
+    limit = 50
+    name = None
+    sender_id = None
+    identifier = None
+    if request.query_params:
+        params_dict = request.query_params.__dict__['_dict']
+        channel = params_dict.get("channel")
+        offset = int(params_dict.get("offset", 0))
+        limit = int(params_dict.get("limit", 10))
+        name = params_dict.get("name")
+        identifier = params_dict.get("identifier")
+    logs, total_count = mongo_processor.get_callback_service_log(current_user.get_bot(), channel, name, sender_id, identifier, offset, limit)
+    return Response(data={
+        "logs": logs,
+        "total": total_count,
+        "total_number_of_pages": total_count // limit + 1
+    })
+
+
 @router.get("/actions", response_model=Response)
 async def list_available_actions(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
@@ -690,4 +747,37 @@ async def list_available_actions(
     Returns list of all actions for bot.
     """
     actions = list(mongo_processor.list_all_actions(bot=current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.post("/schedule", response_model=Response)
+async def add_schedule_action(
+        request_data: ScheduleActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Add the schedule action
+    """
+    action_id = mongo_processor.add_schedule_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action added!")
+
+
+@router.put("/schedule", response_model=Response)
+async def update_schedule_action(
+        request_data: ScheduleActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Update the schedule action
+    """
+    action_id = mongo_processor.update_schedule_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action updated!")
+
+
+@router.get("/schedule", response_model=Response)
+async def list_schedule_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of schedule actions for bot.
+    """
+    actions = list(mongo_processor.list_schedule_action(current_user.get_bot()))
     return Response(data=actions)
