@@ -3,6 +3,7 @@ import ujson as json
 import os
 from unittest import mock
 from unittest.mock import patch
+from mongoengine import connect
 
 import pytest
 from boto3 import Session
@@ -11,8 +12,10 @@ from botocore.response import StreamingBody
 from botocore.stub import Stubber
 
 from kairon import Utility
+from kairon.exceptions import AppException
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
+from kairon.shared.data.constant import TASK_TYPE, EVENT_STATUS
 
 
 class TestCloudUtils:
@@ -21,6 +24,14 @@ class TestCloudUtils:
     def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
+
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
+        from kairon.shared.account.processor import AccountProcessor
+        AccountProcessor.load_system_properties()
 
     def test_file_upload(self):
         bucket_name = 'kairon'
@@ -148,6 +159,131 @@ class TestCloudUtils:
 
         with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
             CloudUtility.delete_file(bucket_name, 'tests/testing_data/actions/actions.yml')
+
+    def test_trigger_lambda_model_training_executor_log_when_success(self):
+        mock_env = Utility.environment.copy()
+        mock_env['events']['executor']['type'] = 'aws_lambda'
+        mock_env['events']['task_definition'][EventClass.model_training] = 'train-model'
+        response_payload = json.dumps({'response': "Query submittes"}).encode("utf-8")
+        response = {'StatusCode': 200, 'FunctionError': 'Unhandled',
+                    'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+                    'ExecutedVersion': '$LATEST',
+                    'Payload': StreamingBody(io.BytesIO(response_payload),
+                                             len(response_payload))}
+
+        def __mock_make_api_call(self, operation_name, kwargs):
+            assert kwargs == {'FunctionName': 'train-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
+                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
+            if operation_name == 'Invoke':
+                return response
+
+            raise Exception("Invalid operation_name")
+
+        with patch.dict(Utility.environment, mock_env):
+            with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
+                resp = CloudUtility.trigger_lambda(EventClass.model_training,
+                                                   {"BOT": "test", "USER": "test_user"},
+                                                   task_type=TASK_TYPE.EVENT.value)
+                assert resp == response
+
+        from kairon.shared.events.data_objects import ExecutorLogs
+        logs = ExecutorLogs.objects(task_type='Event')
+        log = logs[0].to_mongo().to_dict()
+        assert log['task_type'] == 'Event'
+        assert log['event_class'] == 'model_training'
+        assert log['data'] == {'BOT': 'test', 'USER': 'test_user'}
+        assert log['status'] == 'Completed'
+        assert log['response'] == {
+            'StatusCode': 200,
+            'FunctionError': 'Unhandled',
+            'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+            'ExecutedVersion': '$LATEST',
+            'Payload': {'response': 'Query submittes'}
+        }
+        assert log['from_executor'] is False
+        assert log['elapsed_time']
+
+    def test_trigger_lambda_model_training_executor_log_when_failed(self):
+        mock_env = Utility.environment.copy()
+        mock_env['events']['executor']['type'] = 'aws_lambda'
+        mock_env['events']['task_definition'][EventClass.model_training] = 'train-model'
+        response_payload = json.dumps({'response': "Query submittes"}).encode("utf-8")
+        response = {'StatusCode': 200, 'FunctionError': 'Unhandled',
+                    'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+                    'ExecutedVersion': '$LATEST',
+                    'Payload': StreamingBody(io.BytesIO(response_payload),
+                                             len(response_payload))}
+
+        def __mock_make_api_call(self, operation_name, kwargs):
+            assert kwargs == {'FunctionName': 'train-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
+                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
+
+            raise Exception("Parameter validation failed: Invalid type for parameter FunctionName, value: None, "
+                            "type: <class 'NoneType'>, valid types: <class 'str'>")
+
+        with patch.dict(Utility.environment, mock_env):
+            with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
+                with pytest.raises(AppException):
+                    CloudUtility.trigger_lambda(EventClass.model_training,
+                                                {"BOT": "test", "USER": "test_user"},
+                                                task_type=TASK_TYPE.EVENT.value)
+
+        from kairon.shared.events.data_objects import ExecutorLogs
+        logs = ExecutorLogs.objects(task_type='Event')
+        log = logs[1].to_mongo().to_dict()
+        pytest.executor_log_id = log['executor_log_id']
+        assert log['task_type'] == 'Event'
+        assert log['event_class'] == 'model_training'
+        assert log['data'] == {'BOT': 'test', 'USER': 'test_user'}
+        assert log['status'] == 'Fail'
+        assert log['response'] == {}
+        assert log['from_executor'] is False
+        assert log['exception'] == ("Parameter validation failed: Invalid type for parameter FunctionName, "
+                                    "value: None, type: <class 'NoneType'>, valid types: <class 'str'>")
+        assert log['elapsed_time']
+
+    def test_trigger_lambda_model_training_executor_log_when_already_exist(self):
+        mock_env = Utility.environment.copy()
+        mock_env['events']['executor']['type'] = 'aws_lambda'
+        mock_env['events']['task_definition'][EventClass.model_training] = 'train-model'
+        response_payload = json.dumps({'response': "Query submittes"}).encode("utf-8")
+        response = {'StatusCode': 200, 'FunctionError': 'Unhandled',
+                    'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+                    'ExecutedVersion': '$LATEST',
+                    'Payload': StreamingBody(io.BytesIO(response_payload),
+                                             len(response_payload))}
+
+        def __mock_make_api_call(self, operation_name, kwargs):
+            assert kwargs == {'FunctionName': 'train-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
+                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
+            if operation_name == 'Invoke':
+                return response
+
+            raise Exception("Invalid operation_name")
+
+        with patch.dict(Utility.environment, mock_env):
+            with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
+                resp = CloudUtility.trigger_lambda(EventClass.model_training,
+                                                   {"BOT": "test", "USER": "test_user"},
+                                                   task_type=TASK_TYPE.EVENT.value)
+                assert resp == response
+
+        from kairon.shared.events.data_objects import ExecutorLogs
+        from kairon.events.executors.base import ExecutorBase
+        executor = ExecutorBase()
+        executor.log_task(event_class=EventClass.model_training.value, task_type=TASK_TYPE.EVENT.value,
+                          data={'BOT': 'test', 'USER': 'test_user'},
+                          executor_log_id=pytest.executor_log_id, status=EVENT_STATUS.INITIATED.value)
+
+        logs = ExecutorLogs.objects(executor_log_id=pytest.executor_log_id)
+        assert len(logs) == 2
+        log = logs[1].to_mongo().to_dict()
+        assert log['task_type'] == 'Event'
+        assert log['event_class'] == 'model_training'
+        assert log['data'] == {'BOT': 'test', 'USER': 'test_user'}
+        assert log['status'] == 'Initiated'
+        assert log['response'] == {}
+        assert log['executor_log_id'] == pytest.executor_log_id
 
     def test_trigger_lambda_model_training(self):
         mock_env = Utility.environment.copy()
