@@ -13,6 +13,7 @@ class LambdaExecutor(ExecutorBase):
         """
         Builds event payload and triggers lambda for that particular event.
         """
+        task_type = kwargs.get("task_type")
         env_data = Utility.build_lambda_payload(data)
         response = CloudUtility.trigger_lambda(event_class, env_data, task_type=task_type, from_executor=True)
         if CloudUtility.lambda_execution_failed(response):
