@@ -177,10 +177,6 @@ class ActionSchedule(ActionsBase):
             raise AppException(http_response)
         else:
             logger.info(http_response)
-    def schedule(self, event_data: dict):
-        from kairon.events.scheduler.kscheduler import KScheduler
-        KScheduler().add_job_for_date(event_class=EventClass.scheduler_evaluator, task_type=TASK_TYPE.ACTION.value,
-                                      event_id=uuid7().hex, **event_data)
 
     @property
     def is_success(self):
