@@ -1084,7 +1084,7 @@ class TestMongoProcessor:
             "bot_response": "connecting to different live agent...",
             "dispatch_bot_response": True,
         }
-        result = processor.disable_live_agent(bot=bot)
+        result = processor.disable_live_agent(bot=bot, user=user)
 
         live_agent = processor.get_live_agent(bot=bot)
         assert live_agent == []
