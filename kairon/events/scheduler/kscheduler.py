@@ -51,14 +51,6 @@ class KScheduler(EventSchedulerBase):
         KScheduler.__scheduler.add_job(func, trigger, args, kwargs, id=event_id, name=func.__name__,
                                        jobstore=KScheduler.__job_store_name)
 
-    def add_job_for_date(self, event_id: Text, task_type: TASK_TYPE, datetime: datetime, event_class: Text, data: dict, timezone=None):
-        func = ExecutorFactory.get_executor().execute_task
-        args = (event_class, data)
-        kwargs = {'task_type': task_type}
-        trigger = DateTrigger(run_date=datetime, timezone=timezone)
-        KScheduler.__scheduler.add_job(func, trigger, args=args, kwargs=kwargs, id=event_id, name=func.__name__,
-                                       jobstore=KScheduler.__job_store_name)
-
     def list_jobs(self):
         return [job.id for job in KScheduler.__scheduler.get_jobs(jobstore=KScheduler.__job_store_name)]
 
