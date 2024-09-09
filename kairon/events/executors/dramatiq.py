@@ -11,7 +11,7 @@ class DramatiqExecutor(ExecutorBase):
     Executor to enqueue tasks on broker which are later executed by dramatiq workers.
     """
 
-    def execute_task(self, event_class: EventClass, data: dict):
+    def execute_task(self, event_class: EventClass, data: dict, **kwargs):
         """
         Retrieves broker and enqueues message.
         """
