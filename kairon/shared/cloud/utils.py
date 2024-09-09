@@ -92,8 +92,6 @@ class CloudUtility:
                               elapsed_time=time.time() - start_time, exception=exception,
                               from_executor=from_executor)
             raise AppException(exception)
-        # end_time = time.time()
-        # elapsed_time = end_time - start_time
         executor.log_task(event_class=event_class, task_type=task_type, data=env_data,
                           status=EVENT_STATUS.COMPLETED, response=response, executor_log_id=executor_log_id,
                           elapsed_time=time.time() - start_time, from_executor=from_executor)
