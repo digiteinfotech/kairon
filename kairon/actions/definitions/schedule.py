@@ -25,8 +25,6 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
-from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import TASK_TYPE
 
 
 class ActionSchedule(ActionsBase):
