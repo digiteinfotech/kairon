@@ -28,7 +28,7 @@ from .models import ActionParameterType, HttpRequestContentType, EvaluationType,
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
-from ..data.constant import REQUEST_TIMESTAMP_HEADER
+from ..data.constant import REQUEST_TIMESTAMP_HEADER, TASK_TYPE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..rest_client import AioRestClient
@@ -494,7 +494,8 @@ class ActionUtility:
         results = []
         try:
             if trigger_task:
-                lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)
+                lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body,
+                                                              task_type=TASK_TYPE.ACTION.value)
                 if CloudUtility.lambda_execution_failed(lambda_response):
                     err = lambda_response['Payload'].get('body') or lambda_response
                     raise ActionFailure(f"{err}")
@@ -679,7 +680,8 @@ class ActionUtility:
         pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
         request_body = {"source_code": source_code, "predefined_objects": context}
         if trigger_task:
-            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body)
+            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body,
+                                                          task_type=TASK_TYPE.ACTION.value)
             if CloudUtility.lambda_execution_failed(lambda_response):
                 err = lambda_response['Payload'].get('body') or lambda_response
                 raise ActionFailure(f"{err}")

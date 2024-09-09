@@ -15,7 +15,7 @@ class StandaloneExecutor(ExecutorBase):
     It is recommended that this type of executor should only be used with workers.
     """
 
-    def execute_task(self, event_class: EventClass, data: dict):
+    def execute_task(self, event_class: EventClass, data: dict, **kwargs):
         """
         Executes events based on the event class received.
         """

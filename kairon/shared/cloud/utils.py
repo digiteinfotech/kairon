@@ -1,12 +1,17 @@
 import ujson as json
 import os
+import time
 
 from boto3 import Session
 from botocore.exceptions import ClientError
 
 from kairon.shared.utils import Utility
+from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
 from loguru import logger
+from kairon.events.executors.base import ExecutorBase
+from kairon.shared.data.constant import EVENT_STATUS, TASK_TYPE
+
 
 class CloudUtility:
 
@@ -52,24 +57,46 @@ class CloudUtility:
             s3.delete_object(Bucket=bucket, Key=file)
 
     @staticmethod
-    def trigger_lambda(event_class: EventClass, env_data: dict):
+    def trigger_lambda(event_class: EventClass, env_data: dict, task_type: TASK_TYPE = TASK_TYPE.ACTION.value,
+                       from_executor: bool = False):
         """
         Triggers lambda based on the event class.
         """
+        start_time = time.time()
         region = Utility.environment['events']['executor'].get('region')
         if Utility.check_empty_string(region):
             region = "us-east-1"
         function = Utility.environment['events']['task_definition'][event_class]
         session = Session()
         lambda_client = session.client("lambda", region_name=region)
-        response = lambda_client.invoke(
-            FunctionName=function,
-            InvocationType='RequestResponse',
-            LogType='Tail',
-            Payload=json.dumps(env_data).encode(),
-        )
-        response['Payload'] = json.loads(response['Payload'].read())
-        logger.info(response)
+        executor = ExecutorBase()
+        response = {}
+        executor_log_id = executor.log_task(event_class=event_class, task_type=task_type, data=env_data,
+                                            status=EVENT_STATUS.INITIATED, from_executor=from_executor)
+        try:
+            response = lambda_client.invoke(
+                FunctionName=function,
+                InvocationType='RequestResponse',
+                LogType='Tail',
+                Payload=json.dumps(env_data).encode(),
+            )
+            response['Payload'] = json.loads(response['Payload'].read())
+            logger.info(response)
+
+            if CloudUtility.lambda_execution_failed(response):
+                raise AppException(response)
+        except Exception as e:
+            exception = str(e)
+            executor.log_task(event_class=event_class, task_type=task_type, data=env_data,
+                              status=EVENT_STATUS.FAIL, response=response, executor_log_id=executor_log_id,
+                              elapsed_time=time.time() - start_time, exception=exception,
+                              from_executor=from_executor)
+            raise AppException(exception)
+        # end_time = time.time()
+        # elapsed_time = end_time - start_time
+        executor.log_task(event_class=event_class, task_type=task_type, data=env_data,
+                          status=EVENT_STATUS.COMPLETED, response=response, executor_log_id=executor_log_id,
+                          elapsed_time=time.time() - start_time, from_executor=from_executor)
         return response
 
     @staticmethod

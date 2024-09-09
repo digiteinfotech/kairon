@@ -19,6 +19,7 @@ from kairon.events.executors.lamda import LambdaExecutor
 from kairon.events.executors.standalone import StandaloneExecutor
 from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass, EventExecutor
+from kairon.shared.data.constant import TASK_TYPE
 from kairon.shared.events.broker.factory import BrokerFactory
 from kairon.shared.events.broker.mongo import MongoBroker
 
@@ -44,7 +45,9 @@ class TestExecutors:
         with patch.dict(Utility.environment, mock_env):
             with patch('dramatiq_mongodb.MongoDBBroker.__new__') as mock_broker:
                 mock_broker.return_value = TestExecutors.broker
-                resp = DramatiqExecutor().execute_task(EventClass.model_training, {"bot": "test", "user": "test_user"})
+                resp = DramatiqExecutor().execute_task(EventClass.model_training,
+                                                       {"bot": "test", "user": "test_user"},
+                                                       task_type=TASK_TYPE.EVENT.value)
                 resp = json.loads(resp)
                 resp.pop('message_id')
                 resp.pop('message_timestamp')
@@ -66,7 +69,9 @@ class TestExecutors:
         with patch.dict(Utility.environment, mock_env):
             with patch('dramatiq_mongodb.MongoDBBroker.__new__') as mock_broker:
                 mock_broker.return_value = TestExecutors.broker
-                resp = DramatiqExecutor().execute_task(EventClass.model_testing, {"bot": "test", "user": "test_user"})
+                resp = DramatiqExecutor().execute_task(EventClass.model_testing,
+                                                       {"bot": "test", "user": "test_user"},
+                                                       task_type=TASK_TYPE.EVENT.value)
                 resp = json.loads(resp)
                 resp.pop('message_id')
                 resp.pop('message_timestamp')
@@ -88,7 +93,9 @@ class TestExecutors:
         with patch.dict(Utility.environment, mock_env):
             with patch('dramatiq_mongodb.MongoDBBroker.__new__') as mock_broker:
                 mock_broker.return_value = TestExecutors.broker
-                resp = DramatiqExecutor().execute_task(EventClass.data_importer, {"bot": "test", "user": "test_user"})
+                resp = DramatiqExecutor().execute_task(EventClass.data_importer,
+                                                       {"bot": "test", "user": "test_user"},
+                                                       task_type=TASK_TYPE.EVENT.value)
                 resp = json.loads(resp)
                 resp.pop('message_id')
                 resp.pop('message_timestamp')
@@ -110,7 +117,9 @@ class TestExecutors:
         with patch.dict(Utility.environment, mock_env):
             with patch('dramatiq_mongodb.MongoDBBroker.__new__') as mock_broker:
                 mock_broker.return_value = TestExecutors.broker
-                resp = DramatiqExecutor().execute_task(EventClass.delete_history, {"bot": "test", "user": "test_user"})
+                resp = DramatiqExecutor().execute_task(EventClass.delete_history,
+                                                       {"bot": "test", "user": "test_user"},
+                                                       task_type=TASK_TYPE.EVENT.value)
                 resp = json.loads(resp)
                 resp.pop('message_id')
                 resp.pop('message_timestamp')
@@ -135,7 +144,9 @@ class TestExecutors:
                 mock_broker.return_value = TestExecutors.broker
 
                 with pytest.raises(Exception, match="Failed to add task to queue: Failed to connect to broker"):
-                    DramatiqExecutor().execute_task(EventClass.delete_history, {"bot": "test", "user": "test_user"})
+                    DramatiqExecutor().execute_task(EventClass.delete_history,
+                                                    {"bot": "test", "user": "test_user"},
+                                                    task_type=TASK_TYPE.EVENT.value)
 
     def test_standalone_executor(self, monkeypatch):
         mock_env = Utility.environment.copy()
@@ -149,7 +160,9 @@ class TestExecutors:
         monkeypatch.setattr(ModelTrainingEvent, "execute", _mock_execute)
 
         with patch.dict(Utility.environment, mock_env):
-            resp = StandaloneExecutor().execute_task(EventClass.model_training, {"bot": "test", "user": "test_user"})
+            resp = StandaloneExecutor().execute_task(EventClass.model_training,
+                                                     {"bot": "test", "user": "test_user"},
+                                                     task_type=TASK_TYPE.EVENT.value)
             assert resp == 'Task Spawned!'
 
     def test_event_factory(self):
