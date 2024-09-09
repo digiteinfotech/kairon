@@ -1,19 +1,19 @@
+import logging
 from typing import Text
-from loguru import logger
+
+from apscheduler.events import JobEvent, EVENT_JOB_ADDED
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.date import DateTrigger
+from loguru import logger
 from pymongo import MongoClient
+
 from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.scheduler.base import EventSchedulerBase
 from kairon.exceptions import AppException
-from datetime import datetime
-from apscheduler.events import JobEvent, EVENT_JOB_ADDED
 
-import logging
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 logging.basicConfig()
 
