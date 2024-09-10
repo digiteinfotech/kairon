@@ -1232,9 +1232,9 @@ def test_get_llm_metadata():
     assert "model" in actual["data"]["openai"]["properties"]
     assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
 
-    assert "claude" in actual["data"]
-    assert "model" in actual["data"]["claude"]["properties"]
-    assert actual["data"]["claude"]["properties"]["model"]["enum"] == []
+    assert "anthropic" in actual["data"]
+    assert "model" in actual["data"]["anthropic"]["properties"]
+    assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == []
     LLMSecret.objects.delete()
 
 
@@ -1249,14 +1249,14 @@ def test_get_llm_metadata_bot_specific_model_exists():
             "timestamp": datetime.utcnow()
         },
         {
-            "llm_type": "claude",
+            "llm_type": "anthropic",
             "api_key": "common_claude_key",
             "models": ["common_claude_model1", "common_claude_model2"],
             "user": "123",
             "timestamp": datetime.utcnow()
         },
         {
-            "llm_type": "claude",
+            "llm_type": "anthropic",
             "api_key": "custom_claude_key",
             "models": ["common_claude_model1", "common_claude_model2", "custom_claude_model1"],
             "bot": pytest.bot,
@@ -1281,9 +1281,9 @@ def test_get_llm_metadata_bot_specific_model_exists():
     assert "model" in actual["data"]["openai"]["properties"]
     assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
 
-    assert "claude" in actual["data"]
-    assert "model" in actual["data"]["claude"]["properties"]
-    assert actual["data"]["claude"]["properties"]["model"]["enum"] == ["common_claude_model1", "common_claude_model2", "custom_claude_model1"]
+    assert "anthropic" in actual["data"]
+    assert "model" in actual["data"]["anthropic"]["properties"]
+    assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == ["common_claude_model1", "common_claude_model2", "custom_claude_model1"]
     LLMSecret.objects.delete()
 
 

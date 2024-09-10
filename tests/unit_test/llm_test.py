@@ -374,7 +374,7 @@ class TestLLM:
 
     def test_gpt3_faq_embedding_train_failure(self):
         with pytest.raises(AppException, match=f"LLM secret for '{DEFAULT_LLM}' is not configured!"):
-            LLMProcessor('test_failure', DEFAULT_LLM)
+            LLMProcessor('test_gpt3_faq_embedding_train_failure', DEFAULT_LLM)
 
     @pytest.mark.asyncio
     @mock.patch.object(litellm, "aembedding", autospec=True)

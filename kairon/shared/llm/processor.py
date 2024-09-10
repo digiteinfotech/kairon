@@ -1,11 +1,10 @@
-from secrets import randbelow, choice
 import time
+from secrets import randbelow, choice
 from typing import Text, Dict, List, Tuple
 from urllib.parse import urljoin
 
 import litellm
 from loguru import logger as logging
-from mongoengine import Q
 from mongoengine.base import BaseList
 from tiktoken import get_encoding
 from tqdm import tqdm
@@ -15,10 +14,11 @@ from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
+from kairon.shared.data.constant import DEFAULT_LLM
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
-from kairon.shared.llm.logger import LiteLLMLogger
 from kairon.shared.llm.data_objects import LLMLogs
+from kairon.shared.llm.logger import LiteLLMLogger
 from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
@@ -39,6 +39,12 @@ class LLMProcessor(LLMBase):
         self.llm_type = llm_type
         self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
         self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
+
+        if llm_type != DEFAULT_LLM:
+            self.llm_secret_embedding = Sysadmin.get_llm_secret(DEFAULT_LLM, bot)
+        else:
+            self.llm_secret_embedding = self.llm_secret
+
         self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
         self.__logs = []
@@ -110,7 +116,7 @@ class LLMProcessor(LLMBase):
         result = await litellm.aembedding(model="text-embedding-3-small",
                                           input=[truncated_text],
                                           metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-                                          api_key=self.llm_secret.get('api_key'),
+                                          api_key=self.llm_secret_embedding.get('api_key'),
                                           num_retries=3)
         return result["data"][0]["embedding"]
 
