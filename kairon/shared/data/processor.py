@@ -2664,7 +2664,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Action name cannot be empty or blank spaces")
 
-        self.__check_for_form_and_action_existance(bot, name)
+        self.__check_for_form_and_action_existance(bot, name, action_type)
 
         if not name.startswith("utter_") and not Utility.is_exist(
                 Actions,
