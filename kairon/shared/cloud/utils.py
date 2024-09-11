@@ -4,12 +4,12 @@ import time
 
 from boto3 import Session
 from botocore.exceptions import ClientError
+from mongoengine import DoesNotExist
 
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
 from loguru import logger
-from kairon.events.executors.base import ExecutorBase
 from kairon.shared.data.constant import EVENT_STATUS, TASK_TYPE
 
 
@@ -69,10 +69,9 @@ class CloudUtility:
         function = Utility.environment['events']['task_definition'][event_class]
         session = Session()
         lambda_client = session.client("lambda", region_name=region)
-        executor = ExecutorBase()
         response = {}
-        executor_log_id = executor.log_task(event_class=event_class, task_type=task_type, data=env_data,
-                                            status=EVENT_STATUS.INITIATED, from_executor=from_executor)
+        executor_log_id = CloudUtility.log_task(event_class=event_class, task_type=task_type, data=env_data,
+                                                status=EVENT_STATUS.INITIATED, from_executor=from_executor)
         try:
             response = lambda_client.invoke(
                 FunctionName=function,
@@ -87,15 +86,37 @@ class CloudUtility:
                 raise AppException(response)
         except Exception as e:
             exception = str(e)
-            executor.log_task(event_class=event_class, task_type=task_type, data=env_data,
-                              status=EVENT_STATUS.FAIL, response=response, executor_log_id=executor_log_id,
-                              elapsed_time=time.time() - start_time, exception=exception,
-                              from_executor=from_executor)
+            CloudUtility.log_task(event_class=event_class, task_type=task_type, data=env_data,
+                                  status=EVENT_STATUS.FAIL, response=response, executor_log_id=executor_log_id,
+                                  elapsed_time=time.time() - start_time, exception=exception,
+                                  from_executor=from_executor)
             raise AppException(exception)
-        executor.log_task(event_class=event_class, task_type=task_type, data=env_data,
-                          status=EVENT_STATUS.COMPLETED, response=response, executor_log_id=executor_log_id,
-                          elapsed_time=time.time() - start_time, from_executor=from_executor)
+        CloudUtility.log_task(event_class=event_class, task_type=task_type, data=env_data,
+                              status=EVENT_STATUS.COMPLETED, response=response, executor_log_id=executor_log_id,
+                              elapsed_time=time.time() - start_time, from_executor=from_executor)
         return response
+
+    @staticmethod
+    def log_task(event_class: EventClass, task_type: TASK_TYPE, data: dict, status: EVENT_STATUS, **kwargs):
+        from bson import ObjectId
+        from kairon.shared.events.data_objects import ExecutorLogs
+
+        executor_log_id = kwargs.get("executor_log_id") if kwargs.get("executor_log_id") else ObjectId().__str__()
+
+        try:
+            log = ExecutorLogs.objects(executor_log_id=executor_log_id, task_type=task_type, event_class=event_class,
+                                       status=EVENT_STATUS.INITIATED.value).get()
+        except DoesNotExist:
+            log = ExecutorLogs(executor_log_id=executor_log_id, task_type=task_type, event_class=event_class)
+
+        log.data = data if data else log.data
+        log.status = status if status else log.status
+
+        for key, value in kwargs.items():
+            if not getattr(log, key, None) and Utility.is_picklable_for_mongo({key: value}):
+                setattr(log, key, value)
+        log.save()
+        return executor_log_id
 
     @staticmethod
     def lambda_execution_failed(response):
