@@ -9,6 +9,7 @@ from bson import ObjectId
 from pymongo.results import UpdateResult, DeleteResult
 from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
+from kairon.shared.data.constant import TASK_TYPE
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -46,7 +47,8 @@ class TestMessageBroadcastProcessor:
         scheduler = KScheduler()
 
         with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
-            scheduler.add_job(event_id, cron_exp, EventClass.message_broadcast.value, body, "Asia/Kolkata")
+            scheduler.add_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
+                              EventClass.message_broadcast.value, body, "Asia/Kolkata")
 
             args, kwargs = mock_add_job.call_args
             assert kwargs['id']
@@ -58,7 +60,8 @@ class TestMessageBroadcastProcessor:
             assert args[2]
 
             assert args[3][0] == 'message_broadcast'
-            assert args[3][1] == {'bot': 'test_bot', 'user': 'test_user', 'event_id': event_id}
+            assert args[3][1] == 'Event'
+            assert args[3][2] == {'bot': 'test_bot', 'user': 'test_user', 'event_id': event_id}
 
 
     @patch("apscheduler.schedulers.background.BackgroundScheduler.get_jobs", autospec=True)
@@ -132,7 +135,8 @@ class TestMessageBroadcastProcessor:
         monkeypatch.setitem(Utility.environment["events"]["executor"], "type", None)
         with pytest.raises(AppException, match=re.escape(
                 "Executor type not configured in system.yaml. Valid types: ['aws_lambda', 'dramatiq', 'standalone']")):
-            scheduler.add_job(event_id, cron_exp, EventClass.message_broadcast.value, body)
+            scheduler.add_job(event_id, TASK_TYPE.EVENT.value,
+                              cron_exp, EventClass.message_broadcast.value, body)
 
     @patch("apscheduler.schedulers.background.BackgroundScheduler.reschedule_job", autospec=True)
     @patch("apscheduler.schedulers.background.BackgroundScheduler.modify_job", autospec=True)
@@ -148,7 +152,8 @@ class TestMessageBroadcastProcessor:
         scheduler = KScheduler()
 
         with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
-            scheduler.update_job(event_id, cron_exp, EventClass.message_broadcast.value, body)
+            scheduler.update_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
+                                 EventClass.message_broadcast.value, body)
 
             args, kwargs = mock_modify_job.call_args
             assert args[1] == event_id
@@ -180,7 +185,8 @@ class TestMessageBroadcastProcessor:
         mock_find_job.return_value = {}
         with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
             with pytest.raises(AppException, match='No job by the id of 6425ca191eaaf86e3a7b5e3f was found'):
-                scheduler.update_job(event_id, cron_exp, EventClass.message_broadcast.value, body)
+                scheduler.update_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
+                                     EventClass.message_broadcast.value, body)
 
     @patch("pymongo.collection.Collection.find_one")
     @patch("pymongo.collection.Collection.update_one")
@@ -204,7 +210,8 @@ class TestMessageBroadcastProcessor:
             mock_mongo.return_value = mongo_result
 
             with pytest.raises(AppException, match='No job by the id of 6425ca191eaaf86e3a7b5e3f was found'):
-                scheduler.update_job(event_id, cron_exp, EventClass.message_broadcast.value, body)
+                scheduler.update_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
+                                     EventClass.message_broadcast.value, body)
 
     @patch("apscheduler.schedulers.background.BackgroundScheduler.remove_job", autospec=True)
     @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)

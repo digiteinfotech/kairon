@@ -909,6 +909,67 @@ class TestMongoProcessor:
                            'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
                            'dispatch_response': True, 'status': True}], ignore_order=True)
 
+    def test_edit_prompt_action_faq_action_llm_type_and_hyperparameters(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'name': 'test_edit_prompt_action_faq_action',
+                   'user_question': {'type': 'from_user_message'},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
+                   "failure_message": "updated_failure_message",
+                   "llm_type": "anthropic",
+                   "hyperparameters": Utility.get_llm_hyperparameters('anthropic'),
+                   "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
+                   "num_bot_responses": 5,
+                   "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
+                                 {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+                   "dispatch_response": False
+                   }
+        processor.edit_prompt_action(pytest.action_id, request, bot, user)
+        action = list(processor.get_prompt_action(bot))
+        action[0].pop("_id")
+        print(action)
+        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
+                                      'failure_message': 'updated_failure_message',
+                                      'user_question': {'type': 'from_user_message'},
+                                      'hyperparameters': {'max_tokens': 1024, 'model': 'claude-3-haiku-20240307'},
+                                      'llm_type': 'anthropic',
+                                      'llm_prompts': [
+                                          {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                           'type': 'system',
+                                           'source': 'static', 'is_enabled': True},
+                                          {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                           'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                           'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                          {'name': 'Query Prompt',
+                                           'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                           'instructions': 'Answer according to the context',
+                                           'type': 'query',
+                                           'source': 'static',
+                                           'is_enabled': True},
+                                          {'name': 'Query Prompt',
+                                           'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                           'instructions': 'Answer according to the context', 'type': 'query',
+                                           'source': 'static',
+                                           'is_enabled': True}], 'instructions': [],
+                                      'set_slots': [
+                                          {'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                                          {'name': 'gpt_result_type', 'value': '${data.type}',
+                                           'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}],
+                            ignore_order=True)
+
     def test_edit_prompt_action_with_less_hyperparameters(self):
         processor = MongoProcessor()
         bot = 'test_bot'

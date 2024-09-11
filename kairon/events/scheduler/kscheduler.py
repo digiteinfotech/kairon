@@ -1,7 +1,6 @@
 import logging
 from typing import Text
 
-from apscheduler.events import JobEvent, EVENT_JOB_ADDED
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -13,6 +12,8 @@ from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.scheduler.base import EventSchedulerBase
 from kairon.exceptions import AppException
+from apscheduler.events import JobEvent, EVENT_JOB_ADDED
+from kairon.shared.data.constant import TASK_TYPE
 
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 logging.basicConfig()
@@ -27,13 +28,14 @@ class KScheduler(EventSchedulerBase):
         job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
     __scheduler.start()
 
-    def update_job(self, event_id: Text, cron_exp: Text, event_class: Text, data: dict, timezone=None):
+    def update_job(self, event_id: Text, task_type: TASK_TYPE, cron_exp: Text, event_class: Text, data: dict, timezone=None):
         try:
             func = ExecutorFactory.get_executor().execute_task
             args = (event_class, data,)
+            kwargs = {'task_type': task_type}
             trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
             changes = {
-                "func": func, "trigger": trigger, "args": args, "name": func.__name__
+                "func": func, "trigger": trigger, "args": args, "kwargs": kwargs, "name": func.__name__
             }
             KScheduler.__scheduler.modify_job(event_id, KScheduler.__job_store_name, **changes)
             KScheduler.__scheduler.reschedule_job(event_id, KScheduler.__job_store_name, trigger)
@@ -41,11 +43,12 @@ class KScheduler(EventSchedulerBase):
             logger.exception(e)
             raise AppException(e)
 
-    def add_job(self, event_id: Text, cron_exp: Text, event_class: Text, data: dict, timezone=None):
+    def add_job(self, event_id: Text, task_type: TASK_TYPE, cron_exp: Text, event_class: Text, data: dict, timezone=None):
         func = ExecutorFactory.get_executor().execute_task
-        args = (event_class, data,)
+        args = (event_class, task_type, data)
+        kwargs = {'task_type': task_type}
         trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
-        KScheduler.__scheduler.add_job(func, trigger, args, id=event_id, name=func.__name__,
+        KScheduler.__scheduler.add_job(func, trigger, args, kwargs, id=event_id, name=func.__name__,
                                        jobstore=KScheduler.__job_store_name)
 
     def list_jobs(self):
