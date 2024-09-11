@@ -7360,6 +7360,7 @@ class MongoProcessor:
         action.user_question = UserQuestion(**request_data.get("user_question"))
         action.num_bot_responses = request_data.get("num_bot_responses", 5)
         action.hyperparameters = request_data.get("hyperparameters")
+        action.llm_type = request_data.get("llm_type")
         action.llm_prompts = [
             LlmPrompt(**prompt) for prompt in request_data.get("llm_prompts", [])
         ]
