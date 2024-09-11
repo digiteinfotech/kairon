@@ -2,6 +2,7 @@ import ujson as json
 import os
 import re
 from unittest.mock import patch
+from mongoengine import connect
 
 import pytest
 from loguru import logger
@@ -36,6 +37,14 @@ class TestExecutors:
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
 
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
+        from kairon.shared.account.processor import AccountProcessor
+        AccountProcessor.load_system_properties()
+
     @patch('kairon.shared.events.broker.mongo.Database', autospec=True)
     @patch('kairon.shared.events.broker.mongo.MongoClient', autospec=True)
     def test_dramatiq_executor_model_training(self, mock_mongo_client, mock_database):
@@ -54,11 +63,26 @@ class TestExecutors:
                 assert resp == {'queue_name': 'kairon_events', 'actor_name': 'execute_task',
                                 'args': ['model_training', {'bot': 'test', 'user': 'test_user'}],
                                 'kwargs': {}, 'options': {}}
-                # queue_item = TestExecutors.broker.queues['kairon_events'].queue[0].decode()
-                # queue_item = json.loads(queue_item)
-                # queue_item.pop('message_id')
-                # queue_item.pop('message_timestamp')
-                # assert queue_item == resp
+
+                from kairon.shared.events.data_objects import ExecutorLogs
+                logs = ExecutorLogs.objects(task_type='Event', data={'bot': 'test', 'user': 'test_user'})
+                log = logs[0].to_mongo().to_dict()
+                log['response'].pop("message_timestamp")
+                log['response'].pop("message_id")
+                assert log['task_type'] == 'Event'
+                assert log['event_class'] == 'model_training'
+                assert log['data'] == {'bot': 'test', 'user': 'test_user'}
+                assert log['status'] == 'Completed'
+                assert log['response'] == {
+                    'queue_name': 'kairon_events',
+                    'actor_name': 'execute_task',
+                    'args': ['model_training', {'bot': 'test', 'user': 'test_user'}],
+                    'kwargs': {},
+                    'options': {},
+                }
+                assert log['executor_log_id']
+                assert log['from_executor'] is True
+                assert log['elapsed_time']
 
     @patch('kairon.shared.events.broker.mongo.Database', autospec=True)
     @patch('kairon.shared.events.broker.mongo.MongoClient', autospec=True)
@@ -78,11 +102,26 @@ class TestExecutors:
                 assert resp == {'queue_name': 'kairon_events', 'actor_name': 'execute_task',
                                 'args': ['model_testing', {'bot': 'test', 'user': 'test_user'}],
                                 'kwargs': {}, 'options': {}}
-                # queue_item = TestExecutors.broker.queues['kairon_events'].queue[1].decode()
-                # queue_item = json.loads(queue_item)
-                # queue_item.pop('message_id')
-                # queue_item.pop('message_timestamp')
-                # assert queue_item == resp
+
+                from kairon.shared.events.data_objects import ExecutorLogs
+                logs = ExecutorLogs.objects(task_type='Event', data={'bot': 'test', 'user': 'test_user'})
+                log = logs[1].to_mongo().to_dict()
+                log['response'].pop("message_timestamp")
+                log['response'].pop("message_id")
+                assert log['task_type'] == 'Event'
+                assert log['event_class'] == 'model_testing'
+                assert log['data'] == {'bot': 'test', 'user': 'test_user'}
+                assert log['status'] == 'Completed'
+                assert log['response'] == {
+                    'queue_name': 'kairon_events',
+                    'actor_name': 'execute_task',
+                    'args': ['model_testing', {'bot': 'test', 'user': 'test_user'}],
+                    'kwargs': {},
+                    'options': {},
+                }
+                assert log['from_executor'] is True
+                assert log['executor_log_id']
+                assert log['elapsed_time']
 
     @patch('kairon.shared.events.broker.mongo.Database', autospec=True)
     @patch('kairon.shared.events.broker.mongo.MongoClient', autospec=True)
@@ -102,11 +141,26 @@ class TestExecutors:
                 assert resp == {'queue_name': 'kairon_events', 'actor_name': 'execute_task',
                                 'args': ['data_importer', {'bot': 'test', 'user': 'test_user'}],
                                 'kwargs': {}, 'options': {}}
-                # queue_item = TestExecutors.broker.queues['kairon_events'].queue[2].decode()
-                # queue_item = json.loads(queue_item)
-                # queue_item.pop('message_id')
-                # queue_item.pop('message_timestamp')
-                # assert queue_item == resp
+
+                from kairon.shared.events.data_objects import ExecutorLogs
+                logs = ExecutorLogs.objects(task_type='Event', data={'bot': 'test', 'user': 'test_user'})
+                log = logs[2].to_mongo().to_dict()
+                log['response'].pop("message_timestamp")
+                log['response'].pop("message_id")
+                assert log['task_type'] == 'Event'
+                assert log['event_class'] == 'data_importer'
+                assert log['data'] == {'bot': 'test', 'user': 'test_user'}
+                assert log['status'] == 'Completed'
+                assert log['response'] == {
+                    'queue_name': 'kairon_events',
+                    'actor_name': 'execute_task',
+                    'args': ['data_importer', {'bot': 'test', 'user': 'test_user'}],
+                    'kwargs': {},
+                    'options': {},
+                }
+                assert log['from_executor'] is True
+                assert log['executor_log_id']
+                assert log['elapsed_time']
 
     @patch('kairon.shared.events.broker.mongo.Database', autospec=True)
     @patch('kairon.shared.events.broker.mongo.MongoClient', autospec=True)
@@ -126,11 +180,25 @@ class TestExecutors:
                 assert resp == {'queue_name': 'kairon_events', 'actor_name': 'execute_task',
                                 'args': ['delete_history', {'bot': 'test', 'user': 'test_user'}], 'kwargs': {},
                                 'options': {}}
-                # queue_item = TestExecutors.broker.queues['kairon_events'].queue[3].decode()
-                # queue_item = json.loads(queue_item)
-                # queue_item.pop('message_id')
-                # queue_item.pop('message_timestamp')
-                # assert queue_item == resp
+                from kairon.shared.events.data_objects import ExecutorLogs
+                logs = ExecutorLogs.objects(task_type='Event', data={'bot': 'test', 'user': 'test_user'})
+                log = logs[3].to_mongo().to_dict()
+                log['response'].pop("message_timestamp")
+                log['response'].pop("message_id")
+                assert log['task_type'] == 'Event'
+                assert log['event_class'] == 'delete_history'
+                assert log['data'] == {'bot': 'test', 'user': 'test_user'}
+                assert log['status'] == 'Completed'
+                assert log['response'] == {
+                    'queue_name': 'kairon_events',
+                    'actor_name': 'execute_task',
+                    'args': ['delete_history', {'bot': 'test', 'user': 'test_user'}],
+                    'kwargs': {},
+                    'options': {},
+                }
+                assert log['executor_log_id']
+                assert log['from_executor'] is True
+                assert log['elapsed_time']
 
     @patch('kairon.shared.events.broker.mongo.Message', new=_mock_broker_connection_error)
     @patch('kairon.shared.events.broker.mongo.Database', autospec=True)
@@ -148,6 +216,19 @@ class TestExecutors:
                                                     {"bot": "test", "user": "test_user"},
                                                     task_type=TASK_TYPE.EVENT.value)
 
+        from kairon.shared.events.data_objects import ExecutorLogs
+        logs = ExecutorLogs.objects(task_type='Event', data={'bot': 'test', 'user': 'test_user'})
+        log = logs[4].to_mongo().to_dict()
+        assert log['task_type'] == 'Event'
+        assert log['event_class'] == 'delete_history'
+        assert log['data'] == {'bot': 'test', 'user': 'test_user'}
+        assert log['status'] == 'Fail'
+        assert log['response'] == {}
+        assert log['exception'] == "Failed to add task to queue: Failed to connect to broker"
+        assert log['from_executor'] is True
+        assert log['executor_log_id']
+        assert log['elapsed_time']
+
     def test_standalone_executor(self, monkeypatch):
         mock_env = Utility.environment.copy()
         mock_env['events']['executor']['type'] = 'standalone'
@@ -164,6 +245,18 @@ class TestExecutors:
                                                      {"bot": "test", "user": "test_user"},
                                                      task_type=TASK_TYPE.EVENT.value)
             assert resp == 'Task Spawned!'
+
+        from kairon.shared.events.data_objects import ExecutorLogs
+        logs = ExecutorLogs.objects(task_type='Event', data={'bot': 'test', 'user': 'test_user'})
+        log = logs[5].to_mongo().to_dict()
+        assert log['task_type'] == 'Event'
+        assert log['event_class'] == 'model_training'
+        assert log['data'] == {'bot': 'test', 'user': 'test_user'}
+        assert log['status'] == 'Completed'
+        assert log['response'] == {'message': 'Task Spawned!'}
+        assert log['executor_log_id']
+        assert log['from_executor'] is True
+        assert log['elapsed_time']
 
     def test_event_factory(self):
         assert EventFactory.get_instance(EventClass.model_training) == ModelTrainingEvent

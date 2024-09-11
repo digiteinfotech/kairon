@@ -173,7 +173,7 @@ class TestCloudUtils:
 
         def __mock_make_api_call(self, operation_name, kwargs):
             assert kwargs == {'FunctionName': 'train-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
-                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
+                              'Payload': b'{"BOT":"test_bot","USER":"test_user"}'}
             if operation_name == 'Invoke':
                 return response
 
@@ -182,16 +182,16 @@ class TestCloudUtils:
         with patch.dict(Utility.environment, mock_env):
             with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
                 resp = CloudUtility.trigger_lambda(EventClass.model_training,
-                                                   {"BOT": "test", "USER": "test_user"},
+                                                   {"BOT": "test_bot", "USER": "test_user"},
                                                    task_type=TASK_TYPE.EVENT.value)
                 assert resp == response
 
         from kairon.shared.events.data_objects import ExecutorLogs
-        logs = ExecutorLogs.objects(task_type='Event')
+        logs = ExecutorLogs.objects(task_type='Event', data={'BOT': 'test_bot', 'USER': 'test_user'})
         log = logs[0].to_mongo().to_dict()
         assert log['task_type'] == 'Event'
         assert log['event_class'] == 'model_training'
-        assert log['data'] == {'BOT': 'test', 'USER': 'test_user'}
+        assert log['data'] == {'BOT': 'test_bot', 'USER': 'test_user'}
         assert log['status'] == 'Completed'
         assert log['response'] == {
             'StatusCode': 200,
@@ -216,7 +216,7 @@ class TestCloudUtils:
 
         def __mock_make_api_call(self, operation_name, kwargs):
             assert kwargs == {'FunctionName': 'train-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
-                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
+                              'Payload': b'{"BOT":"test_bot","USER":"test_user"}'}
 
             raise Exception("Parameter validation failed: Invalid type for parameter FunctionName, value: None, "
                             "type: <class 'NoneType'>, valid types: <class 'str'>")
@@ -225,16 +225,16 @@ class TestCloudUtils:
             with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
                 with pytest.raises(AppException):
                     CloudUtility.trigger_lambda(EventClass.model_training,
-                                                {"BOT": "test", "USER": "test_user"},
+                                                {"BOT": "test_bot", "USER": "test_user"},
                                                 task_type=TASK_TYPE.EVENT.value)
 
         from kairon.shared.events.data_objects import ExecutorLogs
-        logs = ExecutorLogs.objects(task_type='Event')
+        logs = ExecutorLogs.objects(task_type='Event', data={'BOT': 'test_bot', 'USER': 'test_user'})
         log = logs[1].to_mongo().to_dict()
         pytest.executor_log_id = log['executor_log_id']
         assert log['task_type'] == 'Event'
         assert log['event_class'] == 'model_training'
-        assert log['data'] == {'BOT': 'test', 'USER': 'test_user'}
+        assert log['data'] == {'BOT': 'test_bot', 'USER': 'test_user'}
         assert log['status'] == 'Fail'
         assert log['response'] == {}
         assert log['from_executor'] is False
@@ -255,7 +255,7 @@ class TestCloudUtils:
 
         def __mock_make_api_call(self, operation_name, kwargs):
             assert kwargs == {'FunctionName': 'train-model', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
-                              'Payload': b'{"BOT":"test","USER":"test_user"}'}
+                              'Payload': b'{"BOT":"test_bot","USER":"test_user"}'}
             if operation_name == 'Invoke':
                 return response
 
@@ -264,7 +264,7 @@ class TestCloudUtils:
         with patch.dict(Utility.environment, mock_env):
             with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
                 resp = CloudUtility.trigger_lambda(EventClass.model_training,
-                                                   {"BOT": "test", "USER": "test_user"},
+                                                   {"BOT": "test_bot", "USER": "test_user"},
                                                    task_type=TASK_TYPE.EVENT.value)
                 assert resp == response
 
@@ -272,7 +272,7 @@ class TestCloudUtils:
         from kairon.events.executors.base import ExecutorBase
         executor = ExecutorBase()
         executor.log_task(event_class=EventClass.model_training.value, task_type=TASK_TYPE.EVENT.value,
-                          data={'BOT': 'test', 'USER': 'test_user'},
+                          data={'BOT': 'test_bot', 'USER': 'test_user'},
                           executor_log_id=pytest.executor_log_id, status=EVENT_STATUS.INITIATED.value)
 
         logs = ExecutorLogs.objects(executor_log_id=pytest.executor_log_id)
@@ -280,7 +280,7 @@ class TestCloudUtils:
         log = logs[1].to_mongo().to_dict()
         assert log['task_type'] == 'Event'
         assert log['event_class'] == 'model_training'
-        assert log['data'] == {'BOT': 'test', 'USER': 'test_user'}
+        assert log['data'] == {'BOT': 'test_bot', 'USER': 'test_user'}
         assert log['status'] == 'Initiated'
         assert log['response'] == {}
         assert log['executor_log_id'] == pytest.executor_log_id
