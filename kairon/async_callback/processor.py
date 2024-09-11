@@ -11,7 +11,7 @@ from kairon.exceptions import AppException
 from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, CallbackLog, CallbackExecutionMode
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
-
+from kairon.shared.data.constant import TASK_TYPE
 
 async_task_executor = ThreadPoolExecutor(max_workers=64)
 
@@ -29,7 +29,7 @@ class CallbackProcessor:
                 lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, {
                     'source_code': script,
                     'predefined_objects': predefined_objects
-                })
+                }, task_type=TASK_TYPE.CALLBACK.value)
                 if CloudUtility.lambda_execution_failed(lambda_response):
                     err = lambda_response['Payload'].get('body') or lambda_response
                     raise AppException(f"{err}")
