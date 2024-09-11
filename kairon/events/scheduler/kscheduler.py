@@ -1,7 +1,6 @@
 import logging
 from typing import Text
 
-from apscheduler.events import JobEvent, EVENT_JOB_ADDED
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -13,7 +12,6 @@ from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.scheduler.base import EventSchedulerBase
 from kairon.exceptions import AppException
-from datetime import datetime
 from apscheduler.events import JobEvent, EVENT_JOB_ADDED
 from kairon.shared.data.constant import TASK_TYPE
 
