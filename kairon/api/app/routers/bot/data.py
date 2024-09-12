@@ -1,6 +1,7 @@
 import os
+from typing import List
 
-from fastapi import UploadFile, File, Security, APIRouter, HTTPException
+from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
@@ -243,11 +244,11 @@ async def list_collection_data(
 @router.get("/collection/{collection_name}", response_model=Response)
 async def get_collection_data(
         collection_name: str,
-        key: str = None, value: str = None,
+        key: List[str] = Query([]), value: List[str] = Query([]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Fetches collection data based on the filters provided
+    Fetches collection data based on the multiple filters provided
     """
     return {"data": list(cognition_processor.get_collection_data(current_user.get_bot(),
                                                                  collection_name=collection_name,
