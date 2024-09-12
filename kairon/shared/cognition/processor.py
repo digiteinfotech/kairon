@@ -217,11 +217,15 @@ class CognitionDataProcessor:
         """
         collection_name = kwargs.pop("collection_name")
         collection_name = collection_name.lower()
-        key = kwargs.pop("key", None)
-        value = kwargs.pop("value", None)
+        keys = kwargs.pop("key", None)
+        values = kwargs.pop("value", None)
+        if len(keys) != len(values):
+            raise AppException("Keys and values lists must be of the same length.")
+
         query = {"bot": bot, "collection_name": collection_name}
-        if key is not None and value is not None:
-            query.update({f"data__{key}": value})
+        query.update({
+            f"{key}": value for key, value in zip(keys, values) if key and value
+        })
 
         for value in CollectionData.objects(**query):
             final_data = {}
