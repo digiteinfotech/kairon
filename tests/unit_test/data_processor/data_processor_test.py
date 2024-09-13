@@ -1571,14 +1571,14 @@ class TestMongoProcessor:
         user = 'test_user'
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Keys and values lists must be of the same length.'):
-            list(processor.get_collection_data(bot, collection_name="user", key=["data__name", "data__location"],
+            list(processor.get_collection_data(bot, collection_name="user", key=["name", "location"],
                                                value=["Mahesh"]))
 
     def test_get_collection_data_with_filters(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["data__name"],
+        response = list(processor.get_collection_data(bot, collection_name="user", key=["name"],
                                                       value=["Mahesh"]))
         for coll in response:
             coll.pop("_id")
@@ -1594,12 +1594,12 @@ class TestMongoProcessor:
                 }
             }
         ]
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["data__name", "data__location"],
+        response = list(processor.get_collection_data(bot, collection_name="user", key=["name", "location"],
                                                       value=["Mahesh", "Mumbai"]))
         for coll in response:
             coll.pop("_id")
         assert response == []
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["data__name", "data__location"],
+        response = list(processor.get_collection_data(bot, collection_name="user", key=["name", "location"],
                                                       value=["Hitesh", "Mumbai"]))
         for coll in response:
             coll.pop("_id")
@@ -1615,21 +1615,25 @@ class TestMongoProcessor:
                 }
             }
         ]
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["id"],
-                                                      value=[pytest.collection_id]))
-        assert response == [
-            {
-                '_id': pytest.collection_id,
-                'collection_name': 'user',
-                'is_secure': ['mobile_number', 'location'],
-                'data': {
-                    'name': 'Mahesh',
-                    'age': 24,
-                    'mobile_number': '9876543210',
-                    'location': 'Bangalore'
-                }
+
+    def test_get_collection_data_with_collection_id(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        response = processor.get_collection_data_with_id(bot, collection_name="user",
+                                                         collection_id=pytest.collection_id)
+        print(response)
+        assert response == {
+            '_id': pytest.collection_id,
+            'collection_name': 'user',
+            'is_secure': ['mobile_number', 'location'],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
             }
-        ]
+        }
 
     def test_delete_collection_data_doesnot_exist(self):
         bot = 'test_bot'
