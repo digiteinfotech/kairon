@@ -2544,7 +2544,7 @@ def test_list_collection_data():
 
 def test_get_collection_data_with_mismatch_filter_length():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user?key=data__name&value=Hitesh&key=data__location",
+        url=f"/api/bot/{pytest.bot}/data/collection/user?key=name&value=Hitesh&key=location",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2557,7 +2557,7 @@ def test_get_collection_data_with_mismatch_filter_length():
 
 def test_get_collection_data():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user?key=data__name&value=Hitesh",
+        url=f"/api/bot/{pytest.bot}/data/collection/user?key=name&value=Hitesh",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2581,7 +2581,7 @@ def test_get_collection_data():
         }
     ]
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user?key=data__location&value=Bangalore",
+        url=f"/api/bot/{pytest.bot}/data/collection/user?key=location&value=Bangalore",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2667,7 +2667,7 @@ def test_get_collection_data():
     ]
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user?key=data__name&value=Hitesh&key=data__location&value=Bangalore",
+        url=f"/api/bot/{pytest.bot}/data/collection/user?key=name&value=Hitesh&key=location&value=Bangalore",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2681,7 +2681,7 @@ def test_get_collection_data():
     assert data == []
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user?key=data__name&value=Hitesh&key=data__location&value=Mumbai",
+        url=f"/api/bot/{pytest.bot}/data/collection/user?key=name&value=Hitesh&key=location&value=Mumbai",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2705,8 +2705,10 @@ def test_get_collection_data():
         }
     ]
 
+
+def test_get_collection_data_with_collection_id():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user?key=id&value={pytest.collection_id}",
+        url=f"/api/bot/{pytest.bot}/data/collection/user/{pytest.collection_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2715,20 +2717,18 @@ def test_get_collection_data():
     assert not actual["message"]
     assert actual["success"]
     data = actual["data"]
-    for coll_data in data:
-        coll_data.pop("_id")
-    assert data == [
-        {
-            'collection_name': 'user',
-            'is_secure': ['name', 'mobile_number'],
-            'data': {
-                'name': 'Mahesh',
-                'age': 24,
-                'mobile_number': '9876543210',
-                'location': 'Bangalore'
-            }
+    print(data)
+    assert data == {
+        '_id': pytest.collection_id,
+        'collection_name': 'user',
+        'is_secure': ['name', 'mobile_number'],
+        'data': {
+            'name': 'Mahesh',
+            'age': 24,
+            'mobile_number': '9876543210',
+            'location': 'Bangalore'
         }
-    ]
+    }
 
 
 def test_update_collection_data_with_collection_name_empty():

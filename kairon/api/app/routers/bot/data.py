@@ -255,6 +255,19 @@ async def get_collection_data(
                                                                  key=key, value=value))}
 
 
+@router.get("/collection/{collection_name}/{collection_id}", response_model=Response)
+async def get_collection_data_with_id(
+        collection_name: str, collection_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches collection data based on the collection_id provided
+    """
+    return {"data": cognition_processor.get_collection_data_with_id(current_user.get_bot(),
+                                                                    collection_name=collection_name,
+                                                                    collection_id=collection_id)}
+
+
 @router.post("/content/upload", response_model=Response)
 async def upload_doc_content(
         doc_content: UploadFile,
