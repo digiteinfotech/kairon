@@ -2673,7 +2673,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Action name cannot be empty or blank spaces")
 
-        self.__check_for_form_and_action_existance(bot, name)
+        self.__check_for_form_and_action_existance(bot, name, action_type)
 
         if not name.startswith("utter_") and not Utility.is_exist(
                 Actions,
@@ -7383,6 +7383,7 @@ class MongoProcessor:
         action.user_question = UserQuestion(**request_data.get("user_question"))
         action.num_bot_responses = request_data.get("num_bot_responses", 5)
         action.hyperparameters = request_data.get("hyperparameters")
+        action.llm_type = request_data.get("llm_type")
         action.llm_prompts = [
             LlmPrompt(**prompt) for prompt in request_data.get("llm_prompts", [])
         ]

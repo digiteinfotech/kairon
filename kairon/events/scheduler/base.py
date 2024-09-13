@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Text
 
+from kairon.shared.data.constant import TASK_TYPE
+
 
 class EventSchedulerBase(ABC):
 
@@ -9,11 +11,11 @@ class EventSchedulerBase(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    def add_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict):
+    def add_job(self, event_id: Text, task_type: TASK_TYPE, cron_exp: Text, event_class: Text, body: dict):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def update_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict):
+    def update_job(self, event_id: Text, task_type: TASK_TYPE, cron_exp: Text, event_class: Text, body: dict):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod

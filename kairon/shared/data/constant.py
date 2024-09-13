@@ -110,6 +110,12 @@ class EVENT_STATUS(str, Enum):
     ABORTED = "Aborted"
 
 
+class TASK_TYPE(str, Enum):
+    ACTION = "Action"
+    EVENT = "Event"
+    CALLBACK = "Callback"
+
+
 class ModelTestingLogType(str, Enum):
     stories = "stories"
     nlu = "nlu"
