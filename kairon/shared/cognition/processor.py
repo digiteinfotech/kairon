@@ -208,6 +208,30 @@ class CognitionDataProcessor:
             final_data['data'] = data
             yield final_data
 
+    def get_collection_data_with_id(self, bot: Text, **kwargs):
+        """
+        fetches collection data based on the filters provided
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        collection_id = kwargs.pop("collection_id")
+        collection_name = kwargs.pop("collection_name")
+        collection_name = collection_name.lower()
+        collection_data = CollectionData.objects(bot=bot, collection_name=collection_name,
+                                                 id=collection_id).get()
+        final_data = {}
+        item = collection_data.to_mongo().to_dict()
+        collection_name = item.pop('collection_name', None)
+        is_secure = item.pop('is_secure')
+        data = item.pop('data')
+        data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
+        final_data["_id"] = item["_id"].__str__()
+        final_data['collection_name'] = collection_name
+        final_data['is_secure'] = is_secure
+        final_data['data'] = data
+        return final_data
+
     def get_collection_data(self, bot: Text, **kwargs):
         """
         fetches collection data based on the filters provided
@@ -224,7 +248,7 @@ class CognitionDataProcessor:
 
         query = {"bot": bot, "collection_name": collection_name}
         query.update({
-            f"{key}": value for key, value in zip(keys, values) if key and value
+            f"data__{key}": value for key, value in zip(keys, values) if key and value
         })
 
         for value in CollectionData.objects(**query):
