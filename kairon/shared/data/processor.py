@@ -4168,6 +4168,25 @@ class MongoProcessor:
             action.pop("timestamp")
             yield action
 
+    def list_live_agent_actions(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches all LiveAgentActionConfig actions from collection
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of VectorDb actions.
+        """
+        for action in LiveAgentActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("status")
+            action.pop("timestamp")
+            yield action
+
     def list_actions(self, bot: Text):
         all_actions = list(
             Actions.objects(bot=bot, status=True).aggregate(
@@ -4694,7 +4713,8 @@ class MongoProcessor:
             ActionType.web_search_action.value: WebSearchAction,
             ActionType.razorpay_action.value: RazorpayAction,
             ActionType.pyscript_action.value: PyscriptActionConfig,
-            ActionType.database_action.value: DatabaseAction
+            ActionType.database_action.value: DatabaseAction,
+            ActionType.live_agent_action.value: LiveAgentActionConfig,
         }
         saved_actions = set(
             Actions.objects(bot=bot, status=True, type__ne=None).values_list("name")
@@ -4735,6 +4755,7 @@ class MongoProcessor:
         action_config.update(self.load_razorpay_action(bot))
         action_config.update(self.load_pyscript_action(bot))
         action_config.update(self.load_database_action(bot))
+        action_config.update(self.load_live_agent_action(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -4905,6 +4926,15 @@ class MongoProcessor:
         :return: dict
         """
         return {ActionType.database_action.value: list(self.list_db_actions(bot, False))}
+
+    def load_live_agent_action(self, bot: Text):
+        """
+        Loads live agent actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.live_agent_action.value: list(self.list_live_agent_actions(bot, False))}
+
 
     @staticmethod
     def get_existing_slots(bot: Text):
