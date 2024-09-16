@@ -3565,7 +3565,7 @@ class TestMongoProcessor:
 
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
-        expected_actions = b'database_action: []\nemail_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action: []\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
+        expected_actions = b'database_action: []\nemail_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\nlive_agent_action: []\npipedrive_leads_action: []\nprompt_action: []\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
             encoding='utf-8')
 
         def _mock_bot_info(*args, **kwargs):
@@ -3602,7 +3602,7 @@ class TestMongoProcessor:
         assert action_config == {'http_action': [], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
                                  'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': [],
-                                 'razorpay_action': [], 'pyscript_action': [], 'database_action': []}
+                                 'razorpay_action': [], 'pyscript_action': [], 'database_action': [], 'live_agent_action': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
