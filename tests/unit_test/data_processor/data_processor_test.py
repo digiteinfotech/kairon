@@ -1145,7 +1145,7 @@ class TestMongoProcessor:
             "bot_response": "connecting to different live agent...",
             "dispatch_bot_response": True,
         }
-        result = processor.disable_live_agent(bot=bot)
+        result = processor.disable_live_agent(bot=bot, user=user)
 
         live_agent = processor.get_live_agent(bot=bot)
         assert live_agent == []
@@ -4276,11 +4276,11 @@ class TestMongoProcessor:
         utter_intentA_2_id = processor.add_response({"text": "demo_response2"}, utterance, bot, user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 2
-        processor.delete_response(utter_intentA_1_id, bot)
+        processor.delete_response(utter_intentA_1_id, bot, user=user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 1
         assert Utterances.objects(name=utterance, bot=bot, status=True).get()
-        processor.delete_response(utter_intentA_2_id, bot)
+        processor.delete_response(utter_intentA_2_id, bot, user=user)
         resp = processor.get_response(utterance, bot)
         assert len(list(resp)) == 0
         with pytest.raises(DoesNotExist):
@@ -4303,7 +4303,7 @@ class TestMongoProcessor:
         user = "testUser"
         processor.add_response({"text": "demo_response1"}, utterance, bot, user)
         Utterances.objects(name=utterance, bot=bot, status=True).get()
-        processor.delete_utterance(utterance, bot, user)
+        processor.delete_utterance(utterance, bot, user=user)
         with pytest.raises(DoesNotExist):
             Utterances.objects(name=utterance, bot=bot, status=True).get()
 
@@ -4313,7 +4313,7 @@ class TestMongoProcessor:
         bot = "testBot"
         user = "testUser"
         with pytest.raises(AppException):
-            processor.delete_utterance(utterance, bot, user)
+            processor.delete_utterance(utterance, bot, user=user)
 
     def test_delete_utterance_empty(self):
         processor = MongoProcessor()
@@ -4321,7 +4321,7 @@ class TestMongoProcessor:
         bot = "testBot"
         user = "testUser"
         with pytest.raises(AppException):
-            processor.delete_utterance(utterance, bot, user)
+            processor.delete_utterance(utterance, bot, user=user)
 
     def test_delete_utterance_name_having_no_responses(self):
         processor = MongoProcessor()
@@ -4329,7 +4329,7 @@ class TestMongoProcessor:
         bot = "testBot"
         user = "testUser"
         processor.add_utterance_name(utterance, bot, user)
-        processor.delete_utterance(utterance, bot, user)
+        processor.delete_utterance(utterance, bot, user=user)
         with pytest.raises(DoesNotExist):
             Utterances.objects(name__iexact=utterance, bot=bot, status=True).get()
 
@@ -6737,7 +6737,7 @@ class TestMongoProcessor:
         processor.add_synonym_values({"name": "bot", "value": ["exp"]}, bot, user)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 2
-        processor.delete_synonym_value("bot", response[0]["_id"], bot)
+        processor.delete_synonym_value("bot", response[0]["_id"], bot, user=user)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 1
 
@@ -6762,7 +6762,7 @@ class TestMongoProcessor:
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 1
 
-        processor.delete_synonym(synonym_id, bot)
+        processor.delete_synonym(synonym_id, bot, user="test")
         response = list(processor.fetch_synonyms(bot))
         assert len(response) == 0
 
@@ -6841,7 +6841,7 @@ class TestMongoProcessor:
 
     def test_delete_utterance_name(self):
         processor = MongoProcessor()
-        processor.delete_utterance_name('test_add', 'test')
+        processor.delete_utterance_name('test_add', 'test', user="test")
 
     def test_get_bot_settings_not_added(self):
         processor = MongoProcessor()
@@ -7282,19 +7282,19 @@ class TestMongoProcessor:
         processor.add_lookup_values({"name": "number", "value": ["one"]}, bot, user)
         response = list(processor.get_lookup_values("number", bot))
         assert len(response) == 2
-        processor.delete_lookup_value(response[0]["_id"], "number", bot)
+        processor.delete_lookup_value(response[0]["_id"], "number", bot, user)
         response = list(processor.get_lookup_values("number", bot))
         assert len(response) == 1
 
     def test_delete_lookup_value_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup_value(" ", "df", "test")
+            processor.delete_lookup_value(" ", "df", "test", "test_user")
 
     def test_delete_non_existent_lookup(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup_value("0123456789ab0123456789ab", "df", "test")
+            processor.delete_lookup_value("0123456789ab0123456789ab", "df", "test", "test_user")
 
     def test_delete_lookup_name(self):
         processor = MongoProcessor()
@@ -7304,7 +7304,7 @@ class TestMongoProcessor:
         processor.add_lookup_value("bot", "exp", bot, user)
         assert len(list(processor.get_lookups(bot))) == 1
         assert len(list(processor.get_lookup_values("bot", bot))) == 1
-        processor.delete_lookup(lookup_id, bot)
+        processor.delete_lookup(lookup_id, bot, user)
         response = list(processor.get_lookups(bot))
         assert len(response) == 0
         response = list(processor.get_lookup_values("bot", bot))
@@ -7313,12 +7313,12 @@ class TestMongoProcessor:
     def test_delete_lookup_name_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup(" ", "df")
+            processor.delete_lookup(" ", "df", "test")
 
     def test_delete_non_existent_lookup_name(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup("0123456789ab0123456789ab", "df")
+            processor.delete_lookup("0123456789ab0123456789ab", "df", "test")
 
     def test_add_empty_lookup(self):
         processor = MongoProcessor()
@@ -7564,7 +7564,7 @@ class TestMongoProcessor:
         assert resp[0].text.text == 'what is your occupation?'
         assert resp[1].text.text == 'occupation?'
         assert resp[2].text.text == 'your occupation?'
-        assert not processor.delete_response(str(resp[2].id), bot)
+        assert not processor.delete_response(str(resp[2].id), bot, user=user)
 
     def test_add_utterance_to_form_not_exists(self):
         bot = 'test'
@@ -8581,7 +8581,7 @@ class TestMongoProcessor:
     def test_delete_response_linked_to_form_validation_false(self):
         processor = MongoProcessor()
         bot = 'test'
-        processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, False)
+        processor.delete_utterance('utter_ask_restaurant_form_cuisine', bot, False, user="test")
         with pytest.raises(DoesNotExist):
             Utterances.objects(name='utter_ask_restaurant_form_cuisine', bot=bot, status=True).get()
         with pytest.raises(DoesNotExist):
@@ -10454,7 +10454,7 @@ class TestMongoProcessor:
         assert actual_vectordb_action['response']['value'] == '0'
         with pytest.raises(AppException,
                            match='Cannot remove collection test_add_vector_embedding_action_config_op_embedding_search linked to action "test_vectordb_action_op_embedding_search"!'):
-            processor.delete_cognition_schema(pytest.delete_schema_id_db_action, bot)
+            processor.delete_cognition_schema(pytest.delete_schema_id_db_action, bot, user=user)
 
     def test_add_vector_embedding_action_with_story(self):
         processor = MongoProcessor()
@@ -14972,7 +14972,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         key = "AWS_KEY"
-        processor.delete_secret(key, bot)
+        processor.delete_secret(key, bot, user="test")
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
 
@@ -14981,7 +14981,7 @@ class TestMongoProcessor:
         bot = 'test'
         key = "GCPKEY"
         with pytest.raises(AppException, match=f"key '{key}' does not exists!"):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user="test")
 
     def test_get_secret_not_found(self):
         processor = MongoProcessor()
@@ -15021,7 +15021,7 @@ class TestMongoProcessor:
         ).save()
         with pytest.raises(AppException, match=re.escape(
                 "Key is attached to action: ['test_delete_secret_attached_to_http_action']")):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user="test")
 
         action = HttpActionConfig.objects(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
         action.params_list = []
@@ -15029,14 +15029,14 @@ class TestMongoProcessor:
         action.save()
         with pytest.raises(AppException, match=re.escape(
                 "Key is attached to action: ['test_delete_secret_attached_to_http_action']")):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user=user)
 
         action = HttpActionConfig.objects(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
         action.params_list = []
         action.headers = [HttpActionRequestBody(key="param1", value="param1", parameter_type="key_vault"),
                           HttpActionRequestBody(key="param2", value=key, parameter_type="value")]
         action.save()
-        processor.delete_secret(key, bot)
+        processor.delete_secret(key, bot, user=user)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
 
@@ -15063,7 +15063,7 @@ class TestMongoProcessor:
             processor.add_email_action(email_config, bot, user)
         with pytest.raises(AppException, match=re.escape(
                 "Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user="test")
 
         action = EmailActionConfig.objects(action_name="test_delete_secret_attached_to_email_action", bot=bot).get()
         action.smtp_userid = None
@@ -15072,14 +15072,14 @@ class TestMongoProcessor:
             action.save()
         with pytest.raises(AppException, match=re.escape(
                 "Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user=user)
 
         action = EmailActionConfig.objects(action_name="test_delete_secret_attached_to_email_action", bot=bot).get()
         action.smtp_userid = None
         action.smtp_password = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
         with patch("kairon.shared.utils.SMTP", autospec=True):
             action.save()
-        processor.delete_secret(key, bot)
+        processor.delete_secret(key, bot, user=user)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
 
@@ -15100,12 +15100,12 @@ class TestMongoProcessor:
         processor.add_google_search_action(action, bot, user)
         with pytest.raises(AppException, match=re.escape(
                 "Key is attached to action: ['test_delete_secret_attached_to_google_action']")):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user=user)
 
         action = GoogleSearchAction.objects(name="test_delete_secret_attached_to_google_action", bot=bot).get()
         action.api_key = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
         action.save()
-        processor.delete_secret(key, bot)
+        processor.delete_secret(key, bot, user=user)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
 
@@ -15131,13 +15131,13 @@ class TestMongoProcessor:
             processor.add_jira_action(action, bot, user)
         with pytest.raises(AppException, match=re.escape(
                 "Key is attached to action: ['test_delete_secret_attached_to_jira_action']")):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user=user)
 
         action = JiraAction.objects(name="test_delete_secret_attached_to_jira_action", bot=bot).get()
         action.api_token = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
         with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_validation):
             action.save()
-        processor.delete_secret(key, bot)
+        processor.delete_secret(key, bot, user=user)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
 
@@ -15160,13 +15160,13 @@ class TestMongoProcessor:
             processor.add_zendesk_action(action, bot, user)
         with pytest.raises(AppException, match=re.escape(
                 "Key is attached to action: ['test_delete_secret_attached_to_zendesk_action']")):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user=user)
 
         action = ZendeskAction.objects(name="test_delete_secret_attached_to_zendesk_action", bot=bot).get()
         action.api_token = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
         with patch('kairon.shared.actions.data_objects.ZendeskAction.validate', new=_mock_validation):
             action.save()
-        processor.delete_secret(key, bot)
+        processor.delete_secret(key, bot, user=user)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
 
@@ -15194,13 +15194,13 @@ class TestMongoProcessor:
             processor.add_pipedrive_action(action, bot, user)
         with pytest.raises(AppException, match=re.escape(
                 "Key is attached to action: ['test_delete_secret_attached_to_pipedrivelead_action']")):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user=user)
 
         action = PipedriveLeadsAction.objects(name="test_delete_secret_attached_to_pipedrivelead_action", bot=bot).get()
         action.api_token = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
         with patch('kairon.shared.actions.data_objects.PipedriveLeadsAction.validate', new=_mock_validation):
             action.save()
-        processor.delete_secret(key, bot)
+        processor.delete_secret(key, bot, user=user)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
 
@@ -15228,14 +15228,14 @@ class TestMongoProcessor:
             processor.add_hubspot_forms_action(action, bot, user)
         with pytest.raises(AppException, match=re.escape(
                 "Key is attached to action: ['test_delete_secret_attached_to_hubspot_action']")):
-            processor.delete_secret(key, bot)
+            processor.delete_secret(key, bot, user=user)
 
         action = HubspotFormsAction.objects(name="test_delete_secret_attached_to_hubspot_action", bot=bot).get()
         action.fields = [HttpActionRequestBody(key="param1", value="param1", parameter_type="key_vault"),
                          HttpActionRequestBody(key="param2", value=key, parameter_type="value")]
         with patch('kairon.shared.actions.data_objects.HubspotFormsAction.validate', new=_mock_validation):
             action.save()
-        processor.delete_secret(key, bot)
+        processor.delete_secret(key, bot, user=user)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
 
@@ -15532,8 +15532,8 @@ class TestMongoProcessor:
         }
         with pytest.raises(AppException, match="Collection limit exceeded!"):
             processor.save_cognition_schema(schema_three, user, bot)
-        processor.delete_cognition_schema(pytest.schema_id_one, bot)
-        processor.delete_cognition_schema(pytest.schema_id_two, bot)
+        processor.delete_cognition_schema(pytest.schema_id_one, bot, user=user)
+        processor.delete_cognition_schema(pytest.schema_id_two, bot, user=user)
         schema_four = {
             "metadata": [
                 {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
@@ -15559,7 +15559,7 @@ class TestMongoProcessor:
 
         # Delete all schema except the last one
         for schema_id in schema_ids[:-1]:
-            processor.delete_cognition_schema(schema_id, bot)
+            processor.delete_cognition_schema(schema_id, bot, user=user)
 
         data = list(processor.list_cognition_schema(bot))
         settings = BotSettings.objects(bot=bot).get()
@@ -15644,7 +15644,7 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        processor.delete_cognition_schema(pytest.schema_id, bot)
+        processor.delete_cognition_schema(pytest.schema_id, bot, user=user)
 
     def test_save_payload_metadata_and_delete_with_no_cognition_data(self):
         processor = CognitionDataProcessor()
@@ -15658,14 +15658,14 @@ class TestMongoProcessor:
             "user": user
         }
         pytest.schema_id_final = processor.save_cognition_schema(schema, user, bot)
-        processor.delete_cognition_schema(pytest.schema_id_final, bot)
+        processor.delete_cognition_schema(pytest.schema_id_final, bot, user=user)
 
     def test_delete_payload_metadata_does_not_exists(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
         with pytest.raises(AppException, match="Schema does not exists!"):
-            processor.delete_cognition_schema("507f191e050c19729de760ea", bot)
+            processor.delete_cognition_schema("507f191e050c19729de760ea", bot, user=user)
 
     def test_get_payload_metadata_not_exists(self):
         processor = CognitionDataProcessor()
@@ -15710,9 +15710,9 @@ class TestMongoProcessor:
         processor_two.add_prompt_action(request, bot, user)
         with pytest.raises(AppException,
                            match='Cannot remove collection python linked to action "test_delete_schema_attached_to_prompt_action"!'):
-            processor.delete_cognition_schema(pytest.delete_schema_id, bot)
+            processor.delete_cognition_schema(pytest.delete_schema_id, bot, user=user)
         processor_two.delete_action('test_delete_schema_attached_to_prompt_action', bot, user)
-        processor.delete_cognition_schema(pytest.delete_schema_id, bot)
+        processor.delete_cognition_schema(pytest.delete_schema_id, bot, user=user)
 
     def test_save_content_with_gpt_feature_disabled(self):
         processor = CognitionDataProcessor()
@@ -15872,7 +15872,7 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        processor.delete_cognition_data(pytest.content_id, bot)
+        processor.delete_cognition_data(pytest.content_id, bot, user=user)
 
     def test_delete_content_does_not_exists(self):
         processor = CognitionDataProcessor()
@@ -15956,13 +15956,14 @@ class TestMongoProcessor:
     def test_delete_content_for_action(self):
         processor = CognitionDataProcessor()
         bot = 'test'
-        processor.delete_cognition_data(pytest.content_id_unit, bot)
+        user = 'testUser'
+        processor.delete_cognition_data(pytest.content_id_unit, bot, user=user)
 
     def test_delete_payload_content_collection(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        processor.delete_cognition_schema(pytest.save_content_collection, bot)
+        processor.delete_cognition_schema(pytest.save_content_collection, bot, user=user)
 
     def test_save_payload_content_with_gpt_feature_disabled(self):
         processor = CognitionDataProcessor()
@@ -16133,7 +16134,7 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        processor.delete_cognition_data(pytest.payload_id, bot)
+        processor.delete_cognition_data(pytest.payload_id, bot, user=user)
 
     def test_delete_payload_content_does_not_exists(self):
         processor = CognitionDataProcessor()

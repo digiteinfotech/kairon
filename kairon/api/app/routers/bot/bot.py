@@ -328,7 +328,7 @@ async def remove_response(
     Deletes existing utterance example.
     """
     mongo_processor.delete_response(
-        response_id, current_user.get_bot()
+        response_id, current_user.get_bot(), user=current_user.get_user()
     )
     return {
         "message": "Response removed!",
@@ -344,7 +344,7 @@ async def remove_responses(
     Deletes existing utterance completely along with its examples.
     """
     mongo_processor.delete_utterance(
-        utterance, current_user.get_bot()
+        utterance, current_user.get_bot(), user=current_user.get_user()
     )
     return {
         "message": "Utterance removed!",
@@ -1130,7 +1130,7 @@ async def delete_synonym_value(
     Deletes existing synonym with value.
     """
     mongo_processor.delete_synonym(
-        id=id, bot=current_user.get_bot()
+        id=id, bot=current_user.get_bot(), user=current_user.get_user()
     )
     return {
         "message": "Synonym removed!"
@@ -1147,7 +1147,7 @@ async def delete_synonym_value(
     Deletes existing synonym value.
     """
     mongo_processor.delete_synonym_value(
-        synonym_name=name, value_id=id, bot=current_user.get_bot()
+        synonym_name=name, value_id=id, bot=current_user.get_bot(), user=current_user.get_user()
     )
     return {
         "message": "Synonym value removed!"
@@ -1388,7 +1388,7 @@ async def delete_lookup_value(
     Deletes existing lookup value.
     """
     mongo_processor.delete_lookup_value(
-        id, name, current_user.get_bot()
+        id, name, current_user.get_bot(), user=current_user.get_user()
     )
     return {
         "message": "Lookup value removed!"
@@ -1404,7 +1404,7 @@ async def delete_lookup(
     Deletes existing lookup.
     """
     mongo_processor.delete_lookup(
-        id, current_user.get_bot()
+        id, current_user.get_bot(), user=current_user.get_user()
     )
     return {
         "message": "Lookup removed!"
@@ -1453,7 +1453,7 @@ async def delete_slot_mapping(mapping_id: str = Path(description="Slot Mapping i
     """
     Deletes a slot mapping.
     """
-    mongo_processor.delete_single_slot_mapping(mapping_id)
+    mongo_processor.delete_single_slot_mapping(mapping_id, user=current_user.get_user())
     return Response(message='Slot mapping deleted')
 
 
