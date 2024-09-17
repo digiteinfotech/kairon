@@ -2116,7 +2116,7 @@ def test_get_collection_data():
 
 def test_get_collection_data_with_collection_id():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user/{pytest.collection_id}",
+        url=f"/api/bot/{pytest.bot}/data/collection/data/{pytest.collection_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2137,6 +2137,19 @@ def test_get_collection_data_with_collection_id():
             'location': 'Bangalore'
         }
     }
+
+
+def test_get_collection_data_with_collection_id_doesnot_exists():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/data/{pytest.bot}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Collection data does not exists!"
+    assert not actual["data"]
 
 
 def test_update_collection_data_with_collection_name_empty():
