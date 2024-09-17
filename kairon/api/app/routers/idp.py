@@ -44,6 +44,6 @@ async def delete_idp_config(current_user: User = Depends(Authentication.get_curr
     """
     Disable the idp config
     """
-    IDPProcessor.delete_idp(realm_name)
+    IDPProcessor.delete_idp(realm_name, user=current_user.get_user())
     return Response(message="IDP config deleted")
 

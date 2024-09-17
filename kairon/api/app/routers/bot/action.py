@@ -601,7 +601,7 @@ async def update_live_agent(
 async def disable_live_agent(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    mongo_processor.disable_live_agent(current_user.get_bot())
+    mongo_processor.disable_live_agent(current_user.get_bot(), current_user.get_user())
     return Response(message="Live Agent Action disabled!")
 
 

@@ -51,10 +51,10 @@ class CustomWidgetsProcessor:
         return [w_id.__str__() for w_id in CustomWidgets.objects(bot=bot).values_list('id')]
 
     @staticmethod
-    def delete_config(widget_id: Text, bot: Text):
+    def delete_config(widget_id: Text, bot: Text, user: str = None):
         try:
             widget = CustomWidgets.objects(id=widget_id, bot=bot).get()
-            widget.delete()
+            Utility.delete_documents(widget, user)
         except DoesNotExist as e:
             logger.exception(e)
             raise AppException("Widget does not exists!")
