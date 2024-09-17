@@ -1938,8 +1938,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = processor.get_collection_data_with_id(bot, collection_name="user",
-                                                         collection_id=pytest.collection_id)
+        response = processor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
         print(response)
         assert response == {
             '_id': pytest.collection_id,
@@ -1965,6 +1964,13 @@ class TestMongoProcessor:
         user = 'test_user'
         processor = CognitionDataProcessor()
         processor.delete_collection_data(pytest.collection_id, bot, user)
+
+    def test_get_collection_data_with_collection_id_doesnot_exists(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = CognitionDataProcessor()
+        with pytest.raises(AppException, match='Collection data does not exists!'):
+            processor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
 
     def test_get_collection_data_after_delete(self):
         bot = 'test_bot'

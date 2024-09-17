@@ -215,21 +215,21 @@ class CognitionDataProcessor:
         :param bot: bot id
         :return: yield dict
         """
-        collection_id = kwargs.pop("collection_id")
-        collection_name = kwargs.pop("collection_name")
-        collection_name = collection_name.lower()
-        collection_data = CollectionData.objects(bot=bot, collection_name=collection_name,
-                                                 id=collection_id).get()
-        final_data = {}
-        item = collection_data.to_mongo().to_dict()
-        collection_name = item.pop('collection_name', None)
-        is_secure = item.pop('is_secure')
-        data = item.pop('data')
-        data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
-        final_data["_id"] = item["_id"].__str__()
-        final_data['collection_name'] = collection_name
-        final_data['is_secure'] = is_secure
-        final_data['data'] = data
+        try:
+            collection_id = kwargs.pop("collection_id")
+            collection_data = CollectionData.objects(bot=bot, id=collection_id).get()
+            final_data = {}
+            item = collection_data.to_mongo().to_dict()
+            collection_name = item.pop('collection_name', None)
+            is_secure = item.pop('is_secure')
+            data = item.pop('data')
+            data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
+            final_data["_id"] = item["_id"].__str__()
+            final_data['collection_name'] = collection_name
+            final_data['is_secure'] = is_secure
+            final_data['data'] = data
+        except DoesNotExist:
+            raise AppException("Collection data does not exists!")
         return final_data
 
     def get_collection_data(self, bot: Text, **kwargs):
