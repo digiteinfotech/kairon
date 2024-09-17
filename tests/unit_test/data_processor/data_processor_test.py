@@ -1136,6 +1136,26 @@ class TestMongoProcessor:
         print(live_agent)
         assert live_agent == {'name': 'live_agent_action', 'bot_response': 'connecting to different live agent...', 'agent_connect_response': 'Connected to live agent', 'agent_disconnect_response': 'Disconnected from live agent', 'agent_not_available_response': 'No agents available', 'dispatch_bot_response': True, 'dispatch_agent_connect_response': True, 'dispatch_agent_disconnect_response': True, 'dispatch_agent_not_available_response': True}
 
+    def test_list_live_agent_actions(self):
+        processor = MongoProcessor()
+        res = processor.load_live_agent_action(bot='test_bot')
+        assert res == {'live_agent_action': [
+                            {'name': 'live_agent_action',
+                             'bot_response': 'connecting to different live agent...',
+                             'agent_connect_response': 'Connected to live agent',
+                             'agent_disconnect_response': 'Disconnected from live agent',
+                             'agent_not_available_response': 'No agents available',
+                             'dispatch_bot_response': True,
+                             'dispatch_agent_connect_response': True,
+                             'dispatch_agent_disconnect_response': True,
+                             'dispatch_agent_not_available_response': True}
+                        ]}
+        gen = processor.list_live_agent_actions('test_bot', True)
+        list_data = list(gen)
+        assert list_data[0]['name'] == 'live_agent_action'
+        assert list_data[0]['bot_response'] == 'connecting to different live agent...'
+        assert list_data[0].get('_id')
+        assert len(list_data[0]['_id']) == 24
 
     def test_disable_live_agent(self):
         processor = MongoProcessor()
