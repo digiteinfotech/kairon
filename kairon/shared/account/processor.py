@@ -231,7 +231,7 @@ class AccountProcessor:
             raise AppException("Bot not found")
 
     @staticmethod
-    def delete_bot(bot: Text):
+    def delete_bot(bot: Text, user: Text = None):
         from kairon.shared.data.data_objects import (
             Intents,
             Responses,
@@ -296,6 +296,7 @@ class AccountProcessor:
                     ValidationLogs,
                 ],
                 bot,
+                user=user
             )
             AccountProcessor.remove_bot_access(bot)
         except DoesNotExist:
@@ -1182,7 +1183,7 @@ class AccountProcessor:
         return config
 
     @staticmethod
-    def delete_account(account_id: int):
+    def delete_account(account_id: int, email: str = None):
         """
         Delete User Account
 
@@ -1192,6 +1193,7 @@ class AccountProcessor:
         """
         try:
             account_obj = Account.objects(id=account_id, status=True).get()
+
         except DoesNotExist:
             raise AppException("Account does not exist!")
 
@@ -1199,7 +1201,7 @@ class AccountProcessor:
         account_bots = list(AccountProcessor.list_bots(account_id))
         # Delete all account_owned bots
         for bot in account_bots:
-            AccountProcessor.delete_bot(bot["_id"])
+            AccountProcessor.delete_bot(bot["_id"], email)
             UserActivityLogger.add_log(
                 
                 a_type=UserActivityType.delete_bot.value,

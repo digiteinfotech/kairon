@@ -490,7 +490,7 @@ class TestIDP:
         assert fetched_idp_config["organization"] == "Test"
         assert fetched_idp_config["tenant"] == "fa1b21ce-4ca5-4009_new"
 
-        IDPProcessor.delete_idp(realm_name=realm_name)
+        IDPProcessor.delete_idp(realm_name=realm_name, user=user.email)
         fetched_idp_config = IDPProcessor.get_idp_config(account=user.account)
         assert fetched_idp_config == {}
 

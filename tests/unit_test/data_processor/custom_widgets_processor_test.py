@@ -126,13 +126,13 @@ class TestCustomWidgetsProcessor:
 
     def test_delete_widget(self):
         bot = "test_bot"
-        CustomWidgetsProcessor.delete_config(pytest.widget_id, bot)
+        CustomWidgetsProcessor.delete_config(pytest.widget_id, bot, "test")
         assert list(CustomWidgetsProcessor.get_config(bot)) == []
 
     def test_delete_widget_not_exists(self):
         bot = "test_bot"
         with pytest.raises(AppException, match="Widget does not exists!"):
-            CustomWidgetsProcessor.delete_config(pytest.widget_id, bot)
+            CustomWidgetsProcessor.delete_config(pytest.widget_id, bot, "test")
 
     @responses.activate
     def test_trigger_widget(self):

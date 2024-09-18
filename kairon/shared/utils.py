@@ -561,9 +561,11 @@ class Utility:
         """
         for document in documents:
             kwargs["bot"] = bot
+            user = kwargs.pop("user", "System")
             fetched_documents = document.objects(**kwargs)
-            if fetched_documents.count() > 0:
-                fetched_documents.delete()
+            for doc in fetched_documents:
+                doc["user"] = user
+                doc.delete()
 
     @staticmethod
     def extract_db_config(uri: str):
@@ -2190,6 +2192,16 @@ class Utility:
         except InvalidDocument as e:
             logger.exception(e)
             return False
+
+    @staticmethod
+    def delete_documents(document: Document, user: str = "System"):
+        """
+        delete the given document, main purpose of this api is set current user and maintain in auditlog.
+        if user is not provided 'System' user will be passed.
+        """
+        if document:
+            document["user"] = user
+            document.delete()
 
 
 class StoryValidator:

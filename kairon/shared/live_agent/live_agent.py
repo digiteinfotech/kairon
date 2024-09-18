@@ -90,7 +90,7 @@ class LiveAgentHandler:
             'Authorization': f"Bearer {auth_token}"
         }
         res, status, _, _ = await ActionUtility.execute_request_async(url, 'GET', None, headers)
-        if status != 200:
+        if res and status != 200:
             return False
         return res['data']['status']
 

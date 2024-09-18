@@ -81,7 +81,7 @@ async def delete_cognition_schema(
     """
     Deletes cognition content of the bot
     """
-    cognition_processor.delete_cognition_schema(schema_id, current_user.get_bot())
+    cognition_processor.delete_cognition_schema(schema_id, current_user.get_bot(), user=current_user.get_user())
     return {
         "message": "Schema deleted!"
     }
@@ -147,7 +147,7 @@ async def delete_cognition_data(
     """
     Deletes cognition content of the bot
     """
-    cognition_processor.delete_cognition_data(row_id, current_user.get_bot())
+    cognition_processor.delete_cognition_data(row_id, current_user.get_bot(), user=current_user.get_user())
     return {
         "message": "Record deleted!"
     }

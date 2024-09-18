@@ -2755,7 +2755,7 @@ class TestAccountProcessor:
 
         account = 1234
         name = "new_test"
-        OrgProcessor.delete_org(account=account, org_id=name)
+        OrgProcessor.delete_org(account=account, org_id=name, user="test")
         org = OrgProcessor.get_organization(org_name=name)
         assert org == {}
 

@@ -174,7 +174,7 @@ async def delete_bot(
     """
     Deletes bot.
     """
-    AccountProcessor.delete_bot(bot)
+    AccountProcessor.delete_bot(bot, current_user.get_user())
     return {'message': 'Bot removed'}
 
 
@@ -209,7 +209,7 @@ async def delete_account(current_user: User = Depends(Authentication.get_current
     """
     Deletes user account.
     """
-    AccountProcessor.delete_account(current_user.account)
+    AccountProcessor.delete_account(current_user.account, current_user.get_user())
     return {"message": "Account deleted"}
 
 
@@ -238,5 +238,5 @@ async def delete_organization(org_id: str, current_user: User = Depends(Authenti
     """
     Delete organization.
     """
-    OrgProcessor.delete_org(current_user.account, org_id)
+    OrgProcessor.delete_org(current_user.account, org_id, user=current_user.get_user())
     return Response(message="Organization deleted")

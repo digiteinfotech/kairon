@@ -539,7 +539,7 @@ class TestLiveAgentProcessor:
         assert agent["trigger_on_actions"] == []
 
     def test_delete_agent_config(self):
-        LiveAgentsProcessor.delete_config(pytest.bot.id)
+        LiveAgentsProcessor.delete_config(pytest.bot.id, "test_user")
 
     def test_get_agent_config_none(self):
         assert not LiveAgentsProcessor.get_config(pytest.bot.id, raise_error=False)

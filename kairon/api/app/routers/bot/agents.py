@@ -55,5 +55,5 @@ async def delete_live_agent_config(
     """
     Deletes the live agent config.
     """
-    LiveAgentsProcessor.delete_config(current_user.get_bot())
+    LiveAgentsProcessor.delete_config(current_user.get_bot(), user=current_user.get_user())
     return Response(message='Live agent system deleted')

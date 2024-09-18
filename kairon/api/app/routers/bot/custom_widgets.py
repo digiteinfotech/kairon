@@ -70,7 +70,7 @@ async def delete_custom_widget(
     """
     Delete a particular custom widget.
     """
-    CustomWidgetsProcessor.delete_config(widget_id, current_user.get_bot())
+    CustomWidgetsProcessor.delete_config(widget_id, current_user.get_bot(), user=current_user.get_user())
     return Response(message='Widget config removed!')
 
 
