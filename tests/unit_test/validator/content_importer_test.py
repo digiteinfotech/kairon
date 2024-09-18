@@ -19,21 +19,17 @@ def pytest_namespace():
 
 
 class TestContentImporter:
-
-    @pytest.fixture(scope='session', autouse=True)
+    @pytest.fixture(scope="class", autouse=True)
     def init(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
-        tmp_dir = tempfile.mkdtemp()
-        pytest.tmp_dir = tmp_dir
-        yield None
-        shutil.rmtree(tmp_dir)
 
     def test_validate_success(self):
         """
         Test case for successful validation where all rows pass validation.
         """
+        BotSettings.objects().delete()
         test_file_path = "tests/testing_data/doc_content_upload"
         bot = 'test_bot'
         user = 'test_user'
