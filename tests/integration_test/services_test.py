@@ -23665,6 +23665,7 @@ def test_update_analytics_settings():
                               'whatsapp': 'meta',
                               'live_agent_enabled': False,
                               'cognition_collections_limit': 3,
+                              'content_importer_limit_per_day': 5,
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3}

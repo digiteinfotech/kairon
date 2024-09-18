@@ -1,6 +1,6 @@
 import os
 
-from fastapi import UploadFile, File, Security, APIRouter
+from fastapi import UploadFile, File, Security, APIRouter, HTTPException
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
@@ -284,21 +284,20 @@ async def download_error_csv(
     """
     Downloads the error report file for validation errors.
     """
-    file_path = os.path.join('content_upload_summary', current_user.get_bot(), f'failed_rows_with_errors_{event_id}.csv')
-    if not os.path.exists(file_path):
+    try:
+        file_path = processor.get_error_report_file_path(current_user.get_bot(), event_id)
+
+        response = FileResponse(file_path, filename=os.path.basename(file_path))
+        response.headers["Content-Disposition"] = f"attachment; filename={os.path.basename(file_path)}"
+
+        return response
+    except HTTPException as e:
         return Response(
             success=False,
-            message="Error Report not found",
+            message=e.detail,
             data=None,
-            error_code=404
+            error_code=e.status_code
         )
-
-    response = FileResponse(
-        file_path, filename=f'failed_rows_with_errors_{event_id}.csv'
-    )
-    response.headers["Content-Disposition"] = f"attachment; filename=failed_rows_with_errors_{event_id}.csv"
-
-    return response
 
 
 # @router.get("/content/summary", response_model=Response)

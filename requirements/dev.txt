@@ -13,3 +13,4 @@ pytest-cov==5.0.0
 pytest-html==4.1.1
 pytest-aioresponses==0.2.0
 aioresponses==0.7.6
+jsonschema_pydantic==0.6

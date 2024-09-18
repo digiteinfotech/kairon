@@ -8,7 +8,8 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
-from kairon.importer.content_importer import ContentImporter
+
+from kairon.api.app.routers.bot.data import processor
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -21,7 +22,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import responses
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 from jira import JIRAError, JIRA
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
@@ -1568,6 +1569,59 @@ class TestMongoProcessor:
         assert summary["Row 3"][0]['status'] == 'Required Field is Empty'
         assert summary["Row 3"][1]['column_name'] == 'sales'
         assert summary["Row 3"][1]['status'] == 'Invalid DataType'
+
+    def test_get_error_report_file_path_success(self):
+        bot = "test_bot"
+        event_id = "12345"
+
+        base_dir = os.path.join('content_upload_summary', bot)
+        os.makedirs(base_dir, exist_ok=True)
+        expected_path = os.path.join(base_dir, f'failed_rows_with_errors_{event_id}.csv')
+
+        with open(expected_path, 'w') as f:
+            f.write("dummy content")
+
+        processor = MongoProcessor()
+        result = processor.get_error_report_file_path(bot, event_id)
+        assert result == expected_path
+
+        if os.path.exists(expected_path):
+            os.remove(expected_path)
+        if os.path.exists(base_dir):
+            os.rmdir(base_dir)
+
+    def test_get_error_report_file_path_file_not_found(self):
+        """ Test case where the file does not exist """
+        bot = "test_bot"
+        event_id = "67890"
+
+        base_dir = os.path.join('content_upload_summary', bot)
+        expected_path = os.path.join(base_dir, f'failed_rows_with_errors_{event_id}.csv')
+
+        if os.path.exists(expected_path):
+            os.remove(expected_path)
+        if os.path.exists(base_dir):
+            os.rmdir(base_dir)
+
+        processor = MongoProcessor()
+        try:
+            processor.get_error_report_file_path(bot, event_id)
+        except HTTPException as e:
+            assert e.status_code == 404
+            assert e.detail == "Error Report not found"
+
+    def test_get_error_report_file_path_invalid_event_id(self):
+        """ Test case for invalid event ID """
+        bot = "test_bot"
+        event_id = "invalid!@"
+
+        processor = MongoProcessor()
+        try:
+            processor.get_error_report_file_path(bot, event_id)
+        except HTTPException as e:
+            assert e.status_code == 400, f"Expected status code 400, but got {e.status_code}"
+            assert e.detail == "Invalid event ID"
+
 
     def test_get_collection_data_with_no_collection_data(self):
         bot = 'test_bot'

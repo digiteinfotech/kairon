@@ -17,7 +17,7 @@ from loguru import logger
 
 import networkx as nx
 import yaml
-from fastapi import File
+from fastapi import File, HTTPException
 from loguru import logger as logging
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
@@ -8432,6 +8432,25 @@ class MongoProcessor:
 
             payload_id = cognition_processor.save_cognition_data(payload, user, bot)
 
+
+    @staticmethod
+    def get_error_report_file_path(bot: str, event_id: str) -> str:
+        """
+        Constructs the file path for the error report based on bot and event_id.
+        Ensures the path is safe and within the allowed directory.
+        """
+        if not event_id.isalnum():
+            raise HTTPException(status_code=400, detail="Invalid event ID")
+
+        base_dir = os.path.join('content_upload_summary', bot)
+
+        file_name = f'failed_rows_with_errors_{event_id}.csv'
+        file_path = os.path.join(base_dir, file_name)
+
+        if not os.path.exists(file_path) or not file_path.startswith(base_dir):
+            raise HTTPException(status_code=404, detail="Error Report not found")
+
+        return file_path
 
 
 
