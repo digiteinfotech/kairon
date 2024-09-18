@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Text, Dict, List, Any, Optional
 from urllib.parse import urljoin
 
-from jsonschema_pydantic import jsonschema_to_pydantic
 from loguru import logger
 
 import networkx as nx
@@ -24,7 +23,7 @@ from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from mongoengine.queryset.visitor import Q
 from pandas import DataFrame
-from pydantic import ValidationError
+from pydantic import ValidationError, create_model
 from rasa.shared.constants import (
     DEFAULT_CONFIG_PATH,
     DEFAULT_DATA_PATH,
@@ -8363,36 +8362,22 @@ class MongoProcessor:
         :return: A summary dictionary containing validation results.
         """
 
-        def generate_json_schema(column_datatype_dict: dict) -> dict:
-            """
-            Generates a JSON schema based on the column_dict.
+        def get_pydantic_type(data_type: str):
+            if data_type == 'str':
+                return (str, ...)
+            elif data_type == 'int':
+                return (int, ...)
+            elif data_type == 'float':
+                return (float, ...)
+            else:
+                raise ValueError(f"Unsupported data type: {data_type}")
 
-            :param column_datatype_dict: A dictionary where keys are column names and values are expected data types.
-            :return: A JSON schema dictionary.
-            """
-            schema_properties = {}
+        model_fields = {
+            column_name: get_pydantic_type(data_type)
+            for column_name, data_type in column_dict.items()
+        }
 
-            type_mapping = {
-                'int': {"type": "integer"},
-                'str': {"type": "string"},
-                'float': {"type": "number", "format": "float"}
-            }
-
-            for column_name, data_type in column_datatype_dict.items():
-                if data_type in type_mapping:
-                    schema_properties[column_name] = type_mapping[data_type]
-
-            json_schema = {
-                "type": "object",
-                "properties": schema_properties,
-                "required": list(column_dict.keys()),
-                "additionalProperties": False
-            }
-
-            return json_schema
-
-        json_schema = generate_json_schema(column_dict)
-        DynamicModel = jsonschema_to_pydantic(json_schema)
+        DynamicModel = create_model('DynamicModel', **model_fields)
 
         summary = {}
 
