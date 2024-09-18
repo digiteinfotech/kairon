@@ -82,7 +82,8 @@ class CallbackProcessor:
             elif res := obj.get('result'):
                 bot_response, state, invalidate = CallbackProcessor.parse_pyscript_data(res)
                 CallbackData.update_state(ent['bot'], ent['identifier'], state, invalidate)
-                await ChannelMessageDispatcher.dispatch_message(bot_id, sid, bot_response, chnl)
+                if bot_response:
+                    await ChannelMessageDispatcher.dispatch_message(bot_id, sid, bot_response, chnl)
                 CallbackLog.create_success_entry(name=ent.get("action_name"),
                                                  bot=bot_id,
                                                  channel=chnl,
@@ -151,7 +152,8 @@ class CallbackProcessor:
                 CallbackData.update_state(entry['bot'], entry['identifier'], state, invalidate)
                 data = bot_response
                 logger.info(f'Pyscript output: {bot_response, state, invalidate}')
-                await ChannelMessageDispatcher.dispatch_message(bot, entry.get("sender_id"), data, entry.get("channel"))
+                if data:
+                    await ChannelMessageDispatcher.dispatch_message(bot, entry.get("sender_id"), data, entry.get("channel"))
                 CallbackLog.create_success_entry(name=entry.get("action_name"),
                                                  bot=bot,
                                                  channel=entry.get("channel"),
