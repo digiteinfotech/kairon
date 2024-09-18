@@ -1136,6 +1136,26 @@ class TestMongoProcessor:
         print(live_agent)
         assert live_agent == {'name': 'live_agent_action', 'bot_response': 'connecting to different live agent...', 'agent_connect_response': 'Connected to live agent', 'agent_disconnect_response': 'Disconnected from live agent', 'agent_not_available_response': 'No agents available', 'dispatch_bot_response': True, 'dispatch_agent_connect_response': True, 'dispatch_agent_disconnect_response': True, 'dispatch_agent_not_available_response': True}
 
+    def test_list_live_agent_actions(self):
+        processor = MongoProcessor()
+        res = processor.load_live_agent_action(bot='test_bot')
+        assert res == {'live_agent_action': [
+                            {'name': 'live_agent_action',
+                             'bot_response': 'connecting to different live agent...',
+                             'agent_connect_response': 'Connected to live agent',
+                             'agent_disconnect_response': 'Disconnected from live agent',
+                             'agent_not_available_response': 'No agents available',
+                             'dispatch_bot_response': True,
+                             'dispatch_agent_connect_response': True,
+                             'dispatch_agent_disconnect_response': True,
+                             'dispatch_agent_not_available_response': True}
+                        ]}
+        gen = processor.list_live_agent_actions('test_bot', True)
+        list_data = list(gen)
+        assert list_data[0]['name'] == 'live_agent_action'
+        assert list_data[0]['bot_response'] == 'connecting to different live agent...'
+        assert list_data[0].get('_id')
+        assert len(list_data[0]['_id']) == 24
 
     def test_disable_live_agent(self):
         processor = MongoProcessor()
@@ -3565,7 +3585,7 @@ class TestMongoProcessor:
 
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
-        expected_actions = b'database_action: []\nemail_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action: []\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
+        expected_actions = b'database_action: []\nemail_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\nlive_agent_action: []\npipedrive_leads_action: []\nprompt_action: []\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
             encoding='utf-8')
 
         def _mock_bot_info(*args, **kwargs):
@@ -3602,7 +3622,7 @@ class TestMongoProcessor:
         assert action_config == {'http_action': [], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
                                  'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': [],
-                                 'razorpay_action': [], 'pyscript_action': [], 'database_action': []}
+                                 'razorpay_action': [], 'pyscript_action': [], 'database_action': [], 'live_agent_action': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
