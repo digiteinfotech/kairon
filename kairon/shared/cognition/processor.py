@@ -307,6 +307,15 @@ class CognitionDataProcessor:
         except DoesNotExist:
             raise AppException("Payload does not exists!")
 
+    def delete_all_cognition_data_by_collection(self, collection_name: Text, bot: Text):
+        """
+        Deletes all documents from the specified collection for a given bot.
+
+        @param bot: The bot ID for which data should be deleted.
+        @param collection_name: The name of the collection from which data should be deleted.
+        """
+        CognitionData.objects(bot=bot, collection=collection_name).delete()
+
     def list_cognition_data(self, bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
         """
         fetches content

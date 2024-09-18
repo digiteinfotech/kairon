@@ -8,6 +8,8 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
+from kairon.importer.content_importer import ContentImporter
+from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -53,7 +55,7 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
-from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import SLOT_SET_TYPE, EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
@@ -1311,6 +1313,261 @@ class TestMongoProcessor:
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
+
+    def test_save_and_validate_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        table_name = 'test_table'
+
+        metadata = [
+            {
+                "column_name": "order_id",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "order_priority",
+                "data_type": "str",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "sales",
+                "data_type": "float",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "profit",
+                "data_type": "float",
+                "enable_search": True,
+                "create_embeddings": True
+            }
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=table_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)  # Validate before saving
+        cognition_schema.save()
+
+        file_content = b"order_id,order_priority,sales,profit\n1,High,100.0,50.0\n"
+        doc_content = UploadFile(filename="Salesstore.csv", file=BytesIO(file_content))
+
+        processor = MongoProcessor()
+
+        error_message = processor.save_and_validate(bot, user, doc_content, table_name)
+        content_dir = os.path.join('doc_content_upload_records', bot)
+        file_path = os.path.join(content_dir, doc_content.filename)
+
+        assert os.path.exists(file_path)
+
+        assert error_message == {}
+        shutil.rmtree(os.path.dirname(file_path))
+
+    def test_save_and_validate_header_mismatch_missing_columns(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        table_name = 'test_table'
+
+        file_content = b"order_id,order_priority,sales\n1,High,100.0\n"
+        doc_content = UploadFile(filename="Salesstore_header_mismatch.csv", file=BytesIO(file_content))
+
+        processor = MongoProcessor()
+
+        error_message = processor.save_and_validate(bot, user, doc_content, table_name)
+        content_dir = os.path.join('doc_content_upload_records', bot)
+        file_path = os.path.join(content_dir, doc_content.filename)
+
+        assert os.path.exists(file_path)
+
+        assert 'Header mismatch' in error_message
+        assert "Expected headers ['order_id', 'order_priority', 'sales', 'profit'] but found ['order_id', 'order_priority', 'sales']" in \
+               error_message['Header mismatch']
+        assert 'Missing columns' in error_message
+        assert "{'profit'}" in error_message['Missing columns']
+
+        shutil.rmtree(os.path.dirname(file_path))
+
+    def test_save_and_validate_header_mismatch_extra_columns(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        table_name = 'test_table'
+
+        file_content = b"order_id,order_priority,sales,profit,order_quantity\n1,High,100.0,50.0,87\n"
+        doc_content = UploadFile(filename="Salesstore_extra_columns.csv", file=BytesIO(file_content))
+
+        processor = MongoProcessor()
+
+        error_message = processor.save_and_validate(bot, user, doc_content, table_name)
+        content_dir = os.path.join('doc_content_upload_records', bot)
+        file_path = os.path.join(content_dir, doc_content.filename)
+
+        assert os.path.exists(file_path)
+
+        assert 'Header mismatch' in error_message
+        assert "Expected headers ['order_id', 'order_priority', 'sales', 'profit'] but found ['order_id', 'order_priority', 'sales', 'profit', 'order_quantity']" in \
+               error_message['Header mismatch']
+        assert 'Extra columns' in error_message
+        assert "{'order_quantity'}" in error_message['Extra columns']
+
+        shutil.rmtree(os.path.dirname(file_path))
+
+    def test_validate_schema_and_log_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        table_name = 'test_table'
+
+        file_content = b"order_id,order_priority,sales,profit\n1,High,100.0,50.0\n"
+        doc_content = UploadFile(filename="Salesstore.csv", file=BytesIO(file_content))
+
+        processor = MongoProcessor()
+
+        result = processor.validate_schema_and_log(bot, user, doc_content, table_name)
+
+        assert result is True
+
+        log = ContentValidationLogs.objects(bot=bot).first()
+        assert log is not None
+        assert log.is_data_uploaded is True
+        assert log.file_received == doc_content.filename
+        assert log.validation_errors == {}
+        assert log.status is None
+        assert log.event_status == EVENT_STATUS.INITIATED.value
+        ContentValidationLogs.objects.delete()
+
+    def test_validate_schema_and_log_failure(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        table_name = 'test_table'
+
+        file_content = b"order_id,order_priority,sales\n1,High,100.0\n"
+        doc_content = UploadFile(filename="Salesstore_header_mismatch.csv", file=BytesIO(file_content))
+
+        processor = MongoProcessor()
+
+        result = processor.validate_schema_and_log(bot, user, doc_content, table_name)
+
+        assert result is False, "Schema validation should fail due to header mismatch."
+
+        log = ContentValidationLogs.objects(bot=bot).first()
+        print(log.to_mongo())
+        assert log is not None
+        assert log.is_data_uploaded is True
+        assert log.file_received == doc_content.filename
+        assert log.validation_errors is not None
+        assert log.end_timestamp is not None
+        assert log.status == "Failure"
+        assert log.event_status == EVENT_STATUS.COMPLETED.value
+
+    def test_validate_doc_content_success(self):
+        """
+        Test case for valid content where all rows pass validation.
+        """
+
+        column_dict = {
+            'order_id': 'int',
+            'order_priority': 'str',
+            'sales': 'float'
+        }
+
+        doc_content = [
+            {'order_id': '1', 'order_priority': 'High', 'sales': '100.0'},
+            {'order_id': '2', 'order_priority': 'Low', 'sales': '200.5'},
+            {'order_id': '3', 'order_priority': 'Medium', 'sales': '150.75'}
+        ]
+        processor = MongoProcessor()
+        summary = processor.validate_doc_content(column_dict, doc_content)
+
+        assert summary == {}
+
+    def test_validate_doc_content_invalid_datatype(self):
+        """
+        Test case for content where a row has invalid data type.
+        """
+
+        column_dict = {
+            'order_id': 'int',
+            'order_priority': 'str',
+            'sales': 'float'
+        }
+
+        doc_content = [
+            {'order_id': '1', 'order_priority': 'High', 'sales': '100.0'},
+            {'order_id': '2', 'order_priority': 'Low', 'sales': 'invalid_sales'},
+            {'order_id': '3', 'order_priority': 'Medium', 'sales': '150.75'}
+        ]
+
+        processor = MongoProcessor()
+        summary = processor.validate_doc_content(column_dict, doc_content)
+
+        assert len(summary) == 1
+        assert "Row 3" in summary
+        assert summary["Row 3"][0]['column_name'] == 'sales'
+        assert summary["Row 3"][0]['status'] == 'Invalid DataType'
+
+    def test_validate_doc_content_missing_required_field(self):
+        """
+        Test case for content where a row is missing a required field.
+        """
+
+        column_dict = {
+            'order_id': 'int',
+            'order_priority': 'str',
+            'sales': 'float'
+        }
+
+        doc_content = [
+            {'order_id': '1', 'order_priority': 'High', 'sales': '100.0'},
+            {'order_id': '2', 'order_priority': 'Low', 'sales': ''},
+            {'order_id': '3', 'order_priority': 'Medium', 'sales': '150.75'}
+        ]
+
+        processor = MongoProcessor()
+        summary = processor.validate_doc_content(column_dict, doc_content)
+
+        assert len(summary) == 1
+        assert "Row 3" in summary
+        assert summary["Row 3"][0]['column_name'] == 'sales'
+        assert summary["Row 3"][0]['status'] == 'Required Field is Empty'
+
+    def test_validate_doc_content_multiple_errors(self):
+        """
+        Test case for content where multiple rows have errors.
+        """
+
+        column_dict = {
+            'order_id': 'int',
+            'order_priority': 'str',
+            'sales': 'float'
+        }
+
+        doc_content = [
+            {'order_id': 'invalid_id', 'order_priority': 'High', 'sales': '100.0'},
+            {'order_id': '', 'order_priority': 'Low', 'sales': 'invalid_sales'},
+            {'order_id': '3', 'order_priority': 'Medium', 'sales': '150.75'}
+        ]
+
+        processor = MongoProcessor()
+        summary = processor.validate_doc_content(column_dict, doc_content)
+
+        assert len(summary) == 2
+
+        assert "Row 2" in summary
+        assert summary["Row 2"][0]['column_name'] == 'order_id'
+        assert summary["Row 2"][0]['status'] == 'Invalid DataType'
+
+        assert "Row 3" in summary
+        assert len(summary["Row 3"]) == 2
+        assert summary["Row 3"][0]['column_name'] == 'order_id'
+        assert summary["Row 3"][0]['status'] == 'Required Field is Empty'
+        assert summary["Row 3"][1]['column_name'] == 'sales'
+        assert summary["Row 3"][1]['status'] == 'Invalid DataType'
 
     def test_get_collection_data_with_no_collection_data(self):
         bot = 'test_bot'

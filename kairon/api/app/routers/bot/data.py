@@ -5,6 +5,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse
 
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
+from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.cognition.processor import CognitionDataProcessor
@@ -251,3 +252,70 @@ async def get_collection_data(
     return {"data": list(cognition_processor.get_collection_data(current_user.get_bot(),
                                                                  collection_name=collection_name,
                                                                  key=key, value=value))}
+
+
+@router.post("/content/upload", response_model=Response)
+async def upload_doc_content(
+        doc_content: UploadFile,
+        table_name: str,
+        overwrite: bool = True,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Handles the upload of document content for processing, validation, and eventual storage.
+    """
+    event = DocContentImporterEvent(
+        bot=current_user.get_bot(),
+        user=current_user.get_user(),
+        table_name=table_name,
+        overwrite=overwrite
+    )
+    is_event_data = event.validate(doc_content=doc_content, is_data_uploaded=True)
+    if is_event_data:
+        event.enqueue()
+    return {"message": "Document content upload in progress! Check logs."}
+
+
+@router.get("/content/error-report/{event_id}", response_model=Response)
+async def download_error_csv(
+    event_id: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Downloads the error report file for validation errors.
+    """
+    file_path = os.path.join('content_upload_summary', current_user.get_bot(), f'failed_rows_with_errors_{event_id}.csv')
+    if not os.path.exists(file_path):
+        return Response(
+            success=False,
+            message="Error Report not found",
+            data=None,
+            error_code=404
+        )
+
+    response = FileResponse(
+        file_path, filename=f'failed_rows_with_errors_{event_id}.csv'
+    )
+    response.headers["Content-Disposition"] = f"attachment; filename=failed_rows_with_errors_{event_id}.csv"
+
+    return response
+
+
+# @router.get("/content/summary", response_model=Response)
+# async def get_event_summary(
+#     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+# ):
+#     """
+#     Get the latest content importer log entry.
+#     """
+#     log = ContentValidationLogs.objects(bot=current_user.get_bot()).order_by('-start_timestamp').first()
+#
+#     validation_error_count = len(log.validation_errors) if log.validation_errors else 0
+#
+#     data = {
+#         "event_status": log.event_status,
+#         "validation_error_count": validation_error_count
+#     }
+#
+#     return Response(data = data)
+
