@@ -1,4 +1,3 @@
-import asyncio
 import os
 from typing import Text
 
@@ -42,7 +41,7 @@ class DocContentImporterEvent(EventsBase):
                                                                                  self.table_name)
         return is_event_data
 
-    def enqueue(self):
+    def enqueue(self, **kwargs):
         """
         Send event to event server
         """
