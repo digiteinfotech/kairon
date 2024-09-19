@@ -941,6 +941,7 @@ class BotSettings(Auditlog):
     training_limit_per_day = IntField(default=5)
     test_limit_per_day = IntField(default=5)
     data_importer_limit_per_day = IntField(default=5)
+    content_importer_limit_per_day = IntField(default=5)
     multilingual_limit_per_day = IntField(default=2)
     data_generation_limit_per_day = IntField(default=3)
     dynamic_broadcast_execution_timeout = IntField(default=21600)

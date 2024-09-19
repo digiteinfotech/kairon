@@ -1,3 +1,4 @@
+from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
@@ -20,7 +21,8 @@ class EventFactory:
         EventClass.multilingual: MultilingualEvent,
         EventClass.data_generator: DataGenerationEvent,
         EventClass.faq_importer: FaqDataImporterEvent,
-        EventClass.message_broadcast: MessageBroadcastEvent
+        EventClass.message_broadcast: MessageBroadcastEvent,
+        EventClass.content_importer: DocContentImporterEvent
     }
 
     @staticmethod

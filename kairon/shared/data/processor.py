@@ -1,4 +1,7 @@
+import csv
 import itertools
+import shutil
+
 import ujson as json
 import os
 import uuid
@@ -7,18 +10,20 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Text, Dict, List, Any, Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
+
 from loguru import logger
 
 import networkx as nx
 import yaml
-from fastapi import File
+from fastapi import File, HTTPException
 from loguru import logger as logging
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from mongoengine.queryset.visitor import Q
 from pandas import DataFrame
+from pydantic import ValidationError, create_model
 from rasa.shared.constants import (
     DEFAULT_CONFIG_PATH,
     DEFAULT_DATA_PATH,
@@ -100,7 +105,7 @@ from kairon.shared.models import (
     StoryStepType,
     HttpContentType,
     StoryType,
-    LlmPromptSource,
+    LlmPromptSource, CognitionDataType,
 )
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
@@ -161,6 +166,7 @@ from ..callback.data_objects import CallbackConfig, CallbackLog
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
+from ..content_importer.content_processor import ContentImporterLogProcessor
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
 from ..live_agent.live_agent import LiveAgentHandler
@@ -8272,3 +8278,170 @@ class MongoProcessor:
 
         logs, total_count = CallbackLog.get_logs(query, start, limit)
         return logs, total_count
+
+    def validate_schema_and_log(self, bot: Text, user: Text, doc_content: File, table_name: Text):
+        """
+        Validates the schema of the document content (e.g., CSV) against the required table schema and logs the results.
+
+        :param bot: The bot ID
+        :param user: The user ID
+        :param doc_content: The content of the document being uploaded
+        :param table_name: The name of the table to validate against
+        :return: True if the schema is valid, else False
+        """
+        error_message =  self.save_and_validate(bot, user, doc_content, table_name)
+        ContentImporterLogProcessor.add_log(
+            bot, user, table = table_name.lower(), is_data_uploaded=True, file_received=doc_content.filename
+        )
+        if error_message:
+            ContentImporterLogProcessor.add_log(
+                bot,
+                user,
+                status="Failure",
+                event_status=EVENT_STATUS.COMPLETED.value,
+                validation_errors= error_message
+            )
+            return False
+        return True
+
+    def save_and_validate(self, bot: Text, user: Text, doc_content: File, table_name: Text):
+        """
+        Saves the training file and performs validation.
+
+        :param bot: The bot ID
+        :param doc_content: The file to be saved and validated
+        :param table_name: table name
+        :return: The saved file path and an error message if validation fails
+        """
+        valid_csv_types = ["text/csv"]
+        error_message = {}
+
+        if doc_content.content_type not in valid_csv_types and not doc_content.filename.lower().endswith('.csv'):
+            error_message[
+                'File type error'] = f"Invalid file type: {doc_content.content_type}. Please upload a CSV file."
+            return error_message
+
+        content_dir = os.path.join('doc_content_upload_records', bot)
+        Utility.make_dirs(content_dir)
+        file_path = os.path.join(content_dir, doc_content.filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(doc_content.file, buffer)
+
+        doc_content.file.seek(0)
+        csv_reader = csv.reader(doc_content.file.read().decode('utf-8').splitlines())
+        actual_headers = [header.lower() for header in next(csv_reader) if header.lower() != 'kairon_error_description']
+        column_dict = MongoProcessor().get_column_datatype_dict(bot, table_name)
+        expected_headers = [header.lower() for header in list(column_dict.keys())]
+
+        missing_columns = set(expected_headers) - set(actual_headers)
+        extra_columns = set(actual_headers) - set(expected_headers)
+
+        if actual_headers != expected_headers or missing_columns or extra_columns:
+            if actual_headers != expected_headers:
+                error_message['Header mismatch'] = f"Expected headers {expected_headers} but found {actual_headers}."
+            if missing_columns:
+                error_message['Missing columns'] = f"{missing_columns}."
+            if extra_columns:
+                error_message['Extra columns'] = f"{extra_columns}."
+
+        return error_message
+
+    def get_column_datatype_dict(self, bot, table_name):
+        from ..cognition.processor import CognitionDataProcessor
+        cognition_processor = CognitionDataProcessor()
+        schemas = list(cognition_processor.list_cognition_schema(bot))
+        table_metadata = next((schema['metadata'] for schema in schemas if schema['collection_name'] == table_name.lower()),
+                              None)
+        if table_metadata is None:
+            print(f"Schema for table '{table_name}' not found.")
+
+        column_datatype_dict = {column['column_name']: column['data_type'] for column in table_metadata}
+
+        return column_datatype_dict
+
+    def validate_doc_content(self, column_dict: dict, doc_content: List[dict]):
+        """
+        Validates the document content against the expected column data types.
+
+        :param column_dict: A dictionary where keys are column names and values are expected data types.
+        :param doc_content: A list of dictionaries representing the CSV data.
+        :return: A summary dictionary containing validation results.
+        """
+
+        def get_pydantic_type(data_type: str):
+            if data_type == 'str':
+                return (str, ...)
+            elif data_type == 'int':
+                return (int, ...)
+            elif data_type == 'float':
+                return (float, ...)
+            else:
+                raise ValueError(f"Unsupported data type: {data_type}")
+
+        model_fields = {
+            column_name: get_pydantic_type(data_type)
+            for column_name, data_type in column_dict.items()
+        }
+
+        DynamicModel = create_model('DynamicModel', **model_fields)
+
+        summary = {}
+
+        for i, row in enumerate(doc_content):
+            try:
+                model_instance = DynamicModel(**row)
+            except ValidationError as e:
+                error_details = []
+                for error in e.errors():
+                    column_name = error['loc'][0]
+                    input_value = row.get(column_name)
+                    status = "Required Field is Empty" if input_value == "" else "Invalid DataType"
+                    error_details.append({
+                        "column_name": column_name,
+                        "input": input_value,
+                        "status": status
+                    })
+                summary[f"Row {i + 2}"] = error_details
+
+        return summary
+
+
+    def save_doc_content(self, bot: Text, user: Text, doc_content, table_name: Text, overwrite: bool = False):
+
+        from ..cognition.processor import CognitionDataProcessor
+        cognition_processor = CognitionDataProcessor()
+
+        if overwrite:
+            cognition_processor.delete_all_cognition_data_by_collection(table_name.lower(), bot)
+
+        for row in reversed(doc_content):
+            payload = {
+                'collection': table_name,
+                'content_type': CognitionDataType.json.value,
+                'data': row
+            }
+
+            payload_id = cognition_processor.save_cognition_data(payload, user, bot)
+
+
+    @staticmethod
+    def get_error_report_file_path(bot: str, event_id: str) -> str:
+        """
+        Constructs the file path for the error report based on bot and event_id.
+        Ensures the path is safe and within the allowed directory.
+        """
+        if not event_id.isalnum():
+            raise HTTPException(status_code=400, detail="Invalid event ID")
+
+        base_dir = os.path.join('content_upload_summary', bot)
+
+        file_name = f'failed_rows_with_errors_{event_id}.csv'
+        file_path = os.path.join(base_dir, file_name)
+
+        if not os.path.exists(file_path) or not file_path.startswith(base_dir):
+            raise HTTPException(status_code=404, detail="Error Report not found")
+
+        return file_path
+
+
+

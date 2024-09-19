@@ -132,6 +132,7 @@ events:
     web_search: ${WEB_SEARCH_TASK_DEFINITION}
     pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
     scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
+    content_importer: ${DOC_CONTENT_IMPORTER_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
     attributes:
