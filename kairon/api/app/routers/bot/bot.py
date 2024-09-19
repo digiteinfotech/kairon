@@ -27,6 +27,8 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     EventClass, AGENT_ACCESS
+from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
+from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
@@ -996,6 +998,23 @@ async def get_data_importer_logs(
     """
     logs = list(DataImporterLogProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
     row_cnt = mongo_processor.get_row_count(ValidationLogs, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
+
+
+@router.get("/content/logs", response_model=Response)
+async def get_content_importer_logs(
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Get data importer event logs.
+    """
+    logs = list(ContentImporterLogProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(ContentValidationLogs, current_user.get_bot())
     data = {
         "logs": logs,
         "total": row_cnt

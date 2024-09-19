@@ -1,0 +1,21 @@
+order_id,order_priority,revenue,sales
+67,Low,12.34,54.98
+54,High,3389.93,737.94
+45.09,Not Specified,,-329.49
+33,Low,905.94,-4.19
+32,Medium,65.09,
+657,Not Specified,237.28,-2088.68
+43267,Critical,1368.14,171.26
+29319,Low,4429.69,983.55
+543,Not Specified,19109.61,-379.29
+51073,Not Specified,2475.08,958.8
+29185,High,446.53,-261.45
+654,Not Specified,2780.88,595.38
+39332,Critical,198.72,-34.43
+49088,Critical,4012.58,-425.14
+29318,Not Specified,2954.14,-522.94
+50533,Not Specified,1974.66,-929.68
+21383,Low,16066.85,7416.43
+48197,Not Specified,1282.49,154.74
+25031,High,4636.62,-318.45
+534,Not Specified,497.2,-219.61

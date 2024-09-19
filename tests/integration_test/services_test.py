@@ -31,6 +31,8 @@ from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
+from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
+from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.utils import Utility, MailUtility
 
 Utility.load_system_metadata()
@@ -120,12 +122,18 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
     from kairon.events.definitions.model_training import ModelTrainingEvent
     from kairon.events.definitions.model_testing import ModelTestingEvent
     from kairon.events.definitions.history_delete import DeleteHistoryEvent
+    from kairon.events.definitions.content_importer import DocContentImporterEvent
 
-    overwrite = kwargs.get('overwrite', True)
+
     if event_class == EventClass.data_importer:
+        overwrite = kwargs.get('overwrite', True)
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=overwrite).execute()
     elif event_class == EventClass.model_training:
         ModelTrainingEvent(bot, user).execute()
+    elif event_class == EventClass.content_importer:
+        table_name = kwargs.get('table_name')
+        overwrite = kwargs.get('overwrite', False)
+        DocContentImporterEvent(bot, user, table_name, overwrite=overwrite).execute()
     elif event_class == EventClass.model_testing:
         ModelTestingEvent(bot, user).execute()
     elif event_class == EventClass.delete_history:
@@ -1204,6 +1212,7 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
 
+
 def test_get_llm_metadata():
     secrets = [
         {
@@ -1307,6 +1316,589 @@ def test_default_values():
     ]
 
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
+
+@responses.activate
+def test_upload_doc_content():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.content_importer_limit_per_day = 10
+    bot_settings.cognition_collections_limit = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "order_id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "order_priority", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "sales", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "profit", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "test_doc_content_upload"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.schema_id = actual["data"]["_id"]
+    assert actual["message"] == "Schema saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    dummy_data = {
+        "order_id": "9999",
+        "order_priority": "Low",
+        "sales": "0.00",
+        "profit": "0.00"
+    }
+    dummy_doc = CognitionData(
+        data=dummy_data,
+        content_type="json",
+        collection="test_doc_content_upload",
+        user="himanshu.gupta@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow()
+    )
+    dummy_doc.save()
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload")
+    assert cognition_data.count() == 1
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.content_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "doc_content": ("Salesstore.csv", open("tests/testing_data/doc_content_upload/Salesstore.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/content/upload?table_name=test_doc_content_upload&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["message"] == "Document content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.content_importer, table_name="test_doc_content_upload", overwrite=True
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["error_code"] == 0
+    logs = actual['data']['logs']
+    assert len(logs) == 1
+    assert logs[0]['file_received'] == 'Salesstore.csv'
+    assert logs[0]['status'] == 'Success'
+    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['is_data_uploaded'] == True
+    assert logs[0]['start_timestamp'] is not None
+    assert logs[0]['end_timestamp'] is not None
+    assert logs[0]['validation_errors'] == {}
+    assert logs[0]['exception'] == ''
+
+    cognition_data= CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload")
+
+    assert cognition_data.count() == 20
+
+    last_row = cognition_data.order_by('-_id').first()
+    assert last_row["data"] == {
+        'order_id': '67',
+        'order_priority': 'Low',
+        'sales': '12.34',
+        'profit': '54.98'
+    }
+    CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload").delete()
+
+
+@responses.activate
+def test_upload_doc_content_append():
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "order_id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "order_priority", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "sales", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "profit", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "test_doc_content_upload_append"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.schema_id = actual["data"]["_id"]
+    assert actual["message"] == "Schema saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    dummy_data = {
+        "order_id": "9999",
+        "order_priority": "Low",
+        "sales": "0.00",
+        "profit": "0.00"
+    }
+    dummy_doc = CognitionData(
+        data=dummy_data,
+        content_type="json",
+        collection="test_doc_content_upload_append",
+        user="himanshu.gupta@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow()
+    )
+    dummy_doc.save()
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_append")
+    assert cognition_data.count() == 1
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.content_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "doc_content": ("Salesstore.csv", open("tests/testing_data/doc_content_upload/Salesstore.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/content/upload?table_name=test_doc_content_upload_append&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["message"] == "Document content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.content_importer, table_name="test_doc_content_upload_append"
+    )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["success"] == True
+    assert actual["error_code"] == 0
+    logs = actual['data']['logs']
+    assert len(logs) == 2
+    assert logs[0]['file_received'] == 'Salesstore.csv'
+    assert logs[0]['status'] == 'Success'
+    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['is_data_uploaded'] == True
+    assert logs[0]['start_timestamp'] is not None
+    assert logs[0]['end_timestamp'] is not None
+    assert logs[0]['validation_errors'] == {}
+    assert logs[0]['exception'] == ''
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_append")
+    assert cognition_data.count() == 21
+
+    first_row = cognition_data.first()
+    assert first_row["data"] == {
+        "order_id": "9999",
+        "order_priority": "Low",
+        "sales": "0.00",
+        "profit": "0.00"
+    }
+    last_row = cognition_data.order_by('-_id').first()
+    assert last_row["data"] == {
+        'order_id': '67',
+        'order_priority': 'Low',
+        'sales': '12.34',
+        'profit': '54.98'
+    }
+    CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_append").delete()
+
+
+@responses.activate
+def test_upload_doc_content_basic_validation_failure():
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "order_id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "order_priority", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "sales", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "profit", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "test_doc_content_upload_basic_validation_failure"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.schema_id = actual["data"]["_id"]
+    assert actual["message"] == "Schema saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.content_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "doc_content": ("Salesstore.csv", open("tests/testing_data/doc_content_upload/Salesstore_data_with_basic_errors.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/content/upload?table_name=test_doc_content_upload_basic_validation_failure&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["message"] == "Document content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["success"] == True
+    assert actual["error_code"] == 0
+    logs = actual['data']['logs']
+    assert len(logs) == 3
+    assert 'validation_errors' in logs[0]
+    validation_errors = logs[0]["validation_errors"]
+    expected_errors = {
+        "Header mismatch": "Expected headers ['order_id', 'order_priority', 'sales', 'profit'] but found ['order_id', 'order_priority', 'revenue', 'sales'].",
+        "Missing columns": "{'profit'}.",
+        "Extra columns": "{'revenue'}."
+    }
+    assert validation_errors == expected_errors
+    assert logs[0]["status"] == "Failure"
+    assert logs[0]["event_status"] == "Completed"
+
+    CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_basic_validation_failure").delete()
+
+@responses.activate
+def test_download_error_csv_error_report_not_found():
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "order_id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "order_priority", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "sales", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "profit", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "test_download_error_csv_error_report_not_found"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.schema_id = actual["data"]["_id"]
+    assert actual["message"] == "Schema saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.content_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "doc_content": ("Salesstore.csv", open("tests/testing_data/doc_content_upload/Salesstore.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/content/upload?table_name=test_download_error_csv_error_report_not_found&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["message"] == "Document content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.content_importer, table_name="test_download_error_csv_error_report_not_found", overwrite=True
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["error_code"] == 0
+
+    event_id = ContentImporterLogProcessor.get_event_id_for_latest_event(pytest.bot)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/content/error-report/{event_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is False
+    assert actual["error_code"] == 404
+    assert actual["message"] == "Error Report not found"
+    CognitionData.objects(bot=pytest.bot, collection="test_download_error_csv_error_report_not_found").delete()
+
+@responses.activate
+def test_upload_doc_content_datatype_validation_failure():
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "order_id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "order_priority", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "sales", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "profit", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "test_doc_content_upload_datatype_validation_failure"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.schema_id = actual["data"]["_id"]
+    assert actual["message"] == "Schema saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.content_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "doc_content": ("Salesstore.csv", open("tests/testing_data/doc_content_upload/Salesstore_data_with_datatype_errors.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/content/upload?table_name=test_doc_content_upload_datatype_validation_failure&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["message"] == "Document content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.content_importer, table_name="test_doc_content_upload_datatype_validation_failure"
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["success"] == True
+    assert actual["error_code"] == 0
+    logs = actual['data']['logs']
+    assert len(logs) == 5
+    assert 'validation_errors' in logs[0]
+    validation_errors = logs[0]["validation_errors"]
+    assert any(e['column_name'] == 'order_id' and e['status'] == 'Invalid DataType' for e in validation_errors['Row 4'])
+    assert any(e['column_name'] == 'sales' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 4'])
+    assert any(
+        e['column_name'] == 'profit' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 6'])
+    assert logs[0]["status"] == "Partial_Success"
+    assert logs[0]["event_status"] == "Completed"
+
+    cognition_data = list(CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_datatype_validation_failure"))
+    assert len(cognition_data) == 18
+
+    third_last_row = cognition_data[-3]
+    assert third_last_row["data"] == {
+        "order_id": "33",
+        "order_priority": "Low",
+        "sales": "905.94",
+        "profit": "-4.19"
+    }
+
+    fourth_last_row = cognition_data[-4]
+    assert fourth_last_row["data"] == {
+        "order_id": "657",
+        "order_priority": "Not Specified",
+        "sales": "237.28",
+        "profit": "-2088.68"
+    }
+
+    CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_datatype_validation_failure").delete()
+
+@responses.activate
+def test_download_error_csv():
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "order_id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "order_priority", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "sales", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "profit", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "test_download_error_csv"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.schema_id = actual["data"]["_id"]
+    assert actual["message"] == "Schema saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.content_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "doc_content": ("Salesstore.csv", open("tests/testing_data/doc_content_upload/Salesstore_data_with_datatype_errors.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/content/upload?table_name=test_download_error_csv&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["message"] == "Document content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.content_importer, table_name="test_download_error_csv"
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["error_code"] == 0
+
+    event_id = ContentImporterLogProcessor.get_event_id_for_latest_event(pytest.bot)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/content/error-report/{event_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    csv_content = response.text
+    expected_csv_content = """order_id,order_priority,sales,profit,kairon_error_description
+45.09,Not Specified,,-329.49,order_id: Invalid DataType; sales: Required Field is Empty
+32,Medium,65.09,,profit: Required Field is Empty"""
+    csv_content = csv_content.replace('\r\n', '\n')
+    expected_csv_content = expected_csv_content.replace('\r\n', '\n')
+    assert csv_content.strip() == expected_csv_content
+    CognitionData.objects(bot=pytest.bot, collection="test_download_error_csv").delete()
+
+
+@responses.activate
+def test_upload_doc_content_file_type_validation_failure():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "order_id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "order_priority", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "sales", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "profit", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "test_doc_content_file_type_validation_failure"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.schema_id = actual["data"]["_id"]
+    assert actual["message"] == "Schema saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.content_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "doc_content": (
+        "test_wrong_file_type.pdf", open("tests/testing_data/doc_content_upload/test_wrong_file_type.pdf", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/content/upload?table_name=test_doc_content_file_type_validation_failure&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["message"] == "Document content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["success"] == True
+    assert actual["error_code"] == 0
+    logs = actual['data']['logs']
+    assert len(logs) == 7
+    assert 'validation_errors' in logs[0]
+    validation_errors = logs[0]["validation_errors"]
+    expected_errors = {
+        'File type error': "Invalid file type: application/pdf. Please upload a CSV file."
+    }
+    assert validation_errors == expected_errors
+    assert logs[0]["status"] == "Failure"
+    assert logs[0]["event_status"] == "Completed"
+    CognitionData.objects(bot=pytest.bot, collection="test_doc_content_file_type_validation_failure").delete()
+
 
 @responses.activate
 def test_upload_with_bot_content_only_validate_content_data():
@@ -22937,6 +23529,7 @@ def test_get_bot_settings():
                               'whatsapp': 'meta',
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
+                              'content_importer_limit_per_day': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3}
 
@@ -23015,6 +23608,7 @@ def test_update_analytics_settings():
                               'whatsapp': 'meta',
                               'live_agent_enabled': False,
                               'cognition_collections_limit': 3,
+                              'content_importer_limit_per_day': 5,
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3}

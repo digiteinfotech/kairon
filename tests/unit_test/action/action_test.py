@@ -2698,6 +2698,7 @@ class TestActions:
                                 'whatsapp': 'meta', 'is_billed': False,
                                 'cognition_collections_limit': 3,
                                 'cognition_columns_per_collection_limit': 5,
+                                'content_importer_limit_per_day': 5,
                                 'integrations_per_user_limit': 3,
                                 'live_agent_enabled': False,
                                 'retry_broadcasting_limit': 3}
@@ -3931,6 +3932,7 @@ class TestActions:
                                 'website_data_generator_depth_search_limit': 2,
                                 'whatsapp': 'meta',
                                 'cognition_collections_limit': 3,
+                                'content_importer_limit_per_day': 5,
                                 'cognition_columns_per_collection_limit': 5,
                                 'integrations_per_user_limit': 3,
                                 'live_agent_enabled': False,
