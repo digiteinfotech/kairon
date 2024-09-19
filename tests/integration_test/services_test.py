@@ -10633,131 +10633,6 @@ def test_deploy_server_error(mock_endpoint):
     assert actual["data"] is None
     assert actual["message"] == "An unexpected error occurred."
 
-def test_leave_bot_successfully():
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@10"},
-    )
-    actual = response.json()
-    assert "access_token" in actual["data"]
-    assert actual["success"]
-
-    response = client.post(
-        f"/api/user/{pytest.bot}/member",
-        json={"email": "integration2@demo.ai", "role": "tester"},
-        headers={
-            "Authorization": f"{actual['data']['token_type']}"+ " " + f"{actual['data']['access_token']}"
-        },
-    ).json()
-
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integration2@demo.ai", "password": "Welcome@10"},
-    )
-    actual = response.json()
-
-    response = client.get(
-        "/api/account/bot",
-        headers={
-            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
-        },
-    ).json()
-    assert len(response["data"]["shared"]) == 1
-
-    response = client.delete(
-        f"/api/user/{pytest.bot}/leave",
-        headers={
-            "Authorization": f"{actual['data']['token_type']}"+ " " + f"{actual['data']['access_token']}"
-        },
-    ).json()
-    assert response["message"] == "Successfully left the bot"
-    assert response["error_code"] == 0
-    assert response["success"]
-
-def test_leave_bot_owner_forbidden():
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@10"},
-    )
-    actual = response.json()
-    assert "access_token" in actual["data"]
-    assert actual["success"]
-
-    # Step 2: Attempt to leave the bot
-    response = client.delete(
-        f"/api/user/{pytest.bot}/leave",
-        headers={
-            "Authorization": f"{actual['data']['token_type']}"+ " " + f"{actual['data']['access_token']}"
-        },
-    ).json()
-
-    # Step 3: Validate response
-    assert response["message"] == "Owner cannot leave the bot"
-    assert response["error_code"] == 422
-    assert not response["success"]
-
-def test_leave_bot_with_integration_tokens():
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@10"},
-    )
-    actual = response.json()
-    assert "access_token" in actual["data"]
-    assert actual["success"]
-
-    response = client.post(
-        f"/api/user/{pytest.bot}/member",
-        json={"email": "integration2@demo.ai", "role": "admin"},
-        headers={
-            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
-        },
-    ).json()
-
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integration2@demo.ai", "password": "Welcome@10"},
-    )
-    actual = response.json()
-
-    response = client.post(
-        f"/api/auth/{pytest.bot}/integration/token",
-        json={"name": "integration 100", "expiry_minutes": 1440, "role": "designer"},
-        headers={
-            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
-        },
-    )
-    token = response.json()
-    print(token)
-    response = client.delete(
-        f"/api/user/{pytest.bot}/leave",
-        headers={
-            "Authorization": actual["data"]["token_type"] + " " + actual["data"]["access_token"]
-        },
-    )
-    actual = response.json()
-    assert actual["message"] == "You must delete all your integration tokens before leaving the bot"
-    assert actual["error_code"] == 422
-    assert not actual["success"]
-
-def test_leave_non_existent_bot_1():
-    response = client.post(
-        "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@10"},
-    )
-    actual = response.json()
-    assert "access_token" in actual["data"]
-    assert actual["success"]
-    response = client.delete(
-        "/api/user/000000abcdefgh/leave",
-        headers={
-            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
-        },
-    )
-    actual = response.json()
-    assert actual["message"] == "Access to bot is denied"
-    assert actual["error_code"] == 422
-    assert not actual["success"]
-
 def test_integration_token():
     response = client.post(
         f"/api/auth/{pytest.bot}/integration/token",
@@ -27429,3 +27304,187 @@ def test_list_system_metadata():
     assert actual["success"]
     assert len(actual["data"]) == 16
 
+
+def test_leave_bot_successfully_1(monkeypatch):
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": "mayank_owner@digite.com",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
+            "account": "mayank_owner",
+            "bot": "mayank_owner",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Account Registered!"
+
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": "mayank_tester@digite.com",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
+            "account": "mayank_tester",
+            "bot": "mayank_tester",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Account Registered!"
+
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": "mayank_admin@digite.com",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
+            "account": "mayank_admin",
+            "bot": "mayank_admin",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Account Registered!"
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "mayank_owner@digite.com", "password": "Welcome@10"},
+    )
+
+    actual = response.json()
+    assert "access_token" in actual["data"]
+    assert actual["success"]
+
+    response = client.post(
+        "/api/account/bot",
+        json={"name": "mayank-test-bot"},
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+    pytest.mayank_bot = response['data']['bot_id']
+
+    response = client.post(
+        f"/api/user/{pytest.mayank_bot}/member",
+        json={"email": "mayank_tester@digite.com", "role": "tester"},
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "mayank_tester@digite.com", "password": "Welcome@10"},
+    )
+    actual = response.json()
+
+    response = client.get(
+        "/api/account/bot",
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+    assert len(response["data"]["shared"]) == 1
+
+    response = client.delete(
+        f"/api/user/{pytest.mayank_bot}/leave",
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+    assert response["message"] == "Successfully left the bot"
+    assert response["error_code"] == 0
+    assert response["success"]
+
+def test_leave_bot_owner_forbidden():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "mayank_owner@digite.com", "password": "Welcome@10"},
+    )
+    actual = response.json()
+    assert "access_token" in actual["data"]
+    assert actual["success"]
+
+    # Step 2: Attempt to leave the bot
+    response = client.delete(
+        f"/api/user/{pytest.mayank_bot}/leave",
+        headers={
+            "Authorization": f"{actual['data']['token_type']}"+ " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+
+    # Step 3: Validate response
+    assert response["message"] == "Owner cannot leave the bot"
+    assert response["error_code"] == 422
+    assert not response["success"]
+
+def test_leave_bot_with_integration_tokens():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "mayank_owner@digite.com", "password": "Welcome@10"},
+    )
+
+    actual = response.json()
+    assert "access_token" in actual["data"]
+    assert actual["success"]
+
+    response = client.post(
+        f"/api/user/{pytest.mayank_bot}/member",
+        json={"email": "mayank_admin@digite.com", "role": "admin"},
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    ).json()
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "mayank_admin@digite.com", "password": "Welcome@10"},
+    )
+    actual = response.json()
+    assert "access_token" in actual["data"]
+    assert actual["success"]
+
+
+    response = client.post(
+        f"/api/auth/{pytest.mayank_bot}/integration/token",
+        json={"name": "integration 100", "expiry_minutes": 1440, "role": "designer"},
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    )
+    token = response.json()
+    print(token)
+    response = client.delete(
+        f"/api/user/{pytest.mayank_bot}/leave",
+        headers={
+            "Authorization": actual["data"]["token_type"] + " " + actual["data"]["access_token"]
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "You must delete all your integration tokens before leaving the bot"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+def test_leave_non_existent_bot_1():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "mayank_tester@digite.com", "password": "Welcome@10"},
+    )
+    actual = response.json()
+    assert "access_token" in actual["data"]
+    assert actual["success"]
+    response = client.delete(
+        "/api/user/000000abcdefgh/leave",
+        headers={
+            "Authorization": f"{actual['data']['token_type']}" + " " + f"{actual['data']['access_token']}"
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Access to bot is denied"
+    assert actual["error_code"] == 422
+    assert not actual["success"]

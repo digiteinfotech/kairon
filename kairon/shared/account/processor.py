@@ -601,7 +601,7 @@ class AccountProcessor:
         else:
             active_bot_access = BotAccess.objects(
                 bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
-            ).get()
+            )
         active_bot_access.update(set__status=ACTIVITY_STATUS.DELETED.value)
 
     @staticmethod
