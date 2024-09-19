@@ -1832,6 +1832,74 @@ def test_download_error_csv():
     assert csv_content.strip() == expected_csv_content
     CognitionData.objects(bot=pytest.bot, collection="test_download_error_csv").delete()
 
+
+@responses.activate
+def test_upload_doc_content_file_type_validation_failure():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "order_id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "order_priority", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "sales", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "profit", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "test_doc_content_file_type_validation_failure"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.schema_id = actual["data"]["_id"]
+    assert actual["message"] == "Schema saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.content_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "doc_content": (
+        "test_wrong_file_type.pdf", open("tests/testing_data/doc_content_upload/test_wrong_file_type.pdf", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/content/upload?table_name=test_doc_content_file_type_validation_failure&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"] == True
+    assert actual["message"] == "Document content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["success"] == True
+    assert actual["error_code"] == 0
+    logs = actual['data']['logs']
+    assert len(logs) == 7
+    assert 'validation_errors' in logs[0]
+    validation_errors = logs[0]["validation_errors"]
+    expected_errors = {
+        'File type error': "Invalid file type: application/pdf. Please upload a CSV file."
+    }
+    assert validation_errors == expected_errors
+    assert logs[0]["status"] == "Failure"
+    assert logs[0]["event_status"] == "Completed"
+    CognitionData.objects(bot=pytest.bot, collection="test_doc_content_file_type_validation_failure").delete()
+
+
 @responses.activate
 def test_upload_with_bot_content_only_validate_content_data():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()

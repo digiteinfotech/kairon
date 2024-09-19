@@ -298,23 +298,3 @@ async def download_error_csv(
             data=None,
             error_code=e.status_code
         )
-
-
-# @router.get("/content/summary", response_model=Response)
-# async def get_event_summary(
-#     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-# ):
-#     """
-#     Get the latest content importer log entry.
-#     """
-#     log = ContentValidationLogs.objects(bot=current_user.get_bot()).order_by('-start_timestamp').first()
-#
-#     validation_error_count = len(log.validation_errors) if log.validation_errors else 0
-#
-#     data = {
-#         "event_status": log.event_status,
-#         "validation_error_count": validation_error_count
-#     }
-#
-#     return Response(data = data)
-

@@ -8313,6 +8313,14 @@ class MongoProcessor:
         :param table_name: table name
         :return: The saved file path and an error message if validation fails
         """
+        valid_csv_types = ["text/csv"]
+        error_message = {}
+
+        if doc_content.content_type not in valid_csv_types and not doc_content.filename.lower().endswith('.csv'):
+            error_message[
+                'File type error'] = f"Invalid file type: {doc_content.content_type}. Please upload a CSV file."
+            return error_message
+
         content_dir = os.path.join('doc_content_upload_records', bot)
         Utility.make_dirs(content_dir)
         file_path = os.path.join(content_dir, doc_content.filename)
@@ -8327,8 +8335,6 @@ class MongoProcessor:
 
         missing_columns = set(expected_headers) - set(actual_headers)
         extra_columns = set(actual_headers) - set(expected_headers)
-
-        error_message = {}
 
         if actual_headers != expected_headers or missing_columns or extra_columns:
             if actual_headers != expected_headers:

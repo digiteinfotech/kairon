@@ -1585,23 +1585,10 @@ class TestMongoProcessor:
         result = processor.get_error_report_file_path(bot, event_id)
         assert result == expected_path
 
-        if os.path.exists(expected_path):
-            os.remove(expected_path)
-        if os.path.exists(base_dir):
-            os.rmdir(base_dir)
-
     def test_get_error_report_file_path_file_not_found(self):
         """ Test case where the file does not exist """
         bot = "test_bot"
         event_id = "67890"
-
-        base_dir = os.path.join('content_upload_summary', bot)
-        expected_path = os.path.join(base_dir, f'failed_rows_with_errors_{event_id}.csv')
-
-        if os.path.exists(expected_path):
-            os.remove(expected_path)
-        if os.path.exists(base_dir):
-            os.rmdir(base_dir)
 
         processor = MongoProcessor()
         try:
