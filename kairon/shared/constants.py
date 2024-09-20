@@ -77,6 +77,7 @@ class EventClass(str, Enum):
     message_broadcast = "message_broadcast"
     web_search = "web_search"
     scheduler_evaluator = "scheduler_evaluator"
+    content_importer = "content_importer"
 
 
 class EventRequestType(str, Enum):
