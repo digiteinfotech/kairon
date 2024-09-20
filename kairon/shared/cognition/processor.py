@@ -208,6 +208,30 @@ class CognitionDataProcessor:
             final_data['data'] = data
             yield final_data
 
+    def get_collection_data_with_id(self, bot: Text, **kwargs):
+        """
+        fetches collection data based on the filters provided
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        try:
+            collection_id = kwargs.pop("collection_id")
+            collection_data = CollectionData.objects(bot=bot, id=collection_id).get()
+            final_data = {}
+            item = collection_data.to_mongo().to_dict()
+            collection_name = item.pop('collection_name', None)
+            is_secure = item.pop('is_secure')
+            data = item.pop('data')
+            data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
+            final_data["_id"] = item["_id"].__str__()
+            final_data['collection_name'] = collection_name
+            final_data['is_secure'] = is_secure
+            final_data['data'] = data
+        except DoesNotExist:
+            raise AppException("Collection data does not exists!")
+        return final_data
+
     def get_collection_data(self, bot: Text, **kwargs):
         """
         fetches collection data based on the filters provided
@@ -217,11 +241,15 @@ class CognitionDataProcessor:
         """
         collection_name = kwargs.pop("collection_name")
         collection_name = collection_name.lower()
-        key = kwargs.pop("key", None)
-        value = kwargs.pop("value", None)
+        keys = kwargs.pop("key", None)
+        values = kwargs.pop("value", None)
+        if len(keys) != len(values):
+            raise AppException("Keys and values lists must be of the same length.")
+
         query = {"bot": bot, "collection_name": collection_name}
-        if key is not None and value is not None:
-            query.update({f"data__{key}": value})
+        query.update({
+            f"data__{key}": value for key, value in zip(keys, values) if key and value
+        })
 
         for value in CollectionData.objects(**query):
             final_data = {}
