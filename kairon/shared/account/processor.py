@@ -597,7 +597,7 @@ class AccountProcessor:
                 raise AppException("User not a collaborator to this bot")
             active_bot_access = BotAccess.objects(
                 **kwargs, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
-            )
+            ).get()
         else:
             active_bot_access = BotAccess.objects(
                 bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
