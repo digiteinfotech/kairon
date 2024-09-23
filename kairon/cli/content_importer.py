@@ -43,10 +43,6 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                                    type=str,
                                    help="Kairon user who is initiating the command",
                                    action='store')
-    doc_import_parser.add_argument('event_type',
-                                    type=str,
-                                    help="Event type: content_importer",
-                                    action='store')
     doc_import_parser.add_argument('table_name',
                                    type=str,
                                    help="The table name where data will be imported",

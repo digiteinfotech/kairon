@@ -435,7 +435,7 @@ class TestDocContentImporterCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=import_doc_content, bot="test_cli", user="testUser",
-                                                table_name="documents", overwrite=False, event_type=EventClass.content_importer))
+                                                table_name="documents", overwrite=False))
     def test_doc_importer_with_defaults(self, monkeypatch):
         def mock_doc_content_importer(*args, **kwargs):
             return None
@@ -445,7 +445,7 @@ class TestDocContentImporterCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=import_doc_content, bot="test_cli", user="testUser",
-                                                table_name="documents", overwrite=True, event_type=EventClass.content_importer))
+                                                table_name="documents", overwrite=True))
     def test_doc_importer_all_arguments(self, monkeypatch):
         def mock_doc_content_importer(*args, **kwargs):
             return None
@@ -455,7 +455,7 @@ class TestDocContentImporterCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=import_doc_content, bot="test_cli", user="testUser",
-                                                table_name="documents", overwrite="yes", event_type=EventClass.content_importer))
+                                                table_name="documents", overwrite="yes"))
     def test_doc_importer_overwrite_as_string_argument(self, monkeypatch):
         """
         Test CLI command where 'overwrite' is passed as a string instead of a boolean.
