@@ -7,6 +7,7 @@ import pytest
 from mongoengine import connect
 
 from kairon import cli
+from kairon.cli.content_importer import import_doc_content
 from kairon.cli.conversations_deletion import initiate_history_deletion_archival
 from kairon.cli.data_generator import generate_training_data
 from kairon.cli.delete_logs import delete_logs
@@ -15,6 +16,7 @@ from kairon.cli.message_broadcast import send_notifications
 from kairon.cli.testing import run_tests_on_model
 from kairon.cli.training import train
 from kairon.cli.translator import translate_multilingual_bot
+from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
@@ -405,3 +407,62 @@ class TestMessageBroadcastCli:
             cli()
         for proxy in ActorFactory._ActorFactory__actors.values():
             assert not proxy[1].actor_ref.is_alive()
+
+
+class TestDocContentImporterCli:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        """
+        Initialize environment connection for testing.
+        """
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_doc_content))
+    def test_doc_importer_no_arguments(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e.value).__contains__("'Namespace' object has no attribute 'bot'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_doc_content, bot="test_cli"))
+    def test_doc_importer_no_user(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e.value).__contains__("'Namespace' object has no attribute 'user'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_doc_content, bot="test_cli", user="testUser",
+                                                table_name="documents", overwrite=False, event_type=EventClass.content_importer))
+    def test_doc_importer_with_defaults(self, monkeypatch):
+        def mock_doc_content_importer(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(DocContentImporterEvent, "execute", mock_doc_content_importer)
+        cli()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_doc_content, bot="test_cli", user="testUser",
+                                                table_name="documents", overwrite=True, event_type=EventClass.content_importer))
+    def test_doc_importer_all_arguments(self, monkeypatch):
+        def mock_doc_content_importer(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(DocContentImporterEvent, "execute", mock_doc_content_importer)
+        cli()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_doc_content, bot="test_cli", user="testUser",
+                                                table_name="documents", overwrite="yes", event_type=EventClass.content_importer))
+    def test_doc_importer_overwrite_as_string_argument(self, monkeypatch):
+        """
+        Test CLI command where 'overwrite' is passed as a string instead of a boolean.
+        Verifies how the command handles incorrect argument types.
+        """
+        def mock_doc_content_importer(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(DocContentImporterEvent, "execute", mock_doc_content_importer)
+        cli()
