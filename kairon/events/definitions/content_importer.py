@@ -49,7 +49,6 @@ class DocContentImporterEvent(EventsBase):
         payload = {
             'bot': self.bot,
             'user': self.user,
-            'event_type': EventClass.content_importer,
             'table_name': self.table_name,
             'overwrite': overwrite
         }
