@@ -53,7 +53,6 @@ class ContentImporter:
                 logger.info(f"Created summary directory: {summary_dir}")
             else:
                 logger.info(f"Summary directory already exists: {summary_dir}")
-            Utility.make_dirs(summary_dir)
             event_id = ContentImporterLogProcessor.get_event_id_for_latest_event(self.bot)
             summary_file_path = os.path.join(summary_dir, f'failed_rows_with_errors_{event_id}.csv')
 
