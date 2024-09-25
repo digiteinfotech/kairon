@@ -2028,6 +2028,7 @@ class TestEventExecution:
                 "bot": bot,
                 "status": "Success",
                 "template_name": "brochure_pdf",
+                # "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
                 "language_code": "hi",
                 "errors": [],
