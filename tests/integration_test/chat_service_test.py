@@ -2866,6 +2866,7 @@ def test_whatsapp_valid_statuses_with_read_request():
 @responses.activate
 def test_whatsapp_valid_statuses_with_errors_request():
     responses.add("POST", Utility.environment["action"]["url"], json={})
+    #test
     from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
