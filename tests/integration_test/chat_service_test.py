@@ -2181,6 +2181,7 @@ def test_whatsapp_valid_button_message_request_without_payload_key(mock_validate
 
 @responses.activate
 def test_whatsapp_valid_attachment_message_request():
+    patch.dict(Utility.environment["action"], {"url": None})
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
@@ -2241,6 +2242,8 @@ def test_whatsapp_valid_attachment_message_request():
                     ],
                 },
             )
+            assert whatsapp_msg_handler.called
+            assert whatsapp_msg_handler.call_count == 1
     actual = response.json()
     assert actual == "success"
     assert len(whatsapp_msg_handler.call_args[0]) == 5
@@ -2270,6 +2273,7 @@ def test_whatsapp_valid_attachment_message_request():
 
 @responses.activate
 def test_whatsapp_payment_message_request():
+    patch.dict(Utility.environment["action"], {"url": None})
     from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
@@ -2861,6 +2865,7 @@ def test_whatsapp_valid_statuses_with_read_request():
 
 @responses.activate
 def test_whatsapp_valid_statuses_with_errors_request():
+    patch.dict(Utility.environment["action"], {"url": None})
     from kairon.shared.chat.data_objects import ChannelLogs
 
     def _mock_validate_hub_signature(*args, **kwargs):
