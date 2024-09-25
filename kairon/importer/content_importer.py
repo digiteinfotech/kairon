@@ -1,7 +1,7 @@
 import csv
 import os
 from typing import Text, List
-
+from loguru import logger
 from kairon import Utility
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -48,7 +48,11 @@ class ContentImporter:
         summary = ContentImporter.processor.validate_doc_content(column_dict= column_dict, doc_content= self.data)
         if summary:
             summary_dir = os.path.join('content_upload_summary', self.bot)
-            Utility.make_dirs(summary_dir)
+            if not os.path.exists(summary_dir):
+                Utility.make_dirs(summary_dir)
+                logger.info(f"Created summary directory: {summary_dir}")
+            else:
+                logger.info(f"Summary directory already exists: {summary_dir}")
             event_id = ContentImporterLogProcessor.get_event_id_for_latest_event(self.bot)
             summary_file_path = os.path.join(summary_dir, f'failed_rows_with_errors_{event_id}.csv')
 
@@ -57,6 +61,7 @@ class ContentImporter:
             with open(summary_file_path, mode='w', newline='') as file:
                 csv_writer = csv.DictWriter(file, fieldnames=headers)
                 csv_writer.writeheader()
+                logger.info(f"Writing validation errors to file: {summary_file_path}")
                 failed_row_indices = []
                 for row_number, error_list in summary.items():
                     row_index = int(row_number.split()[-1]) - 2
@@ -79,6 +84,5 @@ class ContentImporter:
         """
         if self.data:
             MongoProcessor().save_doc_content(self.bot, self.user, self.data, self.table_name, self.overwrite)
-
 
 
