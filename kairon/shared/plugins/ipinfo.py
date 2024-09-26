@@ -20,8 +20,7 @@ class IpInfoTracker(BasePlugin):
                 headers = {"user-agent": "IPinfoClient/Python3.8/4.2.1", "accept": "application/json"}
                 token = Utility.environment["plugins"]["location"]["token"]
                 url = f"https://ipinfo.io/batch?token={token}"
-                payload = json.dumps(ip_list)
-                tracking_info = Utility.execute_http_request("POST", url, headers=headers, data=payload)
+                tracking_info = Utility.execute_http_request("POST", url, headers=headers, data=ip_list)
                 return tracking_info
             except Exception as e:
                 logger.exception(e)
