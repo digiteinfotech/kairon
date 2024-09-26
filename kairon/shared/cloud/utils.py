@@ -83,7 +83,8 @@ class CloudUtility:
             logger.info(response)
 
             if CloudUtility.lambda_execution_failed(response):
-                raise AppException(response)
+                err = response['Payload'].get('body') or response
+                raise AppException(f"{err}")
         except Exception as e:
             exception = str(e)
             CloudUtility.log_task(event_class=event_class, task_type=task_type, data=env_data,
