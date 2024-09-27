@@ -59,11 +59,10 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         def send_msg(template_id: Text, recipient, language_code: Text = "en", components: Dict = None, namespace: Text = None):
             response = channel_client.send_template_message(template_id, recipient, language_code, components, namespace)
             status = "Failed" if response.get("error") else "Success"
-            raw_template = self.__get_template(template_id, language_code)
 
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
-                status=status, recipient=recipient, template_params=components, template=raw_template,
+                status=status, recipient=recipient, template_params=components,
                 event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
                 retry_count=0
             )
@@ -85,6 +84,15 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
             event_id=self.event_id, **script_variables
+        )
+
+        template_name = self.config['template_name']
+        language_code = self.config['language_code']
+
+        raw_template = self.__get_template(template_name, language_code)
+        MessageBroadcastProcessor.update_broadcast_logs_with_template(
+            self.reference_id, self.event_id, raw_template=raw_template,
+            log_type=MessageBroadcastLogType.send.value, retry_count=0
         )
 
     def __send_using_configuration(self, recipients: List):

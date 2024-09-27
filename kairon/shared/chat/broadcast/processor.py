@@ -1,6 +1,6 @@
 import ujson as json
 from datetime import datetime
-from typing import Text, Dict
+from typing import Text, Dict, List
 
 from loguru import logger
 from mongoengine import DoesNotExist, Document
@@ -118,6 +118,16 @@ class MessageBroadcastProcessor:
     def get_reference_id_from_broadcasting_logs(event_id):
         log = MessageBroadcastLogs.objects(event_id=event_id, log_type=MessageBroadcastLogType.common.value).get()
         return log.reference_id
+
+    @staticmethod
+    def update_broadcast_logs_with_template(reference_id: Text, event_id: Text, raw_template: List[Dict],
+                                            log_type: MessageBroadcastLogType,
+                                            retry_count: int = 0):
+        message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
+                                                              event_id=event_id,
+                                                              log_type=log_type,
+                                                              retry_count=retry_count)
+        message_broadcast_logs.update(template=raw_template)
 
     @staticmethod
     def extract_message_ids_from_broadcast_logs(reference_id: Text, retry_count: int = 0):
