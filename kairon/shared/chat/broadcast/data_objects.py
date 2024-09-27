@@ -88,6 +88,8 @@ class MessageBroadcastSettings(Auditlog):
     recipients_config = EmbeddedDocumentField(RecipientsConfiguration)
     template_config = ListField(EmbeddedDocumentField(TemplateConfiguration))
     pyscript = StringField()
+    template_name = StringField()
+    language_code = StringField()
     retry_count = IntField(default=0)
     bot = StringField(required=True)
     user = StringField(required=True)
