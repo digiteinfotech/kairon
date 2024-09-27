@@ -71,7 +71,7 @@ class Auditlog(Document):
         auditlog.send(self.__class__, document=self, action=AuditlogActions.DELETE.value,
                       event_url=event_url, user=user)
 
-    def update(self, event_url=None, user=None, **kwargs):
+    def update(self, **kwargs):
         obj = super().update(**kwargs)
-        auditlog.send(self.__class__, document=self, action=AuditlogActions.UPDATE.value, event_url=event_url, user=user)
+        auditlog.send(self.__class__, document=self, action=AuditlogActions.UPDATE.value, event_url=kwargs.get('event_url'), user=kwargs.get('user'))
         return obj
