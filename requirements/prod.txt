@@ -59,7 +59,6 @@ opentelemetry-instrumentation-requests==0.48b0
 opentelemetry-instrumentation-system-metrics==0.48b0
 opentelemetry-instrumentation-grpc==0.48b0
 opentelemetry-instrumentation-asgi==0.48b0
-opentelemetry-instrumentation-requests==0.48b0
 pykwalify==1.8.0
 gunicorn==22.0.0
 litellm==1.39.5
