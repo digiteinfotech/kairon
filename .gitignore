@@ -18,7 +18,7 @@ coverage_html
 *.log
 /models/
 /enable_gpt.py
-/sample.py
+/deepgram_listen.py
 /testing_data/
 /training_data/
 /.rasa/
