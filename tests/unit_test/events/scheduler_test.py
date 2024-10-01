@@ -60,9 +60,7 @@ class TestMessageBroadcastProcessor:
             assert args[2]
 
             assert args[3][0] == 'message_broadcast'
-            assert args[3][1] == 'Event'
-            assert args[3][2] == {'bot': 'test_bot', 'user': 'test_user', 'event_id': event_id}
-
+            assert args[3][1] == {'bot': 'test_bot', 'user': 'test_user', 'event_id': event_id}
 
     @patch("apscheduler.schedulers.background.BackgroundScheduler.get_jobs", autospec=True)
     @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)

@@ -81,6 +81,8 @@ class MessageBroadcastRequest(BaseModel):
     scheduler_config: SchedulerConfiguration = None
     recipients_config: RecipientsConfiguration = None
     template_config: List[TemplateConfiguration] = None
+    template_name: str = None
+    language_code: str = None
     pyscript: str = None
 
     @root_validator
