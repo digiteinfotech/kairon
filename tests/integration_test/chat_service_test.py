@@ -2407,114 +2407,78 @@ def test_whatsapp_payment_message_request():
 
 
 @responses.activate
-def test_whatsapp_valid_order_message_request():
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_order_message_request(mock_validate, mock_actor):
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
 
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        with mock.patch(
-                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-                autospec=True,
-        ) as whatsapp_msg_handler:
-            response = client.post(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                json={
-                    "object": "whatsapp_business_account",
-                    "entry": [
+    request_json = {
+            "object": "whatsapp_business_account",
+            "entry": [
+                {
+                    "id": "108103872212677",
+                    "changes": [
                         {
-                            "id": "108103872212677",
-                            "changes": [
-                                {
-                                    "value": {
-                                        "messaging_product": "whatsapp",
-                                        "metadata": {
-                                            "display_phone_number": "919876543210",
-                                            "phone_number_id": "108578266683441",
-                                        },
-                                        "contacts": [
-                                            {
-                                                "profile": {"name": "Hitesh"},
-                                                "wa_id": "919876543210",
-                                            }
-                                        ],
-                                        "messages": [
-                                            {
-                                                "from": "919876543210",
-                                                "id": "wamid.HBgMOTE5NjU3DMU1MDIyQFIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA",
-                                                "timestamp": "1691598412",
-                                                "type": "order",
-                                                "order": {
-                                                    "catalog_id": "538971028364699",
-                                                    "product_items": [
-                                                        {
-                                                            "product_retailer_id": "akuba13e44",
-                                                            "quantity": 1,
-                                                            "item_price": 200,
-                                                            "currency": "INR",
-                                                        },
-                                                        {
-                                                            "product_retailer_id": "0z10aj0bmq",
-                                                            "quantity": 1,
-                                                            "item_price": 600,
-                                                            "currency": "INR",
-                                                        },
-                                                    ],
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "919876543210",
+                                    "phone_number_id": "108578266683441",
+                                },
+                                "contacts": [
+                                    {
+                                        "profile": {"name": "Hitesh"},
+                                        "wa_id": "919876543210",
+                                    }
+                                ],
+                                "messages": [
+                                    {
+                                        "from": "919876543210",
+                                        "id": "wamid.HBgMOTE5NjU3DMU1MDIyQFIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA",
+                                        "timestamp": "1691598412",
+                                        "type": "order",
+                                        "order": {
+                                            "catalog_id": "538971028364699",
+                                            "product_items": [
+                                                {
+                                                    "product_retailer_id": "akuba13e44",
+                                                    "quantity": 1,
+                                                    "item_price": 200,
+                                                    "currency": "INR",
                                                 },
-                                            }
-                                        ],
-                                    },
-                                    "field": "messages",
-                                }
-                            ],
+                                                {
+                                                    "product_retailer_id": "0z10aj0bmq",
+                                                    "quantity": 1,
+                                                    "item_price": 600,
+                                                    "currency": "INR",
+                                                },
+                                            ],
+                                        },
+                                    }
+                                ],
+                            },
+                            "field": "messages",
                         }
                     ],
-                },
-            )
+                }
+            ],
+        }
+
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=request_json,
+    )
     actual = response.json()
     assert actual == "success"
-    time.sleep(5)
-    assert len(whatsapp_msg_handler.call_args[0]) == 5
-    assert (
-            whatsapp_msg_handler.call_args[0][1]
-            == '/k_order_msg{"order": {"catalog_id": "538971028364699", "product_items": [{"product_retailer_id": "akuba13e44", "quantity": 1, "item_price": 200, "currency": "INR"}, {"product_retailer_id": "0z10aj0bmq", "quantity": 1, "item_price": 600, "currency": "INR"}]}}'
-    )
-    assert whatsapp_msg_handler.call_args[0][2] == "919876543210"
-    metadata = whatsapp_msg_handler.call_args[0][3]
-    metadata.pop("timestamp")
-    assert metadata == {
-        "from": "919876543210",
-        "id": "wamid.HBgMOTE5NjU3DMU1MDIyQFIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA",
-        "type": "order",
-        "order": {
-            "catalog_id": "538971028364699",
-            "product_items": [
-                {
-                    "product_retailer_id": "akuba13e44",
-                    "quantity": 1,
-                    "item_price": 200,
-                    "currency": "INR",
-                },
-                {
-                    "product_retailer_id": "0z10aj0bmq",
-                    "quantity": 1,
-                    "item_price": 600,
-                    "currency": "INR",
-                },
-            ],
-        },
-        "is_integration_user": True,
-        "bot": bot,
-        "account": 1,
-        "channel_type": "whatsapp",
-        "bsp_type": "meta",
-        "tabname": "default",
-        "display_phone_number": "919876543210",
-        "phone_number_id": "108578266683441",
-    }
-    assert whatsapp_msg_handler.call_args[0][4] == bot
+    args, kwargs = executor.execute.call_args
+    assert len(executor.execute.call_args[0]) == 4
+    assert args[3] == bot
+    assert not DeepDiff(args[1], request_json)
+    assert not DeepDiff(args[2], {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp', 'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(int, bson.int64.Int64)])
 
 
 @responses.activate
