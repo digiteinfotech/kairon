@@ -24,12 +24,16 @@ from kairon.shared.actions.data_objects import FormValidationAction, SlotSetActi
 from kairon.shared.actions.models import ActionType, ActionParameterType, DbActionOperationType
 from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
+from kairon.shared.data.action_serializer import ActionSerializer
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import MultiflowStories
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import StoryStepType
 from kairon.shared.utils import Utility, StoryValidator
+
+
+DEFAULT_OTHER_COLLECTIONS_PATH = 'other_collections.yml'
 
 
 class TrainingDataValidator(Validator):
@@ -84,6 +88,8 @@ class TrainingDataValidator(Validator):
             cls.multiflow_stories_graph = StoryValidator.create_multiflow_story_graphs(multiflow_stories)
             bot_content = Utility.read_yaml(os.path.join(root_dir, 'bot_content.yml'))
             cls.bot_content = bot_content if bot_content else {}
+            other_collections = Utility.read_yaml(os.path.join(root_dir, DEFAULT_OTHER_COLLECTIONS_PATH))
+            cls.other_collections = other_collections if other_collections else {}
 
             return await TrainingDataValidator.from_importer(file_importer)
         except YamlValidationException as e:
@@ -1032,7 +1038,7 @@ class TrainingDataValidator(Validator):
         @param raise_exception: Set this flag to false to prevent raising exceptions.
         @return:
         """
-        is_data_invalid, summary, component_count = TrainingDataValidator.validate_custom_actions(self.actions, bot)
+        is_data_invalid, summary, component_count = ActionSerializer.validate(bot, self.actions, self.other_collections)
         self.component_count.update(component_count)
         self.summary.update(summary)
         if not is_data_invalid and raise_exception:

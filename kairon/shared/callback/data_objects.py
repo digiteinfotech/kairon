@@ -86,6 +86,14 @@ class CallbackConfig(Auditlog):
     meta = {"indexes": [{"fields": ["bot", "name"]}]}
 
     @staticmethod
+    def prep_data_for_insertion(data: dict, bot: str):
+        data['bot'] = bot
+        data['validation_secret'] = encrypt_secret(uuid7().hex)
+        if data.get('token_hash'):
+            data['token_hash'] = uuid7().hex
+        return data
+
+    @staticmethod
     def get_all_names(bot) -> list[str]:
         names = CallbackConfig.objects(bot=bot).distinct(field="name")
         return list(names)

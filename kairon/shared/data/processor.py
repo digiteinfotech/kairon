@@ -161,6 +161,7 @@ from .data_objects import (
     MultiflowStories, MultiflowStoryEvents, MultiFlowStoryMetadata,
     Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
 )
+from .action_serializer import ActionSerializer
 from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
@@ -235,8 +236,9 @@ class MongoProcessor:
             stories = stories.merge(multiflow_stories[0])
             rules = rules.merge(multiflow_stories[1])
         multiflow_stories = self.load_multiflow_stories_yaml(bot)
-        actions = self.load_action_configurations(bot)
+        #actions = self.load_action_configurations(bot)
         bot_content = self.load_bot_content(bot)
+        actions, other_collections = ActionSerializer.serialize(bot)
         return Utility.create_zip_file(
             nlu,
             domain,
@@ -247,7 +249,8 @@ class MongoProcessor:
             actions,
             multiflow_stories,
             chat_client_config,
-            bot_content
+            bot_content,
+            other_collections,
         )
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
@@ -340,6 +343,7 @@ class MongoProcessor:
             multiflow_stories: dict = None,
             bot_content: list = None,
             chat_client_config: dict = None,
+            other_collections: dict = None,
             overwrite: bool = False,
             what: set = REQUIREMENTS.copy(),
     ):
@@ -347,7 +351,8 @@ class MongoProcessor:
             self.delete_bot_data(bot, user, what)
 
         if "actions" in what:
-            self.save_integrated_actions(actions, bot, user)
+            #self.save_integrated_actions(actions, bot, user)
+            ActionSerializer.deserialize(bot, user, actions, other_collections, overwrite)
         if "domain" in what:
             self.save_domain(domain, bot, user)
         if "stories" in what:
@@ -551,7 +556,7 @@ class MongoProcessor:
                 lambda actions: not actions.startswith("utter_"), domain.user_actions
             )
         )
-        self.__save_actions(actions, bot, user)
+        self.verify_actions_presence(actions, bot, user)
         self.__save_responses(domain.responses, bot, user)
         self.save_utterances(domain.responses.keys(), bot, user)
         self.__save_slots(domain.slots, bot, user)
@@ -1070,11 +1075,16 @@ class MongoProcessor:
         if Utility.is_exist(
                 Actions, raise_error=False, name=f"validate_{name}", bot=bot, status=True
         ):
-            form_validation_action = Actions.objects(
-                name=f"validate_{name}", bot=bot, status=True
-            ).get()
-            form_validation_action.type = ActionType.form_validation_action.value
-            form_validation_action.save()
+            try:
+                form_validation_action = Actions.objects(
+                    name__iexact=f"validate_{name}", bot=bot, status=True
+                ).get()
+                form_validation_action.type = ActionType.form_validation_action.value
+                form_validation_action.save()
+            except Exception as e:
+                print(e)
+
+
         self.__check_for_form_and_action_existance(bot, name)
         form = Forms(name=name, required_slots=slots, bot=bot, user=user)
         form.clean()
@@ -1146,6 +1156,13 @@ class MongoProcessor:
                          raise_error=True,
                          exp_message=f"Form with the name '{name}' already exists",
                          name=name, bot=bot, status=True)
+
+    def verify_actions_presence(self, actions: list[str], bot: str, user: str):
+        if actions:
+            found_names = Actions.objects(name__in=actions, bot=bot, user=user).values_list('name')
+            for action in actions:
+                if action not in found_names:
+                    raise AppException(f"Action [{action}] not present in actions.yml")
 
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
@@ -3955,7 +3972,9 @@ class MongoProcessor:
 
             http_config_dict["content_type"] = {
                 HttpRequestContentType.json.value: HttpContentType.application_json.value,
+                HttpContentType.application_json.value: HttpContentType.application_json.value,
                 HttpRequestContentType.data.value: HttpContentType.urlencoded_form_data.value,
+                HttpContentType.urlencoded_form_data.value: HttpContentType.urlencoded_form_data.value,
             }[http_config_dict["content_type"]]
             return http_config_dict
         except DoesNotExist as ex:
@@ -4710,6 +4729,8 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
+        ActionSerializer.deserialize(bot, user, actions)
+
         if not actions:
             return
         document_types = {
