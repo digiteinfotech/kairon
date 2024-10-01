@@ -62,7 +62,6 @@ class TestMessageBroadcastProcessor:
             assert args[3][0] == 'message_broadcast'
             assert args[3][1] == {'bot': 'test_bot', 'user': 'test_user', 'event_id': event_id}
 
-
     @patch("apscheduler.schedulers.background.BackgroundScheduler.get_jobs", autospec=True)
     @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
     def test_list_jobs(self, mock_start, mock_get_jobs):
