@@ -266,3 +266,65 @@ class TestMessageBroadcastProcessor:
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.delete_task(ObjectId().__str__(), bot, True)
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_scheduled_broadcast_task(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "schedule_broadcast", "broadcast_type": "dynamic",
+            "connector_type": "whatsapp",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "57 22 * * *",
+                "timezone": "Asia/Kolkata"
+            },
+            "pyscript": "send_msg('template_name', '9876543210')"
+        }
+        message_broadcast_id = MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+        assert message_broadcast_id
+
+    def test_get_broadcast_settings_scheduled(self):
+        bot = "test_schedule"
+        settings = list(MessageBroadcastProcessor.list_settings(bot))
+        config_id = settings[0].pop("_id")
+        assert isinstance(config_id, str)
+        settings[0].pop("timestamp")
+        assert settings == [
+            {
+                'name': 'schedule_broadcast',
+                'connector_type': 'whatsapp',
+                "broadcast_type": "dynamic",
+                'retry_count': 0,
+                'scheduler_config': {
+                    'expression_type': 'cron',
+                    'schedule': '57 22 * * *',
+                    "timezone": "Asia/Kolkata"
+                },
+                "pyscript": "send_msg('template_name', '9876543210')",
+                "template_config": [],
+                'bot': 'test_schedule',
+                'user': 'test_user',
+                'status': True
+            }
+        ]
+
+        setting = MessageBroadcastProcessor.get_settings(config_id, bot)
+        assert isinstance(setting.pop("_id"), str)
+        setting.pop("timestamp")
+        assert setting == {
+            'name': 'schedule_broadcast',
+            'connector_type': 'whatsapp',
+            "broadcast_type": "dynamic",
+            'retry_count': 0,
+            'scheduler_config': {
+                'expression_type': 'cron',
+                'schedule': '57 22 * * *',
+                "timezone": "Asia/Kolkata"
+            },
+            "pyscript": "send_msg('template_name', '9876543210')",
+            "template_config": [],
+            'bot': 'test_schedule',
+            'user': 'test_user',
+            'status': True
+        }
