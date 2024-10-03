@@ -45,7 +45,7 @@ class KScheduler(EventSchedulerBase):
 
     def add_job(self, event_id: Text, task_type: TASK_TYPE, cron_exp: Text, event_class: Text, data: dict, timezone=None):
         func = ExecutorFactory.get_executor().execute_task
-        args = (event_class, task_type, data)
+        args = (event_class, data)
         kwargs = {'task_type': task_type}
         trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
         KScheduler.__scheduler.add_job(func, trigger, args, kwargs, id=event_id, name=func.__name__,

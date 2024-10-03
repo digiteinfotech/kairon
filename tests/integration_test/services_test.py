@@ -1296,6 +1296,61 @@ def test_get_llm_metadata_bot_specific_model_exists():
     LLMSecret.objects.delete()
 
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_scheduled_broadcast_with_no_template_name(mock_event_server):
+    config = {
+        "name": "first_scheduler_dynamic",
+        "broadcast_type": "dynamic",
+        "connector_type": "whatsapp",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "21 11 * * *",
+            "timezone": "Asia/Kolkata",
+        },
+        "pyscript": "send_msg('template_name', '9876543210')",
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'template_name is required for dynamic broadcasts!', 'type': 'value_error'}]
+    assert not actual["data"]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_scheduled_broadcast_with_no_language_code(mock_event_server):
+    config = {
+        "name": "first_scheduler_dynamic",
+        "broadcast_type": "dynamic",
+        "connector_type": "whatsapp",
+        "template_name": "consent",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "21 11 * * *",
+            "timezone": "Asia/Kolkata",
+        },
+        "pyscript": "send_msg('template_name', '9876543210')",
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'language_code is required for dynamic broadcasts!', 'type': 'value_error'}]
+    assert not actual["data"]
+
+
 @responses.activate
 def test_default_values():
     response = client.get(
@@ -23288,6 +23343,8 @@ def test_broadcast_config_error():
         "timezone": "UTC",
     }
     config["broadcast_type"] = "dynamic"
+    config["template_name"] = "consent"
+    config["language_code"] = "en"
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/broadcast/message",
         json=config,
@@ -23329,6 +23386,8 @@ def test_update_broadcast(mock_event_server):
         "name": "first_scheduler_dynamic",
         "broadcast_type": "dynamic",
         "connector_type": "whatsapp",
+        "template_name": "consent",
+        "language_code": "en",
         "scheduler_config": {
             "expression_type": "cron",
             "schedule": "21 11 * * *",
@@ -23622,6 +23681,33 @@ def test_get_bot_settings():
                               'content_importer_limit_per_day': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3}
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_scheduled_dynamic_broadcast(mock_event_server):
+    config = {
+        "name": "first_scheduler_dynamic",
+        "broadcast_type": "dynamic",
+        "connector_type": "whatsapp",
+        "template_name": "consent",
+        "language_code": "en",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "21 11 * * *",
+            "timezone": "Asia/Kolkata",
+        },
+        "pyscript": "send_msg('template_name', '9876543210')",
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Broadcast added!'
+    assert actual["data"]
 
 
 def test_update_analytics_settings_with_empty_value():

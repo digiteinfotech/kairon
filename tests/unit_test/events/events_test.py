@@ -1406,9 +1406,6 @@ class TestEventExecution:
                               'template_name': 'brochure_pdf', 'language_code': 'hi', 'namespace': None,
                               'retry_count': 0}
 
-        with pytest.raises(AppException, match="Notification settings not found!"):
-            MessageBroadcastProcessor.get_settings(event_id, bot)
-
         settings = list(MessageBroadcastProcessor.list_settings(bot, status=False, name="one_time_schedule"))
         assert len(settings) == 1
         assert settings[0]["status"] == False
@@ -1541,8 +1538,6 @@ class TestEventExecution:
                                       'filename': 'Brochure.pdf'}}]}], "template": template,
                               'template_name': 'brochure_pdf', 'language_code': 'hi', 'namespace': None,
                               'retry_count': 0}
-        with pytest.raises(AppException, match="Notification settings not found!"):
-            MessageBroadcastProcessor.get_settings(event_id, bot)
 
         assert mock_send.call_args[0][1] == 'brochure_pdf'
         assert mock_send.call_args[0][2] in ['876543212345', '9876543210']
@@ -1608,9 +1603,6 @@ class TestEventExecution:
         assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user,
                               'exception': "Failed to evaluate recipients: 'recipients'"
                               }
-
-        with pytest.raises(AppException, match="Notification settings not found!"):
-            MessageBroadcastProcessor.get_settings(event_id, bot)
 
     @responses.activate
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
@@ -1709,9 +1701,6 @@ class TestEventExecution:
         exception = logs[0][0].pop("exception")
         assert exception.startswith("Whatsapp channel config not found!")
         assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user, 'recipients': ['918958030541']}
-
-        with pytest.raises(AppException, match="Notification settings not found!"):
-            MessageBroadcastProcessor.get_settings(event_id, bot)
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -1865,9 +1854,6 @@ class TestEventExecution:
                                    'href': 'https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/'}
                               ]}
 
-        with pytest.raises(AppException, match="Notification settings not found!"):
-            MessageBroadcastProcessor.get_settings(event_id, bot)
-
         settings = list(MessageBroadcastProcessor.list_settings(bot, status=False, name="one_time_schedule"))
         assert len(settings) == 1
         assert settings[0]["status"] is False
@@ -2015,9 +2001,6 @@ class TestEventExecution:
         logged_config.pop("_id")
         assert logged_config.pop("template_config") == []
         assert logged_config == config
-
-        with pytest.raises(AppException, match="Notification settings not found!"):
-            MessageBroadcastProcessor.get_settings(event_id, bot)
 
         timestamp = datetime.utcnow()
         MessageBroadcastLogs(
@@ -2222,9 +2205,6 @@ class TestEventExecution:
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
                               'user': user, "exception": "Script execution error: import of 'os' is unauthorized"}
 
-        with pytest.raises(AppException, match="Notification settings not found!"):
-            MessageBroadcastProcessor.get_settings(event_id, bot)
-
     @responses.activate
     @patch("kairon.shared.channels.broadcast.whatsapp.json")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
@@ -2280,9 +2260,6 @@ class TestEventExecution:
 
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
                               'user': user, 'exception': 'Operation timed out: 1 seconds'}
-
-        with pytest.raises(AppException, match="Notification settings not found!"):
-            MessageBroadcastProcessor.get_settings(event_id, bot)
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))

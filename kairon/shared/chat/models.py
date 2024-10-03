@@ -81,6 +81,8 @@ class MessageBroadcastRequest(BaseModel):
     scheduler_config: SchedulerConfiguration = None
     recipients_config: RecipientsConfiguration = None
     template_config: List[TemplateConfiguration] = None
+    template_name: str = None
+    language_code: str = None
     pyscript: str = None
 
     @root_validator
@@ -90,6 +92,12 @@ class MessageBroadcastRequest(BaseModel):
                 raise ValueError(
                     "recipients_config and template_config is required for static broadcasts!"
                 )
+
+        if values.get("broadcast_type") == MessageBroadcastType.dynamic:
+            if not values.get("template_name"):
+                raise ValueError("template_name is required for dynamic broadcasts!")
+            if not values.get("language_code"):
+                raise ValueError("language_code is required for dynamic broadcasts!")
 
         pyscript = values.get("pyscript")
         if values.get(

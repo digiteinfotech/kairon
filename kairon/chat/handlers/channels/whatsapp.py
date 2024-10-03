@@ -76,7 +76,7 @@ class Whatsapp:
         message.update(metadata)
         await self._handle_user_message(text, message["from"], message, bot)
 
-    async def __handle_meta_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
+    async def handle_meta_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
         provider = self.config.get("bsp_type", "meta")
         access_token = self.__get_access_token()
         for entry in payload["entry"]:
@@ -147,7 +147,7 @@ class Whatsapp:
                 return msg
 
         actor = ActorFactory.get_instance(ActorType.callable_runner.value)
-        actor.execute(self.__handle_meta_payload, payload, metadata, bot)
+        actor.execute(self.handle_meta_payload, payload, metadata, bot)
         return msg
 
     def get_business_phone_number_id(self) -> Text:
