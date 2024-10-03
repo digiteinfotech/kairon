@@ -328,4 +328,3 @@ class TestMessageBroadcastProcessor:
             'user': 'test_user',
             'status': True
         }
-
