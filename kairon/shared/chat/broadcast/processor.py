@@ -115,7 +115,10 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def get_reference_id_from_broadcasting_logs(event_id):
-        log = MessageBroadcastLogs.objects(event_id=event_id, log_type=MessageBroadcastLogType.common.value).get()
+        log = MessageBroadcastLogs.objects(
+            event_id=event_id,
+            log_type=MessageBroadcastLogType.common.value
+        ).order_by('-timestamp').first()
         return log.reference_id
 
     @staticmethod
