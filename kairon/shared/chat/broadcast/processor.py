@@ -20,8 +20,7 @@ class MessageBroadcastProcessor:
     @staticmethod
     def get_settings(notification_id: Text, bot: Text, **kwargs):
         try:
-            status = not kwargs.get("is_resend", False)
-            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=status).get()
+            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot).get()
             settings = settings.to_mongo().to_dict()
             settings["_id"] = settings["_id"].__str__()
             return settings
@@ -116,7 +115,10 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def get_reference_id_from_broadcasting_logs(event_id):
-        log = MessageBroadcastLogs.objects(event_id=event_id, log_type=MessageBroadcastLogType.common.value).get()
+        log = MessageBroadcastLogs.objects(
+            event_id=event_id,
+            log_type=MessageBroadcastLogType.common.value
+        ).order_by('-timestamp').first()
         return log.reference_id
 
     @staticmethod
@@ -202,7 +204,7 @@ class MessageBroadcastProcessor:
     @staticmethod
     def update_retry_count(notification_id: Text, bot: Text, user: Text, retry_count: int = 0):
         try:
-            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=False).get()
+            settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot).get()
             settings.retry_count = retry_count
             settings.user = user
             settings.timestamp = datetime.utcnow()

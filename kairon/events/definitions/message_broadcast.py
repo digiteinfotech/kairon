@@ -65,6 +65,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             if is_resend:
                 config = broadcast.resend_broadcast()
             else:
+                config = MessageBroadcastProcessor.update_retry_count(event_id, self.bot, self.user, retry_count=0)
                 recipients = broadcast.get_recipients()
                 broadcast.send(recipients)
             status = EVENT_STATUS.COMPLETED.value
