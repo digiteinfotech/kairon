@@ -316,7 +316,7 @@ class ActionSerializer:
             if data:
                 ActionSerializer.save_collection_data_list(action_type, bot, user, data)
 
-        ActionSerializer.save_other_collections(other_collections_data, bot, user)
+        ActionSerializer.save_other_collections(other_collections_data, bot, user, overwrite)
 
     @staticmethod
     def get_action_config_data_list(bot: str, action_model: Document, with_doc_id: bool = False, query: dict = {}) -> list[dict]:
@@ -394,10 +394,19 @@ class ActionSerializer:
             raise AppException(f"Error saving action config data: {str(e)}") from e
 
     @staticmethod
-    def save_other_collections(other_collections_data: dict, bot: str, user: str):
+    def save_other_collections(other_collections_data: dict, bot: str, user: str, overwrite: bool = False):
+        if not other_collections_data:
+            return
         _, other_collections = ActionSerializer.get_collection_infos()
         for collection_name, collection_info in other_collections.items():
             collection_data = other_collections_data.get(collection_name)
+            if overwrite:
+                collection_info.get("db_model").objects(bot=bot).delete()
+            else:
+                prev_data = collection_info.get("db_model").objects(bot=bot)
+                names = set(prev_data.values_list("name"))
+                collection_data = [data for data in collection_data if data.get("name") not in names]
+
             if collection_name and collection_data:
                 collection_model = collection_info.get("db_model")
                 if collection_model:

@@ -6,7 +6,6 @@ from kairon.shared.actions.models import ActionParameterType, DbActionOperationT
 import ast
 
 
-
 class DataValidation:
     @staticmethod
     def validate_http_action(bot: str, data: dict):
@@ -110,7 +109,7 @@ class DataValidation:
         return error_list
 
     @staticmethod
-    def validate_llm_prompts(llm_prompts: dict):
+    def validate_llm_prompts(llm_prompts: list):
         error_list = []
         system_prompt_count = 0
         history_prompt_count = 0
@@ -168,7 +167,7 @@ class DataValidation:
     def validate_callback_config(bot: str, data: dict):
         data_error = []
         if not data.get('pyscript_code'):
-            data_error.append('Callback URL is required')
+            data_error.append('pyscript_code is required')
             return data_error
 
         compile_time_error = DataValidation.validate_python_script_compile_time(data['pyscript_code'])
