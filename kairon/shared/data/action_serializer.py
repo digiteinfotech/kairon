@@ -148,7 +148,7 @@ class ActionSerializer:
         error_summary = {key: [] for key in ActionSerializer.action_lookup.keys()}
         encountered_action_names = set()
         if not actions:
-            return True, error_summary, component_count
+            return False, error_summary, component_count
         if not isinstance(actions, dict):
             error_summary = {'action.yml':  ['Expected dictionary with action types as keys']}
             return False, error_summary, component_count
@@ -169,6 +169,7 @@ class ActionSerializer:
             if error_list := ActionSerializer.collection_config_validation(bot, action_type, actions_list, encountered_action_names):
                 error_summary[action_type].extend(error_list)
                 is_data_invalid = True
+                continue
 
         if other_collections:
             for collection_name, collection_data in other_collections.items():
