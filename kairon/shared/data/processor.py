@@ -292,6 +292,7 @@ class MongoProcessor:
             actions_yml = os.path.join(path, "actions.yml")
             multiflow_stories_yml = os.path.join(path, "multiflow_stories.yml")
             bot_content_yml = os.path.join(path, "bot_content.yml")
+            other_collections_yml = os.path.join(path, "other_collections.yml")
             importer = RasaFileImporter.load_from_config(
                 config_path=config_path,
                 domain_path=domain_path,
@@ -313,6 +314,11 @@ class MongoProcessor:
                 else None
             )
             TrainingDataValidator.validate_custom_actions(actions)
+            other_collections = (
+                Utility.read_yaml(other_collections_yml)
+                if other_collections_yml
+                else None
+            )
 
             self.save_training_data(
                 bot,
@@ -324,6 +330,7 @@ class MongoProcessor:
                 actions,
                 multiflow_stories,
                 bot_content,
+                other_collections=other_collections,
                 overwrite=overwrite,
                 what=REQUIREMENTS.copy() - {"chat_client_config"},
             )

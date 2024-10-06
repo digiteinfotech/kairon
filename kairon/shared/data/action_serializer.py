@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 from mongoengine import Document, ValidationError
 
@@ -269,7 +270,7 @@ class ActionSerializer:
         return action_config, other_config
 
     @staticmethod
-    def deserialize(bot: str, user: str, actions: dict, other_collections_data: dict, overwrite: bool = False):
+    def deserialize(bot: str, user: str, actions: Optional[dict] = None, other_collections_data: Optional[dict] = None, overwrite: bool = False):
 
         actions_collections, other_collections = ActionSerializer.get_collection_infos()
 
@@ -287,36 +288,37 @@ class ActionSerializer:
         )
 
         filtered_actions = {}
-        for action_type, action_info in actions_collections.items():
-            if action_type in actions:
-                # Skip if no actions are present
-                if len(actions[action_type]) == 0:
-                    continue
+        if actions:
+            for action_type, action_info in actions_collections.items():
+                if action_type in actions:
+                    # Skip if no actions are present
+                    if len(actions[action_type]) == 0:
+                        continue
 
-                if action_type == ActionType.form_validation_action.value:
-                    filtered_actions[action_type] = actions[action_type]
-                elif action_info.get('single_instance'):
-                    if overwrite:
+                    if action_type == ActionType.form_validation_action.value:
                         filtered_actions[action_type] = actions[action_type]
-                else:
-                    new_actions = []
-                    action_names = []
-                    for a in actions[action_type]:
-                        action_name = ActionSerializer.get_item_name(a)
-                        if action_name in form_names:
-                            raise AppException(f"Form with name {action_name} already exists!")
-                        if (action_name not in saved_actions
-                                and not action_name.startswith("utter_")
-                                and action_name not in action_names):
-                            action_names.append(action_name)
-                            new_actions.append(a)
-                    filtered_actions[action_type] = new_actions
+                    elif action_info.get('single_instance'):
+                        if overwrite:
+                            filtered_actions[action_type] = actions[action_type]
+                    else:
+                        new_actions = []
+                        action_names = []
+                        for a in actions[action_type]:
+                            action_name = ActionSerializer.get_item_name(a)
+                            if action_name in form_names:
+                                raise AppException(f"Form with name {action_name} already exists!")
+                            if (action_name not in saved_actions
+                                    and not action_name.startswith("utter_")
+                                    and action_name not in action_names):
+                                action_names.append(action_name)
+                                new_actions.append(a)
+                        filtered_actions[action_type] = new_actions
 
-        for action_type, data in filtered_actions.items():
-            if data:
-                ActionSerializer.save_collection_data_list(action_type, bot, user, data)
-
-        ActionSerializer.save_other_collections(other_collections_data, bot, user, overwrite)
+            for action_type, data in filtered_actions.items():
+                if data:
+                    ActionSerializer.save_collection_data_list(action_type, bot, user, data)
+        if other_collections_data:
+            ActionSerializer.save_other_collections(other_collections_data, bot, user, overwrite)
 
     @staticmethod
     def get_action_config_data_list(bot: str, action_model: Document, with_doc_id: bool = False, query: dict = {}) -> list[dict]:
@@ -395,8 +397,6 @@ class ActionSerializer:
 
     @staticmethod
     def save_other_collections(other_collections_data: dict, bot: str, user: str, overwrite: bool = False):
-        if not other_collections_data:
-            return
         _, other_collections = ActionSerializer.get_collection_infos()
         for collection_name, collection_info in other_collections.items():
             collection_data = other_collections_data.get(collection_name)
