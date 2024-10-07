@@ -1742,15 +1742,14 @@ class Utility:
             if Utility.check_empty_string(kwargs.get("err_msg")):
                 raise AppException("err_msg cannot be empty")
             error_message = f"{kwargs['err_msg']}{response.reason}"
-            if return_json:
-                try:
-                    resp_json = response.json()
-                    if resp_json.get("meta"):
-                        developer_message = resp_json.get("meta", {}).get("developer_message")
-                        error_message = f"{kwargs['err_msg']}{response.reason}: {developer_message}"
-                except Exception as e:
-                    logger.exception(e)
-                    error_message = f"{kwargs['err_msg']}{response.reason}"
+            try:
+                resp_json = response.json()
+                if resp_json.get("meta"):
+                    developer_message = resp_json.get("meta", {}).get("developer_message")
+                    error_message = f"{kwargs['err_msg']}{response.reason}: {developer_message}"
+            except Exception as e:
+                logger.exception(e)
+                error_message = f"{kwargs['err_msg']}{response.reason}"
             raise AppException(f"{error_message}")
 
         if return_json:
