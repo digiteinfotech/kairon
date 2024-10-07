@@ -1749,6 +1749,7 @@ class Utility:
                         developer_message = resp_json.get("meta", {}).get("developer_message")
                         error_message = f"{kwargs['err_msg']}{response.reason}: {developer_message}"
                 except Exception as e:
+                    logger.exception(e)
                     error_message = f"{kwargs['err_msg']}{response.reason}"
             raise AppException(f"{error_message}")
 
