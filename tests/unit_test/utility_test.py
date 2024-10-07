@@ -1527,6 +1527,41 @@ class TestUtility:
                 validate_status=True,
             )
 
+    @responses.activate
+    def test_execute_http_request_with_error_msg(self):
+        expected_response = {
+            'meta': {
+                '360dialog_trace_id': 'TOZFYLoh3xrUq2FsREQ',
+                'developer_message': 'Invalid payload ({"error":{"message":"Invalid parameter","type":"OAuthException","code":100,"error_data":{"blame_field_specs":[["name"]]},"error_subcode":2388046,"is_transient":false,"error_user_title":"Name Format is Incorrect","error_user_msg":"The message template name can only have lowercase letters and underscores.","fbtrace_id":"AtxupgaxIrZVghWRHupbKzl"}})', 'error': '{"error":{"message":"Invalid parameter","type":"OAuthException","code":100,"error_data":{"blame_field_specs":[["name"]]},"error_subcode":2388046,"is_transient":false,"error_user_title":"Name Format is Incorrect","error_user_msg":"The message template name can only have lowercase letters and underscores.","fbtrace_id":"AtxupgaxIrZVghWRHupbKzl"}}',
+                'http_code': 400,
+                'success': False
+            }
+        }
+        responses.add(
+            "POST", "https://waba-v2.360dialog.io/v1/configs/templates", status=400, json=expected_response
+        )
+
+        with pytest.raises(AppException, match=re.escape('Failed to add template: Bad Request: Invalid payload ({"error":{"message":"Invalid parameter","type":"OAuthException","code":100,"error_data":{"blame_field_specs":[["name"]]},"error_subcode":2388046,"is_transient":false,"error_user_title":"Name Format is Incorrect","error_user_msg":"The message template name can only have lowercase letters and underscores.","fbtrace_id":"AtxupgaxIrZVghWRHupbKzl"}})')):
+            Utility.execute_http_request(
+                "POST",
+                "https://waba-v2.360dialog.io/v1/configs/templates",
+                validate_status=True, expected_status_code=201, err_msg="Failed to add template: "
+            )
+
+    @responses.activate
+    def test_execute_http_request_with_invalid_response_object(self):
+        expected_response = "Invalid Parameter"
+        responses.add(
+            "POST", "https://waba-v2.360dialog.io/v1/configs/templates", status=400, json=expected_response
+        )
+
+        with pytest.raises(AppException, match="Failed to add template: Bad Request"):
+            Utility.execute_http_request(
+                "POST",
+                "https://waba-v2.360dialog.io/v1/configs/templates",
+                validate_status=True, expected_status_code=201, err_msg="Failed to add template: "
+            )
+
     def test_get_masked_value_empty(self):
         assert None is Utility.get_masked_value(None)
         assert "" == Utility.get_masked_value("")
