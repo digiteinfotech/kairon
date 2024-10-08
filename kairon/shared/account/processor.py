@@ -598,11 +598,12 @@ class AccountProcessor:
             active_bot_access = BotAccess.objects(
                 **kwargs, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
             ).get()
+            active_bot_access.update(set__status=ACTIVITY_STATUS.DELETED.value, user=kwargs.get('accessor_email'))
         else:
             active_bot_access = BotAccess.objects(
                 bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
             )
-        active_bot_access.update(set__status=ACTIVITY_STATUS.DELETED.value)
+            active_bot_access.update(set__status=ACTIVITY_STATUS.DELETED.value)
 
     @staticmethod
     def remove_member(bot: Text, accessor_email: Text, current_user: Text):
