@@ -18,6 +18,7 @@ roles:
       logs: true
       generateStories: true
       manageQnaStories: true
+      manageCallbacks: true
       broadcast: true
       customAnalytics: true
       liveAgent: true
@@ -104,6 +105,12 @@ roles:
         delete: true
         augment: true
         download: true
+      manageCallbacks:
+        add: true
+        edit: true
+        delete: true
+        augment: true
+        download: true
       broadcast:
         add: true
         edit: true
@@ -132,6 +139,7 @@ roles:
       logs: true
       generateStories: true
       manageQnaStories: true
+      manageCallbacks: true
       broadcast: true
       customAnalytics: true
       liveAgent: true
@@ -218,6 +226,12 @@ roles:
         delete: true
         augment: true
         download: true
+      manageCallbacks:
+        add: true
+        edit: true
+        delete: true
+        augment: true
+        download: true
       broadcast:
         add: true
         edit: true
@@ -246,6 +260,7 @@ roles:
       logs: true
       generateStories: true
       manageQnaStories: true
+      manageCallbacks: true
       broadcast: true
       customAnalytics: true
       liveAgent: false
@@ -332,6 +347,12 @@ roles:
         delete: true
         augment: true
         download: true
+      manageCallbacks:
+        add: true
+        edit: true
+        delete: true
+        augment: true
+        download: true
       broadcast:
         add: true
         edit: true
@@ -360,6 +381,7 @@ roles:
       logs: true
       generateStories: false
       manageQnaStories: true
+      manageCallbacks: true
       broadcast: false
       customAnalytics: true
       liveAgent: false
@@ -446,6 +468,12 @@ roles:
         delete: false
         augment: false
         download: false
+      manageCallbacks:
+        add: false
+        edit: false
+        delete: false
+        augment: false
+        download: false
       broadcast:
         add: false
         edit: false
@@ -474,6 +502,7 @@ roles:
       logs: false
       generateStories: false
       manageQnaStories: false
+      manageCallbacks: false
       broadcast: false
       customAnalytics: false
       liveAgent: true
@@ -560,6 +589,12 @@ roles:
         delete: false
         augment: false
         download: false
+      manageCallbacks:
+        add: false
+        edit: false
+        delete: false
+        augment: false
+        download: false
       broadcast:
         add: false
         edit: false
@@ -590,6 +625,7 @@ roles:
       logs: false
       generateStories: false
       manageQnaStories: false
+      manageCallbacks: false
       broadcast: false
       customAnalytics: true
       liveAgent: false
@@ -671,6 +707,12 @@ roles:
         viewLogs: false
         testModel: false
       manageQnaStories:
+        add: false
+        edit: false
+        delete: false
+        augment: false
+        download: false
+      manageCallbacks:
         add: false
         edit: false
         delete: false
