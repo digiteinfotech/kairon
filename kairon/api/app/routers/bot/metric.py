@@ -66,23 +66,6 @@ async def add_end_user_metrics(
     return Response(message='Metrics added', data={"id": id})
 
 
-@router.post("/user/logs/{metric_type}", response_model=Response)
-async def add_end_user_metrics(
-        request_data: DictData, request: Request,
-        metric_type: MetricType = Path(description="metric type", examples=[MetricType.user_metrics]),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
-):
-    """
-    Stores End User Metrics
-    """
-    data = request_data.dict()["data"]
-    id = MeteringProcessor.add_log_with_geo_location(
-        metric_type=metric_type.value, request=request, bot=current_user.get_bot(), user=current_user.get_user(),
-        account_id=current_user.bot_account, **data
-    )
-    return Response(message='Metrics added', data={"id": id})
-
-
 @router.put("/user/logs/{metric_type}/{id}", response_model=Response)
 async def update_end_user_metrics(
         id: str,
