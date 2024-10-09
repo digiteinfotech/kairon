@@ -89,8 +89,10 @@ class MeteringProcessor:
         ip = Utility.get_client_ip(request)
         if not Utility.check_empty_string(ip):
             location_info = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip=ip)
-            if location_info:
-                kwargs.update(location_info)
+            if location_info and ip:
+                data = list(location_info.values())
+                if data and isinstance(data[0], dict):
+                    kwargs.update(data[0])
         return MeteringProcessor.add_metrics(bot, account_id, metric_type, **kwargs)
 
     @staticmethod
