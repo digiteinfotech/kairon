@@ -2416,6 +2416,144 @@ def test_whatsapp_valid_flows_message_request(mock_validate, mock_actor):
 
 
 @responses.activate
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_location_message_request(mock_validate, mock_actor):
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "102290129340398",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "15550783881",
+                                "phone_number_id": "106540352242922"
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {
+                                        "name": "Pablo Morales"
+                                    },
+                                    "wa_id": "16505551234"
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "context": {
+                                        "from": "15550783881",
+                                        "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgARGBI1QjJGRjI1RDY0RkE4Nzg4QzcA"
+                                    },
+                                    "from": "16505551234",
+                                    "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgASGBQzQTRCRDcwNzgzMTRDNTAwRTgwRQA=",
+                                    "timestamp": "1702920965",
+                                    "location": {
+                                        "address": "1071 5th Ave, New York, NY 10128",
+                                        "latitude": 40.782910059774,
+                                        "longitude": -73.959075808525,
+                                        "name": "Solomon R. Guggenheim Museum"
+                                    },
+                                    "type": "location"
+                                }
+                            ]
+                        },
+                        "field": "messages"
+                    }
+                ]
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+    actual = response.json()
+    assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
+
+
+@responses.activate
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_invalid_message_request(mock_validate, mock_actor):
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "102290129340398",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "15550783881",
+                                "phone_number_id": "106540352242922"
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {
+                                        "name": "Pablo Morales"
+                                    },
+                                    "wa_id": "16505551234"
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "context": {
+                                        "from": "15550783881",
+                                        "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgARGBI1QjJGRjI1RDY0RkE4Nzg4QzcA"
+                                    },
+                                    "from": "16505551234",
+                                    "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgASGBQzQTRCRDcwNzgzMTRDNTAwRTgwRQA=",
+                                    "timestamp": "1702920965",
+                                    "location": {
+                                        "address": "1071 5th Ave, New York, NY 10128",
+                                        "latitude": 40.782910059774,
+                                        "longitude": -73.959075808525,
+                                        "name": "Solomon R. Guggenheim Museum"
+                                    },
+                                    "type": "invalid"
+                                }
+                            ]
+                        },
+                        "field": "messages"
+                    }
+                ]
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+    actual = response.json()
+    assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
+
+
+@responses.activate
 def test_whatsapp_valid_statuses_with_sent_request():
     from kairon.shared.chat.data_objects import ChannelLogs
 

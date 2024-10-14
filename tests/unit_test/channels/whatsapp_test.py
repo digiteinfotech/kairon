@@ -151,6 +151,74 @@ class TestWhatsappHandler:
                 assert user_message.text == '/k_quick_reply_msg{"quick_reply": "buy kairon for 1 billion"}'
 
     @pytest.mark.asyncio
+    async def test_whatsapp_valid_button_message_request_without_payload_value(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "910123456789",
+                                            "phone_number_id": "12345678",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "udit"},
+                                                "wa_id": "wa-123456789",
+                                            }
+                                        ],
+                                        "messages": [
+                                            {
+                                                "from": "910123456789",
+                                                "id": "wappmsg.ID",
+                                                "timestamp": "21-09-2022 12:05:00",
+                                                "button": {
+                                                    "text": "buy now",
+                                                    "payload": "buy now",
+                                                },
+                                                "type": "button",
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+                args, kwargs = mock_message.call_args
+
+                assert args[0] == bot
+                user_message = args[1]
+
+                assert user_message.text == 'buy now'
+
+    @pytest.mark.asyncio
     async def test_whatsapp_valid_flows_message_request(self):
         from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
         with patch.object(WhatsappBot, "mark_as_read"):
@@ -224,6 +292,152 @@ class TestWhatsappHandler:
                 assert args[0] == bot
                 user_message = args[1]
                 assert user_message.text == '/k_interactive_msg{"flow_reply": {"flow_token": "AQBBBBBCS5FpgQ_cAAAAAD0QI3s.", "firstName": "Mahesh ", "lastName": "Sattala ", "pincode": "523456", "district": "Bangalore ", "houseNumber": "5-6", "dateOfBirth": "1703257240046", "source": "SOCIAL_MEDIA", "landmark": "HSR Layout ", "email": "maheshsattala@gmail.com", "type": "nfm_reply"}}'
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_valid_location_message_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "102290129340398",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "15550783881",
+                                            "phone_number_id": "106540352242922"
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {
+                                                    "name": "Pablo Morales"
+                                                },
+                                                "wa_id": "16505551234"
+                                            }
+                                        ],
+                                        "messages": [
+                                            {
+                                                "context": {
+                                                    "from": "15550783881",
+                                                    "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgARGBI1QjJGRjI1RDY0RkE4Nzg4QzcA"
+                                                },
+                                                "from": "16505551234",
+                                                "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgASGBQzQTRCRDcwNzgzMTRDNTAwRTgwRQA=",
+                                                "timestamp": "1702920965",
+                                                "location": {
+                                                    "address": "1071 5th Ave, New York, NY 10128",
+                                                    "latitude": 40.782910059774,
+                                                    "longitude": -73.959075808525,
+                                                    "name": "Solomon R. Guggenheim Museum"
+                                                },
+                                                "type": "location"
+                                            }
+                                        ]
+                                    },
+                                    "field": "messages"
+                                }
+                            ]
+                        }
+                    ]
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+                args, kwargs = mock_message.call_args
+
+                assert args[0] == bot
+                user_message = args[1]
+                print(user_message.text)
+                assert user_message.text == '/k_multimedia_msg{"latitude": "40.782910059774", "longitude": "-73.959075808525"}'
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_invalid_message_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "102290129340398",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "15550783881",
+                                            "phone_number_id": "106540352242922"
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {
+                                                    "name": "Pablo Morales"
+                                                },
+                                                "wa_id": "16505551234"
+                                            }
+                                        ],
+                                        "messages": [
+                                            {
+                                                "context": {
+                                                    "from": "15550783881",
+                                                    "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgARGBI1QjJGRjI1RDY0RkE4Nzg4QzcA"
+                                                },
+                                                "from": "16505551234",
+                                                "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgASGBQzQTRCRDcwNzgzMTRDNTAwRTgwRQA=",
+                                                "timestamp": "1702920965",
+                                                "location": {
+                                                    "address": "1071 5th Ave, New York, NY 10128",
+                                                    "latitude": 40.782910059774,
+                                                    "longitude": -73.959075808525,
+                                                    "name": "Solomon R. Guggenheim Museum"
+                                                },
+                                                "type": "invalid"
+                                            }
+                                        ]
+                                    },
+                                    "field": "messages"
+                                }
+                            ]
+                        }
+                    ]
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
 
     @pytest.mark.asyncio
     async def test_valid_order_message_request(self):
