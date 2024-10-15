@@ -1,65 +1,228 @@
 http_action:
-- action_name: action_performanceUser1001@digite.com
-  http_url: http://www.alphabet.com
-  params_list:
-  - key: testParam1
-    parameter_type: value
-    value: testValue1
-  - key: testParam2
-    parameter_type: slot
-    value: testValue1
-  headers:
-    - key: authorization
-      parameter_type: value
-      value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf
-    - key: sender
-      parameter_type: sender_id
+- action_name: action_performanceUser1001@digitecom
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
   request_method: GET
   response:
-    value: json
-- action_name: action_performanceUser1000@digite.com
-  http_url: http://www.alphabet.com
-  params_list:
-  - key: authorization
-    parameter_type: slot
-    value: authorization
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+
+- action_name: action_performanceUser1000@digitecom
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
   request_method: GET
   response:
-    value: json
-- action_name: action_performanceUser999@digite.com
-  http_url: http://www.alphabet.com
-  params_list:
-  - key: testParam1
-    parameter_type: value
-    value: testValue1
-  - key: testParam2
-    parameter_type: slot
-    value: testValue1
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+
+- action_name: action_performanceUser999@digitecom
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
   request_method: GET
   response:
-    value: json
-- action_name: action_performanceUser998@digite.com
-  http_url: http://www.alphabet.com
-  params_list:
-  - key: testParam1
-    parameter_type: value
-    value: testValue1
-  - key: testParam2
-    parameter_type: slot
-    value: testValue1
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+
+- action_name: action_performanceUser998@digitecom
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
   request_method: GET
   response:
-    value: json
-- action_name: action_performanceUser997@digite.com
-  http_url: http://www.alphabet.com
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_performanceUser997@digitecom
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
   request_method: GET
   response:
-    value: json
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+
+- action_name: action_identify_ticket_attributes
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_log_ticket
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_get_ticket_status
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_reset_slots
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_validate_ticket_for_fileUpload
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_validate_ticket_for_status
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_clear_file
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_clear_priority
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_log_message
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_small_talk
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: ticket_file_form_action
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+- action_name: action_clear_memory
+  content_type: json
+  headers: [ ]
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: [ ]
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+
+form_validation_action:
+- invalid_response: ''
+  is_required: true
+  name: validate_ticket_attributes_form
+  slot: customer_name
+  slot_set:
+    type: current
+    value: ''
+  valid_response: ''
+  validation_semantic: ''
+
 
 google_search_action:
 - name: google_search_action_mf
   api_key:
-    key: api_key
     value: asdfghjklrtyu
     parameter_type: value
   search_engine_id: sdfg34567dfgh
+

@@ -151,7 +151,7 @@ class ActionSerializer:
             return False, error_summary, component_count
         if not isinstance(actions, dict):
             error_summary = {'action.yml':  ['Expected dictionary with action types as keys']}
-            return False, error_summary, component_count
+            return True, error_summary, component_count
 
         for action_type, actions_list in actions.items():
             if action_type not in ActionSerializer.action_lookup:
@@ -212,7 +212,7 @@ class ActionSerializer:
                 err_summary.append(f"No name found for  [{action_type}].")
                 continue
             if action_name in encountered_action_names:
-                if action_type != ActionType.form_validation_action.value and not action_name.beginswith("utter_"):
+                if action_type != ActionType.form_validation_action.value and not action_name.startswith("utter_"):
                     err_summary.append({action_name: f"Duplicate Name found for other action."})
                     continue
             encountered_action_names.add(action_name)

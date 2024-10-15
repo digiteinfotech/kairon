@@ -509,6 +509,7 @@ class TrainingDataValidator(Validator):
             if errors and raise_exception:
                 raise AppException("Invalid multiflow_stories.yml. Check logs!")
 
+    #TODO: Depricated not needed anymore
     @staticmethod
     def validate_custom_actions(actions: Dict, bot: Text = None):
         """

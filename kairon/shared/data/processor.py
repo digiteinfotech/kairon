@@ -313,12 +313,14 @@ class MongoProcessor:
                 if bot_content_yml
                 else None
             )
-            TrainingDataValidator.validate_custom_actions(actions)
             other_collections = (
                 Utility.read_yaml(other_collections_yml)
                 if other_collections_yml
                 else None
             )
+
+            ActionSerializer.validate(bot, actions, other_collections)
+
 
             self.save_training_data(
                 bot,
@@ -563,7 +565,7 @@ class MongoProcessor:
                 lambda actions: not actions.startswith("utter_"), domain.user_actions
             )
         )
-        self.verify_actions_presence(actions, bot, user)
+        # self.verify_actions_presence(actions, bot, user)
         self.__save_responses(domain.responses, bot, user)
         self.save_utterances(domain.responses.keys(), bot, user)
         self.__save_slots(domain.slots, bot, user)
@@ -1164,12 +1166,12 @@ class MongoProcessor:
                          exp_message=f"Form with the name '{name}' already exists",
                          name=name, bot=bot, status=True)
 
-    def verify_actions_presence(self, actions: list[str], bot: str, user: str):
-        if actions:
-            found_names = Actions.objects(name__in=actions, bot=bot, user=user).values_list('name')
-            for action in actions:
-                if action not in found_names:
-                    raise AppException(f"Action [{action}] not present in actions.yml")
+    # def verify_actions_presence(self, actions: list[str], bot: str, user: str):
+    #     if actions:
+    #         found_names = Actions.objects(name__in=actions, bot=bot, user=user).values_list('name')
+    #         for action in actions:
+    #             if action not in found_names:
+    #                 raise AppException(f"Action [{action}] not present in actions.yml")
 
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
@@ -4736,7 +4738,6 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        ActionSerializer.deserialize(bot, user, actions)
 
         if not actions:
             return
@@ -5070,7 +5071,7 @@ class MongoProcessor:
                 validation_failed,
                 error_summary,
                 actions_count,
-            ) = TrainingDataValidator.validate_custom_actions(actions)
+            ) = ActionSerializer.validate(bot, actions, {})
             component_count.update(actions_count)
         if os.path.exists(config_path):
             config = Utility.read_yaml(config_path)

@@ -1,5 +1,5 @@
 http_action:
-- action_name: action_performanceUser1001@digite.com
+- action_name: action_performanceUser1001@digitecom
   http_url: http://www.alphabet.com
   headers:
     - key: auth_token
@@ -15,7 +15,7 @@ http_action:
   request_method: GET
   response:
     value: json
-- action_name: action_performanceUser1000@digite.com
+- action_name: action_performanceUser1000@digitecom
   http_url: http://www.alphabet.com
   params_list:
   - key: testParam1

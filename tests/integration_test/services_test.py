@@ -7682,16 +7682,22 @@ def test_get_data_importer_logs():
                                                     'data': []},
                                          'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
                                          'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
-                                                     {'type': 'slot_set_actions', 'count': 0, 'data': []},
-                                                     {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                                     {'type': 'two_stage_fallbacks', 'count': 0, 'data': []},
                                                      {'type': 'email_actions', 'count': 0, 'data': []},
-                                                     {'type': 'google_search_actions', 'count': 0, 'data': []},
-                                                     {'type': 'jira_actions', 'count': 0, 'data': []},
                                                      {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                                     {'type': 'jira_actions', 'count': 0, 'data': []},
+                                                     {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                                     {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                                     {'type': 'google_search_actions', 'count': 0, 'data': []},
                                                      {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                                      {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                                     {'type': 'web_search_actions', 'count': 0, 'data': []},
                                                      {'type': 'razorpay_actions', 'count': 0, 'data': []},
-                                                     {'type': 'pyscript_actions', 'count': 0, 'data': []}],
+                                                     {'type': 'pyscript_actions', 'count': 0, 'data': []},
+                                                     {'type': 'database_actions', 'count': 0, 'data': []},
+                                                     {'type': 'live_agent_actions', 'count': 0, 'data': []},
+                                                     {'type': 'callback_actions', 'count': 0, 'data': []},
+                                                     {'type': 'schedule_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'bot_content': {'count': 0, 'data': []},
                                          'user_actions': {'count': 9, 'data': []},
@@ -7728,18 +7734,23 @@ def test_get_data_importer_logs():
                                                    'utterances_count': 27, 'forms_count': 2, 'entities_count': 9,
                                                    'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
-    assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
-                                                    {'type': 'slot_set_actions', 'count': 0, 'data': []},
-                                                    {'type': 'form_validation_actions', 'count': 0, 'data': []},
+    assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 17, 'data': []},
+                                                    {'type': 'two_stage_fallbacks', 'count': 0, 'data': []},
                                                     {'type': 'email_actions', 'count': 0, 'data': []},
-                                                    {'type': 'google_search_actions', 'count': 1, 'data': []},
-                                                    {'type': 'jira_actions', 'count': 0, 'data': []},
                                                     {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                                    {'type': 'jira_actions', 'count': 0, 'data': []},
+                                                    {'type': 'form_validation_actions', 'count': 1, 'data': []},
+                                                    {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                                    {'type': 'google_search_actions', 'count': 1, 'data': []},
                                                     {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                                     {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                                    {'type': 'web_search_actions', 'count': 0, 'data': []},
                                                     {'type': 'razorpay_actions', 'count': 0, 'data': []},
-                                                    {'type': 'pyscript_actions', 'count': 0, 'data': []}
-                                                    ]
+                                                    {'type': 'pyscript_actions', 'count': 0, 'data': []},
+                                                    {'type': 'database_actions', 'count': 0, 'data': []},
+                                                    {'type': 'live_agent_actions', 'count': 0, 'data': []},
+                                                    {'type': 'callback_actions', 'count': 0, 'data': []},
+                                                    {'type': 'schedule_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config', 'multiflow_stories',
@@ -16619,8 +16630,8 @@ def test_upload_with_http_error():
     assert actual["data"]["logs"][0]["start_timestamp"]
     assert actual["data"]["logs"][0]["start_timestamp"]
     assert (
-            "Required http action fields"
-            in actual["data"]["logs"][0]["actions"][0]["data"][0]
+            "Required fields {'request_method'} not found"
+            in str(actual["data"]["logs"][0]["actions"][0]["data"][0])
     )
     assert actual["data"]["logs"][0]["config"]["data"] == ["Invalid component XYZ"]
 
@@ -16649,7 +16660,7 @@ def test_upload_actions_and_config():
         files=files,
     )
     actual = response.json()
-    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["message"] == "Event already in progress! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
@@ -16659,6 +16670,7 @@ def test_upload_actions_and_config():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 5

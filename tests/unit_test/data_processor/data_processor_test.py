@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
 
+import yaml
+
 from kairon.api.app.routers.bot.data import processor
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.utils import Utility
@@ -2430,10 +2432,10 @@ class TestMongoProcessor:
                              'longitude', 'latitude', 'flow_reply', 'quick_reply'], ignore_order=True)
         assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
                                 'ask_location': {'required_slots': ['location', 'application_name']}}
-        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
+        assert domain.user_actions == ['ACTION_GET_GOOGLE_APPLICATION', 'ACTION_GET_MICROSOFT_APPLICATION',
                                        'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
-        assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application',
-                                                                             'action_get_microsoft_application']
+        assert processor.fetch_actions('test_upload_case_insensitivity') == ['ACTION_GET_GOOGLE_APPLICATION',
+                                                                             'ACTION_GET_MICROSOFT_APPLICATION']
         assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
         assert domain.responses == {
             'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
@@ -2444,7 +2446,7 @@ class TestMongoProcessor:
                          'ask the user to rephrase whenever they send a message with low nlu confidence']
         actions = processor.load_http_action("test_upload_case_insensitivity")
         assert actions == {'http_action': [
-            {'action_name': 'action_get_google_application', 'http_url': 'http://www.alphabet.com',
+            {'action_name': 'ACTION_GET_GOOGLE_APPLICATION', 'http_url': 'http://www.alphabet.com',
              'content_type': 'json',
              'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'},
              'request_method': 'GET', 'headers': [
@@ -2458,11 +2460,11 @@ class TestMongoProcessor:
                  'encrypt': False},
                 {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id',
                  'encrypt': False},
-                {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1',
+                {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testValue1',
                  'parameter_type': 'slot', 'encrypt': False}],
              'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1',
                               'parameter_type': 'value', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1',
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testValue1',
                               'parameter_type': 'slot', 'encrypt': False}],
              'dynamic_params': {
                  "farmid": '120d37d6-6159-45f1-a3d0-edfead442971',
@@ -2473,12 +2475,12 @@ class TestMongoProcessor:
                      }
                  ]
              }},
-            {'action_name': 'action_get_microsoft_application',
+            {'action_name': 'ACTION_GET_MICROSOFT_APPLICATION',
              'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'},
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET', 'content_type': 'json',
              'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1',
                               'parameter_type': 'value', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1',
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testValue1',
                               'parameter_type': 'slot', 'encrypt': False},
                              {'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '',
                               'parameter_type': 'chat_log', 'encrypt': False},
@@ -2490,7 +2492,7 @@ class TestMongoProcessor:
                               'parameter_type': 'intent', 'encrypt': False},
                              {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '',
                               'parameter_type': 'sender_id', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1',
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testValue1',
                               'parameter_type': 'slot', 'encrypt': False}]}]}
         assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
                                                                                                      'utter_greet',
@@ -2545,7 +2547,9 @@ class TestMongoProcessor:
             'required_slots': ['file']}
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 48
-        assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 12
+
+        assert processor.list_actions('test_load_from_path_yml_training_files')["http_action"].__len__() == 17
+        assert processor.list_actions('test_load_from_path_yml_training_files')["utterances"].__len__() == 29
         assert processor.list_actions('test_load_from_path_yml_training_files')["form_validation_action"].__len__() == 1
         assert domain.intents.__len__() == 32
         assert not Utility.check_empty_string(
@@ -2558,7 +2562,7 @@ class TestMongoProcessor:
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
         actions_google = processor.load_google_search_action("test_load_from_path_yml_training_files")
         assert isinstance(actions, dict) is True
-        assert len(actions['http_action']) == 5
+        assert len(actions['http_action']) == 17
         assert len(actions_google['google_search_action']) == 1
         assert Utterances.objects(bot='test_load_from_path_yml_training_files').count() == 29
 
@@ -2603,8 +2607,7 @@ class TestMongoProcessor:
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 38
-        assert processor.list_actions('all')["actions"].__len__() == 11
+        assert domain.user_actions.__len__() == 27
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.responses["utter_cheer_up"][0]["image"]
@@ -2644,9 +2647,8 @@ class TestMongoProcessor:
         assert domain.entities.__len__() == 23
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 27
         assert domain.intents.__len__() == 29
-        assert processor.list_actions('all')["actions"].__len__() == 11
         assert not Utility.check_empty_string(
             domain.responses["utter_cheer_up"][0]["image"]
         )
@@ -3883,7 +3885,7 @@ class TestMongoProcessor:
         file = processor.download_files("tests_download_empty_data", "user@integration.com")
         assert file.endswith(".zip")
         zip_file = ZipFile(file, mode='r')
-        assert zip_file.filelist.__len__() == 10
+        assert zip_file.filelist.__len__() == 9
         assert zip_file.getinfo('data/stories.yml')
         assert zip_file.getinfo('data/rules.yml')
         file_info_stories = zip_file.getinfo('data/stories.yml')
@@ -3958,18 +3960,36 @@ class TestMongoProcessor:
 
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
-        expected_actions = b'database_action: []\nemail_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\nlive_agent_action: []\npipedrive_leads_action: []\nprompt_action: []\npyscript_action: []\nrazorpay_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
-            encoding='utf-8')
 
         def _mock_bot_info(*args, **kwargs):
             return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "_id": "9876543210", 'name': 'tests', 'account': 2, 'user': 'user@integration.com', 'status': True,
                 "metadata": {"source_bot_id": None}
             }
+        #add a http action to the bot
+        act_config = HttpActionConfig()
+        act_config.action_name = "my_http_action"
+        act_config.bot = 'tests'
+        act_config.user = 'user@integration.com'
+        act_config.status = True
+        act_config.http_url = "https://jsonplaceholder.typicode.com/posts/1"
+        act_config.request_method = "GET"
+        act_config.content_type = "json"
+        act_config.response = HttpActionResponse(value='zxcvb')
+        act_config.save()
+
+        action = Actions()
+        action.name = 'my_http_action'
+        action.bot = 'tests'
+        action.user = 'user@integration.com'
+        action.status = True
+        action.type = ActionType.http_action.value
+        action.save()
 
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         file_path = processor.download_files("tests", "user@integration.com")
+
         assert file_path.endswith(".zip")
         zip_file = ZipFile(file_path, mode='r')
         assert zip_file.filelist.__len__() == 10
@@ -3985,14 +4005,42 @@ class TestMongoProcessor:
         file_info = zip_file.getinfo('actions.yml')
         file_content = zip_file.read(file_info)
         actual_actions = file_content.decode(encoding='utf-8')
-        print(actual_actions)
-        assert actual_actions == expected_actions
+        actual_actions_dict = yaml.safe_load(actual_actions)
+        assert actual_actions_dict == {'http_action': [
+            {
+                'action_name': 'my_http_action',
+                'content_type': 'json',
+                'http_url': 'https://jsonplaceholder.typicode.com/posts/1',
+                'params_list': [],
+                'request_method': 'GET',
+                'response': {
+                    'dispatch': True,
+                    'dispatch_type': 'text',
+                    'evaluation_type': 'expression',
+                    'value': 'zxcvb',
+                },
+                'headers': [],
+                'set_slots': []
+            }]}
         zip_file.close()
 
     def test_load_action_configurations(self):
         processor = MongoProcessor()
         action_config = processor.load_action_configurations("tests")
-        assert action_config == {'http_action': [], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
+        assert action_config == {'http_action': [
+            {
+                'action_name': 'my_http_action',
+                'content_type': 'json',
+                'http_url': 'https://jsonplaceholder.typicode.com/posts/1',
+                'request_method': 'GET',
+                'response': {
+                    'dispatch': True,
+                    'dispatch_type': 'text',
+                    'evaluation_type': 'expression',
+                    'value': 'zxcvb',
+                },
+            }
+        ], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
                                  'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': [],
                                  'razorpay_action': [], 'pyscript_action': [], 'database_action': [], 'live_agent_action': []}
@@ -5602,7 +5650,7 @@ class TestMongoProcessor:
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
-                                           chat_client_config, True)
+                                           chat_client_config, overwrite=True)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -5647,8 +5695,8 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_action']) == 5
-        assert len(Actions.objects(type='http_action', bot=bot)) == 5
+        assert len(actions['http_action']) == 17
+        assert len(Actions.objects(type='http_action', bot=bot)) == 17
         multiflow_stories = mongo_processor.load_multiflow_stories_yaml(bot)
         assert isinstance(multiflow_stories, dict) is True
         bot_content = mongo_processor.load_bot_content(bot)
@@ -5671,7 +5719,7 @@ class TestMongoProcessor:
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
-                                           chat_client_config, True)
+                                           chat_client_config, overwrite=True)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -5694,7 +5742,7 @@ class TestMongoProcessor:
         assert domain.responses.keys().__len__() == 27
         assert domain.entities.__len__() == 23
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 38
+        assert domain.user_actions.__len__() == 27
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.responses["utter_cheer_up"][0]["image"]
@@ -5725,7 +5773,7 @@ class TestMongoProcessor:
         domain.slots[0].mappings[0]['conditions'] = [{"active_loop": "ticket_attributes_form", "requested_slot": "date_time"}]
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
-                                           chat_client_config, True)
+                                           chat_client_config, overwrite=True)
 
         slot_mapping = SlotMapping.objects(form_name="ticket_attributes_form").get()
         assert slot_mapping.slot == "date_time"
@@ -5747,7 +5795,7 @@ class TestMongoProcessor:
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
-                                           chat_client_config, True)
+                                           chat_client_config, overwrite=True)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -5792,7 +5840,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_action']) == 5
+        assert len(actions['http_action']) == 17
 
     @pytest.mark.asyncio
     async def test_save_training_data_all_append(self, get_training_data, monkeypatch):
@@ -5811,7 +5859,8 @@ class TestMongoProcessor:
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, multiflow_stories, bot_content,
-                                           chat_client_config, False, REQUIREMENTS.copy() - {"chat_client_config"})
+                                           chat_client_config, overwrite=False,
+                                           what=REQUIREMENTS.copy() - {"chat_client_config"})
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -5856,7 +5905,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_action']) == 5
+        assert len(actions['http_action']) == 17
 
     def test_delete_nlu_only(self):
         bot = 'test'
@@ -5906,7 +5955,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_action']) == 5
+        assert len(actions['http_action']) == 17
 
     @pytest.mark.asyncio
     async def test_save_nlu_only(self, get_training_data):
@@ -5964,7 +6013,7 @@ class TestMongoProcessor:
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_action']) == 5
+        assert len(actions['http_action']) == 17
 
     def test_delete_multiflow_stories_only(self):
         bot = 'test'
@@ -6047,7 +6096,7 @@ class TestMongoProcessor:
         assert domain.responses.keys().__len__() == 31
         assert domain.entities.__len__() == 24
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 43
+        assert domain.user_actions.__len__() == 31
         assert domain.intents.__len__() == 33
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
@@ -6069,7 +6118,7 @@ class TestMongoProcessor:
         mongo_processor.save_training_data(bot, user, config=config, actions=http_actions, overwrite=True,
                                            what={'actions', 'config'})
 
-        assert len(mongo_processor.load_http_action(bot)['http_action']) == 5
+        assert len(mongo_processor.load_http_action(bot)['http_action']) == 17
         config = mongo_processor.load_config(bot)
         assert config['language'] == 'fr'
         assert config['pipeline']
@@ -6096,13 +6145,13 @@ class TestMongoProcessor:
         assert domain.responses.keys().__len__() == 0
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 6
+        assert domain.user_actions.__len__() == 19
         assert domain.intents.__len__() == 5
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 0
         actions = mongo_processor.load_http_action(bot)
         assert isinstance(actions, dict) is True
-        assert len(actions['http_action']) == 5
+        assert len(actions['http_action']) == 17
 
     @pytest.mark.asyncio
     async def test_save_rules_and_domain_only(self, get_training_data):
@@ -6319,7 +6368,7 @@ class TestMongoProcessor:
         file_path = processor.download_files(pytest.bot, "user@integration.com")
         assert file_path.endswith(".zip")
         zip_file = ZipFile(file_path, mode='r')
-        assert zip_file.filelist.__len__() == 10
+        assert zip_file.filelist.__len__() == 9
         assert zip_file.getinfo('chat_client_config.yml')
 
     @pytest.fixture()
@@ -6458,11 +6507,12 @@ class TestMongoProcessor:
         training_file = [pytest.http_actions]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
+        print(non_event_validation_summary)
         assert {'actions'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
         assert not non_event_validation_summary.get("config")
-        assert processor.list_http_actions(pytest.bot).__len__() == 5
+        assert processor.list_http_actions(pytest.bot).__len__() == 17
 
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_save_domain(self, resource_save_and_validate_training_files):
@@ -6488,11 +6538,12 @@ class TestMongoProcessor:
         training_file = [pytest.http_actions, pytest.config]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
+        print(non_event_validation_summary)
         assert {'actions', 'config'} == files_received
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
         assert not non_event_validation_summary.get("config")
-        assert processor.list_http_actions(pytest.bot).__len__() == 5
+        assert processor.list_http_actions(pytest.bot).__len__() == 17
         config = processor.load_config(pytest.bot)
         assert config['pipeline']
         assert config['policies']
@@ -6509,7 +6560,7 @@ class TestMongoProcessor:
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
         assert not non_event_validation_summary.get("config")
-        assert processor.list_http_actions(pytest.bot).__len__() == 6
+        assert processor.list_http_actions(pytest.bot).__len__() == 18
         config = processor.load_config(pytest.bot)
         assert config['pipeline']
         assert config['policies']
@@ -6557,7 +6608,7 @@ class TestMongoProcessor:
         assert not is_event_data
         assert not non_event_validation_summary.get("http_actions")
         assert not non_event_validation_summary.get("config")
-        assert processor.list_http_actions(pytest.bot).__len__() == 5
+        assert processor.list_http_actions(pytest.bot).__len__() == 17
         config = processor.load_config(pytest.bot)
         assert config['pipeline']
         assert config['policies']
@@ -12061,7 +12112,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("tests")
         assert not DeepDiff(actions, {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                                       'hubspot_forms_action': [],
-                                      'http_action': [], 'google_search_action': [], 'jira_action': [],
+                                      'http_action': ['my_http_action'], 'google_search_action': [], 'jira_action': [],
                                       'two_stage_fallback': [],
                                       'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                                       'kairon_bot_response': [],
@@ -13900,7 +13951,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("test_upload_and_save")
         assert not DeepDiff(actions, {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
-            'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
+            'http_action': ['action_performanceUser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
@@ -14009,7 +14060,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("tests")
         assert not DeepDiff(actions, {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
+            'http_action': ['my_http_action'], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
