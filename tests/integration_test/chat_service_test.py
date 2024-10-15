@@ -1829,290 +1829,255 @@ async def _mock_check_live_agent_active(*args, **kwargs):
 
 
 @responses.activate
-def test_whatsapp_valid_text_message_request():
-    async def _mock_validate_hub_signature(*args, **kwargs):
-        return True
-
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_text_message_request(mock_validate, mock_actor):
     responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
-
-    with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
-        with patch.object(
-                MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-        ):
-            response = client.post(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                json={
-                    "object": "whatsapp_business_account",
-                    "entry": [
-                        {
-                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                            "changes": [
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "910123456789",
+                                "phone_number_id": "12345678",
+                            },
+                            "contacts": [
                                 {
-                                    "value": {
-                                        "messaging_product": "whatsapp",
-                                        "metadata": {
-                                            "display_phone_number": "910123456789",
-                                            "phone_number_id": "12345678",
-                                        },
-                                        "contacts": [
-                                            {
-                                                "profile": {"name": "udit"},
-                                                "wa_id": "wa-123456789",
-                                            }
-                                        ],
-                                        "messages": [
-                                            {
-                                                "from": "910123456789",
-                                                "id": "wappmsg.ID",
-                                                "timestamp": "21-09-2022 12:05:00",
-                                                "text": {"body": "hi"},
-                                                "type": "text",
-                                            }
-                                        ],
-                                    },
-                                    "field": "messages",
+                                    "profile": {"name": "udit"},
+                                    "wa_id": "wa-123456789",
                                 }
                             ],
-                        }
-                    ],
-                },
-            )
-        time.sleep(10)
+                            "messages": [
+                                {
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {"body": "hi"},
+                                    "type": "text",
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
 
-        actual = response.json()
-        assert actual == "success"
-        assert (
-                MeteringProcessor.get_metric_count(
-                    user["account"], metric_type=MetricType.prod_chat, channel_type="whatsapp"
-                )
-                > 0
-        )
+    actual = response.json()
+    assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
 @mock.patch(
     "kairon.chat.handlers.channels.whatsapp.Whatsapp.process_message", autospec=True
 )
 def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(
-        mock_process_message,
+        mock_process_message, mock_validate, mock_actor
 ):
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
-
     responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
     mock_process_message.side_effect = Exception
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        response = client.post(
-            f"/api/bot/whatsapp/{bot}/{token}",
-            headers={"hub.verify_token": "valid"},
-            json={
-                "object": "whatsapp_business_account",
-                "entry": [
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [
                     {
-                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                        "changes": [
-                            {
-                                "value": {
-                                    "messaging_product": "whatsapp",
-                                    "metadata": {
-                                        "display_phone_number": "910123456789",
-                                        "phone_number_id": "12345678",
-                                    },
-                                    "contacts": [
-                                        {
-                                            "profile": {"name": "udit"},
-                                            "wa_id": "wa-123456789",
-                                        }
-                                    ],
-                                    "messages": [
-                                        {
-                                            "from": "910123456789",
-                                            "id": "wappmsg.ID",
-                                            "timestamp": "21-09-2022 12:05:00",
-                                            "text": {"body": "hi"},
-                                            "type": "text",
-                                        }
-                                    ],
-                                },
-                                "field": "messages",
-                            }
-                        ],
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "910123456789",
+                                "phone_number_id": "12345678",
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "udit"},
+                                    "wa_id": "wa-123456789",
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {"body": "hi"},
+                                    "type": "text",
+                                }
+                            ],
+                        },
+                        "field": "messages",
                     }
                 ],
-            },
-        )
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+
     actual = response.json()
     assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate
-def test_whatsapp_valid_button_message_request():
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
-
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_button_message_request(mock_validate, mock_actor):
     responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
-
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        with mock.patch(
-                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-                autospec=True,
-        ) as whatsapp_msg_handler:
-            response = client.post(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                json={
-                    "object": "whatsapp_business_account",
-                    "entry": [
-                        {
-                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                            "changes": [
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "910123456789",
+                                "phone_number_id": "12345678",
+                            },
+                            "contacts": [
                                 {
-                                    "value": {
-                                        "messaging_product": "whatsapp",
-                                        "metadata": {
-                                            "display_phone_number": "910123456789",
-                                            "phone_number_id": "12345678",
-                                        },
-                                        "contacts": [
-                                            {
-                                                "profile": {"name": "udit"},
-                                                "wa_id": "wa-123456789",
-                                            }
-                                        ],
-                                        "messages": [
-                                            {
-                                                "from": "910123456789",
-                                                "id": "wappmsg.ID",
-                                                "timestamp": "21-09-2022 12:05:00",
-                                                "button": {
-                                                    "text": "buy now",
-                                                    "payload": "buy kairon for 1 billion",
-                                                },
-                                                "type": "button",
-                                            }
-                                        ],
-                                    },
-                                    "field": "messages",
+                                    "profile": {"name": "udit"},
+                                    "wa_id": "wa-123456789",
                                 }
                             ],
-                        }
-                    ],
-                },
-            )
+                            "messages": [
+                                {
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "button": {
+                                        "text": "buy now",
+                                        "payload": "buy kairon for 1 billion",
+                                    },
+                                    "type": "button",
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+
     actual = response.json()
     assert actual == "success"
-    time.sleep(5)
-    assert len(whatsapp_msg_handler.call_args[0]) == 5
-    assert whatsapp_msg_handler.call_args[0][1] == '/k_quick_reply_msg{"quick_reply": "buy kairon for 1 billion"}'
-    assert whatsapp_msg_handler.call_args[0][2] == "910123456789"
-    metadata = whatsapp_msg_handler.call_args[0][3]
-    metadata.pop("timestamp")
-    assert metadata == {
-        "from": "910123456789",
-        "id": "wappmsg.ID",
-        "button": {"text": "buy now", "payload": "buy kairon for 1 billion"},
-        "type": "button",
-        "is_integration_user": True,
-        "bot": bot,
-        "account": 1,
-        "channel_type": "whatsapp",
-        "tabname": "default",
-        "bsp_type": "meta",
-        "display_phone_number": "910123456789",
-        "phone_number_id": "12345678",
-    }
-    assert whatsapp_msg_handler.call_args[0][4] == bot
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate
-def test_whatsapp_valid_button_message_request_without_payload_value():
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
-
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_button_message_request_without_payload_value(mock_validate, mock_actor):
     responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
-
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        with mock.patch(
-                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-                autospec=True,
-        ) as whatsapp_msg_handler:
-            response = client.post(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                json={
-                    "object": "whatsapp_business_account",
-                    "entry": [
-                        {
-                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                            "changes": [
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "910123456789",
+                                "phone_number_id": "12345678",
+                            },
+                            "contacts": [
                                 {
-                                    "value": {
-                                        "messaging_product": "whatsapp",
-                                        "metadata": {
-                                            "display_phone_number": "910123456789",
-                                            "phone_number_id": "12345678",
-                                        },
-                                        "contacts": [
-                                            {
-                                                "profile": {"name": "udit"},
-                                                "wa_id": "wa-123456789",
-                                            }
-                                        ],
-                                        "messages": [
-                                            {
-                                                "context": {
-                                                    "from": "910123456789",
-                                                    "id": "wamid.HBgMOTE4MDk1MTAzMDIyFQIAERgSMDA3RkQTQxN0RBMDZEAA=="
-                                                },
-                                                "from": "910123456789",
-                                                "id": "wappmsg.ID",
-                                                "timestamp": "21-09-2022 12:05:00",
-                                                "button": {
-                                                    "text": "buy now",
-                                                    "payload": "buy now",
-                                                },
-                                                "type": "button",
-                                            }
-                                        ],
-                                    },
-                                    "field": "messages",
+                                    "profile": {"name": "udit"},
+                                    "wa_id": "wa-123456789",
                                 }
                             ],
-                        }
-                    ],
-                },
-            )
+                            "messages": [
+                                {
+                                    "context": {
+                                        "from": "910123456789",
+                                        "id": "wamid.HBgMOTE4MDk1MTAzMDIyFQIAERgSMDA3RkQTQxN0RBMDZEAA=="
+                                    },
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "button": {
+                                        "text": "buy now",
+                                        "payload": "buy now",
+                                    },
+                                    "type": "button",
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+
     actual = response.json()
     assert actual == "success"
-    time.sleep(5)
-    assert len(whatsapp_msg_handler.call_args[0]) == 5
-    assert whatsapp_msg_handler.call_args[0][1] == 'buy now'
-    assert whatsapp_msg_handler.call_args[0][2] == "910123456789"
-    metadata = whatsapp_msg_handler.call_args[0][3]
-    metadata.pop("timestamp")
-    assert metadata == {
-        "context": {"from": "910123456789", "id": "wamid.HBgMOTE4MDk1MTAzMDIyFQIAERgSMDA3RkQTQxN0RBMDZEAA=="},
-        "from": "910123456789",
-        "id": "wappmsg.ID",
-        "button": {"text": "buy now", "payload": "buy now"},
-        "type": "button",
-        "is_integration_user": True,
-        "bot": bot,
-        "account": 1,
-        "channel_type": "whatsapp",
-        "tabname": "default",
-        "bsp_type": "meta",
-        "display_phone_number": "910123456789",
-        "phone_number_id": "12345678",
-    }
-    assert whatsapp_msg_handler.call_args[0][4] == bot
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate
@@ -2382,104 +2347,210 @@ def test_whatsapp_valid_order_message_request(mock_validate, mock_actor):
 
 
 @responses.activate
-def test_whatsapp_valid_flows_message_request():
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
-
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        with mock.patch(
-                "kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
-                autospec=True,
-        ) as whatsapp_msg_handler:
-            request_json = {
-                "object": "whatsapp_business_account",
-                "entry": [
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_flows_message_request(mock_validate, mock_actor):
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "147142368486217",
+                "changes": [
                     {
-                        "id": "147142368486217",
-                        "changes": [
-                            {
-                                "value": {
-                                    "messaging_product": "whatsapp",
-                                    "metadata": {
-                                        "display_phone_number": "918657011111",
-                                        "phone_number_id": "142427035629239",
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "918657011111",
+                                "phone_number_id": "142427035629239",
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "Mahesh"},
+                                    "wa_id": "919515991111",
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "context": {
+                                        "from": "918657011111",
+                                        "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSMjVGRjYwODI3RkMyOEQ0NUM1AA==",
                                     },
-                                    "contacts": [
-                                        {
-                                            "profile": {"name": "Mahesh"},
-                                            "wa_id": "919515991111",
-                                        }
-                                    ],
-                                    "messages": [
-                                        {
-                                            "context": {
-                                                "from": "918657011111",
-                                                "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSMjVGRjYwODI3RkMyOEQ0NUM1AA==",
-                                            },
-                                            "from": "919515991111",
-                                            "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggQTRBQUYyODNBQkMwNEIzRDQ0MUI1ODkyMTE2NTMA",
-                                            "timestamp": "1703257297",
-                                            "type": "interactive",
-                                            "interactive": {
-                                                "type": "nfm_reply",
-                                                "nfm_reply": {
-                                                    "response_json": '{"flow_token":"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.","firstName":"Mahesh ","lastName":"Sattala ","pincode":"523456","district":"Bangalore ","houseNumber":"5-6","dateOfBirth":"1703257240046","source":"SOCIAL_MEDIA","landmark":"HSR Layout ","email":"maheshsattala@gmail.com"}',
-                                                    "body": "Sent",
-                                                    "name": "flow",
-                                                },
-                                            },
-                                        }
-                                    ],
-                                },
-                                "field": "messages",
-                            }
-                        ],
+                                    "from": "919515991111",
+                                    "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggQTRBQUYyODNBQkMwNEIzRDQ0MUI1ODkyMTE2NTMA",
+                                    "timestamp": "1703257297",
+                                    "type": "interactive",
+                                    "interactive": {
+                                        "type": "nfm_reply",
+                                        "nfm_reply": {
+                                            "response_json": '{"flow_token":"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.","firstName":"Mahesh ","lastName":"Sattala ","pincode":"523456","district":"Bangalore ","houseNumber":"5-6","dateOfBirth":"1703257240046","source":"SOCIAL_MEDIA","landmark":"HSR Layout ","email":"maheshsattala@gmail.com"}',
+                                            "body": "Sent",
+                                            "name": "flow",
+                                        },
+                                    },
+                                }
+                            ],
+                        },
+                        "field": "messages",
                     }
                 ],
             }
-            response = client.post(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                json=request_json,
-            )
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
     actual = response.json()
     assert actual == "success"
-    assert len(whatsapp_msg_handler.call_args[0]) == 5
-    assert (
-            whatsapp_msg_handler.call_args[0][1]
-            == '/k_interactive_msg{"flow_reply": {"flow_token": "AQBBBBBCS5FpgQ_cAAAAAD0QI3s.", "firstName": "Mahesh ", "lastName": "Sattala ", "pincode": "523456", "district": "Bangalore ", "houseNumber": "5-6", "dateOfBirth": "1703257240046", "source": "SOCIAL_MEDIA", "landmark": "HSR Layout ", "email": "maheshsattala@gmail.com", "type": "nfm_reply"}}'
-    )
-    assert whatsapp_msg_handler.call_args[0][2] == "919515991111"
-    metadata = whatsapp_msg_handler.call_args[0][3]
-    metadata.pop("timestamp")
-    assert metadata == {
-        "context": {
-            "from": "918657011111",
-            "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSMjVGRjYwODI3RkMyOEQ0NUM1AA==",
-        },
-        "from": "919515991111",
-        "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggQTRBQUYyODNBQkMwNEIzRDQ0MUI1ODkyMTE2NTMA",
-        "type": "interactive",
-        "interactive": {
-            "type": "nfm_reply",
-            "nfm_reply": {
-                "response_json": '{"flow_token":"AQBBBBBCS5FpgQ_cAAAAAD0QI3s.","firstName":"Mahesh ","lastName":"Sattala ","pincode":"523456","district":"Bangalore ","houseNumber":"5-6","dateOfBirth":"1703257240046","source":"SOCIAL_MEDIA","landmark":"HSR Layout ","email":"maheshsattala@gmail.com"}',
-                "body": "Sent",
-                "name": "flow",
-            },
-        },
-        "is_integration_user": True,
-        "bot": bot,
-        "account": 1,
-        "channel_type": "whatsapp",
-        "bsp_type": "meta",
-        "tabname": "default",
-        "display_phone_number": "918657011111",
-        "phone_number_id": "142427035629239",
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
+
+
+@responses.activate
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_location_message_request(mock_validate, mock_actor):
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "102290129340398",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "15550783881",
+                                "phone_number_id": "106540352242922"
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {
+                                        "name": "Pablo Morales"
+                                    },
+                                    "wa_id": "16505551234"
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "context": {
+                                        "from": "15550783881",
+                                        "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgARGBI1QjJGRjI1RDY0RkE4Nzg4QzcA"
+                                    },
+                                    "from": "16505551234",
+                                    "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgASGBQzQTRCRDcwNzgzMTRDNTAwRTgwRQA=",
+                                    "timestamp": "1702920965",
+                                    "location": {
+                                        "address": "1071 5th Ave, New York, NY 10128",
+                                        "latitude": 40.782910059774,
+                                        "longitude": -73.959075808525,
+                                        "name": "Solomon R. Guggenheim Museum"
+                                    },
+                                    "type": "location"
+                                }
+                            ]
+                        },
+                        "field": "messages"
+                    }
+                ]
+            }
+        ]
     }
-    assert whatsapp_msg_handler.call_args[0][4] == bot
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+    actual = response.json()
+    assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
+
+
+@responses.activate
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_invalid_message_request(mock_validate, mock_actor):
+    responses.add("POST", "https://graph.facebook.com/v19.0/12345678/messages", json={})
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload = {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "102290129340398",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "15550783881",
+                                "phone_number_id": "106540352242922"
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {
+                                        "name": "Pablo Morales"
+                                    },
+                                    "wa_id": "16505551234"
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "context": {
+                                        "from": "15550783881",
+                                        "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgARGBI1QjJGRjI1RDY0RkE4Nzg4QzcA"
+                                    },
+                                    "from": "16505551234",
+                                    "id": "wamid.HBgLMTY0NjcwNDM1OTUVAgASGBQzQTRCRDcwNzgzMTRDNTAwRTgwRQA=",
+                                    "timestamp": "1702920965",
+                                    "location": {
+                                        "address": "1071 5th Ave, New York, NY 10128",
+                                        "latitude": 40.782910059774,
+                                        "longitude": -73.959075808525,
+                                        "name": "Solomon R. Guggenheim Museum"
+                                    },
+                                    "type": "invalid"
+                                }
+                            ]
+                        },
+                        "field": "messages"
+                    }
+                ]
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+    actual = response.json()
+    assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate
