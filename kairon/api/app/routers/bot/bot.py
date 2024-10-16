@@ -598,7 +598,6 @@ def upload_files(
     """
     Uploads training data nlu.yml, domain.yml, stories.yml, config.yml, rules.yml and actions.yml files.
     """
-    print(training_files)
     event = TrainingDataImporterEvent(
         current_user.get_bot(), current_user.get_user(), import_data=import_data, overwrite=overwrite
     )

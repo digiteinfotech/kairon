@@ -1088,6 +1088,19 @@ class UserQuestionModel(BaseModel):
     value: str = None
 
 
+class PromptActionConfigUploadValidation(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    num_bot_responses: int = 5
+    failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
+    user_question: UserQuestionModel = UserQuestionModel()
+    llm_type: str
+    hyperparameters: dict
+    llm_prompts: List[LlmPromptRequest]
+    instructions: List[str] = []
+    set_slots: List[SetSlotsUsingActionResponse] = []
+    dispatch_response: bool = True
+
+
 class PromptActionConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     num_bot_responses: int = 5

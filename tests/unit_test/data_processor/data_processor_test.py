@@ -1999,13 +1999,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         action = "test_add_pyscript_action_empty_name"
-        script = """
-        data = [1, 2, 3, 4, 5]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
+        script = "bot_response='hello world'"
         processor = MongoProcessor()
         pyscript_config = PyscriptActionRequest(
             name=action,
@@ -2021,13 +2015,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         action = "test_add_pyscript_action_empty_source_code"
-        script = """
-        data = [1, 2, 3, 4, 5]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
+        script = "bot_response='hello world'"
         processor = MongoProcessor()
         pyscript_config = PyscriptActionRequest(
             name=action,
@@ -2043,13 +2031,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         action = "test_add_pyscript_action_empty_name"
-        script = """
-        data = [1, 2, 3, 4, 5]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
+        script = "bot_response='hello world'"
         processor = MongoProcessor()
         pyscript_config = PyscriptActionRequest(
             name=action,
@@ -2065,13 +2047,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         action = "test_add_pyscript_action"
-        script = """
-        data = [1, 2, 3, 4, 5]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
+        script = "bot_response='hello world'"
         processor = MongoProcessor()
         pyscript_config = PyscriptActionRequest(
             name=action,
@@ -2090,13 +2066,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         action = "test_add_pyscript_action"
-        script = """
-        data = [1, 2, 3, 4, 5]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
+        script = "bot_response='hello world'"
         processor = MongoProcessor()
         pyscript_config = PyscriptActionRequest(
             name=action,
@@ -2110,13 +2080,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         action = "TEST_ADD_PYSCRIPT_ACTION_CASE_INSENSITIVITY"
-        script = """
-        data = [1, 2, 3, 4, 5]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
+        script = "bot_response='hello world'"
         processor = MongoProcessor()
         pyscript_config = PyscriptActionRequest(
             name=action,
@@ -2136,13 +2100,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         action = "test_update_pyscript_action"
-        script = """
-        data = [1, 2, 3, 4, 5, 6, 7]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
+        script = "bot_response='hello world'"
         processor = MongoProcessor()
         pyscript_config = PyscriptActionRequest(
             name=action,
@@ -2156,13 +2114,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         action = "test_add_pyscript_action"
-        script = """
-        data = [1, 2, 3, 4, 5, 6, 7]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
+        script = "bot_response='hello world'"
         processor = MongoProcessor()
         pyscript_config = PyscriptActionRequest(
             name=action,
@@ -2179,20 +2131,8 @@ class TestMongoProcessor:
     def test_list_pyscript_actions(self):
         bot = 'test_bot'
         user = 'test_user'
-        script1 = """
-        data = [1, 2, 3, 4, 5, 6, 7]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
-        script2 = """
-        data = [1, 2, 3, 4, 5]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
+        script1 = "bot_response='hello world'"
+        script2 = "bot_response='hello world'"
         processor = MongoProcessor()
         actions = list(processor.list_pyscript_actions(bot, True))
         assert len(actions) == 2
@@ -6637,7 +6577,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', [pytest.zip], True)
-        assert 'Required http action' in non_event_validation_summary['summary']['http_actions'][0]
+        print(non_event_validation_summary)
+        assert 'No name found for  [http_action]' in non_event_validation_summary['summary']['http_action'][0]
         assert files_received == {'actions', 'config'}
         assert not is_event_data
 
@@ -6655,21 +6596,23 @@ class TestMongoProcessor:
                         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
                             'test_validate_and_prepare_data_all_actions', 'test', [actions], True)
                         assert non_event_validation_summary['summary'] == {
-                            'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [],
-                            'email_actions': [],
-                            'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': [],
-                            'pipedrive_leads_actions': [], 'prompt_actions': [], 'razorpay_actions': [],
-                            'pyscript_actions': []
+                            'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
+                            'email_action': [],
+                            'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
+                            'pipedrive_leads_action': [], 'prompt_action': [], 'razorpay_action': [],
+                            'pyscript_action': [], 'database_action': [], 'callback_action': [], 'callbackconfig': [],
+                            'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': []
                         }
-                        assert non_event_validation_summary['component_count']['http_actions'] == 4
-                        assert non_event_validation_summary['component_count']['jira_actions'] == 2
-                        assert non_event_validation_summary['component_count']['google_search_actions'] == 2
-                        assert non_event_validation_summary['component_count']['zendesk_actions'] == 2
-                        assert non_event_validation_summary['component_count']['email_actions'] == 2
-                        assert non_event_validation_summary['component_count']['slot_set_actions'] == 3
-                        assert non_event_validation_summary['component_count']['form_validation_actions'] == 4
-                        assert non_event_validation_summary['component_count']['pipedrive_leads_actions'] == 2
-                        assert non_event_validation_summary['component_count']['prompt_actions'] == 2
+                        print(non_event_validation_summary)
+                        assert non_event_validation_summary['component_count']['http_action'] == 4
+                        assert non_event_validation_summary['component_count']['jira_action'] == 2
+                        assert non_event_validation_summary['component_count']['google_search_action'] == 2
+                        assert non_event_validation_summary['component_count']['zendesk_action'] == 2
+                        assert non_event_validation_summary['component_count']['email_action'] == 2
+                        assert non_event_validation_summary['component_count']['slot_set_action'] == 3
+                        assert non_event_validation_summary['component_count']['form_validation_action'] == 4
+                        assert non_event_validation_summary['component_count']['pipedrive_leads_action'] == 2
+                        assert non_event_validation_summary['component_count']['prompt_action'] == 2
                         assert non_event_validation_summary['validation_failed'] is False
                         assert files_received == {'actions'}
                         assert not is_event_data
@@ -15103,13 +15046,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         action = "test_list_all_action_pyscript_action"
-        script = """
-                data = [1, 2, 3, 4, 5, 6]
-                total = 0
-                for i in data:
-                    total += i
-                print(total)
-                """
+        script = "bot_response='hello world'"
         processor = MongoProcessor()
         pyscript_config = PyscriptActionRequest(
             name=action,

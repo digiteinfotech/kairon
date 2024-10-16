@@ -1039,10 +1039,12 @@ class TrainingDataValidator(Validator):
         @param raise_exception: Set this flag to false to prevent raising exceptions.
         @return:
         """
-        is_data_invalid, summary, component_count = ActionSerializer.validate(bot, self.actions, self.other_collections)
+        is_data_valid, summary, component_count = ActionSerializer.validate(bot, self.actions, self.other_collections)
         self.component_count.update(component_count)
         self.summary.update(summary)
-        if not is_data_invalid and raise_exception:
+        print(self.actions)
+        print(is_data_valid, self.summary)
+        if not is_data_valid and raise_exception:
             raise AppException("Invalid actions.yml. Check logs!")
 
     @staticmethod

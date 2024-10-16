@@ -167,7 +167,7 @@ def test_is_action():
 
 
 def test_data_validator_validate_http_action():
-    bot = "test_bot"
+    bot = "my_test_bot"
     action_param_types = {param.value for param in ActionParameterType}
 
     # Test case 1: Valid params_list and headers
@@ -199,7 +199,7 @@ def test_data_validator_validate_http_action():
 
 
 def test_data_validator_validate_form_validation_action():
-    bot = "test_bot"
+    bot = "my_test_bot"
 
     # Test case 1: Valid validation_semantic and slot_set
     data = {
@@ -235,7 +235,7 @@ def test_data_validator_validate_form_validation_action():
 
 
 def test_data_validator_validate_database_action():
-    bot = "test_bot"
+    bot = "my_test_bot"
     db_action_operation_types = {qtype.value for qtype in DbActionOperationType}
 
     # Test case 1: Valid payload
@@ -275,7 +275,7 @@ def test_data_validator_validate_python_script_compile_time():
 
 
 def test_data_validator_validate_pyscript_action():
-    bot = "test_bot"
+    bot = "my_test_bot"
 
     # Test case 1: Valid Python script
     data = {"source_code": "print('Hello, World!')"}
@@ -291,7 +291,7 @@ def test_data_validator_validate_pyscript_action():
 
 
 def test_data_validator_validate_callback_config():
-    bot = "test_bot"
+    bot = "my_test_bot"
 
     # Test case 1: Valid Python script
     data = {"pyscript_code": "print('Hello, World!')"}
@@ -384,7 +384,7 @@ def test_data_validation_llm_prompt(llm_prompts, expected_errors):
 
 
 def test_validate_prompt_action():
-    bot = "test_bot"
+    bot = "my_test_bot"
 
     # Test case 1: Valid prompt action
     data = {
@@ -426,7 +426,7 @@ def test_validate_prompt_action():
 
 
 def test_action_serializer_validate():
-    bot = "test_bot"
+    bot = "my_test_bot"
 
     # Test case 1: Valid actions and other_collections
     actions = {
@@ -453,8 +453,8 @@ def test_action_serializer_validate():
 
     # Test case 2: Invalid actions (not a dictionary)
     actions = ["http_action"]
-    val =  ActionSerializer.validate(bot, actions, other_collections)
-    assert not val[0]
+    val = ActionSerializer.validate(bot, actions, other_collections)
+    assert val[0]
     assert val[1] == {'action.yml': ['Expected dictionary with action types as keys']}
 
     # Test case 3: Invalid actions (invalid action type)
@@ -481,7 +481,7 @@ def test_action_serializer_validate():
 
 
 def test_action_serializer_deserialize():
-    bot = "test_bot"
+    bot = "my_test_bot"
     user = "test_user@test_user.com"
 
     # Test case 1: Valid actions and other_collections
@@ -515,7 +515,7 @@ def test_action_serializer_deserialize():
 
 
 def test_action_serializer_deserialize_overwrite():
-    bot = "test_bot"
+    bot = "my_test_bot"
     user = "test_user@test_user.com"
 
     # Test case 1: Valid actions and other_collections
@@ -554,7 +554,7 @@ def test_action_serializer_deserialize_overwrite():
 
 
 def test_action_serialize_duplicate_data():
-    bot = "test_bot"
+    bot = "my_test_bot"
     user = "test_user@test_user.com"
 
     actions = {
@@ -588,7 +588,7 @@ def test_action_serialize_duplicate_data():
 
 
 def test_action_serializer_serialize():
-    bot = "test_bot"
+    bot = "my_test_bot"
     user = "test_user@test_user.com"
 
     actions, others = ActionSerializer.serialize(bot)

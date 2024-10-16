@@ -162,6 +162,7 @@ from .data_objects import (
     Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
 )
 from .action_serializer import ActionSerializer
+from .data_validation import DataValidation
 from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
@@ -4013,6 +4014,8 @@ class MongoProcessor:
         Utility.is_valid_action_name(
             pyscript_config.get("name"), bot, PyscriptActionConfig
         )
+        if compile_error := DataValidation.validate_python_script_compile_time(pyscript_config["source_code"]):
+            raise AppException(f"source code syntax error: {compile_error}")
         action_id = (
             PyscriptActionConfig(
                 name=pyscript_config["name"],
@@ -4052,9 +4055,12 @@ class MongoProcessor:
             raise AppException(
                 f'Action with name "{request_data.get("name")}" not found'
             )
+        if compile_error := DataValidation.validate_python_script_compile_time(request_data["source_code"]):
+            raise AppException(f"source code syntax error: {compile_error}")
         action = PyscriptActionConfig.objects(
             name=request_data.get("name"), bot=bot, status=True
         ).get()
+
         action.source_code = request_data["source_code"]
         action.dispatch_response = request_data["dispatch_response"]
         action.user = user
@@ -5068,10 +5074,11 @@ class MongoProcessor:
         if os.path.exists(actions_path):
             actions = Utility.read_yaml(actions_path)
             (
-                validation_failed,
+                is_successful,
                 error_summary,
                 actions_count,
             ) = ActionSerializer.validate(bot, actions, {})
+            validation_failed = not is_successful
             component_count.update(actions_count)
         if os.path.exists(config_path):
             config = Utility.read_yaml(config_path)
@@ -7992,6 +7999,8 @@ class MongoProcessor:
         standalone_id_path = request_data.get("standalone_id_path")
         if standalone and not standalone_id_path:
             raise AppException("Standalone id path is required!")
+        if compile_error := DataValidation.validate_python_script_compile_time(pyscript_code):
+            raise AppException(f"source code syntax error: {compile_error}")
         config = CallbackConfig.create_entry(bot,
                                              name,
                                              pyscript_code,
@@ -8012,6 +8021,9 @@ class MongoProcessor:
         """
         name = request_data.get("name")
         request_data.pop('name')
+        if pyscript_code := request_data.get('pyscript_code'):
+            if compile_error := DataValidation.validate_python_script_compile_time(pyscript_code):
+                raise AppException(f"source code syntax error: {compile_error}")
         config = CallbackConfig.edit(bot, name, **request_data)
         config.pop('_id')
         return config

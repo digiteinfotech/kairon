@@ -13,9 +13,9 @@ from kairon.shared.actions.models import ActionType
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.data.data_models import HttpActionConfigRequest, TwoStageFallbackConfigRequest, EmailActionRequest, \
     JiraActionRequest, ZendeskActionRequest, SlotSetActionRequest, GoogleSearchActionRequest, PipedriveActionRequest, \
-    PromptActionConfigRequest, RazorpayActionRequest, PyscriptActionRequest, DatabaseActionRequest, \
+    RazorpayActionRequest, PyscriptActionRequest, DatabaseActionRequest, \
     LiveAgentActionRequest, CallbackActionConfigRequest, ScheduleActionRequest, WebSearchActionRequest, \
-    CallbackConfigRequest
+    CallbackConfigRequest, PromptActionConfigUploadValidation
 from kairon.shared.data.data_objects import Forms
 from kairon.shared.data.data_validation import DataValidation
 from pydantic import ValidationError as PValidationError
@@ -25,6 +25,7 @@ class ReconfigarableProperty(Enum):
     bot = "bot"
     user = "user"
     status = "status"
+
 
 class ActionSerializer:
     """
@@ -81,7 +82,7 @@ class ActionSerializer:
         },
         ActionType.prompt_action.value: {
             "db_model": PromptAction,
-            "validation_model": PromptActionConfigRequest,
+            "validation_model": PromptActionConfigUploadValidation,
             "custom_validation": [DataValidation.validate_prompt_action],
         },
         ActionType.web_search_action.value: {
@@ -133,6 +134,12 @@ class ActionSerializer:
 
     @staticmethod
     def get_item_name(data: dict, raise_exception: bool = True):
+        """
+        Gets the name of the action
+        :param data: action data
+        :param raise_exception: bool
+        :return: action name
+        """
         action_name = data.get("action_name") or data.get("name")
         if Utility.check_empty_string(action_name):
             if raise_exception:
@@ -142,13 +149,19 @@ class ActionSerializer:
 
     @staticmethod
     def validate(bot: str, actions: dict, other_collections: dict):
-
+        """
+        Validates the action configuration data, first return parameter is true if validation is successful
+        :param bot: bot id
+        :param actions: action configuration data
+        :param other_collections: other collection configuration data
+        :return: is_data_valid: bool, error_summary: dict, component_count: dict
+        """
         is_data_invalid = False
         component_count = dict.fromkeys(ActionSerializer.action_lookup.keys(), 0)
         error_summary = {key: [] for key in ActionSerializer.action_lookup.keys()}
         encountered_action_names = set()
         if not actions:
-            return False, error_summary, component_count
+            return True, error_summary, component_count
         if not isinstance(actions, dict):
             error_summary = {'action.yml':  ['Expected dictionary with action types as keys']}
             return True, error_summary, component_count
@@ -192,6 +205,14 @@ class ActionSerializer:
 
     @staticmethod
     def collection_config_validation(bot: str, action_type: str, actions_list: list[dict], encountered_action_names: set):
+        """
+        Validates the action configuration data for an action type
+        :param bot: bot id
+        :param action_type: action type
+        :param actions_list: list of action configuration data
+        :param encountered_action_names: set of action names encountered
+        :return: error_summary: list
+        """
         action_info = ActionSerializer.action_lookup.get(action_type)
         if not action_info:
             return [f"Action type not found: {action_type}."]
@@ -243,6 +264,10 @@ class ActionSerializer:
 
     @staticmethod
     def get_collection_infos():
+        """
+        Get action and other collection information as seperate dicts
+        :return: actions_collections: dict, other_collections: dict
+        """
         actions_collections = {k: v for k, v in ActionSerializer.action_lookup.items()
                                if not v.get("group") or v.get("group") == "action"}
         other_collections = {k: v for k, v in ActionSerializer.action_lookup.items()
@@ -252,6 +277,11 @@ class ActionSerializer:
 
     @staticmethod
     def serialize(bot: str):
+        """
+        Serialize / export all the actions and configuration collection data
+        :param bot: bot id
+        :return: action_config: dict, other_config: dict
+        """
         action_config = {}
         other_config = {}
 
@@ -272,7 +302,14 @@ class ActionSerializer:
 
     @staticmethod
     def deserialize(bot: str, user: str, actions: Optional[dict] = None, other_collections_data: Optional[dict] = None, overwrite: bool = False):
-
+        """
+        Deserialize / import the actions and configuration collection data
+        :param bot: bot id
+        :param user: user id
+        :param actions: action configuration data
+        :param other_collections_data: other collection configuration data
+        :param overwrite: bool
+        """
         actions_collections, other_collections = ActionSerializer.get_collection_infos()
 
         if overwrite:
@@ -323,6 +360,14 @@ class ActionSerializer:
 
     @staticmethod
     def get_action_config_data_list(bot: str, action_model: Document, with_doc_id: bool = False, query: dict = {}) -> list[dict]:
+        """
+        Get the action configuration data list
+        :param bot: bot id
+        :param action_model: mongoengine model
+        :param with_doc_id: bool
+        :param query: dict
+        :return: list[dict]
+        """
         query['bot'] = bot
         key_to_remove = {"_id", "user", "bot", "status", "timestamp"}
         query_result = action_model.objects(**query).as_pymongo()
@@ -339,6 +384,9 @@ class ActionSerializer:
 
     @staticmethod
     def get_other_collections_data_dict(bot: str, other_collections: dict):
+        """
+        Get the other collection configuration data dict
+        """
         other_collections_data = {}
         for collection_name, collection_info in other_collections.items():
             collection_model = collection_info.get("db_model")
@@ -353,6 +401,9 @@ class ActionSerializer:
 
     @staticmethod
     def save_collection_data_list(action_type: str, bot: str, user: str, configs: list[dict]):
+        """
+        Save the collection data list for action or any collection. Mongoengine model must be available in the lookup
+        """
         if not configs:  # Early exit if no configs are present
             return
 
