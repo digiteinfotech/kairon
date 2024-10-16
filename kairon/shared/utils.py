@@ -404,9 +404,6 @@ class Utility:
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
         files = list(iglob(os.path.join(folder, extension_pattern)))
-        if not files:
-            raise AppException(f"No files found with pattern {extension_pattern} in folder {folder}")
-
         return max(files, key=os.path.getctime)
 
     @staticmethod
