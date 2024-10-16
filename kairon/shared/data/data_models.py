@@ -38,7 +38,6 @@ from kairon.shared.models import (
     CognitionDataType,
     CognitionMetadataType,
 )
-from kairon.shared.utils import Utility
 
 
 class RecaptchaVerifiedRequest(BaseModel):
@@ -951,6 +950,7 @@ class CustomActionDynamicParameterModel(BaseModel):
 
     @root_validator
     def check(cls, values):
+        from kairon.shared.utils import Utility
         if values.get('parameter_type') == ActionParameterType.slot and not values.get('value'):
             raise ValueError("Provide name of the slot as value")
 
@@ -1116,6 +1116,7 @@ class PromptActionConfigRequest(BaseModel):
 
     @validator("llm_type", pre=True, always=True)
     def validate_llm_type(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
         if v not in Utility.get_llms():
             raise ValueError("Invalid llm type")
         return v
@@ -1137,6 +1138,7 @@ class PromptActionConfigRequest(BaseModel):
 
     @validator("hyperparameters")
     def validate_hyperparameters(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
         bot = values.get('bot')
         llm_type = values.get('llm_type')
         if llm_type and v:

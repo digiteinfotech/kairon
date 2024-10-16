@@ -121,7 +121,7 @@ class DataValidation:
                         if not (0.3 <= value <= 1.0) or not (
                                 isinstance(value, float) or isinstance(value, int)):
                             error_list.append(
-                                f"similarity_threshold should be within 0.3 and 1.0 and of type int or float!")
+                                "similarity_threshold should be within 0.3 and 1.0 and of type int or float!")
                     if key == 'top_results' and (value > 30 or not isinstance(value, int)):
                         error_list.append("top_results should not be greater than 30 and of type int!")
 

@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from mongoengine import Document, ValidationError
+from mongoengine import Document
 
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -234,11 +234,11 @@ class ActionSerializer:
                 continue
             if action_name in encountered_action_names:
                 if action_type != ActionType.form_validation_action.value and not action_name.startswith("utter_"):
-                    err_summary.append({action_name: f"Duplicate Name found for other action."})
+                    err_summary.append({action_name: "Duplicate Name found for other action."})
                     continue
             encountered_action_names.add(action_name)
             if not action:
-                err_summary.append(f"Action configuration cannot be empty.")
+                err_summary.append("Action configuration cannot be empty.")
                 continue
             not_present_fields = required_fields.difference(set(action.keys()))
             if len(not_present_fields) > 0:
@@ -310,10 +310,10 @@ class ActionSerializer:
         :param other_collections_data: other collection configuration data
         :param overwrite: bool
         """
-        actions_collections, other_collections = ActionSerializer.get_collection_infos()
+        actions_collections, _ = ActionSerializer.get_collection_infos()
 
         if overwrite:
-            for name, info in ActionSerializer.action_lookup.items():
+            for _, info in ActionSerializer.action_lookup.items():
                 model = info.get("db_model")
                 if model:
                     model.objects(bot=bot).delete()
