@@ -403,8 +403,7 @@ class Utility:
         logger.info(f"Model path: {folder}")
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
-        files = list(iglob(os.path.join(folder, extension_pattern)))
-        return max(files, key=os.path.getctime)
+        return max(iglob(os.path.join(folder, extension_pattern)), key=os.path.getctime)
 
     @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):

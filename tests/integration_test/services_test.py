@@ -7650,7 +7650,7 @@ def test_get_qna(monkeypatch):
     assert actual["data"] == {"qna": data, "total": 0}
 
 
-def test_model_testing_not_trained():
+def test_model_testing_exhosted_daily_limit():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.test_limit_per_day = 0
     bot_settings.save()
@@ -7660,7 +7660,7 @@ def test_model_testing_not_trained():
     )
     actual = response.json()
     assert actual["error_code"] == 422
-    assert actual["message"] == "No model trained yet. Please train a model to test"
+    assert actual["message"] == "Daily limit exceeded."
     assert not actual["success"]
 
 
@@ -7702,7 +7702,7 @@ def test_get_data_importer_logs():
                                                     'utterances_count': 14, 'forms_count': 2, 'entities_count': 8,
                                                     'data': []},
                                          'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
-                                         'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
+                                         'actions': [{'type': 'http_actions', 'count': 14, 'data': []},
                                                      {'type': 'two_stage_fallbacks', 'count': 0, 'data': []},
                                                      {'type': 'email_actions', 'count': 0, 'data': []},
                                                      {'type': 'zendesk_actions', 'count': 0, 'data': []},
