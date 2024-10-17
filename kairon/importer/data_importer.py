@@ -55,4 +55,5 @@ class DataImporter:
                                                           self.validator.multiflow_stories,
                                                           self.validator.bot_content,
                                                           self.validator.chat_client_config.get('config'),
+                                                          self.validator.other_collections,
                                                           self.overwrite, self.files_to_save)

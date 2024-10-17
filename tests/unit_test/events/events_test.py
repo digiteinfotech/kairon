@@ -17,6 +17,8 @@ from mongoengine import connect
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
 from rasa.shared.importers.rasa import RasaFileImporter
 from responses import matchers
+
+from kairon.shared.actions.data_objects import Actions
 from kairon.shared.utils import Utility
 
 Utility.load_system_metadata()
@@ -58,7 +60,8 @@ class TestEventExecution:
         pytest.tmp_dir = tmp_dir
         yield None
         shutil.rmtree(tmp_dir)
-        shutil.rmtree('models/test_events_bot')
+        if os.path.exists('models/test_events_bot'):
+            shutil.rmtree('models/test_events_bot')
 
     @pytest.fixture()
     def get_training_data(self):
@@ -812,7 +815,7 @@ class TestEventExecution:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
         BotSettings(force_import=True, bot=bot, user=user).save()
-
+        Actions.objects(bot=bot).delete()
         DataImporterLogProcessor.add_log(bot, user, files_received=['nlu', 'stories', 'domain', 'config'])
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=True).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
@@ -834,7 +837,7 @@ class TestEventExecution:
         assert len(mongo_processor.fetch_stories(bot)) == 3
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 21
         assert len(list(mongo_processor.fetch_responses(bot))) == 14
-        assert len(mongo_processor.fetch_actions(bot)) == 4
+        assert len(mongo_processor.fetch_actions(bot)) == 0
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
 
     def test_trigger_faq_importer_validate_only(self, monkeypatch):

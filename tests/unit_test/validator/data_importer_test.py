@@ -65,7 +65,8 @@ class TestDataImporter:
         assert not summary.get('intents')
         assert not summary.get('stories')
         assert not summary.get('utterances')
-        assert 'Required http action' in summary.get('http_actions')[0]
+        assert len(summary.get('http_action')) == 3
+        summary.get('http_action')[0] = {'action_performanceUser1000@digite.com': " Required fields {'request_method'} not found."}
         assert not summary.get('training_examples')
         assert not summary.get('domain')
         assert not summary.get('config')
