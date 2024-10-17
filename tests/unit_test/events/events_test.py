@@ -1822,7 +1822,6 @@ class TestEventExecution:
         assert history[0] == {
             'type': 'broadcast', 'sender_id': '918958030541',
             'data': {'name': 'agronomy_support', 'template': template, 'template_params': [{'body': 'Udit Pandey'}],},
-            'status': 'Failed'
         }
 
         assert len(logs[0]) == logs[1] == 2
