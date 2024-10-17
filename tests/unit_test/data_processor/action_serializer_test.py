@@ -122,6 +122,14 @@ valid_callback_config = {
     "bot": bot_id_download
 }
 
+invalid_callback_config_missing_field = {
+    "name": "cb1",
+    "standalone": False,
+    "standalone_id_path": "",
+    "bot": bot_id_download
+}
+
+
 @pytest.fixture(autouse=True, scope='class')
 def setup():
     connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
@@ -379,8 +387,17 @@ def test_data_validator_validate_callback_config():
     ]
 )
 def test_data_validation_llm_prompt(llm_prompts, expected_errors):
-    # Call the function and check the result
     assert DataValidation.validate_llm_prompts(llm_prompts) == expected_errors
+
+
+def test_modify_callback_config():
+    bot = 'test_bot'
+    data = {}
+
+    result = DataValidation.modify_callback_config(bot, data)
+
+    assert 'token_hash' in result
+    assert 'validation_secret' in result
 
 
 def test_validate_prompt_action():
@@ -465,7 +482,15 @@ def test_action_serializer_validate():
     assert not val[0]
     assert val[1]['invalid_action_type'] == ['Invalid action type: invalid_action_type.']
 
-    # Test case 4: Invalid action data
+    # Test case 4: not a list
+    actions = {
+        "http_action": {}
+    }
+    val = ActionSerializer.validate(bot, actions, other_collections)
+    assert not val[0]
+    assert val[1]['http_action'] == ['Expected list of actions for http_action.']
+
+    # Test case 5: Invalid action data
     actions = {
         "http_action": [
             invalid_http_action_config_field_missing
@@ -478,6 +503,58 @@ def test_action_serializer_validate():
     assert not val[0]
     assert val[1]['http_action'] == [{ 'a_api_action_field_missing': " Required fields {'http_url'} not found."}]
     assert val[1]['pyscript_action'] == [{'a_pyscript_action_field_missing': " Required fields {'source_code'} not found."}]
+
+    # Test case 6: unknown other collection type
+    oc2 = {
+        "unknown": [
+            valid_callback_config
+        ]
+    }
+    val = ActionSerializer.validate(bot, actions, oc2)
+    assert not val[0]
+    assert val[1]['unknown'] == ['Invalid collection type: unknown.']
+
+    # Test case 7: other collection entry type not list
+    oc2 = {
+        str(CallbackConfig.__name__).lower(): {
+            'data': valid_callback_config
+        }
+    }
+
+    val = ActionSerializer.validate(bot, actions, oc2)
+    assert not val[0]
+    assert val[1][str(CallbackConfig.__name__).lower()] == ['Expected list of data for callbackconfig.']
+
+    # test case 8: duplicate entries for action
+    actions = {
+        "http_action": [
+            valid_http_action_config,
+            valid_http_action_config
+        ]
+    }
+
+    val = ActionSerializer.validate(bot, actions, other_collections)
+    assert not val[0]
+    assert val[1]['http_action'] == [{'a_api_action': 'Duplicate Name found for other action.'}]
+
+    # test case 9: invalid other collection
+    actions = {
+        "http_action": [
+            valid_http_action_config
+        ],
+        "pyscript_action": [
+            valid_pyscript_action_config
+        ]
+    }
+    other_collections = {
+        str(CallbackConfig.__name__).lower(): [
+            invalid_callback_config_missing_field
+        ]
+    }
+
+    val = ActionSerializer.validate(bot, actions, other_collections)
+    assert not val[0]
+    assert "Required fields" in val[1][str(CallbackConfig.__name__).lower()][0]['cb1']
 
 
 def test_action_serializer_deserialize():
@@ -599,3 +676,13 @@ def test_action_serializer_serialize():
     assert len(actions['pyscript_action']) == 1
 
     assert len(others[str(CallbackConfig.__name__).lower()]) == 1
+
+
+def test_action_save_collection_data_list_unknown_data():
+    bot = "my_test_bot"
+    user = "test_user@test_user.com"
+
+    with pytest.raises(AppException, match="Action type not found"):
+        ActionSerializer.save_collection_data_list('unknown1', bot, user,  [{'data1': 'value1'}])
+
+

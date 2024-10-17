@@ -1162,6 +1162,15 @@ class TestMongoProcessor:
         assert list_data[0].get('_id')
         assert len(list_data[0]['_id']) == 24
 
+    def test_enable_live_agent_service_not_available(self):
+        bot = "test_bot"
+        user = "test_user"
+        request_data = {"key": "value"}
+        processor = MongoProcessor() 
+        with patch.object(processor, 'is_live_agent_enabled', return_value=False):
+            with pytest.raises(AppException, match="Live agent service is not available for the bot"):
+                processor.enable_live_agent(request_data, bot, user)
+
     def test_disable_live_agent(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -1185,6 +1194,53 @@ class TestMongoProcessor:
         }
         with pytest.raises(AppException, match=f'Live agent not enabled for the bot'):
             result = processor.edit_live_agent(request_data=request_data, bot=bot, user=user)
+
+
+    def test_get_callback_service_log_with_conditions(self):
+        bot = "test_bot"
+        service = MongoProcessor()
+
+        with patch('kairon.shared.callback.data_objects.CallbackLog.get_logs', return_value=(["log1", "log2"], 2)) as mock_get_logs:
+            name = "test_callback"
+            sender_id = "test_sender"
+            channel = "test_channel"
+            identifier = "test_identifier"
+            start = 0
+            limit = 100
+
+            logs, total_count = service.get_callback_service_log(
+                bot=bot,
+                name=name,
+                sender_id=sender_id,
+                channel=channel,
+                identifier=identifier,
+                start=start,
+                limit=limit
+            )
+
+            expected_query = {
+                "bot": bot,
+                "callback_name": name,
+                "sender_id": sender_id,
+                "channel": channel,
+                "identifier": identifier
+            }
+            mock_get_logs.assert_called_once_with(expected_query, start, limit)
+            assert logs == ["log1", "log2"]
+            assert total_count == 2
+
+    def test_get_callback_service_log_without_conditions(self):
+        bot = "test_bot"
+        service = MongoProcessor()
+
+        with patch('kairon.shared.callback.data_objects.CallbackLog.get_logs', return_value=(["log1", "log2"], 2)) as mock_get_logs:
+
+            logs, total_count = service.get_callback_service_log(bot=bot)
+
+            expected_query = {"bot": bot}
+            mock_get_logs.assert_called_once_with(expected_query, 0, 100)
+            assert logs == ["log1", "log2"]
+            assert total_count == 2
 
     def test_auditlog_event_config_does_not_exist(self):
         result = MongoProcessor.get_auditlog_event_config("nobot")

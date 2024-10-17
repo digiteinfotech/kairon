@@ -5,6 +5,8 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType
 import ast
 
+from kairon.shared.callback.data_objects import encrypt_secret
+
 
 class DataValidation:
     @staticmethod
@@ -178,4 +180,5 @@ class DataValidation:
     @staticmethod
     def modify_callback_config(bot: str, data: dict) -> dict:
         data['token_hash'] = uuid7().hex
+        data['validation_secret'] = encrypt_secret(uuid7().hex)
         return data

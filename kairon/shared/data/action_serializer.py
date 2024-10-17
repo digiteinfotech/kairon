@@ -382,16 +382,6 @@ class ActionSerializer:
             ]
         return actions
 
-    @staticmethod
-    def get_other_collections_data_dict(bot: str, other_collections: dict):
-        """
-        Get the other collection configuration data dict
-        """
-        other_collections_data = {}
-        for collection_name, collection_info in other_collections.items():
-            collection_model = collection_info.get("db_model")
-            other_collections_data[collection_name] = ActionSerializer.get_action_config_data_list(bot, collection_model)
-        return other_collections
 
     @staticmethod
     def is_action(action_type: str):

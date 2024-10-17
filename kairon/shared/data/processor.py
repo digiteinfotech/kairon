@@ -6392,17 +6392,6 @@ class MongoProcessor:
         except Exception as e:
             raise AppException(e)
 
-    def delete_single_slot_mapping(self, slot_mapping_id: str, user: str = None):
-        """
-        Delete slot mapping.
-
-        :param slot_mapping_id: document id of the mapping
-        """
-        try:
-            slot_mapping = SlotMapping.objects(id=slot_mapping_id, status=True).get()
-            Utility.delete_documents(slot_mapping, user)
-        except Exception as e:
-            raise AppException(e)
 
     def __prepare_slot_mappings(self, bot: Text):
         """
@@ -8393,8 +8382,8 @@ class MongoProcessor:
         schemas = list(cognition_processor.list_cognition_schema(bot))
         table_metadata = next((schema['metadata'] for schema in schemas if schema['collection_name'] == table_name.lower()),
                               None)
-        if table_metadata is None:
-            print(f"Schema for table '{table_name}' not found.")
+        if not table_metadata:
+            logger.info(f"Schema for table '{table_name}' not found.")
 
         column_datatype_dict = {column['column_name']: column['data_type'] for column in table_metadata}
 
