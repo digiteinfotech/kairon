@@ -376,26 +376,18 @@ class TestExecutorProcessor:
         assert logs[0]['from_executor'] is True
         assert logs[0]['bot'] == "66cd84e4f206edf5b776d6d8"
 
-    def test_get_row_count(self):
+    @pytest.mark.parametrize("event_class, task_type, expected_count", [
+        (None, None, 6),
+        ("pyscript_evaluator", None, 2),
+        ("pyscript_evaluator", "Callback", 1),
+        (None, "Event", 2),
+        ("model_testing", "Event", 1),
+        (None, "Action", 3),
+        ("web_search", "Action", 1),
+    ])
+    def test_get_row_count(self, event_class, task_type, expected_count):
         processor = ExecutorProcessor()
-        count = processor.get_row_count("66cd84e4f206edf5b776d6d8")
-        assert count == 6
-
-        count = processor.get_row_count("66cd84e4f206edf5b776d6d8", event_class="pyscript_evaluator")
-        assert count == 2
-
-        count = processor.get_row_count("66cd84e4f206edf5b776d6d8", event_class="pyscript_evaluator",
-                                        task_type="Callback")
-        assert count == 1
-
-        count = processor.get_row_count("66cd84e4f206edf5b776d6d8", task_type="Event")
-        assert count == 2
-
-        count = processor.get_row_count("66cd84e4f206edf5b776d6d8", event_class="model_testing",
-                                        task_type="Event")
-        assert count == 1
-
-        count = processor.get_row_count("66cd84e4f206edf5b776d6d8", task_type="Action")
-        assert count == 3
+        count = processor.get_row_count("66cd84e4f206edf5b776d6d8", event_class=event_class, task_type=task_type)
+        assert count == expected_count
 
 
