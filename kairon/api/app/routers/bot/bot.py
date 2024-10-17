@@ -38,6 +38,7 @@ from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.events.processor import ExecutorProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
@@ -1698,6 +1699,27 @@ async def get_llm_logs(
     """
     logs = list(LLMProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
     row_cnt = LLMProcessor.get_row_count(current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
+
+
+@router.get("/executor/logs", response_model=Response)
+async def get_executor_logs(
+        start_idx: int = 0, page_size: int = 10,
+        event_class: str = None, task_type: str = None,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Get executor logs data based on filters provided.
+    """
+    logs = list(ExecutorProcessor.get_executor_logs(current_user.get_bot(), start_idx, page_size,
+                                                    event_class=event_class, task_type=task_type))
+    row_cnt = ExecutorProcessor.get_row_count(current_user.get_bot(),
+                                              event_class=event_class,
+                                              task_type=task_type)
     data = {
         "logs": logs,
         "total": row_cnt
