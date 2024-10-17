@@ -1042,8 +1042,6 @@ class TrainingDataValidator(Validator):
         is_data_valid, summary, component_count = ActionSerializer.validate(bot, self.actions, self.other_collections)
         self.component_count.update(component_count)
         self.summary.update(summary)
-        print(self.actions)
-        print(is_data_valid, self.summary)
         if not is_data_valid and raise_exception:
             raise AppException("Invalid actions.yml. Check logs!")
 
