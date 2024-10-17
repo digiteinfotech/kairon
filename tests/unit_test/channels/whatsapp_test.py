@@ -996,7 +996,7 @@ class TestWhatsappHandler:
                                         ],
                                         "statuses": [
                                             {
-                                                "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ",
+                                                "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDI",
                                                 "status": "failed",
                                                 "timestamp": "1689380458",
                                                 "recipient_id": "15551234567",
@@ -1028,7 +1028,7 @@ class TestWhatsappHandler:
                                                   bot)
 
                 assert ChannelLogs.objects(
-                    bot=bot, message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ"
+                    bot=bot, message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDI"
                 )
                 log = ChannelLogs.objects(bot=bot, user="919876543219").get().to_mongo().to_dict()
                 assert log.get("status") == "failed"
@@ -1129,7 +1129,140 @@ class TestWhatsappHandler:
                 assert log["status"] == "delivered"
                 assert log["recipient"] == "91551234567"
 
+    @pytest.mark.asyncio
+    async def test_whatsapp_bsp_valid_text_message_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
 
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "910123456789",
+                                            "phone_number_id": "12345678",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "udit"},
+                                                "wa_id": "wa-123456789",
+                                            }
+                                        ],
+                                        "messages": [
+                                            {
+                                                "from": "910123456789",
+                                                "id": "wappmsg.ID",
+                                                "timestamp": "21-09-2022 12:05:00",
+                                                "text": {"body": "hello"},
+                                                "type": "text",
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+
+                args, kwargs = mock_message.call_args
+
+                assert args[0] == bot
+                user_message = args[1]
+
+                assert user_message.text == 'hello'
+
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_bsp_valid_button_message_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "910123456789",
+                                            "phone_number_id": "12345678",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "udit"},
+                                                "wa_id": "wa-123456789",
+                                            }
+                                        ],
+                                        "messages": [
+                                            {
+                                                "from": "910123456789",
+                                                "id": "wappmsg.ID",
+                                                "timestamp": "21-09-2022 12:05:00",
+                                                "button": {
+                                                    "text": "buy now",
+                                                    "payload": "buy kairon for 1 billion",
+                                                },
+                                                "type": "button",
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+
+                args, kwargs = mock_message.call_args
+
+                assert args[0] == bot
+                user_message = args[1]
+                assert user_message.text == '/k_quick_reply_msg{"quick_reply": "buy kairon for 1 billion"}'
 
 
 
