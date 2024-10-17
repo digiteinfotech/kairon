@@ -8312,7 +8312,7 @@ def test_process_web_search_action():
 
     def _perform_web_search(*args, **kwargs):
         assert args == ('What is data?',)
-        assert kwargs == {'topn': 1, 'website': 'https://www.w3schools.com/'}
+        assert kwargs == {'topn': 1, 'website': 'https://www.w3schools.com/', 'bot': bot}
         return [{
             'title': 'Data Science Introduction - W3Schools',
             'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
@@ -8437,7 +8437,7 @@ def test_process_web_search_action_with_search_engine_url():
         status=200,
         match=[
             responses.matchers.json_params_matcher({
-                "text": 'What is data science?', "site": '', "topn": 1
+                "text": 'What is data science?', "site": '', "topn": 1, 'bot': bot
             })],
     )
 
@@ -8545,7 +8545,7 @@ def test_process_web_search_action_with_kairon_user_msg_entity():
 
     def _perform_web_search(*args, **kwargs):
         assert args == ('my public search text',)
-        assert kwargs == {'topn': 2, 'website': None}
+        assert kwargs == {'topn': 2, 'website': None, 'bot': bot}
         return [
             {'title': 'What is Data Science? | IBM',
              'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
@@ -8665,7 +8665,7 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
 
     def _perform_web_search(*args, **kwargs):
         assert args == ('/action_public_search',)
-        assert kwargs == {'topn': 2, 'website': None}
+        assert kwargs == {'topn': 2, 'website': None, 'bot': bot}
         return [
             {'title': 'What is Data Science? | IBM',
              'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
@@ -8785,7 +8785,7 @@ def test_process_web_search_action_dispatch_false():
 
     def _perform_web_search(*args, **kwargs):
         assert args == ('What is Python?',)
-        assert kwargs == {'topn': 1, 'website': None}
+        assert kwargs == {'topn': 1, 'website': None, 'bot': bot}
         return [
             {'title': 'Python.org - What is Python? Executive Summary',
              'text': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.',

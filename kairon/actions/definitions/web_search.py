@@ -64,7 +64,8 @@ class ActionWebSearch(ActionsBase):
             if not ActionUtility.is_empty(latest_msg):
                 results = ActionUtility.perform_web_search(latest_msg,
                                                            topn=action_config.get("topn"),
-                                                           website=action_config.get("website"))
+                                                           website=action_config.get("website"),
+                                                           bot=self.bot)
                 if results:
                     bot_response = ActionUtility.format_search_result(results)
                     if not ActionUtility.is_empty(action_config.get('set_slot')):

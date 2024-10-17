@@ -1,3 +1,5 @@
+from typing import Any
+
 import ujson as json
 import os
 import time
@@ -57,7 +59,7 @@ class CloudUtility:
             s3.delete_object(Bucket=bucket, Key=file)
 
     @staticmethod
-    def trigger_lambda(event_class: EventClass, env_data: dict, task_type: TASK_TYPE = TASK_TYPE.ACTION.value,
+    def trigger_lambda(event_class: EventClass, env_data: Any, task_type: TASK_TYPE = TASK_TYPE.ACTION.value,
                        from_executor: bool = False):
         """
         Triggers lambda based on the event class.
@@ -103,6 +105,9 @@ class CloudUtility:
         from kairon.shared.events.data_objects import ExecutorLogs
 
         executor_log_id = kwargs.get("executor_log_id") if kwargs.get("executor_log_id") else ObjectId().__str__()
+        bot_id = CloudUtility.get_bot_id_from_env_data(event_class, data,
+                                                       from_executor=kwargs.get("from_executor", False),
+                                                       task_type=task_type)
 
         try:
             log = ExecutorLogs.objects(executor_log_id=executor_log_id, task_type=task_type, event_class=event_class,
@@ -116,8 +121,46 @@ class CloudUtility:
         for key, value in kwargs.items():
             if not getattr(log, key, None) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
+        log.bot = bot_id
         log.save()
         return executor_log_id
+
+    @staticmethod
+    def get_bot_id_from_env_data(event_class: EventClass, data: Any, **kwargs):
+        bot = None
+        from_executor = kwargs.get("from_executor")
+
+        if isinstance(data, dict) and 'bot' in data:
+            bot = data['bot']
+
+        elif event_class == EventClass.web_search:
+            bot = data.get('bot')
+
+        elif event_class == EventClass.pyscript_evaluator:
+            predefined_objects = data.get('predefined_objects', {})
+
+            if 'slot' in predefined_objects and 'bot' in predefined_objects['slot']:
+                bot = predefined_objects['slot']['bot']
+
+            task_type = kwargs.get("task_type")
+            if task_type == "Callback" and 'bot' in predefined_objects:
+                bot = predefined_objects['bot']
+
+        elif event_class == EventClass.scheduler_evaluator and isinstance(data, list):
+            for item in data:
+                if item.get('name') == 'PREDEFINED_OBJECTS':
+                    predefined_objects = item.get('value', {})
+                    if 'bot' in predefined_objects:
+                        bot = predefined_objects['bot']
+                        break
+
+        elif from_executor and isinstance(data, list):
+            for item in data:
+                if item.get('name') == 'BOT':
+                    bot = item.get('value')
+                    break
+
+        return bot
 
     @staticmethod
     def lambda_execution_failed(response):
