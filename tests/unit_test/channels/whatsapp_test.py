@@ -2,6 +2,7 @@ from mock import patch
 import pytest
 import os
 
+from kairon.shared.chat.data_objects import ChannelLogs
 from kairon.shared.utils import Utility
 from mongoengine import connect
 
@@ -691,3 +692,577 @@ class TestWhatsappHandler:
                 }
                 assert log["status"] == "captured"
                 assert log["recipient"] == "919515991234"
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_valid_statuses_with_sent_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "108103872212677",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "919876543210",
+                                            "phone_number_id": "108578266683441",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "Hitesh"},
+                                                "wa_id": "919876543210",
+                                            }
+                                        ],
+                                        "statuses": [
+                                            {
+                                                "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIA",
+                                                "recipient_id": "91551234567",
+                                                "status": "sent",
+                                                "timestamp": "1691548112",
+                                                "conversation": {
+                                                    "id": "CONVERSATION_ID",
+                                                    "expiration_timestamp": "1691598412",
+                                                    "origin": {"type": "business_initated"},
+                                                },
+                                                "pricing": {
+                                                    "pricing_model": "CBP",
+                                                    "billable": "True",
+                                                    "category": "business_initated",
+                                                },
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+
+                log = (
+                    ChannelLogs.objects(
+                        bot=bot,
+                        message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIA",
+                    )
+                    .get()
+                    .to_mongo()
+                    .to_dict()
+                )
+                assert log["data"] == {
+                    "id": "CONVERSATION_ID",
+                    "expiration_timestamp": "1691598412",
+                    "origin": {"type": "business_initated"},
+                }
+                assert log["initiator"] == "business_initated"
+                assert log["status"] == "sent"
+                assert log["recipient"] == "91551234567"
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_valid_statuses_with_delivered_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "108103872212677",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "919876543210",
+                                            "phone_number_id": "108578266683441",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "Hitesh"},
+                                                "wa_id": "919876543210",
+                                            }
+                                        ],
+                                        "statuses": [
+                                            {
+                                                "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIB",
+                                                "recipient_id": "91551234567",
+                                                "status": "delivered",
+                                                "timestamp": "1691548112",
+                                                "conversation": {
+                                                    "id": "CONVERSATION_ID",
+                                                    "expiration_timestamp": "1691598412",
+                                                    "origin": {"type": "user_initiated"},
+                                                },
+                                                "pricing": {
+                                                    "pricing_model": "CBP",
+                                                    "billable": "True",
+                                                    "category": "service",
+                                                },
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+
+
+
+                log = (
+                    ChannelLogs.objects(
+                        bot=bot,
+                        message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIB",
+                    )
+                    .get()
+                    .to_mongo()
+                    .to_dict()
+                )
+                assert log["data"] == {
+                    "id": "CONVERSATION_ID",
+                    "expiration_timestamp": "1691598412",
+                    "origin": {"type": "user_initiated"},
+                }
+                assert log["initiator"] == "user_initiated"
+                assert log["status"] == "delivered"
+                assert log["recipient"] == "91551234567"
+
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_valid_statuses_with_read_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "108103872212677",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "919876543210",
+                                            "phone_number_id": "108578266683441",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "Hitesh"},
+                                                "wa_id": "919876543210",
+                                            }
+                                        ],
+                                        "statuses": [
+                                            {
+                                                "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIC",
+                                                "recipient_id": "91551234567",
+                                                "status": "read",
+                                                "timestamp": "1691548112",
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+
+                log = (
+                    ChannelLogs.objects(
+                        bot=bot,
+                        message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIC",
+                    )
+                    .get()
+                    .to_mongo()
+                    .to_dict()
+                )
+                assert log.get("data") == {}
+                assert log.get("initiator") is None
+                assert log.get("status") == "read"
+                assert log.get("recipient") == "91551234567"
+
+                logs = ChannelLogs.objects(bot=bot, user="919876543210")
+                assert len(ChannelLogs.objects(bot=bot, user="919876543210")) == 3
+                assert logs[0]["data"] == {
+                    "id": "CONVERSATION_ID",
+                    "expiration_timestamp": "1691598412",
+                    "origin": {"type": "business_initated"},
+                }
+                assert logs[0]["initiator"] == "business_initated"
+                assert logs[0]["status"] == "sent"
+                assert logs[1]["data"] == {
+                    "id": "CONVERSATION_ID",
+                    "expiration_timestamp": "1691598412",
+                    "origin": {"type": "user_initiated"},
+                }
+                assert logs[1]["initiator"] == "user_initiated"
+                assert logs[1]["status"] == "delivered"
+                assert logs[2]["status"] == "read"
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_valid_statuses_with_errors_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "108103872212677",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "919876543219",
+                                            "phone_number_id": "108578266683441",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "Hitesh"},
+                                                "wa_id": "919876543210",
+                                            }
+                                        ],
+                                        "statuses": [
+                                            {
+                                                "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDI",
+                                                "status": "failed",
+                                                "timestamp": "1689380458",
+                                                "recipient_id": "15551234567",
+                                                "errors": [
+                                                    {
+                                                        "code": 130472,
+                                                        "title": "User's number is part of an experiment",
+                                                        "message": "User's number is part of an experiment",
+                                                        "error_data": {
+                                                            "details": "Failed to send message because this user's phone number is part of an experiment"
+                                                        },
+                                                        "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/",
+                                                    }
+                                                ],
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+
+                assert ChannelLogs.objects(
+                    bot=bot, message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDI"
+                )
+                log = ChannelLogs.objects(bot=bot, user="919876543219").get().to_mongo().to_dict()
+                assert log.get("status") == "failed"
+                assert log.get("data") == {}
+                assert log.get("errors") == [
+                    {
+                        "code": 130472,
+                        "title": "User's number is part of an experiment",
+                        "message": "User's number is part of an experiment",
+                        "error_data": {
+                            "details": "Failed to send message because this user's phone number is part of an experiment"
+                        },
+                        "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/",
+                    }
+                ]
+                assert log.get("recipient") == "15551234567"
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_valid_unsupported_message_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "910123456789",
+                                            "phone_number_id": "12345678",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "udit"},
+                                                "wa_id": "wa-123456789",
+                                            }
+                                        ],
+                                        "messages": [
+                                            {
+                                                "from": "910123456789",
+                                                "id": "wappmsg.ID",
+                                                "timestamp": "21-09-2022 12:05:00",
+                                                "text": {"body": "hi"},
+                                                "type": "text",
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+                args, kwargs = mock_message.call_args
+
+                assert args[0] == bot
+                user_message = args[1]
+
+                assert user_message.text == 'hi'
+
+                log = (
+                    ChannelLogs.objects(
+                        bot=bot,
+                        message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIB",
+                    )
+                    .get()
+                    .to_mongo()
+                    .to_dict()
+                )
+                assert log["data"] == {
+                    "id": "CONVERSATION_ID",
+                    "expiration_timestamp": "1691598412",
+                    "origin": {"type": "user_initiated"},
+                }
+                assert log["initiator"] == "user_initiated"
+                assert log["status"] == "delivered"
+                assert log["recipient"] == "91551234567"
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_bsp_valid_text_message_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "910123456789",
+                                            "phone_number_id": "12345678",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "udit"},
+                                                "wa_id": "wa-123456789",
+                                            }
+                                        ],
+                                        "messages": [
+                                            {
+                                                "from": "910123456789",
+                                                "id": "wappmsg.ID",
+                                                "timestamp": "21-09-2022 12:05:00",
+                                                "text": {"body": "hello"},
+                                                "type": "text",
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+
+                args, kwargs = mock_message.call_args
+
+                assert args[0] == bot
+                user_message = args[1]
+
+                assert user_message.text == 'hello'
+
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_bsp_valid_button_message_request(self):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message") as mock_message:
+                mock_message.return_value = "Hi, How may i help you!"
+                channel_config = {
+                    "connector_type": "whatsapp",
+                    "config": {
+                        "app_secret": "jagbd34567890",
+                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "verify_token": "valid",
+                        "phone_number": "1234567890",
+                    }
+                }
+
+                bot = "whatsapp_test"
+                payload = {
+                    "object": "whatsapp_business_account",
+                    "entry": [
+                        {
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [
+                                {
+                                    "value": {
+                                        "messaging_product": "whatsapp",
+                                        "metadata": {
+                                            "display_phone_number": "910123456789",
+                                            "phone_number_id": "12345678",
+                                        },
+                                        "contacts": [
+                                            {
+                                                "profile": {"name": "udit"},
+                                                "wa_id": "wa-123456789",
+                                            }
+                                        ],
+                                        "messages": [
+                                            {
+                                                "from": "910123456789",
+                                                "id": "wappmsg.ID",
+                                                "timestamp": "21-09-2022 12:05:00",
+                                                "button": {
+                                                    "text": "buy now",
+                                                    "payload": "buy kairon for 1 billion",
+                                                },
+                                                "type": "button",
+                                            }
+                                        ],
+                                    },
+                                    "field": "messages",
+                                }
+                            ],
+                        }
+                    ],
+                }
+
+                handler = Whatsapp(channel_config)
+                await handler.handle_meta_payload(payload,
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta",
+                                                   "tabname": "default"},
+                                                  bot)
+
+                args, kwargs = mock_message.call_args
+
+                assert args[0] == bot
+                user_message = args[1]
+                assert user_message.text == '/k_quick_reply_msg{"quick_reply": "buy kairon for 1 billion"}'
+
+
+
