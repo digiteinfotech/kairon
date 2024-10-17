@@ -80,8 +80,8 @@ class DataImporterLogProcessor:
         doc.training_examples = TrainingComponentLog(count=component_count['training_examples'], data=summary.get('training_examples'))
         doc.config = TrainingComponentLog(data=summary.get('config'))
         doc.rules = TrainingComponentLog(count=component_count['rules'], data=summary.get('rules'))
-        action_summary = [{'type': s, 'count': component_count.get(s), 'data': summary.get(s)} for s in
-                          summary.keys() if s in {f'{a_type.value}s' for a_type in ActionType}]
+        action_summary = [{'type': f"{s}s", 'count': component_count.get(s), 'data': summary.get(s)} for s in
+                          summary.keys() if s in {f'{a_type.value}' for a_type in ActionType}]
         doc.multiflow_stories = TrainingComponentLog(count=component_count.get('multiflow_stories'),
                                                      data=summary.get('multiflow_stories'))
         doc.bot_content = TrainingComponentLog(data=summary.get('bot_content'))

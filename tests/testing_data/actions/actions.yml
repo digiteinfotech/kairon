@@ -252,6 +252,17 @@ two_stage_fallback:
 prompt_action:
 - name: prompt_action_1
   num_bot_responses: 5
+  llm_type: openai
+  hyperparameters:
+    temperature: 0.5
+    max_tokens: 100
+    top_p: 1
+    frequency_penalty: 0
+    presence_penalty: 0
+    n: 1
+    stop: null
+    stream: false
+    model: gpt-4o-mini
   llm_prompts:
     - name: System Prompt
       data: You are a personal assistant.
@@ -266,6 +277,17 @@ prompt_action:
       is_enabled: True
 - name: prompt_action_2
   num_bot_responses: 5
+  llm_type: openai
+  hyperparameters:
+    temperature: 0.5
+    max_tokens: 100
+    top_p: 1
+    frequency_penalty: 0
+    presence_penalty: 0
+    n: 1
+    stop: null
+    stream: false
+    model: gpt-4o-mini
   llm_prompts:
     - name: System Prompt
       data: You are a personal assistant.

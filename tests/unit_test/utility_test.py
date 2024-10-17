@@ -406,7 +406,7 @@ class TestUtility:
     def test_read_yaml(self):
         path = "tests/testing_data/yml_training_files/actions.yml"
         content = Utility.read_yaml(path)
-        assert len(content["http_action"]) == 5
+        assert len(content["http_action"]) == 17
 
     def test_read_yaml_multiflow_story(self):
         path = "tests/testing_data/yml_training_files/multiflow_stories.yml"

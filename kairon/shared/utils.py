@@ -1138,6 +1138,7 @@ class Utility:
             chat_client_config: dict = None,
             multiflow_stories: dict = None,
             bot_content: list = None,
+            other_collections: dict = None,
     ):
         """
         convert mongo data  to individual files
@@ -1151,6 +1152,7 @@ class Utility:
         :param actions: action configuration data
         :param multiflow_stories: multiflow_stories configurations
         :param bot_content: bot content
+        :param other_collections: other collections used by the bot
         :return: files path
         """
         from rasa.shared.core.training_data.story_writer.yaml_story_writer import (
@@ -1175,6 +1177,7 @@ class Utility:
         chat_client_config_path = os.path.join(temp_path, "chat_client_config.yml")
         multiflow_stories_config_path = os.path.join(temp_path, "multiflow_stories.yml")
         bot_content_path = os.path.join(temp_path, "bot_content.yml")
+        other_collections_path = os.path.join(temp_path, "other_collections.yml")
         nlu_as_str = nlu.nlu_as_yaml().encode()
         config_as_str = yaml.dump(config).encode()
 
@@ -1204,6 +1207,11 @@ class Utility:
         Utility.write_to_file(
             bot_content_path, bot_content_as_str
         )
+        if other_collections:
+            other_collections_as_str = yaml.dump(other_collections).encode()
+            Utility.write_to_file(
+                other_collections_path, other_collections_as_str
+            )
         return temp_path
 
     @staticmethod
@@ -1218,6 +1226,7 @@ class Utility:
             multiflow_stories: Dict = None,
             chat_client_config: Dict = None,
             bot_content: List = None,
+            other_collections: Dict = None,
     ):
         """
         adds training files to zip
@@ -1232,6 +1241,7 @@ class Utility:
         :param actions: action configurations
         :param multiflow_stories: multiflow_stories configurations
         :param bot_content: bot_content
+        :param other_collections: other collections used by the bot
         :return: None
         """
         directory = Utility.write_training_data(
@@ -1244,6 +1254,7 @@ class Utility:
             chat_client_config,
             multiflow_stories,
             bot_content,
+            other_collections
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)

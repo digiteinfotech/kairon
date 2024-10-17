@@ -161,6 +161,8 @@ from .data_objects import (
     MultiflowStories, MultiflowStoryEvents, MultiFlowStoryMetadata,
     Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
 )
+from .action_serializer import ActionSerializer
+from .data_validation import DataValidation
 from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
@@ -235,8 +237,9 @@ class MongoProcessor:
             stories = stories.merge(multiflow_stories[0])
             rules = rules.merge(multiflow_stories[1])
         multiflow_stories = self.load_multiflow_stories_yaml(bot)
-        actions = self.load_action_configurations(bot)
+        #actions = self.load_action_configurations(bot)
         bot_content = self.load_bot_content(bot)
+        actions, other_collections = ActionSerializer.serialize(bot)
         return Utility.create_zip_file(
             nlu,
             domain,
@@ -247,7 +250,8 @@ class MongoProcessor:
             actions,
             multiflow_stories,
             chat_client_config,
-            bot_content
+            bot_content,
+            other_collections,
         )
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
@@ -289,6 +293,7 @@ class MongoProcessor:
             actions_yml = os.path.join(path, "actions.yml")
             multiflow_stories_yml = os.path.join(path, "multiflow_stories.yml")
             bot_content_yml = os.path.join(path, "bot_content.yml")
+            other_collections_yml = os.path.join(path, "other_collections.yml")
             importer = RasaFileImporter.load_from_config(
                 config_path=config_path,
                 domain_path=domain_path,
@@ -309,7 +314,14 @@ class MongoProcessor:
                 if bot_content_yml
                 else None
             )
-            TrainingDataValidator.validate_custom_actions(actions)
+            other_collections = (
+                Utility.read_yaml(other_collections_yml)
+                if other_collections_yml
+                else None
+            )
+
+            ActionSerializer.validate(bot, actions, other_collections)
+
 
             self.save_training_data(
                 bot,
@@ -321,6 +333,7 @@ class MongoProcessor:
                 actions,
                 multiflow_stories,
                 bot_content,
+                other_collections=other_collections,
                 overwrite=overwrite,
                 what=REQUIREMENTS.copy() - {"chat_client_config"},
             )
@@ -340,6 +353,7 @@ class MongoProcessor:
             multiflow_stories: dict = None,
             bot_content: list = None,
             chat_client_config: dict = None,
+            other_collections: dict = None,
             overwrite: bool = False,
             what: set = REQUIREMENTS.copy(),
     ):
@@ -347,7 +361,8 @@ class MongoProcessor:
             self.delete_bot_data(bot, user, what)
 
         if "actions" in what:
-            self.save_integrated_actions(actions, bot, user)
+            #self.save_integrated_actions(actions, bot, user)
+            ActionSerializer.deserialize(bot, user, actions, other_collections, overwrite)
         if "domain" in what:
             self.save_domain(domain, bot, user)
         if "stories" in what:
@@ -551,7 +566,7 @@ class MongoProcessor:
                 lambda actions: not actions.startswith("utter_"), domain.user_actions
             )
         )
-        self.__save_actions(actions, bot, user)
+        # self.verify_actions_presence(actions, bot, user)
         self.__save_responses(domain.responses, bot, user)
         self.save_utterances(domain.responses.keys(), bot, user)
         self.__save_slots(domain.slots, bot, user)
@@ -1070,11 +1085,16 @@ class MongoProcessor:
         if Utility.is_exist(
                 Actions, raise_error=False, name=f"validate_{name}", bot=bot, status=True
         ):
-            form_validation_action = Actions.objects(
-                name=f"validate_{name}", bot=bot, status=True
-            ).get()
-            form_validation_action.type = ActionType.form_validation_action.value
-            form_validation_action.save()
+            try:
+                form_validation_action = Actions.objects(
+                    name__iexact=f"validate_{name}", bot=bot, status=True
+                ).get()
+                form_validation_action.type = ActionType.form_validation_action.value
+                form_validation_action.save()
+            except Exception as e:
+                print(e)
+
+
         self.__check_for_form_and_action_existance(bot, name)
         form = Forms(name=name, required_slots=slots, bot=bot, user=user)
         form.clean()
@@ -1146,6 +1166,13 @@ class MongoProcessor:
                          raise_error=True,
                          exp_message=f"Form with the name '{name}' already exists",
                          name=name, bot=bot, status=True)
+
+    # def verify_actions_presence(self, actions: list[str], bot: str, user: str):
+    #     if actions:
+    #         found_names = Actions.objects(name__in=actions, bot=bot, user=user).values_list('name')
+    #         for action in actions:
+    #             if action not in found_names:
+    #                 raise AppException(f"Action [{action}] not present in actions.yml")
 
     def __save_actions(self, actions, bot: Text, user: Text):
         if actions:
@@ -3955,7 +3982,9 @@ class MongoProcessor:
 
             http_config_dict["content_type"] = {
                 HttpRequestContentType.json.value: HttpContentType.application_json.value,
+                HttpContentType.application_json.value: HttpContentType.application_json.value,
                 HttpRequestContentType.data.value: HttpContentType.urlencoded_form_data.value,
+                HttpContentType.urlencoded_form_data.value: HttpContentType.urlencoded_form_data.value,
             }[http_config_dict["content_type"]]
             return http_config_dict
         except DoesNotExist as ex:
@@ -3985,6 +4014,8 @@ class MongoProcessor:
         Utility.is_valid_action_name(
             pyscript_config.get("name"), bot, PyscriptActionConfig
         )
+        if compile_error := DataValidation.validate_python_script_compile_time(pyscript_config["source_code"]):
+            raise AppException(f"source code syntax error: {compile_error}")
         action_id = (
             PyscriptActionConfig(
                 name=pyscript_config["name"],
@@ -4024,9 +4055,12 @@ class MongoProcessor:
             raise AppException(
                 f'Action with name "{request_data.get("name")}" not found'
             )
+        if compile_error := DataValidation.validate_python_script_compile_time(request_data["source_code"]):
+            raise AppException(f"source code syntax error: {compile_error}")
         action = PyscriptActionConfig.objects(
             name=request_data.get("name"), bot=bot, status=True
         ).get()
+
         action.source_code = request_data["source_code"]
         action.dispatch_response = request_data["dispatch_response"]
         action.user = user
@@ -4710,6 +4744,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
+
         if not actions:
             return
         document_types = {
@@ -5039,10 +5074,11 @@ class MongoProcessor:
         if os.path.exists(actions_path):
             actions = Utility.read_yaml(actions_path)
             (
-                validation_failed,
+                is_successful,
                 error_summary,
                 actions_count,
-            ) = TrainingDataValidator.validate_custom_actions(actions)
+            ) = ActionSerializer.validate(bot, actions, {})
+            validation_failed = not is_successful
             component_count.update(actions_count)
         if os.path.exists(config_path):
             config = Utility.read_yaml(config_path)
@@ -6356,17 +6392,6 @@ class MongoProcessor:
         except Exception as e:
             raise AppException(e)
 
-    def delete_single_slot_mapping(self, slot_mapping_id: str, user: str = None):
-        """
-        Delete slot mapping.
-
-        :param slot_mapping_id: document id of the mapping
-        """
-        try:
-            slot_mapping = SlotMapping.objects(id=slot_mapping_id, status=True).get()
-            Utility.delete_documents(slot_mapping, user)
-        except Exception as e:
-            raise AppException(e)
 
     def __prepare_slot_mappings(self, bot: Text):
         """
@@ -7963,6 +7988,8 @@ class MongoProcessor:
         standalone_id_path = request_data.get("standalone_id_path")
         if standalone and not standalone_id_path:
             raise AppException("Standalone id path is required!")
+        if compile_error := DataValidation.validate_python_script_compile_time(pyscript_code):
+            raise AppException(f"source code syntax error: {compile_error}")
         config = CallbackConfig.create_entry(bot,
                                              name,
                                              pyscript_code,
@@ -7983,6 +8010,9 @@ class MongoProcessor:
         """
         name = request_data.get("name")
         request_data.pop('name')
+        if pyscript_code := request_data.get('pyscript_code'):
+            if compile_error := DataValidation.validate_python_script_compile_time(pyscript_code):
+                raise AppException(f"source code syntax error: {compile_error}")
         config = CallbackConfig.edit(bot, name, **request_data)
         config.pop('_id')
         return config
@@ -8352,8 +8382,8 @@ class MongoProcessor:
         schemas = list(cognition_processor.list_cognition_schema(bot))
         table_metadata = next((schema['metadata'] for schema in schemas if schema['collection_name'] == table_name.lower()),
                               None)
-        if table_metadata is None:
-            print(f"Schema for table '{table_name}' not found.")
+        if not table_metadata:
+            logger.info(f"Schema for table '{table_name}' not found.")
 
         column_datatype_dict = {column['column_name']: column['data_type'] for column in table_metadata}
 

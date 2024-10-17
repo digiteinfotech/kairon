@@ -23,15 +23,3 @@ http_action:
     evaluation_type: expression
     value: ${data}
   set_slots: []
-form_validation_action:
-- invalid_response: Please ensure that you attach a valid image file. This upload
-    only supports image file.
-  is_required: true
-  name: validate_form_image
-  slot: var_image1
-  slot_set:
-    type: slot
-    value: image
-  valid_response: ''
-  validation_semantic: if (slot['image'] == null) { return false; } else { return
-    true; }

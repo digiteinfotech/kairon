@@ -1438,7 +1438,7 @@ def test_upload_doc_content():
     )
 
     actual = response.json()
-    assert actual["success"] == True
+    assert actual["success"]
     assert actual["message"] == "Document content upload in progress! Check logs."
     assert actual["error_code"] == 0
 
@@ -1451,14 +1451,14 @@ def test_upload_doc_content():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"] == True
+    assert actual["success"]
     assert actual["error_code"] == 0
     logs = actual['data']['logs']
     assert len(logs) == 1
     assert logs[0]['file_received'] == 'Salesstore.csv'
     assert logs[0]['status'] == 'Success'
     assert logs[0]['event_status'] == 'Completed'
-    assert logs[0]['is_data_uploaded'] == True
+    assert logs[0]['is_data_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
     assert logs[0]['validation_errors'] == {}
@@ -1559,7 +1559,7 @@ def test_upload_doc_content_append():
     assert logs[0]['file_received'] == 'Salesstore.csv'
     assert logs[0]['status'] == 'Success'
     assert logs[0]['event_status'] == 'Completed'
-    assert logs[0]['is_data_uploaded'] == True
+    assert logs[0]['is_data_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
     assert logs[0]['validation_errors'] == {}
@@ -1626,7 +1626,7 @@ def test_upload_doc_content_basic_validation_failure():
     )
 
     actual = response.json()
-    assert actual["success"] == True
+    assert actual["success"]
     assert actual["message"] == "Document content upload in progress! Check logs."
     assert actual["error_code"] == 0
 
@@ -1636,7 +1636,7 @@ def test_upload_doc_content_basic_validation_failure():
     )
     actual = response.json()
 
-    assert actual["success"] == True
+    assert actual["success"]
     assert actual["error_code"] == 0
     logs = actual['data']['logs']
     assert len(logs) == 3
@@ -1695,7 +1695,7 @@ def test_download_error_csv_error_report_not_found():
     )
 
     actual = response.json()
-    assert actual["success"] == True
+    assert actual["success"]
     assert actual["message"] == "Document content upload in progress! Check logs."
     assert actual["error_code"] == 0
 
@@ -1708,7 +1708,7 @@ def test_download_error_csv_error_report_not_found():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"] == True
+    assert actual["success"]
     assert actual["error_code"] == 0
 
     event_id = ContentImporterLogProcessor.get_event_id_for_latest_event(pytest.bot)
@@ -1765,7 +1765,7 @@ def test_upload_doc_content_datatype_validation_failure():
     )
 
     actual = response.json()
-    assert actual["success"] == True
+    assert actual["success"]
     assert actual["message"] == "Document content upload in progress! Check logs."
     assert actual["error_code"] == 0
 
@@ -1780,7 +1780,7 @@ def test_upload_doc_content_datatype_validation_failure():
     )
     actual = response.json()
 
-    assert actual["success"] == True
+    assert actual["success"]
     assert actual["error_code"] == 0
     logs = actual['data']['logs']
     assert len(logs) == 5
@@ -3240,6 +3240,25 @@ def test_get_live_agent_after_disabled():
     assert actual["success"]
 
 
+def test_callback_config_add_syntax_error():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "async"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert actual['message'] == 'source code syntax error: unterminated string literal (detected at line 1)'
 
 def test_callback_config_add():
     request_body = {
@@ -3305,7 +3324,7 @@ def test_callback_get_standalone_url():
     assert response.status_code == 200
     actual = response.json()
     print(actual)
-    assert actual['success'] == True
+    assert actual['success']
     assert actual['error_code'] == 0
     assert isinstance(actual['data'], str)
     assert '/callback/s/' in actual['data']
@@ -3329,6 +3348,27 @@ def test_callback_config_add_standalone_fail_no_path():
     actual = response.json()
     assert actual == {'success': False, 'message': 'Standalone id path is required!',
                       'data': None, 'error_code': 422}
+
+def test_callback_config_edit_syntex_error():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response is if = 'Hello World2!'",
+        "validation_secret": "string",
+        "execution_mode": "async"
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert actual['message'] == 'source code syntax error: invalid syntax'
 
 def test_callback_config_edit():
     request_body = {
@@ -3364,7 +3404,7 @@ def test_callback_config_get():
     )
 
     actual = response.json()
-    assert actual['success'] == True
+    assert actual['success']
     assert actual['error_code'] == 0
     assert len(actual['data']) == 2
     assert 'callback_1' in actual['data']
@@ -3377,7 +3417,7 @@ def test_callback_single_config_get():
     )
 
     actual = response.json()
-    assert actual['success'] == True
+    assert actual['success']
     assert actual['error_code'] == 0
     assert actual['data']['name'] == 'callback_1'
     assert actual['data']['pyscript_code'] == "bot_response = 'Hello World2!'"
@@ -3443,7 +3483,7 @@ def test_callback_action_add():
     
     actual = response.json()
     print(actual)
-    assert actual['success'] == True
+    assert actual['success']
     assert actual['message'] == 'Callback action added successfully!'
     data = actual['data']
     assert data['name'] == 'callback_action1'
@@ -3451,8 +3491,6 @@ def test_callback_action_add():
 
 
 def test_callback_action_update():
-
-
     request_body = {
         "name": "callback_action1",
         "callback_name": "callback_1",
@@ -3470,7 +3508,7 @@ def test_callback_action_update():
 
     actual = response.json()
     print(actual)
-    assert actual['success'] == True
+    assert actual['success']
     assert actual['message'] == 'Callback action updated successfully!'
 
 
@@ -3481,7 +3519,7 @@ def test_callback_action_get():
     )
 
     actual = response.json()
-    assert actual['success'] == True
+    assert actual['success']
     assert actual['error_code'] == 0
     assert actual['data']['name'] == 'callback_action1'
     assert actual['data']['callback_name'] == 'callback_1'
@@ -3496,7 +3534,7 @@ def test_callback_action_get_all():
 
     actual = response.json()
     print(actual)
-    assert actual['success'] == True
+    assert actual['success']
     assert actual['error_code'] == 0
     assert isinstance(actual['data'], list)
     assert len(actual['data']) == 1
@@ -3525,7 +3563,7 @@ def test_callback_get_logs():
 
     actual = response.json()
 
-    assert actual['success'] == True
+    assert actual['success']
     assert actual['error_code'] == 0
     assert isinstance(actual['data']['logs'], list)
     assert len(actual['data']['logs']) == 1
@@ -3543,13 +3581,7 @@ def test_callback_action_delete():
 
 
 def test_add_pyscript_action_empty_name():
-    script = """
-    data = [1, 2, 3, 4, 5]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
+    script = "bot_response='hello world'"
     request_body = {
         "name": "",
         "source_code": script,
@@ -3594,13 +3626,7 @@ def test_add_pyscript_action_empty_source_code():
 
 
 def test_add_pyscript_action_with_utter():
-    script = """
-    data = [1, 2, 3, 4, 5]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
+    script = "bot_response='hello world'"
     request_body = {
         "name": "utter_pyscript_action",
         "source_code": script,
@@ -3618,7 +3644,7 @@ def test_add_pyscript_action_with_utter():
     assert not actual["success"]
 
 
-def test_add_pyscript_action():
+def test_add_pyscript_action_syntex_error():
     script = """
     data = [1, 2, 3, 4, 5]
     total = 0
@@ -3638,19 +3664,32 @@ def test_add_pyscript_action():
     )
 
     actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == "source code syntax error: unexpected indent"
+    assert not actual["success"]
+
+def test_add_pyscript_action():
+    script= "bot_response='hello world'"
+    request_body = {
+        "name": "test_add_pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
     assert actual["error_code"] == 0
     assert actual["message"] == "Action added!"
     assert actual["success"]
 
-
 def test_add_pyscript_action_name_already_exist():
-    script = """
-    data = [1, 2, 3, 4, 5]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
+    script= "bot_response='hello world'"
     request_body = {
         "name": "test_add_pyscript_action",
         "source_code": script,
@@ -3669,13 +3708,7 @@ def test_add_pyscript_action_name_already_exist():
 
 
 def test_add_pyscript_action_case_insensitivity():
-    script = """
-    data = [1, 2, 3, 4, 5]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
+    script= "bot_response='hello world'"
     request_body = {
         "name": "TEST_ADD_PYSCRIPT_ACTION_CASE_INSENSITIVITY",
         "source_code": script,
@@ -3697,13 +3730,7 @@ def test_add_pyscript_action_case_insensitivity():
 
 
 def test_update_pyscript_action_does_not_exist():
-    script = """
-    data = [1, 2, 3, 4, 5]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
+    script= "bot_response='hello world'"
     request_body = {
         "name": "test_update_pyscript_action",
         "source_code": script,
@@ -3723,7 +3750,7 @@ def test_update_pyscript_action_does_not_exist():
     assert not actual["success"]
 
 
-def test_update_pyscript_action():
+def test_update_pyscript_action_syntex_error():
     script = """
     data = [1, 2, 3, 4, 5, 6, 7]
     total = 0
@@ -3743,26 +3770,32 @@ def test_update_pyscript_action():
     )
 
     actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "source code syntax error: unexpected indent"
+    assert not actual["success"]
+
+
+def test_update_pyscript_action():
+    script = "bot_response='hello world'"
+    request_body = {
+        "name": "test_add_pyscript_action",
+        "source_code": script,
+        "dispatch_response": True,
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
     assert actual["error_code"] == 0
     assert actual["message"] == "Action updated!"
     assert actual["success"]
 
-
 def test_list_pyscript_actions():
-    script1 = """
-    data = [1, 2, 3, 4, 5, 6, 7]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
-    script2 = """
-    data = [1, 2, 3, 4, 5]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
+    script1 = "bot_response='hello world'"
+    script2 = "bot_response='hello world'"
     response = client.get(
         url=f"/api/bot/{pytest.bot}/action/pyscript",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -3805,13 +3838,7 @@ def test_delete_pyscript_action():
 
 
 def test_list_pyscript_actions_after_action_deleted():
-    script2 = """
-    data = [1, 2, 3, 4, 5]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
+    script2 = "bot_response='hello world'"
     response = client.get(
         url=f"/api/bot/{pytest.bot}/action/pyscript",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -4395,13 +4422,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
 
 
 def test_list_available_actions():
-    script = """
-    data = [1, 2, 3, 4, 5, 6]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
+    script = "bot_response='hello world'"
     request_body = {
         "name": "test_list_available_actions_pyscript_action",
         "source_code": script,
@@ -7629,7 +7650,7 @@ def test_get_qna(monkeypatch):
     assert actual["data"] == {"qna": data, "total": 0}
 
 
-def test_model_testing_not_trained():
+def test_model_testing_exhosted_daily_limit():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.test_limit_per_day = 0
     bot_settings.save()
@@ -7681,17 +7702,23 @@ def test_get_data_importer_logs():
                                                     'utterances_count': 14, 'forms_count': 2, 'entities_count': 8,
                                                     'data': []},
                                          'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
-                                         'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
-                                                     {'type': 'slot_set_actions', 'count': 0, 'data': []},
-                                                     {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                         'actions': [{'type': 'http_actions', 'count': 14, 'data': []},
+                                                     {'type': 'two_stage_fallbacks', 'count': 0, 'data': []},
                                                      {'type': 'email_actions', 'count': 0, 'data': []},
-                                                     {'type': 'google_search_actions', 'count': 0, 'data': []},
-                                                     {'type': 'jira_actions', 'count': 0, 'data': []},
                                                      {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                                     {'type': 'jira_actions', 'count': 0, 'data': []},
+                                                     {'type': 'form_validation_actions', 'count': 0, 'data': []},
+                                                     {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                                     {'type': 'google_search_actions', 'count': 0, 'data': []},
                                                      {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                                      {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                                     {'type': 'web_search_actions', 'count': 0, 'data': []},
                                                      {'type': 'razorpay_actions', 'count': 0, 'data': []},
-                                                     {'type': 'pyscript_actions', 'count': 0, 'data': []}],
+                                                     {'type': 'pyscript_actions', 'count': 0, 'data': []},
+                                                     {'type': 'database_actions', 'count': 0, 'data': []},
+                                                     {'type': 'live_agent_actions', 'count': 0, 'data': []},
+                                                     {'type': 'callback_actions', 'count': 0, 'data': []},
+                                                     {'type': 'schedule_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'bot_content': {'count': 0, 'data': []},
                                          'user_actions': {'count': 9, 'data': []},
@@ -7728,18 +7755,23 @@ def test_get_data_importer_logs():
                                                    'utterances_count': 27, 'forms_count': 2, 'entities_count': 9,
                                                    'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
-    assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
-                                                    {'type': 'slot_set_actions', 'count': 0, 'data': []},
-                                                    {'type': 'form_validation_actions', 'count': 0, 'data': []},
+    assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 17, 'data': []},
+                                                    {'type': 'two_stage_fallbacks', 'count': 0, 'data': []},
                                                     {'type': 'email_actions', 'count': 0, 'data': []},
-                                                    {'type': 'google_search_actions', 'count': 1, 'data': []},
-                                                    {'type': 'jira_actions', 'count': 0, 'data': []},
                                                     {'type': 'zendesk_actions', 'count': 0, 'data': []},
+                                                    {'type': 'jira_actions', 'count': 0, 'data': []},
+                                                    {'type': 'form_validation_actions', 'count': 1, 'data': []},
+                                                    {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                                    {'type': 'google_search_actions', 'count': 1, 'data': []},
                                                     {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                                     {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                                    {'type': 'web_search_actions', 'count': 0, 'data': []},
                                                     {'type': 'razorpay_actions', 'count': 0, 'data': []},
-                                                    {'type': 'pyscript_actions', 'count': 0, 'data': []}
-                                                    ]
+                                                    {'type': 'pyscript_actions', 'count': 0, 'data': []},
+                                                    {'type': 'database_actions', 'count': 0, 'data': []},
+                                                    {'type': 'live_agent_actions', 'count': 0, 'data': []},
+                                                    {'type': 'callback_actions', 'count': 0, 'data': []},
+                                                    {'type': 'schedule_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config', 'multiflow_stories',
@@ -8186,7 +8218,7 @@ def test_training_example_does_not_exist():
     )
     actual = response.json()
     assert actual["data"] == {"is_exists": False, "intent": None}
-    assert actual["success"] == True
+    assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
 
@@ -16619,8 +16651,8 @@ def test_upload_with_http_error():
     assert actual["data"]["logs"][0]["start_timestamp"]
     assert actual["data"]["logs"][0]["start_timestamp"]
     assert (
-            "Required http action fields"
-            in actual["data"]["logs"][0]["actions"][0]["data"][0]
+            "Required fields {'request_method'} not found"
+            in str(actual["data"]["logs"][0]["actions"][0]["data"][0])
     )
     assert actual["data"]["logs"][0]["config"]["data"] == ["Invalid component XYZ"]
 
@@ -16649,6 +16681,7 @@ def test_upload_actions_and_config():
         files=files,
     )
     actual = response.json()
+    print(actual)
     assert actual["message"] == "Upload in progress! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -16659,6 +16692,7 @@ def test_upload_actions_and_config():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 5
@@ -16668,17 +16702,24 @@ def test_upload_actions_and_config():
     assert actual['data']["logs"][0]['is_data_uploaded']
     assert actual['data']["logs"][0]['start_timestamp']
     assert actual['data']["logs"][0]['end_timestamp']
-    assert actual['data']["logs"][0]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
-                                                    {'type': 'slot_set_actions', 'count': 0, 'data': []},
-                                                    {'type': 'form_validation_actions', 'count': 0, 'data': []},
+    print(actual['data']["logs"][0]['actions'])
+    assert actual['data']["logs"][0]['actions'] == [{'type': 'http_actions', 'count': 17, 'data': []},
+                                                    {'type': 'two_stage_fallbacks', 'count': 0, 'data': []},
                                                     {'type': 'email_actions', 'count': 0, 'data': []},
-                                                    {'type': 'google_search_actions', 'count': 1, 'data': []},
-                                                    {'type': 'jira_actions', 'count': 0, 'data': []},
                                                     {'type': 'zendesk_actions', 'count': 0, 'data': []},
-                                                    {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0},
-                                                    {'type': 'prompt_actions', 'data': [], 'count': 0},
-                                                    {'type': 'razorpay_actions', 'data': [], 'count': 0},
-                                                    {'type': 'pyscript_actions', 'data': [], 'count': 0}]
+                                                    {'type': 'jira_actions', 'count': 0, 'data': []},
+                                                    {'type': 'form_validation_actions', 'count': 1, 'data': []},
+                                                    {'type': 'slot_set_actions', 'count': 0, 'data': []},
+                                                    {'type': 'google_search_actions', 'count': 1, 'data': []},
+                                                    {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
+                                                    {'type': 'prompt_actions', 'count': 0, 'data': []},
+                                                    {'type': 'web_search_actions', 'count': 0, 'data': []},
+                                                    {'type': 'razorpay_actions', 'count': 0, 'data': []},
+                                                    {'type': 'pyscript_actions', 'count': 0, 'data': []},
+                                                    {'type': 'database_actions', 'count': 0, 'data': []},
+                                                    {'type': 'live_agent_actions', 'count': 0, 'data': []},
+                                                    {'type': 'callback_actions', 'count': 0, 'data': []},
+                                                    {'type': 'schedule_actions', 'count': 0, 'data': []}]
     assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
@@ -16688,7 +16729,7 @@ def test_upload_actions_and_config():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 5
+    assert len(actual["data"]) == 17
 
 
 @patch(
