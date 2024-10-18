@@ -10,7 +10,7 @@ from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.constants import DESIGNER_ACCESS
+from kairon.shared.constants import DESIGNER_ACCESS, ActorType
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
@@ -83,9 +83,12 @@ async def delete_cognition_schema(
     """
     Deletes cognition content of the bot
     """
-    cognition_processor.delete_cognition_schema(schema_id, current_user.get_bot(), user=current_user.get_user())
+    from kairon.shared.concurrency.actors.factory import ActorFactory
+    actor = ActorFactory.get_instance(ActorType.callable_runner.value)
+    actor.execute(cognition_processor.delete_cognition_schema, schema_id, current_user.get_bot(),
+                  user=current_user.get_user())
     return {
-        "message": "Schema deleted!"
+       "message": "Schema will be deleted soon!"
     }
 
 

@@ -5047,7 +5047,7 @@ def test_delete_payload_content_metadata():
     actual = response.json()
 
     assert actual["success"]
-    assert actual["message"] == "Schema deleted!"
+    assert actual["message"] == "Schema will be deleted soon!"
     assert actual["data"] is None
     assert actual["error_code"] == 0
 
@@ -5083,7 +5083,7 @@ def test_metadata_upload_api_and_delete_with_no_cognition_data(monkeypatch):
     )
     actual_one = response_one.json()
     assert actual_one["success"]
-    assert actual_one["message"] == "Schema deleted!"
+    assert actual_one["message"] == "Schema will be deleted soon!"
     assert actual_one["data"] is None
     assert actual_one["error_code"] == 0
 
@@ -5180,7 +5180,7 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual_four = response_four.json()
-    assert actual_four['message'] == 'Schema deleted!'
+    assert actual_four['message'] == 'Schema will be deleted soon!'
 
 
 def test_content_upload_api_with_gpt_feature_disabled():
@@ -5532,7 +5532,7 @@ def test_delete_payload_content_collection():
     actual = response.json()
 
     assert actual["success"]
-    assert actual["message"] == "Schema deleted!"
+    assert actual["message"] == "Schema will be deleted soon!"
     assert actual["data"] is None
     assert actual["error_code"] == 0
 
