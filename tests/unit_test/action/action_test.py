@@ -3078,6 +3078,7 @@ class TestActions:
         search_term = "What is data science?"
         website = "https://www.w3schools.com/"
         topn = 1
+        bot = "test_bot"
 
         mock_trigger_lambda.return_value = {
             "ResponseMetadata": {
@@ -3115,19 +3116,21 @@ class TestActions:
         }
         mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
         with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
-            result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+            result = ActionUtility.perform_web_search(search_term, topn=topn, website=website, bot=bot)
         assert result == [{
             'title': 'Data Science Introduction - W3Schools',
             'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
             'link': 'https://www.w3schools.com/datascience/ds_introduction.asp'
         }]
         called_args = mock_trigger_lambda.call_args
-        assert called_args.args[1] == {'text': 'What is data science?', 'site': 'https://www.w3schools.com/', 'topn': 1}
+        assert called_args.args[1] == {'text': 'What is data science?', 'site': 'https://www.w3schools.com/',
+                                       'topn': 1, 'bot': bot}
 
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_without_website(self, mock_trigger_lambda):
         search_term = "What is AI?"
         topn = 2
+        bot = "test_bot"
 
         mock_trigger_lambda.return_value = {
             "ResponseMetadata": {
@@ -3170,7 +3173,7 @@ class TestActions:
 
         mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
         with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
-            result = ActionUtility.perform_web_search(search_term, topn=topn)
+            result = ActionUtility.perform_web_search(search_term, topn=topn, bot=bot)
         assert result == [
             {'title': 'Artificial intelligence - Wikipedia',
              'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
@@ -3180,7 +3183,7 @@ class TestActions:
              'link': 'https://www.britannica.com/technology/artificial-intelligence'}
         ]
         called_args = mock_trigger_lambda.call_args
-        assert called_args.args[1] == {'text': 'What is AI?', 'site': '', 'topn': 2}
+        assert called_args.args[1] == {'text': 'What is AI?', 'site': '', 'topn': 2, 'bot': bot}
 
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_exception_lambda(self, mock_trigger_lambda):
@@ -3239,6 +3242,7 @@ class TestActions:
         search_term = "What is AI?"
         topn = 1
         search_engine_url = "https://duckduckgo.com/"
+        bot = "test_bot"
         responses.add(
             method=responses.POST,
             url=search_engine_url,
@@ -3250,12 +3254,12 @@ class TestActions:
             status=200,
             match=[
                 responses.matchers.json_params_matcher({
-                    "text": 'What is AI?', "site": '', "topn": 1
+                    "text": 'What is AI?', "site": '', "topn": 1, "bot": bot
                 })],
         )
 
         with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
-            result = ActionUtility.perform_web_search(search_term, topn=topn)
+            result = ActionUtility.perform_web_search(search_term, topn=topn, bot=bot)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
                  'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
@@ -3266,6 +3270,7 @@ class TestActions:
     def test_public_search_with_url_with_site(self):
         search_term = "What is AI?"
         topn = 1
+        bot = "test_bot"
         website = "https://en.wikipedia.org/"
         search_engine_url = "https://duckduckgo.com/"
         responses.add(
@@ -3279,12 +3284,12 @@ class TestActions:
             status=200,
             match=[
                 responses.matchers.json_params_matcher({
-                    "text": 'What is AI?', "site": 'https://en.wikipedia.org/', "topn": 1
+                    "text": 'What is AI?', "site": 'https://en.wikipedia.org/', "topn": 1, "bot": bot
                 })],
         )
 
         with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
-            result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+            result = ActionUtility.perform_web_search(search_term, topn=topn, website=website, bot=bot)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
                  'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
@@ -3295,6 +3300,7 @@ class TestActions:
     def test_public_search_with_url_exception(self):
         search_term = "What is AI?"
         topn = 1
+        bot = "test_bot"
         search_engine_url = "https://duckduckgo.com/"
         responses.add(
             method=responses.POST,
@@ -3303,18 +3309,19 @@ class TestActions:
             status=500,
             match=[
                 responses.matchers.json_params_matcher({
-                    "text": 'What is AI?', "site": '', "topn": 1
+                    "text": 'What is AI?', "site": '', "topn": 1, "bot": bot
                 })],
         )
 
         with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             with pytest.raises(ActionFailure, match=re.escape('Failed to execute the url: Got non-200 status code: 500 {"data": []}')):
-                ActionUtility.perform_web_search(search_term, topn=topn)
+                ActionUtility.perform_web_search(search_term, topn=topn, bot=bot)
 
     @responses.activate
     def test_public_search_with_url_exception_error_code_not_zero(self):
         search_term = "What is AI?"
         topn = 1
+        bot = "test_bot"
         search_engine_url = "https://duckduckgo.com/"
         result = {'success': False, 'data': [], 'error_code': 422}
         responses.add(
@@ -3324,13 +3331,13 @@ class TestActions:
             status=200,
             match=[
                 responses.matchers.json_params_matcher({
-                    "text": 'What is AI?', "site": '', "topn": 1
+                    "text": 'What is AI?', "site": '', "topn": 1, "bot": bot
                 })],
         )
 
         with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             with pytest.raises(ActionFailure, match=re.escape(f"{result}")):
-                ActionUtility.perform_web_search(search_term, topn=topn)
+                ActionUtility.perform_web_search(search_term, topn=topn, bot=bot)
 
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_app_exception(self, mock_trigger_lambda):

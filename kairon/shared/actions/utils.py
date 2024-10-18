@@ -490,7 +490,7 @@ class ActionUtility:
         trigger_task = Utility.environment['web_search']['trigger_task']
         search_engine_url = Utility.environment['web_search']['url']
         website = kwargs.get('website') if kwargs.get('website') else ''
-        request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn")}
+        request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn"), "bot": kwargs.get("bot")}
         results = []
         try:
             if trigger_task:
