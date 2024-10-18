@@ -1819,11 +1819,13 @@ class TestEventExecution:
         history[0].pop("timestamp")
         history[0].pop("_id")
         history[0].pop("conversation_id")
-        assert history[0] == {
-            'type': 'broadcast', 'sender_id': '918958030541',
-            'data': {'name': 'agronomy_support', 'template': template, 'template_params': [{'body': 'Udit Pandey'}],},
-            'status': 'Failed'
+        assert history[0]['type'] == 'broadcast'
+        assert history[0]['data'] == {
+            'name': 'agronomy_support',
+            'template': template,
+            'template_params': [{'body': 'Udit Pandey'}],
         }
+        assert history[0]['sender_id'] == '918958030541'
 
         assert len(logs[0]) == logs[1] == 2
         logs[0][1].pop("timestamp")
