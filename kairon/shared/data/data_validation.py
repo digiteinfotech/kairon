@@ -59,8 +59,8 @@ class DataValidation:
     def validate_database_action(bot: str, data: dict):
         data_error = []
         for idx, item in enumerate(data.get('payload', [])):
-            if not item.get('query_type') or not item.get('type') or not item.get('value'):
-                data_error.append(f"Payload {idx} must contain fields 'query_type', 'type' and 'value'!")
+            if not item.get('query_type') or not item.get('type'):
+                data_error.append(f"Payload {idx} must contain fields 'query_type' and 'type'!")
             if item.get('query_type') not in [qtype.value for qtype in DbActionOperationType]:
                 data_error.append(f"Unknown query_type found: {item['query_type']} in payload {idx}")
         return data_error

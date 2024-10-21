@@ -254,19 +254,16 @@ def test_data_validator_validate_database_action():
 
     # Test case 2: Invalid payload (missing query_type)
     data["payload"][0]["query_type"] = None
-    assert DataValidation.validate_database_action(bot, data) == ["Payload 0 must contain fields 'query_type', 'type' and 'value'!", 'Unknown query_type found: None in payload 0']
+    assert DataValidation.validate_database_action(bot, data) == ["Payload 0 must contain fields 'query_type' and 'type'!", 'Unknown query_type found: None in payload 0']
 
     # Test case 3: Invalid payload (missing type)
     data["payload"][0]["query_type"] = list(db_action_operation_types)[0]
     data["payload"][0]["type"] = None
-    assert DataValidation.validate_database_action(bot, data) == ["Payload 0 must contain fields 'query_type', 'type' and 'value'!"]
+    assert DataValidation.validate_database_action(bot, data) == ["Payload 0 must contain fields 'query_type' and 'type'!"]
 
-    # Test case 4: Invalid payload (missing value)
-    data["payload"][0]["type"] = "type1"
-    data["payload"][0]["value"] = None
-    assert DataValidation.validate_database_action(bot, data) == ["Payload 0 must contain fields 'query_type', 'type' and 'value'!"]
 
-    # Test case 5: Invalid payload (invalid query_type)
+    # Test case 4: Invalid payload (invalid query_type)
+    data["payload"][0]["type"] = 'type1'
     data["payload"][0]["value"] = "value1"
     data["payload"][0]["query_type"] = "invalid_query_type"
     assert DataValidation.validate_database_action(bot, data) == ["Unknown query_type found: invalid_query_type in payload 0", ]
