@@ -8,8 +8,11 @@ from starlette.responses import FileResponse
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
 from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
+from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
 from kairon.shared.cognition.processor import CognitionDataProcessor
+from kairon.shared.cognition.data_objects import CognitionSchema
+from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import DESIGNER_ACCESS, ActorType
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
@@ -83,7 +86,12 @@ async def delete_cognition_schema(
     """
     Deletes cognition content of the bot
     """
-    from kairon.shared.concurrency.actors.factory import ActorFactory
+    metadata = CognitionSchema.objects(bot=current_user.get_bot(), id=schema_id).first()
+    if not metadata:
+        raise AppException("Schema does not exists!")
+
+    CognitionDataProcessor.validate_collection_name(current_user.get_bot(), metadata['collection_name'])
+
     actor = ActorFactory.get_instance(ActorType.callable_runner.value)
     actor.execute(cognition_processor.delete_cognition_schema, schema_id, current_user.get_bot(),
                   user=current_user.get_user())
