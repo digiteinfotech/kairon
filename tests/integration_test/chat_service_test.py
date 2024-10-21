@@ -2554,481 +2554,455 @@ def test_whatsapp_invalid_message_request(mock_validate, mock_actor):
 
 
 @responses.activate
-def test_whatsapp_valid_statuses_with_sent_request():
-    from kairon.shared.chat.data_objects import ChannelLogs
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_statuses_with_sent_request(mock_validate, mock_actor):
 
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
 
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        response = client.post(
-            f"/api/bot/whatsapp/{bot}/{token}",
-            headers={"hub.verify_token": "valid"},
-            json={
-                "object": "whatsapp_business_account",
-                "entry": [
+    payload={
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "108103872212677",
+                "changes": [
                     {
-                        "id": "108103872212677",
-                        "changes": [
-                            {
-                                "value": {
-                                    "messaging_product": "whatsapp",
-                                    "metadata": {
-                                        "display_phone_number": "919876543210",
-                                        "phone_number_id": "108578266683441",
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "919876543210",
+                                "phone_number_id": "108578266683441",
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "Hitesh"},
+                                    "wa_id": "919876543210",
+                                }
+                            ],
+                            "statuses": [
+                                {
+                                    "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIA",
+                                    "recipient_id": "91551234567",
+                                    "status": "sent",
+                                    "timestamp": "1691548112",
+                                    "conversation": {
+                                        "id": "CONVERSATION_ID",
+                                        "expiration_timestamp": "1691598412",
+                                        "origin": {"type": "business_initated"},
                                     },
-                                    "contacts": [
-                                        {
-                                            "profile": {"name": "Hitesh"},
-                                            "wa_id": "919876543210",
-                                        }
-                                    ],
-                                    "statuses": [
-                                        {
-                                            "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIA",
-                                            "recipient_id": "91551234567",
-                                            "status": "sent",
-                                            "timestamp": "1691548112",
-                                            "conversation": {
-                                                "id": "CONVERSATION_ID",
-                                                "expiration_timestamp": "1691598412",
-                                                "origin": {"type": "business_initated"},
-                                            },
-                                            "pricing": {
-                                                "pricing_model": "CBP",
-                                                "billable": "True",
-                                                "category": "business_initated",
-                                            },
-                                        }
-                                    ],
-                                },
-                                "field": "messages",
-                            }
-                        ],
+                                    "pricing": {
+                                        "pricing_model": "CBP",
+                                        "billable": "True",
+                                        "category": "business_initated",
+                                    },
+                                }
+                            ],
+                        },
+                        "field": "messages",
                     }
                 ],
-            },
-        )
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
     actual = response.json()
     assert actual == "success"
-    log = (
-        ChannelLogs.objects(
-            bot=bot,
-            message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIA",
-        )
-        .get()
-        .to_mongo()
-        .to_dict()
-    )
-    assert log["data"] == {
-        "id": "CONVERSATION_ID",
-        "expiration_timestamp": "1691598412",
-        "origin": {"type": "business_initated"},
-    }
-    assert log["initiator"] == "business_initated"
-    assert log["status"] == "sent"
-    assert log["recipient"] == "91551234567"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate
-def test_whatsapp_valid_statuses_with_delivered_request():
-    from kairon.shared.chat.data_objects import ChannelLogs
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_statuses_with_delivered_request(mock_validate, mock_actor):
 
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
-
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        response = client.post(
-            f"/api/bot/whatsapp/{bot}/{token}",
-            headers={"hub.verify_token": "valid"},
-            json={
-                "object": "whatsapp_business_account",
-                "entry": [
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload={
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "108103872212677",
+                "changes": [
                     {
-                        "id": "108103872212677",
-                        "changes": [
-                            {
-                                "value": {
-                                    "messaging_product": "whatsapp",
-                                    "metadata": {
-                                        "display_phone_number": "919876543210",
-                                        "phone_number_id": "108578266683441",
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "919876543210",
+                                "phone_number_id": "108578266683441",
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "Hitesh"},
+                                    "wa_id": "919876543210",
+                                }
+                            ],
+                            "statuses": [
+                                {
+                                    "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIB",
+                                    "recipient_id": "91551234567",
+                                    "status": "delivered",
+                                    "timestamp": "1691548112",
+                                    "conversation": {
+                                        "id": "CONVERSATION_ID",
+                                        "expiration_timestamp": "1691598412",
+                                        "origin": {"type": "user_initiated"},
                                     },
-                                    "contacts": [
+                                    "pricing": {
+                                        "pricing_model": "CBP",
+                                        "billable": "True",
+                                        "category": "service",
+                                    },
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+
+    actual = response.json()
+    assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
+
+
+@responses.activate
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_statuses_with_read_request(mock_validate, mock_actor):
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload={
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "108103872212677",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "919876543210",
+                                "phone_number_id": "108578266683441",
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "Hitesh"},
+                                    "wa_id": "919876543210",
+                                }
+                            ],
+                            "statuses": [
+                                {
+                                    "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIC",
+                                    "recipient_id": "91551234567",
+                                    "status": "read",
+                                    "timestamp": "1691548112",
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+
+    actual = response.json()
+    assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
+
+
+@responses.activate
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_statuses_with_errors_request(mock_validate, mock_actor):
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload={
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "108103872212677",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "919876543219",
+                                "phone_number_id": "108578266683441",
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "Hitesh"},
+                                    "wa_id": "919876543210",
+                                }
+                            ],
+                            "statuses": [
+                                {
+                                    "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ",
+                                    "status": "failed",
+                                    "timestamp": "1689380458",
+                                    "recipient_id": "15551234567",
+                                    "errors": [
                                         {
-                                            "profile": {"name": "Hitesh"},
-                                            "wa_id": "919876543210",
-                                        }
-                                    ],
-                                    "statuses": [
-                                        {
-                                            "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIB",
-                                            "recipient_id": "91551234567",
-                                            "status": "delivered",
-                                            "timestamp": "1691548112",
-                                            "conversation": {
-                                                "id": "CONVERSATION_ID",
-                                                "expiration_timestamp": "1691598412",
-                                                "origin": {"type": "user_initiated"},
+                                            "code": 130472,
+                                            "title": "User's number is part of an experiment",
+                                            "message": "User's number is part of an experiment",
+                                            "error_data": {
+                                                "details": "Failed to send message because this user's phone number is part of an experiment"
                                             },
-                                            "pricing": {
-                                                "pricing_model": "CBP",
-                                                "billable": "True",
-                                                "category": "service",
-                                            },
+                                            "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/",
                                         }
                                     ],
-                                },
-                                "field": "messages",
-                            }
-                        ],
+                                }
+                            ],
+                        },
+                        "field": "messages",
                     }
                 ],
-            },
-        )
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+
     actual = response.json()
     assert actual == "success"
-    log = (
-        ChannelLogs.objects(
-            bot=bot,
-            message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIB",
-        )
-        .get()
-        .to_mongo()
-        .to_dict()
-    )
-    assert log["data"] == {
-        "id": "CONVERSATION_ID",
-        "expiration_timestamp": "1691598412",
-        "origin": {"type": "user_initiated"},
-    }
-    assert log["initiator"] == "user_initiated"
-    assert log["status"] == "delivered"
-    assert log["recipient"] == "91551234567"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate
-def test_whatsapp_valid_statuses_with_read_request():
-    from kairon.shared.chat.data_objects import ChannelLogs
-
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
-
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        response = client.post(
-            f"/api/bot/whatsapp/{bot}/{token}",
-            headers={"hub.verify_token": "valid"},
-            json={
-                "object": "whatsapp_business_account",
-                "entry": [
-                    {
-                        "id": "108103872212677",
-                        "changes": [
-                            {
-                                "value": {
-                                    "messaging_product": "whatsapp",
-                                    "metadata": {
-                                        "display_phone_number": "919876543210",
-                                        "phone_number_id": "108578266683441",
-                                    },
-                                    "contacts": [
-                                        {
-                                            "profile": {"name": "Hitesh"},
-                                            "wa_id": "919876543210",
-                                        }
-                                    ],
-                                    "statuses": [
-                                        {
-                                            "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIC",
-                                            "recipient_id": "91551234567",
-                                            "status": "read",
-                                            "timestamp": "1691548112",
-                                        }
-                                    ],
-                                },
-                                "field": "messages",
-                            }
-                        ],
-                    }
-                ],
-            },
-        )
-    actual = response.json()
-    assert actual == "success"
-    log = (
-        ChannelLogs.objects(
-            bot=bot,
-            message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIC",
-        )
-        .get()
-        .to_mongo()
-        .to_dict()
-    )
-    assert log.get("data") == {}
-    assert log.get("initiator") is None
-    assert log.get("status") == "read"
-    assert log.get("recipient") == "91551234567"
-
-    logs = ChannelLogs.objects(bot=bot, user="919876543210")
-    assert len(ChannelLogs.objects(bot=bot, user="919876543210")) == 3
-    assert logs[0]["data"] == {
-        "id": "CONVERSATION_ID",
-        "expiration_timestamp": "1691598412",
-        "origin": {"type": "business_initated"},
-    }
-    assert logs[0]["initiator"] == "business_initated"
-    assert logs[0]["status"] == "sent"
-    assert logs[1]["data"] == {
-        "id": "CONVERSATION_ID",
-        "expiration_timestamp": "1691598412",
-        "origin": {"type": "user_initiated"},
-    }
-    assert logs[1]["initiator"] == "user_initiated"
-    assert logs[1]["status"] == "delivered"
-    assert logs[2]["status"] == "read"
-
-
-@responses.activate
-def test_whatsapp_valid_statuses_with_errors_request():
-    from kairon.shared.chat.data_objects import ChannelLogs
-
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
-
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        response = client.post(
-            f"/api/bot/whatsapp/{bot}/{token}",
-            headers={"hub.verify_token": "valid"},
-            json={
-                "object": "whatsapp_business_account",
-                "entry": [
-                    {
-                        "id": "108103872212677",
-                        "changes": [
-                            {
-                                "value": {
-                                    "messaging_product": "whatsapp",
-                                    "metadata": {
-                                        "display_phone_number": "919876543219",
-                                        "phone_number_id": "108578266683441",
-                                    },
-                                    "contacts": [
-                                        {
-                                            "profile": {"name": "Hitesh"},
-                                            "wa_id": "919876543210",
-                                        }
-                                    ],
-                                    "statuses": [
-                                        {
-                                            "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ",
-                                            "status": "failed",
-                                            "timestamp": "1689380458",
-                                            "recipient_id": "15551234567",
-                                            "errors": [
-                                                {
-                                                    "code": 130472,
-                                                    "title": "User's number is part of an experiment",
-                                                    "message": "User's number is part of an experiment",
-                                                    "error_data": {
-                                                        "details": "Failed to send message because this user's phone number is part of an experiment"
-                                                    },
-                                                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/",
-                                                }
-                                            ],
-                                        }
-                                    ],
-                                },
-                                "field": "messages",
-                            }
-                        ],
-                    }
-                ],
-            },
-        )
-    actual = response.json()
-    assert actual == "success"
-    assert ChannelLogs.objects(
-        bot=bot, message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ"
-    )
-    log = ChannelLogs.objects(bot=bot, user="919876543219").get().to_mongo().to_dict()
-    assert log.get("status") == "failed"
-    assert log.get("data") == {}
-    assert log.get("errors") == [
-        {
-            "code": 130472,
-            "title": "User's number is part of an experiment",
-            "message": "User's number is part of an experiment",
-            "error_data": {
-                "details": "Failed to send message because this user's phone number is part of an experiment"
-            },
-            "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/",
-        }
-    ]
-    assert log.get("recipient") == "15551234567"
-
-
-@responses.activate
-def test_whatsapp_valid_unsupported_message_request():
-    def _mock_validate_hub_signature(*args, **kwargs):
-        return True
-
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_valid_unsupported_message_request(mock_validate, mock_actor):
     responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
 
-    with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-    ):
-        response = client.post(
-            f"/api/bot/whatsapp/{bot}/{token}",
-            headers={"hub.verify_token": "valid"},
-            json={
-                "object": "whatsapp_business_account",
-                "entry": [
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload={
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [
                     {
-                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                        "changes": [
-                            {
-                                "value": {
-                                    "messaging_product": "whatsapp",
-                                    "metadata": {
-                                        "display_phone_number": "910123456789",
-                                        "phone_number_id": "12345678",
-                                    },
-                                    "contacts": [
-                                        {
-                                            "profile": {"name": "udit"},
-                                            "wa_id": "wa-123456789",
-                                        }
-                                    ],
-                                    "messages": [
-                                        {
-                                            "from": "910123456789",
-                                            "id": "wappmsg.ID",
-                                            "timestamp": "21-09-2022 12:05:00",
-                                            "text": {"body": "hi"},
-                                            "type": "text",
-                                        }
-                                    ],
-                                },
-                                "field": "messages",
-                            }
-                        ],
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "910123456789",
+                                "phone_number_id": "12345678",
+                            },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "udit"},
+                                    "wa_id": "wa-123456789",
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {"body": "hi"},
+                                    "type": "text",
+                                }
+                            ],
+                        },
+                        "field": "messages",
                     }
                 ],
-            },
-        )
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
+    )
+
     actual = response.json()
     assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate
-def test_whatsapp_bsp_valid_text_message_request():
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_bsp_valid_text_message_request(mock_validate, mock_actor):
     responses.add("POST", "https://waba-v2.360dialog.io/v1/messages", json={})
     responses.add(
         "PUT",
         "https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
         json={},
     )
-    response = client.post(
-        f"/api/bot/whatsapp/{bot2}/{token}",
-        json={
-            "object": "whatsapp_business_account",
-            "entry": [
-                {
-                    "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                    "changes": [
-                        {
-                            "value": {
-                                "messaging_product": "whatsapp",
-                                "metadata": {
-                                    "display_phone_number": "910123456789",
-                                    "phone_number_id": "12345678",
-                                },
-                                "contacts": [
-                                    {
-                                        "profile": {"name": "udit"},
-                                        "wa_id": "wa-123456789",
-                                    }
-                                ],
-                                "messages": [
-                                    {
-                                        "from": "910123456789",
-                                        "id": "wappmsg.ID",
-                                        "timestamp": "21-09-2022 12:05:00",
-                                        "text": {"body": "hi"},
-                                        "type": "text",
-                                    }
-                                ],
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload={
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "910123456789",
+                                "phone_number_id": "12345678",
                             },
-                            "field": "messages",
-                        }
-                    ],
-                }
-            ],
-        },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "udit"},
+                                    "wa_id": "wa-123456789",
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {"body": "hi"},
+                                    "type": "text",
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
     )
+
     actual = response.json()
     assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate
-def test_whatsapp_bsp_valid_button_message_request():
+@patch.object(ActorFactory, "get_instance")
+@patch.object(MessengerHandler, "validate_hub_signature")
+def test_whatsapp_bsp_valid_button_message_request(mock_validate, mock_actor):
     responses.add("POST", "https://waba-v2.360dialog.io/v1/messages", json={})
     responses.add(
         "PUT",
         "https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
         json={},
     )
-    response = client.post(
-        f"/api/bot/whatsapp/{bot2}/{token}",
-        json={
-            "object": "whatsapp_business_account",
-            "entry": [
-                {
-                    "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                    "changes": [
-                        {
-                            "value": {
-                                "messaging_product": "whatsapp",
-                                "metadata": {
-                                    "display_phone_number": "910123456789",
-                                    "phone_number_id": "12345678",
-                                },
-                                "contacts": [
-                                    {
-                                        "profile": {"name": "udit"},
-                                        "wa_id": "wa-123456789",
-                                    }
-                                ],
-                                "messages": [
-                                    {
-                                        "from": "910123456789",
-                                        "id": "wappmsg.ID",
-                                        "timestamp": "21-09-2022 12:05:00",
-                                        "button": {
-                                            "text": "buy now",
-                                            "payload": "buy kairon for 1 billion",
-                                        },
-                                        "type": "button",
-                                    }
-                                ],
+    mock_validate.return_value = True
+    executor = Mock()
+    mock_actor.return_value = executor
+    payload={
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {
+                                "display_phone_number": "910123456789",
+                                "phone_number_id": "12345678",
                             },
-                            "field": "messages",
-                        }
-                    ],
-                }
-            ],
-        },
+                            "contacts": [
+                                {
+                                    "profile": {"name": "udit"},
+                                    "wa_id": "wa-123456789",
+                                }
+                            ],
+                            "messages": [
+                                {
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "button": {
+                                        "text": "buy now",
+                                        "payload": "buy kairon for 1 billion",
+                                    },
+                                    "type": "button",
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/whatsapp/{bot}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json=payload
     )
+
     actual = response.json()
     assert actual == "success"
+    assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
+    assert not DeepDiff(executor.execute.call_args[0][2],
+                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                         'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+                        ignore_type_in_groups=[(bson.int64.Int64, int)])
+    assert executor.execute.call_args[0][3] == bot
 
 
 @responses.activate

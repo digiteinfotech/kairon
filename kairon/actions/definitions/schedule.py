@@ -25,6 +25,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
+from kairon.shared.data.constant import TASK_TYPE
 
 
 class ActionSchedule(ActionsBase):
@@ -136,12 +137,13 @@ class ActionSchedule(ActionsBase):
                                date_time: datetime,
                                data: Dict,
                                timezone: Text,
-                               kwargs=None):
+                               **kwargs):
         func = obj_to_ref(ExecutorFactory.get_executor().execute_task)
 
         _id = uuid7().hex
         data['predefined_objects']['event'] = _id
         args = (func, "scheduler_evaluator", data,)
+        kwargs.update({'task_type': TASK_TYPE.ACTION.value})
         trigger = DateTrigger(run_date=date_time, timezone=timezone)
 
         next_run_time = trigger.get_next_fire_time(None, datetime.now(astimezone(timezone) or get_localzone()))
