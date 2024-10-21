@@ -225,7 +225,6 @@ class CallbackConfig(Auditlog):
         return callback_url
 
 
-
 class CallbackRecordStatusType(Enum):
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
