@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
 
-from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, AGENT_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.utils import Utility, MailUtility
@@ -244,7 +244,7 @@ async def get_model_testing_logs_accuracy(
 async def leave_bot(
     background_tasks: BackgroundTasks,
     bot: str = Path(description="bot id", examples=["613f63e87a1d435607c3c183"]),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=AGENT_ACCESS)
 ):
     """
     Allows a user except owner to leave a bot.
