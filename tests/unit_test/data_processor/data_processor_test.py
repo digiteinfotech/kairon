@@ -16083,6 +16083,29 @@ class TestMongoProcessor:
         user = 'testUser'
         processor.delete_cognition_schema(pytest.schema_id, bot, user=user)
 
+    def test_delete_cognition_schema_with_data(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        schema = {
+            "metadata": [
+                {"column_name": "employee", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "details_collection_with_data",
+            "bot": bot,
+            "user": user
+        }
+
+        schema_id = processor.save_cognition_schema(schema, user, bot)
+
+        CognitionData(collection=schema['collection_name'], bot=bot, user=user, data={"employee": "John Doe"}, content_type="json",).save()
+        CognitionData(collection=schema['collection_name'], bot=bot, user=user, data={"employee": "Jane Smith"}, content_type="json",).save()
+
+        assert CognitionData.objects(collection=schema['collection_name'], bot=bot).count() == 2
+
+        processor.delete_cognition_schema(schema_id, bot, user=user)
+
+        assert CognitionData.objects(collection=schema['collection_name'], bot=bot).count() == 0
+
     def test_save_payload_metadata_and_delete_with_no_cognition_data(self):
         processor = CognitionDataProcessor()
         bot = 'test'
