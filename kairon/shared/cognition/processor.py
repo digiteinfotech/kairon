@@ -86,11 +86,7 @@ class CognitionDataProcessor:
         try:
             metadata = CognitionSchema.objects(bot=bot, id=schema_id).get()
             CognitionDataProcessor.validate_collection_name(bot, metadata['collection_name'])
-            cognition_data = list(CognitionData.objects(Q(collection=metadata['collection_name']) &
-                                                        Q(bot=bot)))
-            if cognition_data:
-                for data in cognition_data:
-                    data.delete()
+            CognitionData.objects(Q(collection=metadata['collection_name']) & Q(bot=bot)).delete()
             Utility.delete_documents(metadata, user)
         except DoesNotExist:
             raise AppException("Schema does not exists!")
