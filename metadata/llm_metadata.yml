@@ -1,33 +1,33 @@
 openai:
   $schema: "https://json-schema.org/draft/2020-12/schema"
-  type: object
+  type: "object"
   description: "Open AI Models for Prompt"
   properties:
     temperature:
-      type: number
+      type: "number"
       default: 0.0
       minimum: 0.0
       maximum: 2.0
       description: "The temperature hyperparameter controls the creativity or randomness of the generated responses."
     max_tokens:
-      type: integer
+      type: "integer"
       default: 300
       minimum: 5
       maximum: 4096
       description: "The max_tokens hyperparameter limits the length of generated responses in chat completion using ChatGPT."
     model:
-      type: string
+      type: "string"
       default: "gpt-4o-mini"
       enum: ["gpt-3.5-turbo", "gpt-3.5-turbo-instruct", "gpt-4o-mini"]
       description: "The model hyperparameter is the ID of the model to use such as gpt-2, gpt-3, or a custom model that you have trained or fine-tuned."
     top_p:
-      type: number
+      type: "number"
       default: 0.0
       minimum: 0.0
       maximum: 1.0
       description: "The top_p hyperparameter is a value that controls the diversity of the generated responses."
     n:
-      type: integer
+      type: "integer"
       default: 1
       minimum: 1
       maximum: 5
@@ -49,67 +49,67 @@ openai:
       default: null
       description: "The stop hyperparameter is used to specify a list of tokens that should be used to indicate the end of a generated response."
     presence_penalty:
-      type: number
+      type: "number"
       default: 0.0
       minimum: -2.0
       maximum: 2.0
       description: "The presence_penalty hyperparameter penalizes the model for generating words that are not present in the context or input prompt."
     frequency_penalty:
-      type: number
+      type: "number"
       default: 0.0
       minimum: -2.0
       maximum: 2.0
       description: "The frequency_penalty hyperparameter penalizes the model for generating words that have already been generated in the current response."
     logit_bias:
-      type: object
+      type: "object"
       default: {}
       description: "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or even to encourage generation of tokens that you do want."
 anthropic:
   $schema: "https://json-schema.org/draft/2020-12/schema"
-  type: object
+  type: "object"
   description: "Anthropic AI Models for Prompt"
   properties:
     max_tokens:
-      type: integer
+      type: "integer"
       default: 1024
       minimum: 5
       maximum: 4096
       description: "The max_tokens hyperparameter limits the length of generated responses in chat completion using ChatGPT."
     model:
-      type: string
+      type: "string"
       default: "claude-3-haiku-20240307"
       enum: ["claude-3-opus-20240229", "claude-3-5-sonnet-20240620", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]
       description: "The model hyperparameter is the ID of the Anthropic model or a custom model that you have trained or fine-tuned."
 gemini:
   $schema: "https://json-schema.org/draft/2020-12/schema"
-  type: object
+  type: "object"
   description: "Google AI Models for Prompt"
   properties:
     temperature:
-      type: number
+      type: "number"
       default: 0.0
       minimum: 0.0
       maximum: 2.0
       description: "The temperature hyperparameter controls the creativity or randomness of the generated responses."
     max_tokens:
-      type: integer
+      type: "integer"
       default: 300
       minimum: 5
       maximum: 4096
       description: "The max_tokens hyperparameter limits the length of generated responses in chat completion."
     model:
-      type: string
+      type: "string"
       default: "gemini/gemini-1.5-flash"
       enum: ["gemini/gemini-1.5-flash", "gemini/gemini-pro"]
       description: "The model hyperparameter is the ID of the model to use."
     top_p:
-      type: number
+      type: "number"
       default: 0.0
       minimum: 0.0
       maximum: 1.0
       description: "The top_p hyperparameter is a value that controls the diversity of the generated responses."
     n:
-      type: integer
+      type: "integer"
       default: 1
       minimum: 1
       maximum: 5
@@ -132,28 +132,28 @@ gemini:
       description: "The stop hyperparameter is used to specify a list of tokens that should be used to indicate the end of a generated response."
 perplexity:
   $schema: "https://json-schema.org/draft/2020-12/schema"
-  type: object
+  type: "object"
   description: "Perplexity AI Models for Prompt"
   properties:
     temperature:
-      type: number
+      type: "number"
       default: 0.2
       minimum: 0.0
       maximum: 2.0
       description: "The temperature hyperparameter controls the creativity or randomness of the generated responses."
     max_tokens:
       anyOf:
-        - type: "int"
+        - type: "integer"
           minimum: 5
           maximum: 127072
         - type: "null"
       type:
-        - "int"
+        - "integer"
         - "null"
       default: null
       description: "The max_tokens hyperparameter limits the length of generated responses in chat completion"
     model:
-      type: string
+      type: "string"
       default: "perplexity/llama-3.1-sonar-small-128k-online"
       enum: ["perplexity/llama-3.1-sonar-small-128k-online", "perplexity/llama-3.1-sonar-large-128k-online", "perplexity/llama-3.1-sonar-huge-128k-online"]
     search_domain_filter:
@@ -179,25 +179,25 @@ perplexity:
       default: null
       description: "return results from specified time interval"
     top_p:
-      type: number
+      type: "number"
       default: 0.9
       minimum: 0.0
       maximum: 1.0
       description: "The top_p hyperparameter is a value that controls the diversity of the generated responses."
     top_k:
-      type: integer
+      type: "integer"
       default: 0
       minimum: 0
       maximum: 2048
       description: "The top_k hyperparameter controls the number of token to keep for top_k filtering"
     presence_penalty:
-      type: number
+      type: "number"
       default: 0.0
       minimum: -2.0
       maximum: 2.0
       description: "The presence_penalty hyperparameter penalizes the model for generating words that are not present in the context or input prompt."
     frequency_penalty:
-      type: number
+      type: "number"
       default: 0.0
       minimum: -2.0
       maximum: 2.0
