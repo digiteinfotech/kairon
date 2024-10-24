@@ -1,9 +1,10 @@
 import pytest
 from aioresponses import aioresponses
+from yarl import URL
+
 from kairon.chat.actions import KRemoteAction
 from rasa.utils.endpoints import EndpointConfig
 from rasa.utils.endpoints import ClientResponseError
-import ssl
 
 
 @pytest.mark.asyncio
@@ -40,8 +41,9 @@ async def test_multi_try_rasa_request_failure():
             await KRemoteAction.multi_try_rasa_request(
                 endpoint_config=endpoint_config, method=method, subpath=subpath
             )
-            print(exc_info)
-            assert exc_info.value.status == 404
+        assert exc_info.value.status == 404
+        assert exc_info.value.message == "Not Found"
+
 
 
 @pytest.mark.asyncio
@@ -54,6 +56,7 @@ async def test_multi_try_rasa_request_ssl_error():
         await KRemoteAction.multi_try_rasa_request(
             endpoint_config=endpoint_config, method=method, subpath=subpath
         )
+
 
 @pytest.mark.asyncio
 async def test_multi_try_rasa_request_retry_success():
@@ -74,4 +77,27 @@ async def test_multi_try_rasa_request_retry_success():
         )
 
         assert result == success_response_data
+
+@pytest.mark.asyncio
+async def test_multi_try_rasa_request_retry_fail():
+    endpoint_config = EndpointConfig(url="http://test.com", headers={"Authorization": "Bearer token"})
+    subpath = "path/to/resource"
+    method = "post"
+    success_response_data = {"key": "value"}
+
+    with aioresponses() as mock:
+        mock.post(f"http://test.com/{subpath}", status=500)
+        mock.post(f"http://test.com/{subpath}", status=500)
+        mock.post(f"http://test.com/{subpath}", status=500)
+        mock.post(f"http://test.com/{subpath}", status=200, payload=success_response_data)
+
+        with pytest.raises(ClientResponseError) as exc_info:
+            result = await KRemoteAction.multi_try_rasa_request(
+                endpoint_config=endpoint_config,
+                method=method,
+                subpath=subpath,
+                retry_attempts=2
+            )
+
+        assert exc_info.value.status == 500
 
