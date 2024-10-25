@@ -1734,3 +1734,15 @@ async def get_llm_metadata(
     """
     llm_models = LLMProcessor.fetch_llm_metadata(current_user.get_bot())
     return Response(data=llm_models)
+
+
+@router.get("/slots/{slot_name}", response_model=Response)
+async def get_slot_actions(
+        slot_name: str = Path(description="slot name", examples=["audio", "order"]),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)) -> Response:
+    """
+    Returns a list of Actions mapped to that particular slot name.
+    """
+    llm_models = MongoProcessor.get_slot_mapped_actions(current_user.get_bot(), slot_name)
+    return Response(data=llm_models)
+
