@@ -254,6 +254,211 @@ class MongoProcessor:
             other_collections,
         )
 
+    @staticmethod
+    def get_slot_mapped_actions(bot: Text, slot: Text):
+        """
+        fetches list of Actions mapped to slot
+
+        :return: list of action names
+        """
+        action_names = {}
+        actions, _ = ActionSerializer.serialize(bot)
+
+        action_lookup = {
+            ActionType.http_action.value: MongoProcessor.is_slot_in_http_config,
+            ActionType.slot_set_action.value: MongoProcessor.is_slot_in_slot_set_action_config,
+            ActionType.email_action.value: MongoProcessor.is_slot_in_email_action_config,
+            ActionType.google_search_action.value: MongoProcessor.is_slot_in_google_search_action_config,
+            ActionType.zendesk_action.value: MongoProcessor.is_slot_in_zendesk_action_config,
+            ActionType.jira_action.value: MongoProcessor.is_slot_in_jira_action_config,
+            ActionType.pipedrive_leads_action.value: MongoProcessor.is_slot_in_pipedrive_leads_action_config,
+            ActionType.prompt_action.value: MongoProcessor.is_slot_in_prompt_action_config,
+            ActionType.web_search_action.value: MongoProcessor.is_slot_in_web_search_action_config,
+            ActionType.razorpay_action.value: MongoProcessor.is_slot_in_razorpay_action_config,
+            ActionType.pyscript_action.value: MongoProcessor.is_slot_in_pyscript_action_config,
+            ActionType.database_action.value: MongoProcessor.is_slot_in_database_action_config,
+            ActionType.callback_action.value: MongoProcessor.is_slot_in_callback_action_config,
+            ActionType.schedule_action.value: MongoProcessor.is_slot_in_schedule_action_config,
+        }
+        for key, value in actions.items():
+            fun = action_lookup[key]
+            names = []
+            for config in value:
+                if fun(config, slot):
+                    names.append(ActionSerializer.get_item_name(config))
+            action_names.update({key: names})
+
+        return action_names
+
+    @staticmethod
+    def is_slot_in_schedule_action_config(config: dict, slot: Text):
+        if MongoProcessor.is_slot_in_field(config.get('schedule_time', {}), slot):
+            return True
+
+        params_list = config.get('params_list', [])
+        for param in params_list:
+            if MongoProcessor.is_slot_in_field(param, slot):
+                return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_callback_action_config(config: dict, slot: Text):
+        if config.get('dynamic_url_slot_name') == slot:
+            return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_database_action_config(config: dict, slot: Text):
+        payload = config.get('payload', [])
+        for item in payload:
+            if item.get('type') == 'from_slot' and item.get('value') == slot:
+                return True
+
+        set_slots = config.get('set_slots', [])
+        for set_slot in set_slots:
+            if set_slot.get('name') == slot:
+                return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_pyscript_action_config(config: dict, slot: Text):
+        import re
+
+        source_code = config.get('source_code', '')
+        slot_pattern = re.compile(r'slot\[\s*[\'\"]{}[\'\"]\s*\]'.format(re.escape(slot)))
+        slots_dict_pattern = re.compile(r'slots\s*=\s*\{{.*[\'\"]{}[\'\"]\s*:'.format(re.escape(slot)))
+
+        if slot_pattern.search(source_code) or slots_dict_pattern.search(source_code):
+            return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_razorpay_action_config(config: dict, slot: Text):
+        fields_to_check = ['api_key', 'api_secret', 'amount', 'contact']
+
+        for field in fields_to_check:
+            if MongoProcessor.is_slot_in_field(config.get(field, {}), slot):
+                return True
+
+        notes = config.get('notes', [])
+        for note in notes:
+            if MongoProcessor.is_slot_in_field(note, slot):
+                return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_web_search_action_config(config: dict, slot: Text):
+        set_slot = config.get("set_slot")
+        if set_slot == slot:
+            return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_prompt_action_config(config: dict, slot: Text):
+        user_question = config.get("user_question", {})
+        if user_question.get('type') == "from_slot" and user_question.get('value') == slot:
+            return True
+
+        llm_prompts = config.get("llm_prompts", [])
+        for prompt in llm_prompts:
+            if prompt.get('source') == "slot" and prompt.get('data') == slot:
+                return True
+
+        set_slots = config.get("set_slots", [])
+        for set_slot in set_slots:
+            if set_slot.get('name') == slot:
+                return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_jira_action_config(config: dict, slot: Text):
+        api_token = config.get("api_token", {})
+        return MongoProcessor.is_slot_in_field(api_token, slot)
+
+    @staticmethod
+    def is_slot_in_pipedrive_leads_action_config(config: dict, slot: Text):
+        api_token = config.get("api_token", {})
+        metadata = config.get("metadata", {})
+
+        if MongoProcessor.is_slot_in_field(api_token, slot):
+            return True
+
+        for value in metadata.values():
+            if value == slot:
+                return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_google_search_action_config(config: dict, slot: Text):
+        api_key = config.get("api_key", {})
+
+        if MongoProcessor.is_slot_in_field(api_key, slot):
+            return True
+
+        if config.get("set_slot") == slot:
+            return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_slot_set_action_config(config: dict, slot: Text):
+        set_slots = config.get("set_slots", [])
+        for set_slot in set_slots:
+            if set_slot.get('name') == slot:
+                return True
+        return False
+
+    @staticmethod
+    def is_slot_in_email_action_config(config: dict, slot: Text):
+        smtp_userid = config.get("smtp_userid", {})
+        smtp_password = config.get("smtp_password", {})
+        from_email = config.get("from_email", {})
+        to_email = config.get("to_email", {})
+
+        return (
+                MongoProcessor.is_slot_in_field(smtp_userid, slot) or
+                MongoProcessor.is_slot_in_field(smtp_password, slot) or
+                MongoProcessor.is_slot_in_field(from_email, slot) or
+                MongoProcessor.is_slot_in_field(to_email, slot)
+        )
+
+    @staticmethod
+    def is_slot_in_http_config(config: dict, slot: Text):
+        headers = config.get("headers", [])
+        params_list = config.get("params_list", [])
+        set_slots = config.get("set_slots", [])
+
+        for header in headers:
+            if MongoProcessor.is_slot_in_field(header, slot):
+                return True
+
+        for param in params_list:
+            if MongoProcessor.is_slot_in_field(param, slot):
+                return True
+
+        for set_slot in set_slots:
+            if set_slot.get('name') == slot:
+                return True
+
+        return False
+
+    @staticmethod
+    def is_slot_in_zendesk_action_config(config: dict, slot: Text):
+        api_token = config.get("api_token", {})
+        return MongoProcessor.is_slot_in_field(api_token, slot)
+
+    @staticmethod
+    def is_slot_in_field(field: dict, slot: Text):
+        return field.get('parameter_type') == "slot" and field.get('value') == slot
+
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
         apply use-case template

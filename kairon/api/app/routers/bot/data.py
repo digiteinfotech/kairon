@@ -93,6 +93,9 @@ async def delete_cognition_schema(
 
     CognitionDataProcessor.validate_collection_name(current_user.get_bot(), metadata['collection_name'])
 
+    metadata.activeStatus = False
+    metadata.save()
+
     actor = ActorFactory.get_instance(ActorType.callable_runner.value)
     actor.execute(cognition_processor.delete_cognition_schema, schema_id, current_user.get_bot(),
                   user=current_user.get_user())

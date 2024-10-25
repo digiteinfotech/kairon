@@ -52,9 +52,11 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
-    DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction
-from kairon.shared.actions.models import ActionType, DispatchType
-from kairon.shared.admin.constants import BotSecretType
+    DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction, PromptAction, UserQuestion, DbQuery, \
+    CallbackActionConfig, CustomActionDynamicParameters, ScheduleAction
+from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
+from kairon.shared.actions.models import ActionType, DispatchType, DbActionOperationType, DbQueryValueType, \
+    ActionParameterType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
@@ -1667,6 +1669,510 @@ class TestMongoProcessor:
             assert e.status_code == 400, f"Expected status code 400, but got {e.status_code}"
             assert e.detail == "Invalid event ID"
 
+    @pytest.fixture()
+    def save_actions(self):
+        from unittest import mock
+        import textwrap
+        from kairon.shared.actions.data_objects import SetSlots, CustomActionParameters
+
+        HttpActionConfig(
+            action_name="http_action_1",
+            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                     HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                     HttpActionRequestBody(key="email", parameter_type="key_vault", value="EMAIL", encrypt=False)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                         HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME",
+                                               encrypt=False),
+                         HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT",
+                                               encrypt=False)],
+            set_slots=[SetSlotsFromResponse(name="name", value="${data.a.b.d}"),
+                       SetSlotsFromResponse(name="age", value="${data.a.b.d.0}")],
+            bot="testing_bot",
+            user="user"
+        ).save()
+
+        HttpActionConfig(
+            action_name="http_action_2",
+            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                     HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="name", parameter_type="slot", value="name", encrypt=True),
+                     HttpActionRequestBody(key="email", parameter_type="key_vault", value="EMAIL", encrypt=False)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                         HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME",
+                                               encrypt=False),
+                         HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT",
+                                               encrypt=False)],
+            set_slots=[SetSlotsFromResponse(name="name", value="${data.a.b.d}"),
+                       SetSlotsFromResponse(name="location", value="${data.a.b.d.0}")],
+            bot="testing_bot",
+            user="user"
+        ).save()
+
+        SlotSetAction(
+            name="slot_set_action_1",
+            set_slots=[SetSlots(name="location", type="reset_slot", value="location"),
+                       SetSlots(name="name", type="from_value", value="end_user"),
+                       SetSlots(name="age", type="reset_slot")],
+            bot="testing_bot",
+            user="user"
+        ).save()
+        SlotSetAction(
+            name="slot_set_action_2",
+            set_slots=[SetSlots(name="name", type="reset_slot", value="")],
+            bot="testing_bot",
+            user="user"
+        ).save()
+
+        with patch('kairon.shared.utils.SMTP', autospec=True):
+            EmailActionConfig(
+                action_name="email_action_1",
+                smtp_url="test.test.com",
+                smtp_port=293,
+                smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
+                from_email=CustomActionRequestParameters(value="name", parameter_type="slot"),
+                to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+                subject="test",
+                response="Email Triggered",
+                bot="testing_bot",
+                user="user"
+            ).save()
+            EmailActionConfig(
+                action_name="email_action_2",
+                smtp_url="test.test.com",
+                smtp_port=293,
+                smtp_password=CustomActionRequestParameters(key='smtp_password', value="slot"),
+                from_email=CustomActionRequestParameters(value="test@test.com", parameter_type="value"),
+                to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+                subject="test",
+                response="Email Triggered",
+                bot="testing_bot",
+                user="user"
+            ).save()
+            EmailActionConfig(
+                action_name="email_action_3",
+                smtp_url="test.test.com",
+                smtp_port=293,
+                smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
+                from_email=CustomActionRequestParameters(value="from_email", parameter_type="slot"),
+                to_email=CustomActionParameters(value="name", parameter_type="slot"),
+                subject="test",
+                response="Email Triggered",
+                bot="testing_bot",
+                user="user"
+            ).save()
+            EmailActionConfig(
+                action_name="email_action_4",
+                smtp_url="test.test.com",
+                smtp_port=293,
+                smtp_password=CustomActionRequestParameters(key='name', parameter_type="slot", value="name"),
+                from_email=CustomActionRequestParameters(value="test@test.com", parameter_type="value"),
+                to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+                subject="test",
+                response="Email Triggered",
+                bot="testing_bot",
+                user="user"
+            ).save()
+            EmailActionConfig(
+                action_name="email_action_5",
+                smtp_url="test.test.com",
+                smtp_port=293,
+                smtp_userid=CustomActionRequestParameters(key='name', parameter_type="slot", value="name"),
+                smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
+                from_email=CustomActionRequestParameters(value="test@test.com", parameter_type="value"),
+                to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+                subject="test",
+                response="Email Triggered",
+                bot="testing_bot",
+                user="user"
+            ).save()
+
+        GoogleSearchAction(
+            name="google_action_1",
+            api_key=CustomActionRequestParameters(value='1234567890'),
+            search_engine_id='asdfg::123456',
+            bot="testing_bot",
+            user="user",
+            dispatch_response=False,
+            num_results=3,
+            set_slot="name"
+        ).save()
+        GoogleSearchAction(
+            name="google_action_2",
+            api_key=CustomActionRequestParameters(key='name', parameter_type="slot", value='name'),
+            search_engine_id='asdfg::123456',
+            bot="testing_bot",
+            user="user",
+            dispatch_response=False,
+            num_results=3,
+            set_slot="location"
+        ).save()
+
+        with mock.patch('zenpy.Zenpy'):
+            ZendeskAction(
+                name="zendesk_action_1",
+                subdomain='digite751',
+                user_name='udit.pandey@digite.com',
+                api_token=CustomActionRequestParameters(value='1234567890'),
+                subject='new ticket',
+                response='ticket created',
+                bot="testing_bot",
+                user="user"
+            ).save()
+            ZendeskAction(
+                name="zendesk_action_2",
+                subdomain='digite751',
+                user_name='udit.pandey@digite.com',
+                api_token=CustomActionRequestParameters(key="name", parameter_type="slot", value='name'),
+                subject='new ticket',
+                response='ticket created',
+                bot="testing_bot",
+                user="user"
+            ).save()
+
+        def _mock_response(*args, **kwargs):
+            return None
+
+        with mock.patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_response):
+            JiraAction(
+                name="jira_action_1",
+                url='https://test-digite.atlassian.net',
+                user_name='test@digite.com',
+                api_token=CustomActionRequestParameters(key="name", parameter_type="slot", value='name'),
+                project_key='HEL',
+                issue_type='Bug',
+                summary='fallback',
+                response='Successfully created',
+                bot="testing_bot",
+                user="user"
+            ).save()
+            JiraAction(
+                name="jira_action_2",
+                url='https://test-digite.atlassian.net',
+                user_name='test@digite.com',
+                api_token=CustomActionRequestParameters(key="location", parameter_type="slot", value='location'),
+                project_key='HEL',
+                issue_type='Bug',
+                summary='fallback',
+                response='Successfully created',
+                bot="testing_bot",
+                user="user"
+            ).save()
+
+        with mock.patch('pipedrive.client.Client'):
+            metadata = {'name': 'location', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+            PipedriveLeadsAction(
+                name="pipedrive_action_1",
+                domain='https://digite751.pipedrive.com/',
+                api_token=CustomActionRequestParameters(key="name", parameter_type="slot", value='name'),
+                title='new lead generated',
+                response='lead created',
+                metadata=metadata,
+                bot="testing_bot",
+                user="user"
+            ).save()
+            metadata = {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+            PipedriveLeadsAction(
+                name="pipedrive_action_2",
+                domain='https://digite751.pipedrive.com/',
+                api_token=CustomActionRequestParameters(key="location", parameter_type="slot", value='location'),
+                title='new lead generated',
+                response='lead created',
+                metadata=metadata,
+                bot="testing_bot",
+                user="user"
+            ).save()
+        llm_prompts = [
+            {'name': 'System Prompt',
+             'data': 'You are a personal assistant. Answer question based on the context below.',
+             'type': 'system', 'source': 'static', 'is_enabled': True},
+            {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+            {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+             'type': 'query', 'source': 'static', 'is_enabled': False},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'data': 'python',
+             'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+             'is_enabled': True}
+        ]
+        PromptAction(
+            name="prompt_action_1",
+            llm_type="openai",
+            hyperparameters=Utility.get_llm_hyperparameters("openai"),
+            num_bot_responses=2,
+            llm_prompts=llm_prompts,
+            user_question=UserQuestion(type="from_slot", value="name"),
+            set_slots=[SetSlotsFromResponse(name="location", value="${data.a.b.d.0}")],
+            bot="testing_bot",
+            user="user"
+        ).save()
+        PromptAction(
+            name="prompt_action_2",
+            llm_type="openai",
+            hyperparameters=Utility.get_llm_hyperparameters("openai"),
+            num_bot_responses=2,
+            llm_prompts=llm_prompts,
+            user_question=UserQuestion(type="from_slot", value="location"),
+            set_slots=[SetSlotsFromResponse(name="name", value="${data.a.b.d}")],
+            bot="testing_bot",
+            user="user"
+        ).save()
+
+        llm_prompts = [
+            {'name': 'System Prompt',
+             'data': 'You are a personal assistant. Answer question based on the context below.',
+             'type': 'system', 'source': 'static', 'is_enabled': True},
+            {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+            {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+             'type': 'query', 'source': 'static', 'is_enabled': False},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'data': 'python',
+             'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+             'is_enabled': True},
+            {'name': 'Name Prompt',
+             'data': 'name',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+             'is_enabled': True},
+            {'name': 'Location Prompt',
+             'data': 'location',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+             'is_enabled': True}
+        ]
+        PromptAction(
+            name="prompt_action_3",
+            llm_type="anthropic",
+            hyperparameters=Utility.get_llm_hyperparameters("anthropic"),
+            num_bot_responses=2,
+            llm_prompts=llm_prompts,
+            user_question=UserQuestion(type="from_user_message", value="hello"),
+            bot="testing_bot",
+            user="user"
+        ).save()
+        WebSearchAction(
+            name="web_search_action_1",
+            website="https://www.w3schools.com/",
+            topn=1,
+            set_slot='location',
+            bot="testing_bot",
+            user="user"
+        ).save()
+        WebSearchAction(
+            name="web_search_action_2",
+            website="https://www.w3schools.com/",
+            topn=1,
+            set_slot='name',
+            bot="testing_bot",
+            user="user"
+        ).save()
+        RazorpayAction(
+            name="razorpay_action_1",
+            api_key=CustomActionRequestParameters(value="API_KEY", parameter_type="ActionParameterType.key_vault"),
+            api_secret=CustomActionRequestParameters(value="API_SECRET", parameter_type="ActionParameterType.key_vault"),
+            amount=CustomActionRequestParameters(value="amount", parameter_type="slot"),
+            currency=CustomActionRequestParameters(value="INR", parameter_type="value"),
+            username=CustomActionRequestParameters(parameter_type="sender_id"),
+            email=CustomActionRequestParameters(parameter_type="sender_id"),
+            contact=CustomActionRequestParameters(value="name", parameter_type="slot"),
+            notes=[
+                CustomActionRequestParameters(key="order_id", parameter_type="slot",
+                                              value="order_id", encrypt=True),
+                CustomActionRequestParameters(key="location", parameter_type="slot",
+                                              value="location", encrypt=False),
+            ],
+            bot="testing_bot",
+            user="user"
+        ).save()
+        RazorpayAction(
+            name="razorpay_action_2",
+            api_key=CustomActionRequestParameters(value="API_KEY", parameter_type="key_vault"),
+            api_secret=CustomActionRequestParameters(value="API_SECRET", parameter_type="key_vault"),
+            amount=CustomActionRequestParameters(value="location", parameter_type="slot"),
+            currency=CustomActionRequestParameters(value="INR", parameter_type="value"),
+            username=CustomActionRequestParameters(parameter_type="sender_id"),
+            email=CustomActionRequestParameters(parameter_type="sender_id"),
+            contact=CustomActionRequestParameters(value="contact", parameter_type="slot"),
+            notes=[
+                CustomActionRequestParameters(key="name", parameter_type="slot",
+                                              value="name", encrypt=True),
+                CustomActionRequestParameters(key="phone_number", parameter_type="value",
+                                              value="9876543210", encrypt=False),
+            ],
+            bot="testing_bot",
+            user="user"
+        ).save()
+
+        script = """
+        name = slot["name"]
+        bot_response = slots
+        type = text
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name="pyscript_action_1",
+            source_code=script,
+            dispatch_response=True,
+            bot="testing_bot",
+            user="user"
+        ).save()
+        script = """
+        slots = {"location": "Bangalore"}
+        bot_response = slots
+        type = text
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name="pyscript_action_2",
+            source_code=script,
+            dispatch_response=True,
+            bot="testing_bot",
+            user="user"
+        ).save()
+        DatabaseAction(
+            name="database_action_1",
+            collection='vector_db_collection',
+            payload=[DbQuery(query_type=DbActionOperationType.payload_search.value,
+                             type=DbQueryValueType.from_slot.value,
+                             value="name")],
+            response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+            set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+            bot="testing_bot",
+            user="user"
+        ).save()
+        DatabaseAction(
+            name="database_action_2",
+            collection='vector_db_collection',
+            payload=[DbQuery(query_type=DbActionOperationType.payload_search.value,
+                             type=DbQueryValueType.from_slot.value,
+                             value="search")],
+            response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+            set_slots=[SetSlotsFromResponse(name="location", value="${data.0.id}")],
+            bot="testing_bot",
+            user="user"
+        ).save()
+
+        CallbackConfig(
+            name="callback_script2",
+            pyscript_code="bot_response='hello world'",
+            validation_secret=encrypt_secret(
+                "gAAAAABmqK71xDb4apnxOAfJjDUv1lrCTooWNX0GPyBHhqW1KBlblUqGNPwsX1V7FlIlgpwWGRWljiYp9mYAf1eG4AcG1dTXQuZCndCewox"),
+            execution_mode="sync",
+            bot="6697add6b8e47524eb983373",
+        ).save()
+
+        CallbackActionConfig(
+            name="callback_action1",
+            callback_name="callback_script2",
+            dynamic_url_slot_name="location",
+            metadata_list=[],
+            bot_response="Hello",
+            dispatch_bot_response=True,
+            bot="testing_bot",
+            user="user"
+        ).save()
+        CallbackActionConfig(
+            name="callback_action2",
+            callback_name="callback_script2",
+            dynamic_url_slot_name="name",
+            metadata_list=[],
+            bot_response="Hello",
+            dispatch_bot_response=True,
+            bot="testing_bot",
+            user="user"
+        ).save()
+        ScheduleAction(
+            name="schedule_action_1",
+            bot="testing_bot",
+            user="user",
+            schedule_time=CustomActionDynamicParameters(parameter_type=ActionParameterType.slot.value,
+                                                        value="name"),
+            schedule_action="callback_script2",
+            timezone="Asia/Kolkata",
+            response_text="Action schedule",
+            params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
+        ).save()
+        ScheduleAction(
+            name="schedule_action_2",
+            bot="testing_bot",
+            user="user",
+            schedule_time=CustomActionDynamicParameters(parameter_type=ActionParameterType.slot.value,
+                                                        value="location"),
+            schedule_action="callback_script2",
+            timezone="Asia/Kolkata",
+            response_text="Action schedule",
+            params_list=[CustomActionRequestParameters(key="name", parameter_type="slot", value="name", encrypt=True),
+                         CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
+        ).save()
+
+    def test_get_slot_actions(self, save_actions):
+        processor = MongoProcessor()
+        actions = processor.get_slot_mapped_actions('testing_bot', 'name')
+        print(actions)
+        assert actions == {
+            'http_action': ['http_action_1', 'http_action_2'],
+            'email_action': ['email_action_1', 'email_action_3', 'email_action_4', 'email_action_5'],
+            'zendesk_action': ['zendesk_action_2'],
+            'jira_action': ['jira_action_1'],
+            'slot_set_action': ['slot_set_action_1', 'slot_set_action_2'],
+            'google_search_action': ['google_action_1', 'google_action_2'],
+            'pipedrive_leads_action': ['pipedrive_action_1', 'pipedrive_action_2'],
+            'prompt_action': ['prompt_action_1', 'prompt_action_2', 'prompt_action_3'],
+            'web_search_action': ['web_search_action_2'],
+            'razorpay_action': ['razorpay_action_1', 'razorpay_action_2'],
+            'pyscript_action': ['pyscript_action_1'],
+            'database_action': ['database_action_1'],
+            'callback_action': ['callback_action2'],
+            'schedule_action': ['schedule_action_1', 'schedule_action_2']
+        }
+
+        actions = processor.get_slot_mapped_actions('testing_bot', 'bot')
+        print(actions)
+        assert actions == {
+            'http_action': ['http_action_1', 'http_action_2'],
+            'email_action': [],
+            'zendesk_action': [],
+            'jira_action': [],
+            'slot_set_action': [],
+            'google_search_action': [],
+            'pipedrive_leads_action': [],
+            'prompt_action': [],
+            'web_search_action': [],
+            'razorpay_action': [],
+            'pyscript_action': [],
+            'database_action': [],
+            'callback_action': [],
+            'schedule_action': ['schedule_action_1']
+        }
+
+        actions = processor.get_slot_mapped_actions('testing_bot', 'location')
+        print(actions)
+        assert actions == {
+            'http_action': ['http_action_2'],
+            'email_action': [],
+            'zendesk_action': [],
+            'jira_action': ['jira_action_2'],
+            'slot_set_action': ['slot_set_action_1'],
+            'google_search_action': ['google_action_2'],
+            'pipedrive_leads_action': ['pipedrive_action_1', 'pipedrive_action_2'],
+            'prompt_action': ['prompt_action_1', 'prompt_action_2', 'prompt_action_3'],
+            'web_search_action': ['web_search_action_1'],
+            'razorpay_action': ['razorpay_action_1', 'razorpay_action_2'],
+            'pyscript_action': ['pyscript_action_2'],
+            'database_action': ['database_action_2'],
+            'callback_action': ['callback_action1'],
+            'schedule_action': ['schedule_action_2']
+        }
 
     def test_get_collection_data_with_no_collection_data(self):
         bot = 'test_bot'
