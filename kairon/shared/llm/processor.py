@@ -1,6 +1,6 @@
 import time
 from secrets import randbelow, choice
-from typing import Text, Dict, List, Tuple
+from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
 
 import litellm
@@ -54,27 +54,49 @@ class LLMProcessor(LLMBase):
         await self.__delete_collections()
         count = 0
         processor = CognitionDataProcessor()
-        collection_groups = list(CognitionData.objects.aggregate([
-            {'$match': {'bot': self.bot}},
-            {'$group': {'_id': "$collection", 'content': {'$push': "$$ROOT"}}},
-            {'$project': {'collection': "$_id", 'content': 1, '_id': 0}}
-        ]))
-        for collections in collection_groups:
-            collection = f"{self.bot}_{collections['collection']}{self.suffix}" if collections[
-                'collection'] else f"{self.bot}{self.suffix}"
+        batch_size = 100
+
+        collections_data = CognitionData.objects(bot=self.bot)
+        collection_groups = {}
+        for content in collections_data:
+            content_dict = content.to_mongo()
+            collection_name = content_dict.get('collection') or ""
+            if collection_name not in collection_groups:
+                collection_groups[collection_name] = []
+            collection_groups[collection_name].append(content_dict)
+
+        for collection_name, contents in collection_groups.items():
+            collection = f"{self.bot}_{collection_name}{self.suffix}" if collection_name else f"{self.bot}{self.suffix}"
             await self.__create_collection__(collection)
-            for content in tqdm(collections['content'], desc="Training FAQ"):
-                if content['content_type'] == CognitionDataType.json.value:
-                    metadata = processor.find_matching_metadata(self.bot, content['data'], content.get('collection'))
-                    search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
-                        content['data'], metadata)
-                else:
-                    search_payload, embedding_payload = {'content': content["data"]}, content["data"]
-                embeddings = await self.get_embedding(embedding_payload, user, invocation=invocation)
-                points = [{'id': content['vector_id'], 'vector': embeddings, 'payload': search_payload}]
+
+            for i in tqdm(range(0, len(contents), batch_size), desc="Training FAQ"):
+                batch_contents = contents[i:i + batch_size]
+
+                embedding_payloads = []
+                search_payloads = []
+                vector_ids = []
+
+                for content in batch_contents:
+                    if content['content_type'] == CognitionDataType.json.value:
+                        metadata = processor.find_matching_metadata(self.bot, content['data'],
+                                                                    content.get('collection'))
+                        search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
+                            content['data'], metadata)
+                    else:
+                        search_payload, embedding_payload = {'content': content["data"]}, content["data"]
+
+                    embedding_payloads.append(embedding_payload)
+                    search_payloads.append(search_payload)
+                    vector_ids.append(content['vector_id'])
+
+                embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation)
+
+                points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
+                          for idx in range(len(vector_ids))]
                 await self.__collection_upsert__(collection, {'points': points},
                                                  err_msg="Unable to train FAQ! Contact support")
-                count += 1
+                count += len(batch_contents)
+
         return {"faq": count}
 
     async def predict(self, query: Text, user, *args, **kwargs) -> Tuple:
@@ -104,21 +126,42 @@ class LLMProcessor(LLMBase):
         elapsed_time = end_time - start_time
         return response, elapsed_time
 
-    def truncate_text(self, text: Text) -> Text:
+    def truncate_text(self, texts: List[Text]) -> List[Text]:
         """
-        Truncate text to 8191 tokens for openai
+        Truncate multiple texts to 8191 tokens for openai
         """
-        tokens = self.tokenizer.encode(text)[:self.EMBEDDING_CTX_LENGTH]
-        return self.tokenizer.decode(tokens)
+        truncated_texts = []
 
-    async def get_embedding(self, text: Text, user, **kwargs) -> List[float]:
-        truncated_text = self.truncate_text(text)
-        result = await litellm.aembedding(model="text-embedding-3-small",
-                                          input=[truncated_text],
-                                          metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-                                          api_key=self.llm_secret_embedding.get('api_key'),
-                                          num_retries=3)
-        return result["data"][0]["embedding"]
+        for text in texts:
+            tokens = self.tokenizer.encode(text)[:self.EMBEDDING_CTX_LENGTH]
+            truncated_texts.append(self.tokenizer.decode(tokens))
+
+        return truncated_texts
+
+    async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
+        """
+        Get embeddings for a batch of texts.
+        """
+        is_single_text = isinstance(texts, str)
+        if is_single_text:
+            texts = [texts]
+
+        truncated_texts = self.truncate_text(texts)
+
+        result = await litellm.aembedding(
+            model="text-embedding-3-small",
+            input=truncated_texts,
+            metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
+            api_key=self.llm_secret_embedding.get('api_key'),
+            num_retries=3
+        )
+
+        embeddings = [embedding["embedding"] for embedding in result["data"]]
+
+        if is_single_text:
+            return embeddings[0]
+
+        return embeddings
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
