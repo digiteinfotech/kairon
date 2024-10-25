@@ -935,16 +935,22 @@ class MongoProcessor:
     @staticmethod
     def data_format_correction_cognition_data(data_entries, metadata):
         convs = {
-            m['column_name']: (int if m['data_type'] == 'int' else
-                               float if m['data_type'] == 'float' else str)
+            m['column_name']: (
+                int if m['data_type'] == 'int' else
+                float if m['data_type'] == 'float' else
+                str if m['data_type'] == 'str' else
+                None
+            )
             for m in metadata
         }
         return [
             {
                 **e,
                 **{
-                    cname: convs[cname](e[cname][0] if isinstance(e[cname], list) and e[cname] else e[cname])
-                    if e[cname] is not None else None
+                    cname: (
+                        convs[cname](e[cname][0] if isinstance(e[cname], list) and e[cname] else e[cname])
+                        if e[cname] is not None and convs[cname] is not None else e[cname]
+                    )
                     for cname in convs
                 }
             }
