@@ -98,7 +98,7 @@ class CognitionDataProcessor:
         :param bot: bot id
         :return: yield dict
         """
-        for value in CognitionSchema.objects(bot=bot):
+        for value in CognitionSchema.objects(bot=bot, activeStatus=True):
             final_data = {}
             item = value.to_mongo().to_dict()
             metadata = item.pop("metadata")
