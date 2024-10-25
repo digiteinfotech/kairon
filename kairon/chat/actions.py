@@ -1,3 +1,5 @@
+import os
+import ssl
 import ujson as json
 import logging
 from typing import (
@@ -13,9 +15,10 @@ from typing import (
 import aiohttp
 import rasa.core
 import rasa.shared.utils.io
+from aiohttp import ContentTypeError
+from aiohttp_retry import ExponentialRetry, RetryClient
 from rasa.core.actions.constants import DEFAULT_SELECTIVE_DOMAIN, SELECTIVE_DOMAIN
 from rasa.core.constants import (
-    DEFAULT_REQUEST_TIMEOUT,
     COMPRESS_ACTION_SERVER_REQUEST_ENV_NAME,
     DEFAULT_COMPRESS_ACTION_SERVER_REQUEST,
 )
@@ -30,10 +33,10 @@ from rasa.shared.core.events import (
     BotUttered,
 )
 from rasa.shared.core.trackers import DialogueStateTracker
-from rasa.shared.exceptions import RasaException
+from rasa.shared.exceptions import RasaException, FileNotFoundException
 from rasa.shared.utils.schemas.events import EVENTS_SCHEMA
 from rasa.utils.common import get_bool_env_variable
-from rasa.utils.endpoints import EndpointConfig, ClientResponseError
+from rasa.utils.endpoints import EndpointConfig, ClientResponseError, concat_url
 from rasa.core.actions.action import Action, ActionExecutionRejection, create_bot_utterance
 
 if TYPE_CHECKING:
@@ -42,12 +45,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+ACTION_SERVER_REQUEST_TIMEOUT = 30  # seconds
+
 
 class KRemoteAction(Action):
-    def __init__(self, name: Text, action_endpoint: Optional[EndpointConfig]) -> None:
+    def __init__(self, name: Text, action_endpoint: Optional[EndpointConfig], retry_attempts=3) -> None:
 
         self._name = name
         self.action_endpoint = action_endpoint
+        self.retry_attempts = retry_attempts
 
     def _action_call_format(
             self,
@@ -179,11 +185,13 @@ class KRemoteAction(Action):
             modified_json = plugin_manager().hook.prefix_stripping_for_custom_actions(
                 json_body=json_body
             )
-            response: Any = await self.action_endpoint.request(
+            response: Any = await KRemoteAction.multi_try_rasa_request(
+                endpoint_config=self.action_endpoint,
                 json=modified_json if modified_json else json_body,
                 method="post",
-                timeout=DEFAULT_REQUEST_TIMEOUT,
+                timeout=ACTION_SERVER_REQUEST_TIMEOUT,
                 compress=should_compress,
+                retry_attempts=self.retry_attempts
             )
             if modified_json:
                 plugin_manager().hook.prefixing_custom_actions_response(
@@ -238,6 +246,82 @@ class KRemoteAction(Action):
                 "and returns a 200 once the action is executed. "
                 "Error: {}".format(self.name(), status, e)
             )
+
+    @staticmethod
+    async def multi_try_rasa_request(
+        endpoint_config: EndpointConfig,
+        method: Text = "post",
+        subpath: Optional[Text] = None,
+        content_type: Optional[Text] = "application/json",
+        compress: bool = False,
+        retry_attempts: int = 3,
+        **kwargs: Any,
+    ) -> Optional[Any]:
+        """Send a HTTP request to the endpoint. Return json response, if available.
+
+        All additional arguments will get passed through
+        to aiohttp's `session.request`.
+        """
+        # create the appropriate headers
+        headers = {}
+        if content_type:
+            headers["Content-Type"] = content_type
+
+        if "headers" in kwargs:
+            headers.update(kwargs["headers"])
+            del kwargs["headers"]
+
+        if endpoint_config.headers:
+            headers.update(endpoint_config.headers)
+
+        url = concat_url(endpoint_config.url, subpath)
+
+        sslcontext = None
+        if endpoint_config.cafile:
+            try:
+                sslcontext = ssl.create_default_context(cafile=endpoint_config.cafile)
+            except FileNotFoundError as e:
+                raise FileNotFoundException(
+                    f"Failed to find certificate file, "
+                    f"'{os.path.abspath(endpoint_config.cafile)}' does not exist."
+                ) from e
+
+        if endpoint_config.basic_auth:
+            auth = aiohttp.BasicAuth(
+                endpoint_config.basic_auth["username"], endpoint_config.basic_auth["password"]
+            )
+        else:
+            auth = None
+
+        retry_options = ExponentialRetry(attempts=retry_attempts)
+        session = RetryClient(
+            raise_for_status=False,  # Set this to True if you want to raise an exception for non-200 responses
+            retry_options=retry_options,
+            headers=endpoint_config.headers,
+            auth=auth,
+            timeout=aiohttp.ClientTimeout(total=ACTION_SERVER_REQUEST_TIMEOUT),
+        )
+
+        async with session:
+            async with session.request(
+                method,
+                url,
+                headers=headers,
+                params=endpoint_config.combine_parameters(kwargs),
+                compress=compress,
+                ssl=sslcontext,
+                **kwargs,
+            ) as response:
+                if response.status >= 400:
+                    raise ClientResponseError(
+                        response.status,
+                        response.reason,
+                        str(await response.content.read()),
+                    )
+                try:
+                    return await response.json()
+                except ContentTypeError:
+                    return None
 
     def name(self) -> Text:
         return self._name
