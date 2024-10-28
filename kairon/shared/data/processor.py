@@ -654,8 +654,9 @@ class MongoProcessor:
             }
 
             data_results = CognitionData.objects(bot=bot, collection=collection_name).only("content_type", "data")
-            for data_result in data_results:
-                collection_data["data"].append(data_result.data)
+            entries = [d.data for d in data_results]
+            entries = MongoProcessor.data_format_correction_cognition_data(entries, metadata)
+            collection_data["data"] = entries
 
             formatted_result.append(collection_data)
 
@@ -918,7 +919,10 @@ class MongoProcessor:
                     )
                     cognition_data.save()
             elif data_item['type'] == 'json':
-                for json_data in data_item['data']:
+                data_entries = data_item['data']
+                metadata = data_item['metadata']
+                data_entries = MongoProcessor.data_format_correction_cognition_data(data_entries, metadata)
+                for json_data in data_entries:
                     cognition_data = CognitionData(
                         data=json_data,
                         content_type='json',
@@ -927,6 +931,31 @@ class MongoProcessor:
                         bot=bot
                     )
                     cognition_data.save()
+
+    @staticmethod
+    def data_format_correction_cognition_data(data_entries, metadata):
+        convs = {
+            m['column_name']: (
+                int if m['data_type'] == 'int' else
+                float if m['data_type'] == 'float' else
+                str if m['data_type'] == 'str' else
+                None
+            )
+            for m in metadata
+        }
+        return [
+            {
+                **e,
+                **{
+                    cname: (
+                        convs[cname](e[cname][0] if isinstance(e[cname], list) and e[cname] else e[cname])
+                        if e[cname] is not None and convs[cname] is not None else e[cname]
+                    )
+                    for cname in convs
+                }
+            }
+            for e in data_entries
+        ]
 
     def save_bot_content(self, bot_content: list, bot: Text, user: Text):
         """
