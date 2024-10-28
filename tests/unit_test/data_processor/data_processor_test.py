@@ -2144,7 +2144,7 @@ class TestMongoProcessor:
             },
             bot="testing_bot",
             user="user",
-        )
+        ).save()
         semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
                               "&& location.endsWith('i')) || location.length() > 20) " \
                               "{return true;} else {return false;}"
