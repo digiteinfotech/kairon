@@ -7476,7 +7476,8 @@ def save_actions():
         HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, SlotSetAction, EmailActionConfig, \
         GoogleSearchAction, CustomActionRequestParameters, ZendeskAction, JiraAction, PipedriveLeadsAction, \
         PromptAction, UserQuestion, WebSearchAction, RazorpayAction, PyscriptActionConfig, DbQuery, \
-        CallbackActionConfig, CustomActionDynamicParameters, ScheduleAction, DatabaseAction
+        CallbackActionConfig, CustomActionDynamicParameters, ScheduleAction, DatabaseAction, LiveAgentActionConfig, \
+        KaironTwoStageFallbackAction, FormValidationAction
 
     HttpActionConfig(
         action_name="http_action_1",
@@ -7594,6 +7595,20 @@ def save_actions():
             smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
             from_email=CustomActionRequestParameters(value="test@test.com", parameter_type="value"),
             to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+            subject="test",
+            response="Email Triggered",
+            bot=pytest.bot,
+            user="user"
+        ).save()
+        EmailActionConfig(
+            action_name="email_action_6",
+            smtp_url="test.test.com",
+            smtp_port=293,
+            smtp_userid=CustomActionRequestParameters(key='name', parameter_type="slot", value="name"),
+            smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
+            from_email=CustomActionRequestParameters(value="test@test.com", parameter_type="value"),
+            to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+            custom_text=CustomActionRequestParameters(key='bot', parameter_type="slot", value="bot"),
             subject="test",
             response="Email Triggered",
             bot=pytest.bot,
@@ -7917,6 +7932,32 @@ def save_actions():
         params_list=[CustomActionRequestParameters(key="name", parameter_type="slot", value="name", encrypt=True),
                      CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
     ).save()
+    LiveAgentActionConfig(
+        name="live_agent_action",
+        bot_response="Connecting to live agent",
+        dispatch_bot_response=True,
+        bot=pytest.bot,
+        user="user",
+    ).save()
+    KaironTwoStageFallbackAction(
+        name="two_stage_fallback_action",
+        text_recommendations={
+            "count": 3,
+            "use_intent_ranking": True
+        },
+        bot=pytest.bot,
+        user="user",
+    )
+    semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
+                          "&& location.endsWith('i')) || location.length() > 20) " \
+                          "{return true;} else {return false;}"
+    FormValidationAction(
+        name="form_validation_action",
+        slot="location",
+        validation_semantic=semantic_expression,
+        bot=pytest.bot,
+        user="user"
+    ).save()
 
 
 def test_get_slot_actions(save_actions):
@@ -7931,7 +7972,7 @@ def test_get_slot_actions(save_actions):
     assert not actual["message"]
     assert actual["data"] == {
         'http_action': ['http_action_1', 'http_action_2'],
-        'email_action': [],
+        'email_action': ['email_action_6'],
         'zendesk_action': [],
         'jira_action': [],
         'slot_set_action': [],
@@ -7983,7 +8024,7 @@ def test_get_slot_actions(save_actions):
     assert not actual["message"]
     assert actual["data"] == {
         'http_action': ['http_action_1', 'http_action_2'],
-        'email_action': ['email_action_1', 'email_action_3', 'email_action_4', 'email_action_5'],
+        'email_action': ['email_action_1', 'email_action_3', 'email_action_4', 'email_action_5', 'email_action_6'],
         'zendesk_action': ['zendesk_action_2'],
         'jira_action': ['jira_action_1'],
         'slot_set_action': ['slot_set_action_1', 'slot_set_action_2'],
