@@ -100,22 +100,17 @@ class TestLLM:
         user = "test"
         value = "nupurkhare"
         CognitionSchema(
-            metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                      {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}],
-            collection_name="User_details",
-            bot=bot, user=user
-        ).save()
-        CognitionSchema(
             metadata=[{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True},
                       {"column_name": "role", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             collection_name="Country_details",
             bot=bot, user=user).save()
-        test_content = CognitionData(
-            data={"name": "Nupur", "city": "Pune"},
-            content_type="json",
-            collection="User_details",
-            bot=bot, user=user).save()
+        CognitionSchema(
+            metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                      {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}],
+            collection_name="User_details",
+            bot=bot, user=user
+        ).save()
         test_content_two = CognitionData(
             data={"country": "Spain", "lang": "spanish"},
             content_type="json",
@@ -125,6 +120,11 @@ class TestLLM:
             data={"role": "ds", "lang": "spanish"},
             content_type="json",
             collection="Country_details",
+            bot=bot, user=user).save()
+        test_content = CognitionData(
+            data={"name": "Nupur", "city": "Pune"},
+            content_type="json",
+            collection="User_details",
             bot=bot, user=user).save()
 
         llm_secret = LLMSecret(
@@ -138,8 +138,7 @@ class TestLLM:
         llm_secret.save()
 
         embedding = list(np.random.random(LLMProcessor.__embedding__))
-        mock_embedding.side_effect = (litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}),
-                                      litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}),
+        mock_embedding.side_effect = (litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]}),
                                       litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}))
         gpt3 = LLMProcessor(bot, DEFAULT_LLM)
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
@@ -196,16 +195,14 @@ class TestLLM:
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
                 'name': f"{gpt3.bot}_country_details{gpt3.suffix}",
                 'vectors': gpt3.vector_config}
-
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'points': [{'id': test_content_two.vector_id,
                             'vector': embedding,
-                            'payload': {'country': 'Spain'}}]}
-            assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {
-                'points': [{'id': test_content_three.vector_id,
+                            'payload': {'country': 'Spain'}},
+                           {'id': test_content_three.vector_id,
                             'vector': embedding,
-                            'payload': {'role': 'ds'}}]}
-
+                            'payload': {'role': 'ds'}}
+                           ]}
             assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {
                 'name': f"{gpt3.bot}_user_details{gpt3.suffix}",
                 'vectors': gpt3.vector_config}
