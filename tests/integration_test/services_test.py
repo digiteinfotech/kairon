@@ -2124,7 +2124,7 @@ def test_upload_with_bot_content_valifdate_payload_data():
     assert len(actual["data"]["rows"]) == 3
     assert all(row["content_type"] == "json" for row in actual["data"]["rows"])
     assert actual["data"]["rows"][0]["data"]["city"] == "City 3"
-    assert actual["data"]["rows"][1]["data"]["population"] == "200"
+    assert actual["data"]["rows"][1]["data"]["population"] == 200
     assert all(row["collection"] == "test_payload_collection" for row in actual["data"]["rows"])
 
     CognitionData.objects(bot=pytest.bot).delete()
@@ -2344,7 +2344,7 @@ def test_upload_with_bot_content_event_append_validate_payload_data():
     assert len(actual["data"]["rows"]) == 6
     assert all(row["content_type"] == "json" for row in actual["data"]["rows"])
     assert actual["data"]["rows"][4]["data"]["city"] == "City 2"
-    assert actual["data"]["rows"][1]["data"]["population"] == "200"
+    assert actual["data"]["rows"][1]["data"]["population"] == 200
     assert all(row["collection"] == "test_payload_collection" for row in actual["data"]["rows"])
 
     CognitionData.objects(bot=pytest.bot).delete()
