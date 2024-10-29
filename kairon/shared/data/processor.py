@@ -280,7 +280,13 @@ class MongoProcessor:
             ActionType.callback_action.value: MongoProcessor.is_slot_in_callback_action_config,
             ActionType.schedule_action.value: MongoProcessor.is_slot_in_schedule_action_config,
         }
+        actions_to_exclude = [ActionType.form_validation_action.value,
+                              ActionType.live_agent_action.value,
+                              ActionType.hubspot_forms_action.value,
+                              ActionType.two_stage_fallback.value]
         for key, value in actions.items():
+            if key in actions_to_exclude:
+                continue
             fun = action_lookup[key]
             names = []
             for config in value:
@@ -338,7 +344,7 @@ class MongoProcessor:
 
     @staticmethod
     def is_slot_in_razorpay_action_config(config: dict, slot: Text):
-        fields_to_check = ['api_key', 'api_secret', 'amount', 'contact']
+        fields_to_check = ['api_key', 'api_secret', 'amount', 'currency', 'username', 'email', 'contact']
 
         for field in fields_to_check:
             if MongoProcessor.is_slot_in_field(config.get(field, {}), slot):
@@ -422,12 +428,14 @@ class MongoProcessor:
         smtp_password = config.get("smtp_password", {})
         from_email = config.get("from_email", {})
         to_email = config.get("to_email", {})
+        custom_text = config.get("custom_text", {})
 
         return (
                 MongoProcessor.is_slot_in_field(smtp_userid, slot) or
                 MongoProcessor.is_slot_in_field(smtp_password, slot) or
                 MongoProcessor.is_slot_in_field(from_email, slot) or
-                MongoProcessor.is_slot_in_field(to_email, slot)
+                MongoProcessor.is_slot_in_field(to_email, slot) or
+                MongoProcessor.is_slot_in_field(custom_text, slot)
         )
 
     @staticmethod

@@ -53,7 +53,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
     DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction, PromptAction, UserQuestion, DbQuery, \
-    CallbackActionConfig, CustomActionDynamicParameters, ScheduleAction
+    CallbackActionConfig, CustomActionDynamicParameters, ScheduleAction, LiveAgentActionConfig, \
+    KaironTwoStageFallbackAction
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
 from kairon.shared.actions.models import ActionType, DispatchType, DbActionOperationType, DbQueryValueType, \
     ActionParameterType
@@ -1796,6 +1797,20 @@ class TestMongoProcessor:
                 bot="testing_bot",
                 user="user"
             ).save()
+            EmailActionConfig(
+                action_name="email_action_6",
+                smtp_url="test.test.com",
+                smtp_port=293,
+                smtp_userid=CustomActionRequestParameters(key='name', parameter_type="slot", value="name"),
+                smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
+                from_email=CustomActionRequestParameters(value="test@test.com", parameter_type="value"),
+                to_email=CustomActionParameters(value=["test@test.com"], parameter_type="value"),
+                custom_text=CustomActionRequestParameters(key='bot', parameter_type="slot", value="bot"),
+                subject="test",
+                response="Email Triggered",
+                bot="testing_bot",
+                user="user"
+            ).save()
 
         GoogleSearchAction(
             name="google_action_1",
@@ -2114,6 +2129,32 @@ class TestMongoProcessor:
             params_list=[CustomActionRequestParameters(key="name", parameter_type="slot", value="name", encrypt=True),
                          CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
         ).save()
+        LiveAgentActionConfig(
+            name="live_agent_action",
+            bot_response="Connecting to live agent",
+            dispatch_bot_response=True,
+            bot="testing_bot",
+            user="user",
+        ).save()
+        KaironTwoStageFallbackAction(
+            name="two_stage_fallback_action",
+            text_recommendations={
+                "count": 3,
+                "use_intent_ranking": True
+            },
+            bot="testing_bot",
+            user="user",
+        ).save()
+        semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
+                              "&& location.endsWith('i')) || location.length() > 20) " \
+                              "{return true;} else {return false;}"
+        FormValidationAction(
+            name="form_validation_action",
+            slot="location",
+            validation_semantic=semantic_expression,
+            bot="testing_bot",
+            user="user"
+        ).save()
 
     def test_get_slot_actions(self, save_actions):
         processor = MongoProcessor()
@@ -2121,7 +2162,7 @@ class TestMongoProcessor:
         print(actions)
         assert actions == {
             'http_action': ['http_action_1', 'http_action_2'],
-            'email_action': ['email_action_1', 'email_action_3', 'email_action_4', 'email_action_5'],
+            'email_action': ['email_action_1', 'email_action_3', 'email_action_4', 'email_action_5', 'email_action_6'],
             'zendesk_action': ['zendesk_action_2'],
             'jira_action': ['jira_action_1'],
             'slot_set_action': ['slot_set_action_1', 'slot_set_action_2'],
@@ -2140,7 +2181,7 @@ class TestMongoProcessor:
         print(actions)
         assert actions == {
             'http_action': ['http_action_1', 'http_action_2'],
-            'email_action': [],
+            'email_action': ['email_action_6'],
             'zendesk_action': [],
             'jira_action': [],
             'slot_set_action': [],
