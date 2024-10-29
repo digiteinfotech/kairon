@@ -4021,7 +4021,7 @@ class TestMongoProcessor:
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
         embedding = list(np.random.random(1532))
-        mock_openai.return_value = {'data': [{'embedding': embedding}]}
+        mock_openai.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)
