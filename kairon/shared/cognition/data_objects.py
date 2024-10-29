@@ -40,6 +40,7 @@ class CognitionSchema(Auditlog):
     user = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+    activeStatus = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot"]}]}
 
