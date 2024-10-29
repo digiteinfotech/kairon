@@ -12802,7 +12802,7 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
 @mock.patch.object(litellm, "aembedding", autospec=True)
 @mock.patch("kairon.shared.actions.utils.ActionUtility.compose_response", autospec=True)
 @mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding, mock_completion):
+def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_embedding, mock_completion):
     action_name = "kairon_faq_action"
     bot = "5u80fd0a56c908ca10d35d2sjhjhjhj"
     user = "udit.pandey"
@@ -12828,6 +12828,8 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_mock_embedding
         return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
     mock_completion.return_value = mock_completion_for_answer()
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     mock_completion.return_value = litellm.ModelResponse(
         **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     log1 = ['Slot: api_type', 'evaluation_type: expression', f"data: {generated_text}", 'response: filter']
