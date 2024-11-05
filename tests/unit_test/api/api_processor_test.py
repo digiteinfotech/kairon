@@ -2835,3 +2835,41 @@ class TestAccountProcessor:
         attributes = AuditDataProcessor.get_attributes(document)
         assert attributes[0]['key'] == 'email'
         assert attributes[0]['value'] == 'nk15@digite.com'
+
+    def test_update_user_details_with_onboarding_status(self):
+        assert len(AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 1
+        user_details = AccountProcessor.get_complete_user_details("fshaikh@digite.com")
+        assert user_details["_id"]
+        assert user_details["email"] == "fshaikh@digite.com"
+        assert user_details["bots"]["account_owned"][0]["user"] == "fshaikh@digite.com"
+        assert user_details["bots"]["account_owned"][0]["timestamp"]
+        assert user_details["bots"]["account_owned"][0]["name"] == "test_bot"
+        assert user_details["bots"]["account_owned"][0]["_id"]
+        assert not user_details["bots"]["shared"]
+        assert user_details["timestamp"]
+        assert user_details["status"]
+        assert user_details["account_name"] == "paypal"
+        assert user_details["first_name"] == "Fahad Ali"
+        assert user_details["last_name"] == "Shaikh"
+        assert user_details["onboarding_status"] == "Not Completed"
+        assert user_details["is_onboarded"] is False
+
+        AccountProcessor.update_user_onboarded_status("fshaikh@digite.com", "Completed")
+        AccountProcessor.update_is_onboarded("fshaikh@digite.com")
+
+        user_details = AccountProcessor.get_complete_user_details("fshaikh@digite.com")
+        assert user_details["_id"]
+        assert user_details["email"] == "fshaikh@digite.com"
+        assert user_details["bots"]["account_owned"][0]["user"] == "fshaikh@digite.com"
+        assert user_details["bots"]["account_owned"][0]["timestamp"]
+        assert user_details["bots"]["account_owned"][0]["name"] == "test_bot"
+        assert user_details["bots"]["account_owned"][0]["_id"]
+        assert not user_details["bots"]["shared"]
+        assert user_details["timestamp"]
+        assert user_details["status"]
+        assert user_details["account_name"] == "paypal"
+        assert user_details["first_name"] == "Fahad Ali"
+        assert user_details["last_name"] == "Shaikh"
+        assert user_details["onboarding_status"] == "Completed"
+        assert user_details["onboarding_timestamp"]
+        assert user_details["is_onboarded"] is True

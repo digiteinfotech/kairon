@@ -35,6 +35,17 @@ async def update_users_details(current_user: User = Depends(Authentication.get_c
     return {"message": "Details updated!"}
 
 
+@router.post("/details/{status}", response_model=Response)
+async def update_users_details(
+        status: str = Path(description="user onboarded status", examples=["user@kairon.ai"]),
+        current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Updates the details of the current logged-in user.
+    """
+    AccountProcessor.update_user_onboarded_status(current_user.email, status)
+    return {"message": "Details updated!"}
+
+
 @router.get("/roles/access", response_model=Response)
 async def list_access_for_roles(current_user: User = Security(Authentication.get_current_user)):
     """

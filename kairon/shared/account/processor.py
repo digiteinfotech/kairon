@@ -789,6 +789,17 @@ class AccountProcessor:
         try:
             user = User.objects(email__iexact=email, status=True).get()
             user.is_onboarded = True
+            user.onboarding_timestamp = datetime.utcnow()
+            user.save()
+        except DoesNotExist as e:
+            logging.error(e)
+            raise AppException("User does not exists!")
+
+    @staticmethod
+    def update_user_onboarded_status(email: Text, status: Text):
+        try:
+            user = User.objects(email__iexact=email, status=True).get()
+            user.onboarding_status = status
             user.save()
         except DoesNotExist as e:
             logging.error(e)

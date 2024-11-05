@@ -916,6 +916,73 @@ def test_api_login(monkeypatch):
     )
 
 
+def test_update_user_details_with_onboarding_status():
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["data"]["user"]["_id"]
+    assert response["data"]["user"]["email"] == "integration@demo.ai"
+    assert (
+            response["data"]["user"]["bots"]["account_owned"][0]["user"]
+            == "integration@demo.ai"
+    )
+    assert response["data"]["user"]["bots"]["account_owned"][0]["timestamp"]
+    assert response["data"]["user"]["bots"]["account_owned"][0]["name"]
+    assert response["data"]["user"]["bots"]["account_owned"][0]["_id"]
+    assert not response["data"]["user"]["bots"]["shared"]
+    assert response["data"]["user"]["timestamp"]
+    assert response["data"]["user"]["status"]
+    assert response["data"]["user"]["account_name"] == "integration"
+    assert response["data"]["user"]["first_name"] == "Demo"
+    assert response["data"]["user"]["last_name"] == "User"
+    assert response["data"]["user"]["onboarding_status"] == "Not Completed"
+    assert response["data"]["user"]["is_onboarded"] is False
+
+    response = client.post(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Details updated!"
+
+    response = client.post(
+        "/api/user/details/Completed",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Details updated!"
+
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["data"]["user"]["_id"]
+    assert response["data"]["user"]["email"] == "integration@demo.ai"
+    assert (
+            response["data"]["user"]["bots"]["account_owned"][0]["user"]
+            == "integration@demo.ai"
+    )
+    assert response["data"]["user"]["bots"]["account_owned"][0]["timestamp"]
+    assert response["data"]["user"]["bots"]["account_owned"][0]["name"]
+    assert response["data"]["user"]["bots"]["account_owned"][0]["_id"]
+    assert not response["data"]["user"]["bots"]["shared"]
+    assert response["data"]["user"]["timestamp"]
+    assert response["data"]["user"]["status"]
+    assert response["data"]["user"]["account_name"] == "integration"
+    assert response["data"]["user"]["first_name"] == "Demo"
+    assert response["data"]["user"]["last_name"] == "User"
+    assert response["data"]["user"]["onboarding_status"] == "Completed"
+    assert response["data"]["user"]["onboarding_timestamp"]
+    assert response["data"]["user"]["is_onboarded"] is True
+
+
 @responses.activate
 def test_augment_questions_without_authenticated():
     response = client.post(
