@@ -1169,12 +1169,11 @@ class TestLLM:
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
-    @mock.patch.object(litellm, "acompletion", autospec=True)
     @mock.patch.object(litellm, "aembedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_with_previous_bot_responses(self, mock_embedding, mock_completion,
+    async def test_gpt3_faq_embedding_predict_with_previous_bot_responses(self, mock_embedding,
                                                                           aioresponses):
         embedding = list(np.random.random(LLMProcessor.__embedding__))
-
+        llm_type = "openai"
         bot = "test_gpt3_faq_embedding_predict_with_previous_bot_responses"
         user = "test"
         key = "test"
@@ -1206,16 +1205,28 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        mock_completion_request = {"messages": [
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        expected_body = {'messages': [
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
             {'role': 'user', 'content': 'hello'},
             {'role': 'assistant', 'content': 'how are you'},
             {'role': 'user',
              'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}
-        ]}
-        mock_completion_request.update(hyperparameters)
-        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-        mock_completion.return_value = litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+        ],
+         "hyperparameters": hyperparameters,
+         'user': user,
+         'invocation': 'prompt_action'
+         }
+
+        aioresponses.add(
+            url=urljoin(Utility.environment['llm']['url'],
+                        f"/{bot}/completion/{llm_type}"),
+            method="POST",
+            status=200,
+            payload={'formatted_response': generated_text,
+                     'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+            body=expected_body
+        )
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
@@ -1241,18 +1252,13 @@ class TestLLM:
                     "api_key": key,
                     "num_retries": 3}
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
-        expected = mock_completion_request.copy()
-        expected['metadata'] = {'user': user, 'bot': bot, 'invocation': None}
-        expected['api_key'] = key
-        expected['num_retries'] = 3
-        assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
-    @mock.patch.object(litellm, "acompletion", autospec=True)
     @mock.patch.object(litellm, "aembedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_with_query_prompt(self, mock_embedding, mock_completion, aioresponses):
+    async def test_gpt3_faq_embedding_predict_with_query_prompt(self, mock_embedding, aioresponses):
         embedding = list(np.random.random(LLMProcessor.__embedding__))
 
+        llm_type = "openai"
         bot = "test_gpt3_faq_embedding_predict_with_query_prompt"
         user = "test"
         key = "test"
@@ -1261,7 +1267,7 @@ class TestLLM:
             collection='python', bot=bot, user=user).save()
 
         llm_secret = LLMSecret(
-            llm_type="openai",
+            llm_type=llm_type,
             api_key=key,
             models=["model1", "model2"],
             api_base_url="https://api.example.com",
@@ -1292,18 +1298,30 @@ class TestLLM:
              "content": f"{k_faq_action_config.get('query_prompt')['query_prompt']}\n\n Q: {query}\n A:"}
         ]}
 
-        mock_completion_request = {"messages": [
+        mock_rephrase_request.update(hyperparameters)
+
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        expected_body = {'messages': [
             {"role": "system",
              "content": DEFAULT_SYSTEM_PROMPT},
             {'role': 'user',
              'content': "Answer question based on the context below, if answer is not in the context go check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:"}
-        ]}
-        mock_rephrase_request.update(hyperparameters)
-        mock_completion_request.update(hyperparameters)
+        ],
+         "hyperparameters": hyperparameters,
+         'user': user,
+         'invocation': 'prompt_action'
+         }
 
-        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-        mock_completion.side_effect = litellm.ModelResponse(**{'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}), litellm.ModelResponse(**{
-            'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+        aioresponses.add(
+            url=urljoin(Utility.environment['llm']['url'],
+                        f"/{bot}/completion/{llm_type}"),
+            method="POST",
+            status=200,
+            payload={'formatted_response': generated_text,
+                     'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+            body=expected_body,
+            repeat=True
+        )
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
@@ -1328,11 +1346,6 @@ class TestLLM:
                     "api_key": key,
                     "num_retries": 3}
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
-        expected = mock_completion_request.copy()
-        expected['metadata'] = {'user': user, 'bot': bot, 'invocation': None}
-        expected['api_key'] = key
-        expected['num_retries'] = 3
-        assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
     async def test_llm_logging(self):

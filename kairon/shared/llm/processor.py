@@ -10,6 +10,7 @@ from tiktoken import get_encoding
 from tqdm import tqdm
 
 from kairon.exceptions import AppException
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData
@@ -175,14 +176,16 @@ class LLMProcessor(LLMBase):
         return formatted_response
 
     async def __get_completion(self, messages, hyperparameters, user, **kwargs):
-        response = await litellm.acompletion(messages=messages,
-                                             metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-                                             api_key=self.llm_secret.get('api_key'),
-                                             num_retries=3,
-                                             **hyperparameters)
-        formatted_response = await self.__parse_completion_response(response,
-                                                                    **hyperparameters)
-        return formatted_response, response.dict()
+        body = {
+            'messages': messages,
+            'hyperparameters': hyperparameters,
+            'user': user,
+            'invocation': kwargs.get("invocation")
+        }
+        http_response, _, _, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{self.bot}/completion/{self.llm_type}",
+                                                                     request_method="POST",
+                                                                     request_body=body)
+        return http_response.get("formatted_response"), http_response.get("response")
 
     async def __get_answer(self, query, system_prompt: Text, context: Text, user, **kwargs):
         use_query_prompt = False
@@ -209,7 +212,6 @@ class LLMProcessor(LLMBase):
             messages.extend(previous_bot_responses)
         messages.append({"role": "user", "content": f"{context} \n{instructions} \nQ: {query} \nA:"}) if instructions \
             else messages.append({"role": "user", "content": f"{context} \nQ: {query} \nA:"})
-
         completion, raw_response = await self.__get_completion(messages=messages,
                                                                hyperparameters=hyperparameters,
                                                                user=user,
