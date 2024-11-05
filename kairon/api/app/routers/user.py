@@ -36,8 +36,8 @@ async def update_users_details(current_user: User = Depends(Authentication.get_c
 
 
 @router.post("/details/{status}", response_model=Response)
-async def update_users_details(
-        status: str = Path(description="user onboarded status", examples=["user@kairon.ai"]),
+async def update_user_onboarding_status(
+        status: str = Path(description="user onboarding status", examples=["Completed", "Skipped"]),
         current_user: User = Depends(Authentication.get_current_user)):
     """
     Updates the details of the current logged-in user.
