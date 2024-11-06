@@ -26,12 +26,14 @@ async def get_users_details(current_user: User = Depends(Authentication.get_curr
     return {"data": {"user": user_details}}
 
 
-@router.post("/details", response_model=Response)
-async def update_users_details(current_user: User = Depends(Authentication.get_current_user)):
+@router.post("/details/{status}", response_model=Response)
+async def update_user_details(
+        status: str = Path(description="user onboarding status", examples=["Completed", "Skipped"]),
+        current_user: User = Depends(Authentication.get_current_user)):
     """
     Updates the details of the current logged-in user.
     """
-    AccountProcessor.update_is_onboarded(current_user.email)
+    AccountProcessor.update_user_details(current_user.email, status)
     return {"message": "Details updated!"}
 
 

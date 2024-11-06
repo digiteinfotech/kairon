@@ -110,6 +110,13 @@ class EVENT_STATUS(str, Enum):
     ABORTED = "Aborted"
 
 
+class ONBOARDING_STATUS(str, Enum):
+    NOT_COMPLETED = "Not Completed"
+    SKIPPED = "Skipped"
+    IN_PROGRESS = "In Progress"
+    COMPLETED = "Completed"
+
+
 class TASK_TYPE(str, Enum):
     ACTION = "Action"
     EVENT = "Event"
