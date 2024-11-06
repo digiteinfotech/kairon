@@ -3708,6 +3708,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
+    print(event)
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': 'The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}', 'evaluation_type': 'expression',
                        'exception': 'I have failed to process your request'},
@@ -3715,6 +3716,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
                        'payload': {}, 'response': None, 'status_code': 408, 'response_headers': None,
                        'exception': "Got non-200 status code:408 http_response:{'data': None, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 408, 'response_headers': None}"},
                       {'type': 'params_list', 'request_body': {}, 'request_params': {}}, {'type': 'filled_slots'}]
+    print(log)
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET',
                    'bot_response': 'I have failed to process your request', 'bot': '5f50fd0a56b698ca10d35d2e',

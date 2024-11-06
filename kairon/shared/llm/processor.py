@@ -4,7 +4,7 @@ from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
 
 import litellm
-from loguru import logger as logging
+from loguru import logger as logging, logger
 from mongoengine.base import BaseList
 from tiktoken import get_encoding
 from tqdm import tqdm
@@ -23,6 +23,7 @@ from kairon.shared.llm.logger import LiteLLMLogger
 from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
+from http import HTTPStatus
 
 litellm.callbacks = [LiteLLMLogger()]
 
@@ -182,9 +183,13 @@ class LLMProcessor(LLMBase):
             'user': user,
             'invocation': kwargs.get("invocation")
         }
-        http_response, _, _, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{self.bot}/completion/{self.llm_type}",
+        http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{self.bot}/completion/{self.llm_type}",
                                                                      request_method="POST",
                                                                      request_body=body)
+
+        logger.info(f"elapsed time: {elapsed_time}")
+        if status_code not in [200, 201, 202, 203, 204]:
+            raise Exception(HTTPStatus(status_code).phrase)
 
         if isinstance(http_response, dict):
             return http_response.get("formatted_response"), http_response.get("response")

@@ -78,7 +78,6 @@ class ActionUtility:
                 http_response = await response.text()
         except Exception as e:
             logging.error(e)
-            raise e
         finally:
             status_code = client.status_code
 

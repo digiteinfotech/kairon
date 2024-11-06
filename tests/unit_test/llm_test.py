@@ -994,10 +994,10 @@ class TestLLM:
         )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
-        print(response)
-        assert response == {'exception': "Failed to execute the url: Connection reset by peer!", 'is_failure': True, "content": None}
+        assert response == {'is_failure': True, 'exception': 'Internal Server Error', 'content': None}
 
-        assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Failed to execute the url: Connection reset by peer!'}]
+
+        assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Internal Server Error'}]
 
         assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
                                                                              'with_payload': True,
