@@ -37,7 +37,7 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import UserActivityType, PluginTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, INTEGRATION_STATUS
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, INTEGRATION_STATUS, ONBOARDING_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
@@ -785,21 +785,13 @@ class AccountProcessor:
         return user
 
     @staticmethod
-    def update_is_onboarded(email: Text):
-        try:
-            user = User.objects(email__iexact=email, status=True).get()
-            user.is_onboarded = True
-            user.onboarding_timestamp = datetime.utcnow()
-            user.save()
-        except DoesNotExist as e:
-            logging.error(e)
-            raise AppException("User does not exists!")
-
-    @staticmethod
-    def update_user_onboarded_status(email: Text, status: Text):
+    def update_user_details(email: Text, status: Text):
         try:
             user = User.objects(email__iexact=email, status=True).get()
             user.onboarding_status = status
+            if status in [ONBOARDING_STATUS.COMPLETED.value, ONBOARDING_STATUS.SKIPPED.value]:
+                user.is_onboarded = True
+                user.onboarding_timestamp = datetime.utcnow()
             user.save()
         except DoesNotExist as e:
             logging.error(e)

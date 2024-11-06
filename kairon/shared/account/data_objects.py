@@ -68,6 +68,8 @@ class User(Auditlog):
             )
         elif isinstance(email(self.email), ValidationFailure):
             raise ValidationError("Please enter valid email address")
+        elif self.onboarding_status not in [status.value for status in ONBOARDING_STATUS]:
+            raise ValidationError(f"{self.onboarding_status} is not a valid status")
 
 
 class BotMetaData(EmbeddedDocument):

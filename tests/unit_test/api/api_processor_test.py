@@ -2836,6 +2836,19 @@ class TestAccountProcessor:
         assert attributes[0]['key'] == 'email'
         assert attributes[0]['value'] == 'nk15@digite.com'
 
+    def test_update_user_details_with_invalid_onboarding_status(self):
+        with pytest.raises(ValidationError, match="Invalid is not a valid status"):
+            AccountProcessor.update_user_details("fshaikh@digite.com", "Invalid")
+
+        with pytest.raises(ValidationError, match="INITIATED is not a valid status"):
+            AccountProcessor.update_user_details("fshaikh@digite.com", "INITIATED")
+
+        with pytest.raises(ValidationError, match="IN PROGRESS is not a valid status"):
+            AccountProcessor.update_user_details("fshaikh@digite.com", "IN PROGRESS")
+
+        with pytest.raises(ValidationError, match="Done is not a valid status"):
+            AccountProcessor.update_user_details("fshaikh@digite.com", "Done")
+
     def test_update_user_details_with_onboarding_status(self):
         assert len(AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 1
         user_details = AccountProcessor.get_complete_user_details("fshaikh@digite.com")
@@ -2854,8 +2867,25 @@ class TestAccountProcessor:
         assert user_details["onboarding_status"] == "Not Completed"
         assert user_details["is_onboarded"] is False
 
-        AccountProcessor.update_user_onboarded_status("fshaikh@digite.com", "Completed")
-        AccountProcessor.update_is_onboarded("fshaikh@digite.com")
+        AccountProcessor.update_user_details("fshaikh@digite.com", "In Progress")
+
+        user_details = AccountProcessor.get_complete_user_details("fshaikh@digite.com")
+        assert user_details["_id"]
+        assert user_details["email"] == "fshaikh@digite.com"
+        assert user_details["bots"]["account_owned"][0]["user"] == "fshaikh@digite.com"
+        assert user_details["bots"]["account_owned"][0]["timestamp"]
+        assert user_details["bots"]["account_owned"][0]["name"] == "test_bot"
+        assert user_details["bots"]["account_owned"][0]["_id"]
+        assert not user_details["bots"]["shared"]
+        assert user_details["timestamp"]
+        assert user_details["status"]
+        assert user_details["account_name"] == "paypal"
+        assert user_details["first_name"] == "Fahad Ali"
+        assert user_details["last_name"] == "Shaikh"
+        assert user_details["onboarding_status"] == "In Progress"
+        assert user_details["is_onboarded"] is False
+
+        AccountProcessor.update_user_details("fshaikh@digite.com", "Completed")
 
         user_details = AccountProcessor.get_complete_user_details("fshaikh@digite.com")
         assert user_details["_id"]
