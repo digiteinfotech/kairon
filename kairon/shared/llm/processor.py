@@ -185,7 +185,12 @@ class LLMProcessor(LLMBase):
         http_response, _, _, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{self.bot}/completion/{self.llm_type}",
                                                                      request_method="POST",
                                                                      request_body=body)
-        return http_response.get("formatted_response"), http_response.get("response")
+
+        if isinstance(http_response, dict):
+            return http_response.get("formatted_response"), http_response.get("response")
+        else:
+            return http_response, http_response
+
 
     async def __get_answer(self, query, system_prompt: Text, context: Text, user, **kwargs):
         use_query_prompt = False
