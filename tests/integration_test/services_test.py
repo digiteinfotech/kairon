@@ -2787,6 +2787,7 @@ def test_update_user_details_with_onboarding_status():
     assert response["data"]["user"]["first_name"] == "Demo"
     assert response["data"]["user"]["last_name"] == "User"
     assert response["data"]["user"]["onboarding_status"] == "In Progress"
+    assert response["data"]["user"]["onboarding_timestamp"]
     assert response["data"]["user"]["is_onboarded"] is False
 
     response = client.post(

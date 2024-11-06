@@ -2883,6 +2883,7 @@ class TestAccountProcessor:
         assert user_details["first_name"] == "Fahad Ali"
         assert user_details["last_name"] == "Shaikh"
         assert user_details["onboarding_status"] == "In Progress"
+        assert user_details["onboarding_timestamp"]
         assert user_details["is_onboarded"] is False
 
         AccountProcessor.update_user_details("fshaikh@digite.com", "Completed")
