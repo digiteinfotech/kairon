@@ -788,10 +788,10 @@ class AccountProcessor:
     def update_user_details(email: Text, status: Text):
         try:
             user = User.objects(email__iexact=email, status=True).get()
-            user.onboarding_status = status
-            user.onboarding_timestamp = datetime.utcnow()
             if status in [ONBOARDING_STATUS.COMPLETED.value, ONBOARDING_STATUS.SKIPPED.value]:
                 user.is_onboarded = True
+            user.onboarding_status = status
+            user.onboarding_timestamp = datetime.utcnow()
             user.save()
         except DoesNotExist as e:
             logging.error(e)
