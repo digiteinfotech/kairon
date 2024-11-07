@@ -810,7 +810,7 @@ class TestEventDefinitions:
     def test_trigger_website_data_generation(self):
         bot = 'test_data_generation_bot'
         user = 'test_user'
-        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
+        website_url = 'https://www.nimblework.com/knowledge-base/nimble/learn-nimble/'
         source_type = TrainingDataSourceType.website
         DataGenerationEvent(bot, user, website_url=website_url).execute()
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
