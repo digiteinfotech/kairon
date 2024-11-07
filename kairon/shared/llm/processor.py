@@ -188,7 +188,7 @@ class LLMProcessor(LLMBase):
                                                                      request_method="POST",
                                                                      request_body=body)
 
-        logging.info(f"elapsed time: {elapsed_time}")
+        logging.info(f"LLM request completed in {elapsed_time:.2f}s for bot: {self.bot}")
         if status_code not in [200, 201, 202, 203, 204]:
             raise Exception(HTTPStatus(status_code).phrase)
 
