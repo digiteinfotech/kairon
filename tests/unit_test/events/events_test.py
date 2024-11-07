@@ -2163,6 +2163,268 @@ class TestEventExecution:
         }
 
     @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message",
+           autospec=True)
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.list_templates", autospec=True)
+    def test_execute_message_broadcast_with_template_exception(self, mock_list_templates, mock_is_exist,
+                                                               mock_channel_config, mock_get_bot_settings,
+                                                               mock_send, mock_get_partner_auth_token):
+
+        from datetime import datetime
+        from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
+
+        bot = 'test_execute_message_broadcast_with_template_exception'
+        user = 'test_user'
+        script = """
+                api_response = requests.get("http://kairon.local", headers={"api_key": "asdfghjkl", "access_key": "dsfghjkl"})
+                api_response = api_response.json()
+                log(**api_response)
+
+                components = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                      'filename': 'Brochure.pdf'}}]}]
+                i = 0
+                for contact in api_response["contacts"]:
+                    resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")
+                    log(i=i, contact=contact, whatsapp_response=resp)
+                """
+        script = textwrap.dedent(script)
+        config = {
+            "name": "one_time_schedule", "broadcast_type": "dynamic",
+            "connector_type": "whatsapp",
+            "pyscript": script,
+            "retry_count": 0,
+            "template_name": "brochure_pdf",
+            "language_code": "hi"
+        }
+        template = [
+            {
+                "format": "TEXT",
+                "text": "Kisan Suvidha Program Follow-up",
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            },
+            {
+                "buttons": [
+                    {
+                        "text": "Connect to Agronomist",
+                        "type": "QUICK_REPLY"
+                    }
+                ],
+                "type": "BUTTONS"
+            }
+        ]
+
+        template_exception = "Failed to load the template"
+        mock_list_templates.side_effect = Exception(template_exception)
+
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+            "waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", "http://kairon.local",
+            match=[matchers.header_matcher({"api_key": "asdfghjkl", "access_key": "dsfghjkl"})],
+            json={"contacts": ["9876543210", "876543212345"]}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": template, "name": "brochure_pdf", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
+                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = {
+            "contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_get_partner_auth_token.return_value = None
+
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id, is_resend="False")
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+
+        assert len(logs[0]) == logs[1] == 1
+        [log.pop("timestamp") for log in logs[0]]
+        reference_id = logs[0][0].get("reference_id")
+        expected_logs = [{"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot,
+                          'status': 'Completed',
+                          'user': 'test_user', 'failure_cnt': 0, 'total': 0,
+                          'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                              'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                              'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
+                          'api_response': {'contacts': ['9876543210', '876543212345']},
+                          'resp': {
+                              'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}]
+        for log in logs[0]:
+            if log.get("config"):
+                logged_config = log.pop("config")
+            assert log in expected_logs
+
+        logged_config.pop("status")
+        logged_config.pop('pyscript_timeout')
+        logged_config.pop("timestamp")
+        logged_config.pop("_id")
+        assert logged_config.pop("template_config") == []
+        assert logged_config == config
+
+        timestamp = datetime.utcnow()
+        MessageBroadcastLogs(
+            **{
+                "reference_id": reference_id,
+                "event_id": event_id,
+                "log_type": "send",
+                "bot": bot,
+                "status": "Success",
+                "template_name": "brochure_pdf",
+                "namespace": "54500467_f322_4595_becd_419af88spm4",
+                "language_code": "hi",
+                "errors": [],
+                "api_response": {
+                    "messaging_product": "whatsapp",
+                    "contacts": [
+                        {
+                            "input": "9876543210",
+                            "wa_id": "9876543210"
+                        }
+                    ],
+                    "messages": [
+                        {
+                            "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ"
+                        }
+                    ]
+                },
+                "recipient": "9876543210",
+                "template_params": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                    "filename": "Brochure.pdf",
+                                },
+                            }
+                        ],
+                    }
+                ],
+                "timestamp": timestamp,
+                "retry_count": 0
+            }
+        ).save()
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 2
+        logs[0][0].pop("timestamp")
+        reference_id = logs[0][0].get("reference_id")
+        logged_config = logs[0][0]
+        assert logged_config == {
+            'reference_id': reference_id,
+            'log_type': 'send',
+            'bot': bot,
+            'event_id': event_id,
+            'status': 'Success',
+            'template_name': 'brochure_pdf',
+            'namespace': '54500467_f322_4595_becd_419af88spm4',
+            'language_code': 'hi',
+            'errors': [],
+            'api_response': {
+                'messaging_product': 'whatsapp',
+                'contacts': [{'input': '9876543210', 'wa_id': '9876543210'}],
+                'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ'}]},
+            'recipient': '9876543210',
+            'template_params': [
+                {
+                    'type': 'header',
+                    'parameters': [
+                        {
+                            'type': 'document',
+                            'document': {
+                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                'filename': 'Brochure.pdf'
+                            }
+                        }
+                    ]
+                }
+            ],
+            'retry_count': 0
+        }
+        MessageBroadcastProcessor.update_broadcast_logs_with_template(reference_id=reference_id, event_id=event_id,
+                                                                      raw_template=[], log_type="send",
+                                                                      retry_count=0,
+                                                                      template_exception=template_exception)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 2
+        logs[0][0].pop("timestamp")
+        reference_id = logs[0][0].get("reference_id")
+        logged_config = logs[0][0]
+        assert logged_config == {
+            'reference_id': reference_id,
+            'log_type': 'send',
+            'bot': bot,
+            'event_id': event_id,
+            'status': 'Success',
+            'template_name': 'brochure_pdf',
+            'namespace': '54500467_f322_4595_becd_419af88spm4',
+            'language_code': 'hi',
+            'errors': [],
+            'api_response': {
+                'messaging_product': 'whatsapp',
+                'contacts': [
+                    {
+                        'input': '9876543210',
+                        'wa_id': '9876543210'
+                    }
+                ],
+                'messages': [
+                    {
+                        'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ'
+                    }
+                ]
+            },
+            'recipient': '9876543210',
+            'template_params': [
+                {
+                    'type': 'header',
+                    'parameters': [
+                        {
+                            'type': 'document',
+                            'document': {
+                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                'filename': 'Brochure.pdf'
+                            }
+                        }
+                    ]
+                }
+            ],
+            'retry_count': 0,
+            'template': [],
+            'template_exception': 'Failed to load the template'
+        }
+
+    @responses.activate
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -2958,6 +3220,367 @@ class TestEventExecution:
                        'pyscript': '\ncontacts = [\'919876543210\',\'919012345678\']\n\ncomponents = components = [{\'type\': \'header\', \'parameters\': [{\'type\': \'document\', \'document\': {\n                          \'link\': \'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\',\n                          \'filename\': \'Brochure.pdf\'}}]}]\nfor contact in contacts:\n    resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")\n\n    log(contact=contact,whatsapp_response=resp)            \n',
                        'retry_count': 0,
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values',
+                       'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
+            'resend_count_1': 1, 'skipped_count_1': 0}
+        assert ChannelLogs.objects(
+            bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
+        ).get().campaign_id == reference_id
+
+        result = MessageBroadcastProcessor.get_channel_metrics(ChannelTypes.WHATSAPP.value, bot)
+        assert result == [
+            {
+                'campaign_metrics': [
+                    {
+                        'retry_count': 0,
+                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
+                    },
+                    {
+                        'retry_count': 1,
+                        'statuses': {'delivered': 1, 'read': 1, 'sent': 1}
+                    }
+                ],
+                'campaign_id': reference_id
+            }
+        ]
+
+    @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_resend_broadcast_without_template(
+            self, mock_is_exist, mock_channel_config, mock_get_bot_settings, mock_send,
+            mock_get_partner_auth_token
+    ):
+        from datetime import datetime, timedelta
+        from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, MessageBroadcastLogs
+
+        bot = 'test_execute_message_broadcast_with_resend_broadcast_without_template'
+        user = 'test_user'
+        script = """
+            contacts = ['919876543210','919012345678']
+
+            components = components = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                      'filename': 'Brochure.pdf'}}]}]
+            for contact in contacts:
+                resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")
+
+                log(contact=contact,whatsapp_response=resp)            
+            """
+        script = textwrap.dedent(script)
+        config = {
+            "name": "one_time_schedule", "broadcast_type": "dynamic",
+            "connector_type": "whatsapp",
+            "pyscript": script,
+            "bot": bot,
+            "user": user,
+            "status": False
+        }
+        template = [
+            {
+                "format": "TEXT",
+                "text": "Kisan Suvidha Program Follow-up",
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            },
+            {
+                "buttons": [
+                    {
+                        "text": "Connect to Agronomist",
+                        "type": "QUICK_REPLY"
+                    }
+                ],
+                "type": "BUTTONS"
+            }
+        ]
+
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
+                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
+                                  "messages": [{"id": 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+                                                "message_status": 'accepted'}]}
+        mock_get_partner_auth_token.return_value = None
+
+        msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
+        timestamp = datetime.utcnow()
+        MessageBroadcastLogs(
+            **{
+                "reference_id": "667bed955bfdaf3466b19de1",
+                "log_type": "common",
+                "bot": bot,
+                "status": "Completed",
+                "user": "test_user",
+                "event_id": msg_broadcast_id,
+                "recipients": ["919876543210", "919012345678"],
+                "timestamp": timestamp,
+
+            }
+        ).save()
+        timestamp = timestamp + timedelta(minutes=2)
+        MessageBroadcastLogs(
+            **{
+                "reference_id": "667bed955bfdaf3466b19de1",
+                "log_type": "send",
+                "bot": bot,
+                "status": "Success",
+                "template_name": "brochure_pdf",
+                "template": [],
+                "namespace": "54500467_f322_4595_becd_419af88spm4",
+                "language_code": "hi",
+                "errors": [],
+                "api_response": {
+                    "messaging_product": "whatsapp",
+                    "contacts": [
+                        {
+                            "input": "919012345678",
+                            "wa_id": "919012345678"
+                        }
+                    ],
+                    "messages": [
+                        {
+                            "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ"
+                        }
+                    ]
+                },
+                "recipient": "919012345678",
+                "template_params": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                    "filename": "Brochure.pdf",
+                                },
+                            }
+                        ],
+                    }
+                ],
+                "timestamp": timestamp,
+                "retry_count": 0
+            }
+        ).save()
+        timestamp = timestamp + timedelta(minutes=2)
+        MessageBroadcastLogs(
+            **{
+                "reference_id": "667bed955bfdaf3466b19de1",
+                "log_type": "send",
+                "bot": bot,
+                "status": "Success",
+                "template_name": "brochure_pdf",
+                "template": [],
+                "namespace": "54500467_f322_4595_becd_419af88spm4",
+                "language_code": "hi",
+                "errors": [
+                    {
+                        "code": 130472,
+                        "title": "User's number is part of an experiment",
+                        "message": "User's number is part of an experiment",
+                        "error_data": {
+                            "details": "Failed to send message because this user's phone number is part of an experiment"
+                        },
+                        "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                    }
+                ],
+                "api_response": {
+                    "messaging_product": "whatsapp",
+                    "contacts": [
+                        {
+                            "input": "919876543210",
+                            "wa_id": "919876543210"
+                        }
+                    ],
+                    "messages": [
+                        {
+                            "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AA=="
+                        }
+                    ]
+                },
+                "recipient": "919876543210",
+                "template_params": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                    "filename": "Brochure.pdf",
+                                },
+                            }
+                        ],
+                    }
+                ],
+                "timestamp": timestamp,
+                "retry_count": 0
+            }
+        ).save()
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='sent',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='sent',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='delivered',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='read',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+            campaign_id="667bed955bfdaf3466b19de1",
+            bot=bot,
+            user=user
+        ).save()
+
+        ChannelLogs(
+            type=ChannelTypes.WHATSAPP.value,
+            status='failed',
+            data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
+                  'origin': {'type': 'business_initated'}},
+            initiator='business_initated',
+            message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AA==',
+            campaign_id="667bed955bfdaf3466b19de1",
+            errors=[
+                {
+                    "code": 130472,
+                    "title": "User's number is part of an experiment",
+                    "message": "User's number is part of an experiment",
+                    "error_data": {
+                        "details": "Failed to send message because this user's phone number is part of an experiment"
+                    },
+                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                }
+            ],
+            bot=bot,
+            user=user
+        ).save()
+
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.resend_broadcast.value,
+                                     msg_broadcast_id=msg_broadcast_id)
+            event.execute(event_id, is_resend="True")
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 4
+        logs[0][2].pop("timestamp")
+        reference_id = logs[0][2].get("reference_id")
+        logged_config = logs[0][2]
+        assert logged_config == {
+            'reference_id': reference_id, 'log_type': 'resend',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template', 'status': 'Success',
+            'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
+                             'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
+                                           'message_status': 'accepted'}]},
+            'recipient': '919876543210',
+            'template_params': [
+                {'type': 'header', 'parameters': [
+                    {'type': 'document',
+                     'document': {
+                         'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                         'filename': 'Brochure.pdf'}}]}],
+            'template': [{'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'},
+                         {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
+                         {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
+                         {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
+            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
+
+        logs[0][3].pop("timestamp")
+        logs[0][3].get("config").pop("timestamp")
+        reference_id = logs[0][3].get("reference_id")
+        logs[0][3].pop("retry_1_timestamp")
+        logged_config = logs[0][3]
+        assert logged_config == {
+            'reference_id': reference_id, 'log_type': 'common',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template', 'status': 'Completed',
+            'user': 'test_user', 'event_id': event_id,
+            'recipients': ['919876543210', '919012345678'],
+            'config': {'_id': event_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
+                       'broadcast_type': 'dynamic', 'template_config': [],
+                       'pyscript': '\ncontacts = [\'919876543210\',\'919012345678\']\n\ncomponents = components = [{\'type\': \'header\', \'parameters\': [{\'type\': \'document\', \'document\': {\n                          \'link\': \'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\',\n                          \'filename\': \'Brochure.pdf\'}}]}]\nfor contact in contacts:\n    resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")\n\n    log(contact=contact,whatsapp_response=resp)            \n',
+                       'retry_count': 0,
+                       'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
             'resend_count_1': 1, 'skipped_count_1': 0}
         assert ChannelLogs.objects(

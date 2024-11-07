@@ -89,10 +89,12 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         template_name = self.config['template_name']
         language_code = self.config['language_code']
 
-        raw_template = self.__get_template(template_name, language_code)
+        raw_template, template_exception = self.__get_template(template_name, language_code)
+        raw_template = raw_template if raw_template else []
         MessageBroadcastProcessor.update_broadcast_logs_with_template(
             self.reference_id, self.event_id, raw_template=raw_template,
-            log_type=MessageBroadcastLogType.send.value, retry_count=0
+            log_type=MessageBroadcastLogType.send.value, retry_count=0,
+            template_exception=template_exception
         )
 
     def __send_using_configuration(self, recipients: List):
@@ -105,7 +107,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             namespace = template_config.get("namespace")
             lang = template_config["language"]
             template_params = self._get_template_parameters(template_config)
-            raw_template = self.__get_template(template_id, lang)
+            raw_template, template_exception = self.__get_template(template_id, lang)
 
             # if there's no template body, pass params as None for all recipients
             template_params = template_params * len(recipients) if template_params else [template_params] * len(recipients)
@@ -151,6 +153,9 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         failure_cnt = 0
         total = len(required_logs)
         skipped_count = len(broadcast_logs) - total
+        template_name = required_logs[0]["template_name"]
+        language_code = required_logs[0]["language_code"]
+        template, template_exception = self.__get_template(template_name, language_code)
 
         for log in required_logs:
             template_id = log["template_name"]
@@ -158,7 +163,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             language_code = log["language_code"]
             components = log["template_params"]
             recipient = log["recipient"]
-            template = log["template"]
+            template = log.template if log.template else template
             response = channel_client.send_template_message(template_id, recipient, language_code, components,
                                                             namespace)
             status = "Failed" if response.get("error") else "Success"
@@ -197,6 +202,16 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             raise AppException(f"Whatsapp channel config not found!")
 
     def __get_template(self, name: Text, language: Text):
-        for template in BSP360Dialog(self.bot, self.user).list_templates(**{"business_templates.name": name}):
-            if template.get("language") == language:
-                return template.get("components")
+        template_exception = None
+        template = []
+        try:
+            for template in BSP360Dialog(self.bot, self.user).list_templates(**{"business_templates.name": name}):
+                if template.get("language") == language:
+                    template = template.get("components")
+                    break
+            return template, template_exception
+        except Exception as e:
+            logger.exception(e)
+            template_exception = str(e)
+            return template, template_exception
+
