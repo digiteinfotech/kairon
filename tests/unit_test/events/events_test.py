@@ -1284,7 +1284,7 @@ class TestEventExecution:
                                      'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
                                      'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
                                                    'message_status': 'accepted'}]}, 'recipient': '918958030541',
-                                 'template_params': None, 'template_name': 'brochure_pdf',
+                                 'template_params': None, 'template_exception': None, 'template_name': 'brochure_pdf',
                                  'language_code': 'hi', 'namespace': None, 'retry_count': 0, 'template': [
                 {'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'}, {
                     'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.',
@@ -1406,8 +1406,8 @@ class TestEventExecution:
                               'bot': 'test_execute_message_broadcast', 'status': 'Success', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '918958030541', 'template_params': None, "template": template,
-                              'template_name': 'brochure_pdf', 'language_code': 'hi', 'namespace': None,
-                              'retry_count': 0}
+                              'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+                              'namespace': None, 'retry_count': 0}
 
         settings = list(MessageBroadcastProcessor.list_settings(bot, status=False, name="one_time_schedule"))
         assert len(settings) == 1
@@ -1529,8 +1529,8 @@ class TestEventExecution:
                                   {'type': 'document', 'document': {
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                       'filename': 'Brochure.pdf'}}]}], "template": template,
-                              'template_name': 'brochure_pdf', 'language_code': 'hi', 'namespace': None,
-                              'retry_count': 0}
+                              'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+                              'namespace': None, 'retry_count': 0}
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
@@ -1539,8 +1539,8 @@ class TestEventExecution:
                                   {'type': 'document', 'document': {
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                       'filename': 'Brochure.pdf'}}]}], "template": template,
-                              'template_name': 'brochure_pdf', 'language_code': 'hi', 'namespace': None,
-                              'retry_count': 0}
+                              'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+                              'namespace': None, 'retry_count': 0}
 
         assert mock_send.call_args[0][1] == 'brochure_pdf'
         assert mock_send.call_args[0][2] in ['876543212345', '9876543210']
@@ -1849,8 +1849,8 @@ class TestEventExecution:
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
                               'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ'}]},
                               'recipient': '918958030541', 'template_params': [{'body': 'Udit Pandey'}],
-                              'template_name': 'agronomy_support', 'language_code': 'hi', 'namespace': None,
-                              'retry_count': 0,
+                              'template_exception': None, 'template_name': 'agronomy_support', 'language_code': 'hi',
+                              'namespace': None, 'retry_count': 0,
                               'errors': [
                                   {'code': 130472, 'title': "User's number is part of an experiment",
                                    'message': "User's number is part of an experiment",
@@ -2843,7 +2843,7 @@ class TestEventExecution:
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
         logs[0][3].pop("timestamp")
@@ -3202,7 +3202,7 @@ class TestEventExecution:
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
         logs[0][3].pop("timestamp")
@@ -3563,7 +3563,7 @@ class TestEventExecution:
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
         logs[0][3].pop("timestamp")
@@ -3999,7 +3999,7 @@ class TestEventExecution:
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
         logs[0][4].pop("timestamp")
@@ -4551,7 +4551,7 @@ class TestEventExecution:
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 2, 'errors': []}
 
         logs[0][5].pop("timestamp")
@@ -5110,7 +5110,7 @@ class TestEventExecution:
                              'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 2, 'errors': []}
 
         logs[0][5].pop("timestamp")
