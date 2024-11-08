@@ -130,7 +130,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                         self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
                         status=status, recipient=recipient, template_params=t_params, template=raw_template,
                         event_id=self.event_id, template_name=template_id, language_code=lang, namespace=namespace,
-                        retry_count=0
+                        retry_count=0, template_exception=template_exception
                     )
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
@@ -174,7 +174,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 self.bot, MessageBroadcastLogType.resend.value, self.reference_id, api_response=response,
                 status=status, recipient=recipient, template_params=components, template=template,
                 event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
-                retry_count=retry_count,
+                retry_count=retry_count, template_exception=template_exception
             )
         kwargs = {
             f"resend_count_{retry_count}": total,
