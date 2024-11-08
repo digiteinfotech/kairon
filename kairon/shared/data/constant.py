@@ -247,11 +247,6 @@ class LogType(str, Enum):
     data_importer = "data_importer"
 
 
-class TrainingDataSourceType(str, Enum):
-    website = "website"
-    document = "document"
-
-
 class FeatureMappings(str, Enum):
     ONLY_SSO_LOGIN = "only_sso_login"
     CREATE_USER = "create_user"

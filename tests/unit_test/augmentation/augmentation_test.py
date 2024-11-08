@@ -2,14 +2,9 @@ import pytest
 import responses
 
 from augmentation.knowledge_graph import training_data_generator
-from augmentation.knowledge_graph.cli.training_data_generator_cli import parse_document_and_generate_training_data
-from augmentation.knowledge_graph.cli.utility import TrainingDataGeneratorUtil
 from augmentation.paraphrase.paraphrasing import ParaPhrasing
 from augmentation.question_generator.generator import QuestionGenerator
 from augmentation.knowledge_graph.document_parser import DocumentParser
-from augmentation.story_generator.factory import TrainingDataGeneratorFactory
-from augmentation.story_generator.website import WebsiteTrainingDataGenerator
-from kairon.exceptions import AppException
 
 pdf_file = "./tests/testing_data/file_data/sample1.pdf"
 docx_file = "./tests/testing_data/file_data/sample1.docx"
@@ -85,79 +80,4 @@ class TestDocumentParser:
         expected = 'root_Demonstration-of-DOCX-support-in-calibre'
         assert any(item['intent'] == expected for item in final_list)
 
-    def test_training_data_generator_factory(self):
-        assert TrainingDataGeneratorFactory.get_instance("website") == WebsiteTrainingDataGenerator
 
-        with pytest.raises(AppException, match='document data extraction not supported yet!'):
-            TrainingDataGeneratorFactory.get_instance("document")
-
-
-class TestCli:
-
-    @responses.activate
-    def test_parse_document_and_generate_training_data_failure(self, monkeypatch):
-        def raise_exception(*args, **kwargs):
-            raise Exception("exception msg")
-
-        responses.add(
-            responses.PUT,
-            "http://localhost:5000/api/bot/update/data/generator/status",
-            status=200,
-            json={"success":True, "data":None, "message":None, "error_code":0}
-        )
-
-        monkeypatch.setattr(TrainingDataGeneratorUtil, "fetch_latest_data_generator_status", raise_exception)
-        parse_document_and_generate_training_data("http://localhost:5000", "testUser", "testtoken")
-
-    @responses.activate
-    def test_parse_document_and_generate_training_data_no_doc_path(self, monkeypatch):
-        responses.add(
-            responses.PUT,
-            "http://localhost:5000/api/bot/update/data/generator/status",
-            status=200,
-            json={"success": True, "data": None, "message": None, "error_code": 0}
-        )
-
-        responses.add(
-            responses.GET,
-            "http://localhost:5000/api/bot/data/generation/latest",
-            status=200,
-            json={"success":True, "data":None, "message":None, "error_code":0}
-        )
-        parse_document_and_generate_training_data("http://localhost:5000", "testUser", "testtoken")
-
-    @responses.activate
-    def test_fetch_latest_data_generator_status(self, monkeypatch):
-        responses.add(
-            responses.GET,
-            "http://localhost:5000/api/bot/data/generation/latest",
-            status=200,
-            json={"data": {"document_path": "test/path"}, "success": True, "message": None, "error_code": 0}
-        )
-        resp = TrainingDataGeneratorUtil.fetch_latest_data_generator_status("http://localhost:5000", "testUser",
-                                                                            "testtoken")
-        assert resp['document_path'] == 'test/path'
-
-    @responses.activate
-    def test_fetch_latest_data_generator_status_none(self, monkeypatch):
-        responses.add(
-            responses.GET,
-            "http://localhost:5000/api/bot/data/generation/latest",
-            status=200,
-            json={"data": None, "success": True, "message": None, "error_code": 0}
-        )
-        resp = TrainingDataGeneratorUtil.fetch_latest_data_generator_status("http://localhost:5000", "testUser",
-                                                                            "testtoken")
-        assert resp is None
-
-    @responses.activate
-    def test_set_training_data_status(self, monkeypatch):
-        responses.add(
-            responses.PUT,
-            "http://localhost:5000/api/bot/update/data/generator/status",
-            status=200,
-            json={"error_code": 0}
-        )
-        TrainingDataGeneratorUtil.set_training_data_status("http://localhost:5000",
-                                                           {"status": "Fail", "exception": "exception msg"},
-                                                           "user", "token")

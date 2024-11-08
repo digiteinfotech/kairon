@@ -13,7 +13,6 @@ from mongoengine import connect
 
 from augmentation.utils import WebsiteParser
 from kairon import Utility
-from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
@@ -26,13 +25,12 @@ from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.constants import EventClass, EventRequestType
-from kairon.shared.data.constant import EVENT_STATUS, TrainingDataSourceType
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.data_objects import EndPointHistory, Endpoints, BotSettings
 from kairon.shared.data.data_objects import StoryEvents, Rules
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
@@ -750,108 +748,6 @@ class TestEventDefinitions:
         with pytest.raises(AppException, match='Failed to connect to service: *'):
             MultilingualEvent(bot, user, dest_lang=d_lang, translate_responses=True, translate_actions=True).enqueue()
         logs = list(MultilingualLogProcessor.get_logs(bot))
-        assert len(logs) == 0
-
-    def test_trigger_website_data_generation_execute_presteps(self):
-        bot = 'test_data_generation_bot'
-        user = 'test_user'
-        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
-        source_type = TrainingDataSourceType.website
-        DataGenerationEvent(bot, user, website_url=website_url).validate()
-        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
-        assert len(logs) == 0
-
-    def test_trigger_website_data_generation_invalid_depth(self):
-        bot = 'test_data_generation_bot'
-        user = 'test_user'
-        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
-        source_type = TrainingDataSourceType.website
-        with pytest.raises(AppException, match="depth should be between 0 and 2"):
-            DataGenerationEvent(bot, user, website_url=website_url, depth=3).validate()
-        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
-        assert len(logs) == 0
-
-    @responses.activate
-    def test_trigger_website_data_generation_enqueue(self):
-        bot = 'test_data_generation_bot'
-        user = 'test_user'
-        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
-        source_type = TrainingDataSourceType.website
-        event_url = urljoin(Utility.environment['events']['server_url'],
-                            f"/api/events/execute/{EventClass.data_generator}")
-        responses.add("POST",
-                      event_url,
-                      json={"message": "Event triggered successfully!", "success": True},
-                      status=200,
-                      match=[
-                          responses.matchers.json_params_matcher(
-                              {"data": {'bot': bot, 'user': user, 'type': '--from-website', 'website_url': website_url,
-                               'depth': 0}, "cron_exp": None, "timezone": None})]
-                      )
-        DataGenerationEvent(bot, user, website_url=website_url).enqueue()
-        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
-        assert len(logs) == 1
-        assert not logs[0].get('exception')
-        assert logs[0]['start_timestamp']
-        assert not logs[0].get('end_timestamp')
-        assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
-
-    def test_trigger_website_data_generation_in_progress(self):
-        bot = 'test_data_generation_bot'
-        user = 'test_user'
-        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
-        source_type = TrainingDataSourceType.website
-        with pytest.raises(AppException, match="Event already in progress! Check logs."):
-            DataGenerationEvent(bot, user, website_url=website_url).validate()
-
-        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
-        assert len(logs) == 1
-
-    def test_trigger_website_data_generation(self):
-        bot = 'test_data_generation_bot'
-        user = 'test_user'
-        website_url = 'https://www.nimblework.com/knowledge-base/nimble/learn-nimble/'
-        source_type = TrainingDataSourceType.website
-        DataGenerationEvent(bot, user, website_url=website_url).execute()
-        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
-        assert len(logs) == 1
-        assert not logs[0].get('exception')
-        assert logs[0]['start_timestamp']
-        assert logs[0].get('end_timestamp')
-        assert logs[0].get('document_path') == website_url
-        assert logs[0].get('source_type') == source_type
-        assert logs[0].get('status') == EVENT_STATUS.COMPLETED.value
-        assert list(logs[0].get('response')[0].keys()) == ['intent', 'training_examples', 'response']
-
-    def test_trigger_website_data_generation_no_data_found(self, monkeypatch):
-        bot = 'test_data_generation_bot'
-        user = 'test_user'
-        website_url = 'https://www.nimblework.com/blog/#gsc.tab=0'
-        source_type = TrainingDataSourceType.website
-
-        def _mock_get_qna(*args, **kwargs):
-            return {}, {}
-
-        monkeypatch.setattr(WebsiteParser, "get_qna", _mock_get_qna)
-        DataGenerationEvent(bot, user, website_url=website_url).execute()
-        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
-        assert len(logs) == 2
-        assert logs[0]['start_timestamp']
-        assert logs[0].get('end_timestamp')
-        assert logs[0].get('document_path') == website_url
-        assert logs[0].get('source_type') == source_type
-        assert logs[0].get('status') == EVENT_STATUS.FAIL.value
-        assert logs[0].get('exception') == "No data could be scraped!"
-
-    @responses.activate
-    def test_trigger_website_data_generation_event_connection_error(self):
-        bot = 'test_data_generation_bot_1'
-        user = 'test_user'
-        website_url = '/test/website.com'
-        source_type = TrainingDataSourceType.website
-        with pytest.raises(AppException, match='Failed to connect to service: *'):
-            DataGenerationEvent(bot, user, website_url=website_url).enqueue()
-        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
         assert len(logs) == 0
 
     def test_add_message_broadcast_invalid_config(self):
