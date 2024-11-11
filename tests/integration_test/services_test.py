@@ -2619,9 +2619,11 @@ def test_get_executor_logs(get_executor_logs):
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
+    print(actual["data"]["logs"])
     assert len(actual["data"]["logs"]) == actual["data"]["total"] == 2
+
     assert actual["data"]["logs"][0]["task_type"] == "Event"
-    assert actual["data"]["logs"][0]["event_class"] == "model_training"
+    assert actual["data"]["logs"][0]["event_class"] == "model_testing"
     assert actual["data"]["logs"][0]["status"] == "Initiated"
     assert actual["data"]["logs"][0]["data"] == [
         {
@@ -2638,7 +2640,7 @@ def test_get_executor_logs(get_executor_logs):
     assert actual["data"]["logs"][0]['bot'] == pytest.bot
 
     assert actual["data"]["logs"][1]["task_type"] == "Event"
-    assert actual["data"]["logs"][1]["event_class"] == "model_testing"
+    assert actual["data"]["logs"][1]["event_class"] == "model_training"
     assert actual["data"]["logs"][1]["status"] == "Initiated"
     assert actual["data"]["logs"][1]["data"] == [
         {
