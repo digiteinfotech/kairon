@@ -1345,6 +1345,38 @@ def test_add_scheduled_broadcast_with_no_language_code(mock_event_server):
     assert not actual["data"]
 
 
+def test_logout():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    access_token = actual["data"]["access_token"]
+    token_type = actual["data"]["token_type"]
+    response = client.post(
+        url=f"/api/auth/logout",
+        headers={"Authorization": token_type + " " + access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["message"] == "User Logged out!"
+    assert not actual["data"]
+    assert actual["error_code"] == 0
+
+    values = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='logout').order_by(
+        "-timestamp"))
+    audit_log_data = values[0].to_mongo().to_dict()
+    print(audit_log_data)
+    assert audit_log_data["action"] == 'activity'
+    assert audit_log_data['entity'] == 'logout'
+    assert audit_log_data['user'] == 'integration@demo.ai'
+    assert audit_log_data['data']['username'] == 'integration@demo.ai'
+
+
 @responses.activate
 def test_default_values():
     response = client.get(
@@ -21250,8 +21282,18 @@ def test_sso_get_login_token_invalid_type():
 
 
 def test_sso_get_login_token(monkeypatch):
+    token = "fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj"
+
     async def __mock_verify_and_process(*args, **kwargs):
-        return True, {}, "fgyduhsaifusijfisofwh87eyfhw98yqwhfc8wufchwufehwncj"
+        return (
+            False,
+            {
+                "email": "new_user@digite.com",
+                "first_name": "new",
+                "password": SecretStr("123456789"),
+            },
+            token,
+        )
 
     monkeypatch.setattr(Authentication, "verify_and_process", __mock_verify_and_process)
     response = client.get(
@@ -21266,6 +21308,15 @@ def test_sso_get_login_token(monkeypatch):
     )
     assert actual["success"]
     assert actual["error_code"] == 0
+    values = list(AuditLogData.objects(user="new_user@digite.com", action='activity', entity='sso_login').order_by(
+        "-timestamp"))
+    audit_log_data = values[0].to_mongo().to_dict()
+    assert audit_log_data['user'] == 'new_user@digite.com'
+    assert audit_log_data["attributes"] == [{'key': 'email', 'value': 'new_user@digite.com'}]
+    assert audit_log_data["action"] == 'activity'
+    assert audit_log_data['entity'] == 'sso_login'
+    assert audit_log_data['data']['username'] == 'new_user@digite.com'
+    assert audit_log_data['data']['sso_type'] == 'google'
 
     response = client.get(
         url=f"/api/auth/login/sso/callback/linkedin?code=123456789",
@@ -21280,6 +21331,15 @@ def test_sso_get_login_token(monkeypatch):
     )
     assert actual["success"]
     assert actual["error_code"] == 0
+    values = list(AuditLogData.objects(user="new_user@digite.com", action='activity', entity='sso_login').order_by(
+        "-timestamp"))
+    audit_log_data = values[0].to_mongo().to_dict()
+    assert audit_log_data['user'] == 'new_user@digite.com'
+    assert audit_log_data["attributes"] == [{'key': 'email', 'value': 'new_user@digite.com'}]
+    assert audit_log_data["action"] == 'activity'
+    assert audit_log_data['entity'] == 'sso_login'
+    assert audit_log_data['data']['username'] == 'new_user@digite.com'
+    assert audit_log_data['data']['sso_type'] == 'linkedin'
 
     response = client.get(
         url=f"/api/auth/login/sso/callback/facebook?code=123456789",
@@ -21294,6 +21354,15 @@ def test_sso_get_login_token(monkeypatch):
     )
     assert actual["success"]
     assert actual["error_code"] == 0
+    values = list(AuditLogData.objects(user="new_user@digite.com", action='activity', entity='sso_login').order_by(
+        "-timestamp"))
+    audit_log_data = values[0].to_mongo().to_dict()
+    assert audit_log_data['user'] == 'new_user@digite.com'
+    assert audit_log_data["attributes"] == [{'key': 'email', 'value': 'new_user@digite.com'}]
+    assert audit_log_data["action"] == 'activity'
+    assert audit_log_data['entity'] == 'sso_login'
+    assert audit_log_data['data']['username'] == 'new_user@digite.com'
+    assert audit_log_data['data']['sso_type'] == 'facebook'
 
 
 def test_trigger_mail_on_new_signup_with_sso(monkeypatch):

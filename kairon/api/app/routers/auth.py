@@ -4,13 +4,14 @@ from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
 from kairon.idp.processor import IDPProcessor
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, UserActivityType
 from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
 from kairon.shared.models import User
 
@@ -164,11 +165,25 @@ async def sso_callback(
             MailUtility.format_and_send_mail, mail_type='password_generated', email=user_details['email'],
             first_name=user_details['first_name'], password=user_details['password'].get_secret_value()
         )
+    UserActivityLogger.add_log(a_type=UserActivityType.sso_login.value, email=user_details['email'],
+                               data={"username": user_details['email'], "sso_type": sso_type})
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
         "message": """It is your responsibility to keep the token secret.
         If leaked then other may have access to your system.""",
     }
+
+
+@router.post("/logout", response_model=Response)
+async def logout(
+        current_user: User = Depends(Authentication.get_current_user)
+):
+    """
+    Invalidate user session and revoke authentication token upon successful logout.
+    """
+    UserActivityLogger.add_log(a_type=UserActivityType.logout.value, account=current_user.account,
+                               email=current_user.email, data={"username": current_user.email})
+    return Response(message="User Logged out!")
 
 
 @router.get('/login/idp/{realm_name}')
