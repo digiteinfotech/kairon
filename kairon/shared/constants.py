@@ -87,11 +87,6 @@ class EventRequestType(str, Enum):
     resend_broadcast = "resend_broadcast"
 
 
-class DataGeneratorCliTypes(str, Enum):
-    from_website = '--from-website'
-    from_document = '--from-document'
-
-
 class EventExecutor(str, Enum):
     aws_lambda = "aws_lambda"
     dramatiq = "dramatiq"

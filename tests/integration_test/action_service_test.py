@@ -10,9 +10,11 @@ import pytest
 import responses
 import ujson as json
 from apscheduler.util import obj_to_ref
+from cycler import U
 from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
+from litellm import embedding
 from mongoengine import connect
 
 from kairon.events.executors.factory import ExecutorFactory
@@ -3706,6 +3708,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
+    print(event)
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': 'The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}', 'evaluation_type': 'expression',
                        'exception': 'I have failed to process your request'},
@@ -3713,6 +3716,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
                        'payload': {}, 'response': None, 'status_code': 408, 'response_headers': None,
                        'exception': "Got non-200 status code:408 http_response:{'data': None, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 408, 'response_headers': None}"},
                       {'type': 'params_list', 'request_body': {}, 'request_params': {}}, {'type': 'filled_slots'}]
+    print(log)
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET',
                    'bot_response': 'I have failed to process your request', 'bot': '5f50fd0a56b698ca10d35d2e',
@@ -11658,11 +11662,11 @@ def test_action_handler_exceptions():
                                  'action_name': 'Action Not Found Exception'}
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_with_prompt_question_from_slot(mock_search, mock_embedding, mock_completion):
+def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embedding, aioresponses):
     from uuid6 import uuid7
+
+    llm_type = "openai"
 
     action_name = "test_prompt_action_response_action_with_prompt_question_from_slot"
     bot = "5f50fd0a56b698ca10d35d2l"
@@ -11687,16 +11691,39 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+    expected_body = {'messages': [
+        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
+        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
+                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
+        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l', 'invocation': 'prompt_action'},
+        'api_key': 'keyvalue',
+        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
+        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text, 'response': generated_text},
+        body=json.dumps(expected_body)
+    )
+
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
+
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
                  user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
     llm_secret = LLMSecret(
-        llm_type="openai",
+        llm_type=llm_type,
         api_key=value,
         models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
@@ -11723,23 +11750,13 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    expected = {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
-                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l', 'invocation': 'prompt_action'},
-        'api_key': 'keyvalue',
-        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_with_prompt_question_from_slot_different_embedding_completion(mock_search, mock_embedding, mock_completion):
+def test_prompt_action_response_action_with_prompt_question_from_slot_different_embedding_completion(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "anthropic"
     action_name = "test_prompt_action_response_action_with_prompt_question_from_slot_different_embedding_completion"
     bot = "5f50fd0a56b698ca10d35d2D"
     user = "udit.pandey"
@@ -11747,6 +11764,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -11763,10 +11782,31 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
+                                                                                                     'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
+                     "hyperparameters": hyperparameters,
+                     'user': user,
+                     'invocation': 'prompt_action'
+                     }
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body,
+        repeat=True
+    )
+
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name,
@@ -11811,22 +11851,13 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    expected = {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
-                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-        'metadata': {'user': 'udit.pandey', 'bot': bot, 'invocation': 'prompt_action'},
-        'api_key': 'keyvalue',
-        'num_retries': 3, 'max_tokens': 1024, 'model': 'claude-3-haiku-20240307'}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embedding, mock_completion):
+def test_prompt_action_response_action_with_bot_responses(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "openai"
     action_name = "test_prompt_action"
     bot = "5f50fd0a56b698ca10d35d2k"
     user = "udit.pandey"
@@ -11834,6 +11865,8 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -11850,10 +11883,32 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    expected_body = {'messages': [
+        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
+        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
+                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
+                     "hyperparameters": hyperparameters,
+                     'user': user,
+                     'invocation': 'prompt_action'
+                     }
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
@@ -11885,24 +11940,14 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    expected = {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
-                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2k', 'invocation': 'prompt_action'},
-        'api_key': 'keyvalue',
-        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_with_bot_responses_with_instructions(mock_search, mock_embedding,
-                                                                            mock_completion):
+def test_prompt_action_response_action_with_bot_responses_with_instructions(mock_embedding,
+                                                                            aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "openai"
     action_name = "test_prompt_action_with_bot_responses_with_instructions"
     bot = "5f50fd0a56b678ca10d35d2k"
     user = "udit.pandey"
@@ -11911,6 +11956,9 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     instructions = ['Answer in a short way.', 'Keep it simple.']
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -11925,12 +11973,35 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
          'is_enabled': True}
     ]
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+    expected_body = {'messages': [
+        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
+        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
+                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
+                     "hyperparameters": hyperparameters,
+                     'user': user,
+                     'invocation': 'prompt_action'
+                     }
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
+
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
@@ -11964,23 +12035,13 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    expected = {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
-                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nAnswer in a short way.\nKeep it simple. \nQ: What kind of language is python? \nA:"}],
-        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b678ca10d35d2k', 'invocation': 'prompt_action'},
-        'api_key': 'keyvalue',
-        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embedding, mock_completion):
+def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "openai"
     action_name = "test_prompt_action_response_action_with_query_prompt"
     bot = "5f50fd0a56b698ca10d35d2s"
     user = "udit.pandey"
@@ -11989,6 +12050,9 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     rephrased_query = "Explain python is called high level programming language in laymen terms?"
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -12006,18 +12070,34 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}
     ]
 
-    mock_completion_for_query_prompt = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]})
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
+                                                                                                     'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
+                     "hyperparameters": hyperparameters,
+                     'user': user,
+                     'invocation': 'prompt_action'
+                     }
 
-    mock_completion_for_answer = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body,
+        repeat=True
+    )
 
-    mock_completion.side_effect = [mock_completion_for_query_prompt, mock_completion_for_answer]
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -12050,17 +12130,13 @@ def test_prompt_action_response_action_with_query_prompt(mock_search, mock_embed
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    assert mock_completion.call_args.kwargs['messages'] == [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-        {'role': 'user',
-         'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:"}]
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
+def test_prompt_response_action(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "openai"
     action_name = GPT_LLM_FAQ
     bot = "5f50fd0a56b698ca10d35d2e"
     user = "udit.pandey"
@@ -12069,6 +12145,8 @@ def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     bot_content_two = "Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data."
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
@@ -12098,8 +12176,24 @@ def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
             'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content_two}}]})
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
+                                                                                                     'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
+                     "hyperparameters": hyperparameters,
+                     'user': user,
+                     'invocation': 'prompt_action'
+                     }
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     PromptAction(name=action_name,
                  bot=bot,
@@ -12131,12 +12225,11 @@ def test_prompt_response_action(mock_embedding, mock_completion, aioresponses):
     ]
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_response_action_with_instructions(mock_search, mock_embedding, mock_completion):
+def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "openai"
     action_name = 'test_prompt_response_action_with_instructions'
     bot = "5f50fd0a56b690ca10d35d2e"
     user = "udit.pandey"
@@ -12145,6 +12238,9 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
     bot_content = "Java is a high-level, object-oriented programming language. It was developed by Sun Microsystems (later acquired by Oracle Corporation) and released in 1995. "
     generated_text = "Java is a high-level, object-oriented programming language. "
     instructions = ['Answer in a short way.', 'Keep it simple.']
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
@@ -12155,12 +12251,33 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
          'is_enabled': True
          }
     ]
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user', 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body,
+    )
+
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
+
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, instructions=instructions).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12189,12 +12306,11 @@ def test_prompt_response_action_with_instructions(mock_search, mock_embedding, m
     ]
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, mock_completion):
+def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "openai"
     action_name = GPT_LLM_FAQ
     bot = "5f50k90a56b698ca10d35d2e"
     user = "udit.pandeyy"
@@ -12202,6 +12318,14 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparameters = {'temperature': 0.0, 'max_tokens': 300,
+                       'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
+                       'stream': True,
+                       'stop': None,
+                       'presence_penalty': 0.0,
+                       'frequency_penalty': 0.0, 'logit_bias': {}}
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
@@ -12212,18 +12336,35 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
          'is_enabled': True
          }
     ]
-    hyperparameters = {'temperature': 0.0, 'max_tokens': 300,
-                       'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                       'stream': True, 'stop': None,
-                       'presence_penalty': 0.0,
-                       'frequency_penalty': 0.0, 'logit_bias': {}}
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'delta': {'role': 'assistant', 'content': generated_text}, 'finish_reason': None, 'index': 0}]})
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'},
+                                  {'role': 'user', 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
+
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
@@ -12250,13 +12391,6 @@ def test_prompt_response_action_streaming_enabled(mock_search, mock_embedding, m
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
-                'metadata': {'user': 'udit.pandeyy', 'bot': '5f50k90a56b698ca10d35d2e', 'invocation': 'prompt_action'},
-                'api_key': 'keyvalue',
-                'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                'stream': True, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args.kwargs, expected, ignore_order=True)
 
 
 @mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
@@ -12340,12 +12474,11 @@ def test_prompt_action_response_action_does_not_exists():
     assert len(response_json['responses']) == 0
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock_embedding, mock_completion):
+def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "openai"
     action_name = "kairon_faq_action"
     bot = "5u80fd0a56b698ca10d35d2s"
     user = "udit.pandey"
@@ -12353,6 +12486,9 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -12383,13 +12519,36 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
     def __mock_cache_result(*args, **kwargs):
         return {'result': []}
 
-    mock_completion.return_value = mock_completion_for_answer()
+    expected_body = {'messages': [
+        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
+        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'},
+        {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200,
+        repeat=True
+    )
+
+
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -12425,12 +12584,11 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
 
 
 @responses.activate
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.llm.processor.LLMProcessor.__collection_search__", autospec=True)
-def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embedding, mock_completion, aioresponses):
+def test_prompt_action_response_action_with_action_prompt(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "openai"
     action_name = "kairon_faq_action"
     bot = "5u08kd0a56b698ca10d98e6s"
     user = "nupur.khare"
@@ -12438,6 +12596,9 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     Actions(name='http_action', type=ActionType.http_action.value, bot=bot, user=user).save()
     KeyVault(key="FIRSTNAME", value="nupur", bot=bot, user=user).save()
     KeyVault(key="CONTACT", value="9876543219", bot=bot, user=user).save()
@@ -12494,18 +12655,33 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
          'is_enabled': True}
     ]
 
-    def mock_completion_for_answer(*args, **kwargs):
-        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
-    def __mock_fetch_similar(*args, **kwargs):
-        return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'},
+                                  {'role': 'user', 'content': "Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\nAction Prompt:\nPython is a scripting language because it uses an interpreter to translate and run its code.\nInstructions on how to use Action Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
 
-    mock_completion.return_value = mock_completion_for_answer()
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
+
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -12554,25 +12730,21 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
         r"['raw_completion_response']['created']"
     ]
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
-    expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                'content': "Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\nAction Prompt:\nPython is a scripting language because it uses an interpreter to translate and run its code.\nInstructions on how to use Action Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-                'metadata': {'user': 'nupur.khare', 'bot': '5u08kd0a56b698ca10d98e6s', 'invocation': 'prompt_action'},
-                'api_key': 'keyvalue',
-                'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
 @mock.patch.object(ActionUtility, "perform_google_search", autospec=True)
-def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_embedding, mock_completion):
+def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_embedding, aioresponses):
+    llm_type = "openai"
     action_name = "kairon_faq_action"
     google_action_name = "custom_search_action"
     bot = "5u08kd0a56b698ca10hgjgjkhgjks"
     value = "keyvalue"
     user_msg = "What is kanban"
     user = 'test_user'
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     Actions(name=google_action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
     GoogleSearchAction(name=google_action_name, api_key=CustomActionRequestParameters(value='1234567890'),
@@ -12613,12 +12785,24 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     ]
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
-    def mock_completion_for_answer(*args, **kwargs):
-        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
+                                                                                                'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
 
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+
+
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     mock_google_search.side_effect = _run_action
 
@@ -12652,13 +12836,6 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
         r"['raw_completion_response']['created']"
     ]
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
-    expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
-                'metadata': {'user': 'test_user', 'bot': '5u08kd0a56b698ca10hgjgjkhgjks',
-                             'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
-                'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
 def test_prompt_response_action_with_action_not_found():
@@ -12690,12 +12867,11 @@ def test_prompt_response_action_with_action_not_found():
     log['exception'] = 'No action found for given bot and name'
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, mock_completion):
+def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type ="openai"
     action_name = "kairon_faq_action"
     bot = "5u80fd0a56c908ca10d35d2sjhj"
     user = "udit.pandey"
@@ -12703,6 +12879,9 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
     user_msg = "What is the name of prompt?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
@@ -12716,19 +12895,33 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
          'is_enabled': True},
     ]
 
-    def mock_completion_for_answer(*args, **kwargs):
-        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
+                                                                                                'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
 
-    def __mock_fetch_similar(*args, **kwargs):
-        return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
 
-    mock_completion.return_value = mock_completion_for_answer()
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False).save()
@@ -12789,26 +12982,21 @@ def test_prompt_action_dispatch_response_disabled(mock_search, mock_embedding, m
         r"['raw_completion_response']['created']"
     ]
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
-    expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
-                'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhj',
-                             'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
-                'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
 @mock.patch("kairon.shared.actions.utils.ActionUtility.compose_response", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_embedding, mock_completion):
+def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
+    llm_type = "openai"
     action_name = "kairon_faq_action"
     bot = "5u80fd0a56c908ca10d35d2sjhjhjhj"
     user = "udit.pandey"
     value = "keyvalue"
     user_msg = "category of record created on 15/01/2023?"
     generated_text = "{\"api_type\": \"filter\", {\"filter\": {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}}}"
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
@@ -12824,14 +13012,25 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_embedding, moc
          'type': 'user', 'source': 'static', 'is_enabled': True},
     ]
 
-    def mock_completion_for_answer(*args, **kwargs):
-        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
 
-    mock_completion.return_value = mock_completion_for_answer()
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user', 'content': 'Qdrant Prompt:\nConvert user questions into json requests in qdrant such that they will either filter, apply range queries and search the payload in qdrant. Sample payload present in qdrant looks like below with each of the points starting with 1 to 5 is a record in qdrant.1. {"Category (Risk, Issue, Action Item)": "Risk", "Date Added": 1673721000.0,2. {"Category (Risk, Issue, Action Item)": "Action Item", "Date Added": 1673721000.0,For eg: to find category of record created on 15/01/2023, the filter query is:{"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}\nInstructions on how to use Qdrant Prompt:\nCreate qdrant filter query out of user message based on above instructions.\n\n \nQ: category of record created on 15/01/2023? \nA:'}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+
+
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
     log1 = ['Slot: api_type', 'evaluation_type: expression', f"data: {generated_text}", 'response: filter']
     log2 = ['Slot: query', 'evaluation_type: expression', f"data: {generated_text}",
             'response: {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}']
@@ -12911,21 +13110,13 @@ def test_prompt_action_set_slots(mock_search, mock_slot_set, mock_embedding, moc
         r"['raw_completion_response']['created']"
     ]
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
-    expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                'content': 'Qdrant Prompt:\nConvert user questions into json requests in qdrant such that they will either filter, apply range queries and search the payload in qdrant. Sample payload present in qdrant looks like below with each of the points starting with 1 to 5 is a record in qdrant.1. {"Category (Risk, Issue, Action Item)": "Risk", "Date Added": 1673721000.0,2. {"Category (Risk, Issue, Action Item)": "Action Item", "Date Added": 1673721000.0,For eg: to find category of record created on 15/01/2023, the filter query is:{"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}\nInstructions on how to use Qdrant Prompt:\nCreate qdrant filter query out of user message based on above instructions.\n\n \nQ: category of record created on 15/01/2023? \nA:'}],
-                'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2sjhjhjhj',
-                             'invocation': 'prompt_action'}, 'api_key': 'keyvalue',
-                'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, mock_completion):
+def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type = "openai"
     action_name = "kairon_faq_action"
     bot = "5u80fd0a56c908ca10d35d2s"
     user = "udit.pandey"
@@ -12933,6 +13124,9 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
     user_msg = "What is the name of prompt?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+    test_prompt_action_response_action_slot_prompt
+
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
@@ -12946,19 +13140,32 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
          'is_enabled': True},
     ]
 
-    def mock_completion_for_answer(*args, **kwargs):
-        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
+                                                                                                'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
 
-    def __mock_fetch_similar(*args, **kwargs):
-        return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
 
-    mock_completion.return_value = mock_completion_for_answer()
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -13022,21 +13229,13 @@ def test_prompt_action_response_action_slot_prompt(mock_search, mock_embedding, 
         r"['raw_completion_response']['created']"
     ]
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
-    expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
-                'metadata': {'user': 'udit.pandey', 'bot': '5u80fd0a56c908ca10d35d2s', 'invocation': 'prompt_action'},
-                'api_key': 'keyvalue',
-                'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_completion):
+def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
+    llm_type ="openai"
     action_name = "kairon_faq_action"
     bot = "5u80fd0a56c908ca10d35d2sadfsf"
     user = "udit.pandey"
@@ -13044,6 +13243,9 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
     user_msg = '/kanban_story{"kairon_user_msg": "Kanban And Scrum Together?"}'
     bot_content = "Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time."
     generated_text = "YES you can use both in a single project. However, in order to run the Sprint, you should only use the 'Scrum board'. On the other hand 'Kanban board' is only to track the progress or status of the Jira issues."
+    hyperparameters = Utility.get_default_llm_hyperparameters()
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
          'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
@@ -13053,19 +13255,34 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
          'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
     ]
 
-    def mock_completion_for_answer(*args, **kwargs):
-        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
+    expected_body = {'messages':[{'role': 'system', 'content': 'You are a personal assistant.\n'},
+                                 {'role': 'user', 'content': "\nInstructions on how to use Similarity Prompt:\n['Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Kanban And Scrum Together? \nA:"}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
 
-    def __mock_fetch_similar(*args, **kwargs):
-        return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
 
-    mock_completion.return_value = mock_completion_for_answer()
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        method="POST",
+        status=200
+    )
+    
+    
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = __mock_fetch_similar()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -13095,24 +13312,18 @@ def test_prompt_action_user_message_in_slot(mock_search, mock_embedding, mock_co
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    expected = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Kanban And Scrum Together? \nA:"}],
-                'metadata': {'user': user, 'bot': bot, 'invocation': 'prompt_action'}, 'api_key': value,
-                'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_when_similarity_is_empty(mock_search, mock_embedding, mock_completion):
+def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, aioresponses):
+    llm_type = "openai"
     action_name = "test_prompt_action_response_action_when_similarity_is_empty"
     bot = "5f50fd0a56b698ca10d35d2C"
     user = "udit.pandey"
     value = "keyvalue"
     user_msg = "What kind of language is python?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparameters = {"top_results": 10, "similarity_threshold": 0.70}
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -13123,15 +13334,41 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_search, moc
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'hyperparameters': hyperparameters,
          'is_enabled': True}
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = {'result': []}
+
+    expected_body = {'messages': [
+        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
+        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'},
+        {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text,
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+
+    aioresponses.add(
+        url= f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        body={'vector': embedding},
+        payload={'result': []},
+        method="POST",
+        status=200
+    )
+
+
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
@@ -13165,29 +13402,18 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_search, moc
          'response': None, 'image': None, 'attachment': None}
     ]
 
-    expected = {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'},
-        {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
-        'metadata': {'user': 'udit.pandey', 'bot': bot, 'invocation': 'prompt_action'}, 'api_key': value,
-        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
-@mock.patch.object(litellm, "acompletion", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_when_similarity_disabled(mock_search, mock_embedding, mock_completion):
-    from uuid6 import uuid7
-
+def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, aioresponses):
+    llm_type = "openai"
     action_name = "test_prompt_action_response_action_when_similarity_disabled"
     bot = "5f50fd0a56b698ca10d35d2Z"
     user = "udit.pandey"
     value = "keyvalue"
     user_msg = "What kind of language is python?"
-    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparameters = {"top_results": 10, "similarity_threshold": 0.70}
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -13198,21 +13424,36 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
         {'name': 'Similarity Prompt',
          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'hyperparameters': hyperparameters,
          'is_enabled': False}
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    mock_completion.return_value = litellm.ModelResponse(
-        **{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-    mock_search.return_value = {
-        'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+    expected_body = {'messages': [
+        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
+        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'},
+        {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
+        "hyperparameters": hyperparameters,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
+
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'],
+                    f"/{bot}/completion/{llm_type}"),
+        method="POST",
+        status=200,
+        payload={'formatted_response': generated_text, 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+        body=expected_body
+    )
+    
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
     llm_secret = LLMSecret(
-        llm_type="openai",
+        llm_type=llm_type,
         api_key=value,
         models=["gpt-3.5-turbo", "gpt-4o-mini"],
         bot=bot,
@@ -13240,14 +13481,6 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_search, moc
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    expected = {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'},
-        {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
-        'metadata': {'user': user, 'bot': bot, 'invocation': 'prompt_action'}, 'api_key': value,
-        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    assert not DeepDiff(mock_completion.call_args[1], expected, ignore_order=True)
 
 
 @responses.activate

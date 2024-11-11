@@ -6,7 +6,6 @@ from typing import Text, List, Dict
 from urllib.parse import urljoin
 
 import pandas as pd
-import requests
 from fastapi import File
 from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
@@ -15,12 +14,11 @@ from pandas import DataFrame
 from rasa.shared.core.training_data.structures import RuleStep
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
-    ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
+    ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
     REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS, \
     ALLOWED_BOT_CONTENT_FORMATS
 from .constant import RESPONSE
 from .data_objects import MultiflowStories
-from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
 from ...shared.models import StoryStepType
 from ...shared.utils import Utility
@@ -289,21 +287,6 @@ class DataUtility:
             response_type = None
             data = None
         return response_type, data
-
-    @staticmethod
-    def trigger_data_generation_event(bot: str, user: str, token: str):
-        try:
-            event_url = Utility.environment['data_generation']['event_url']
-            logger.info("Training data generator event started")
-            response = requests.post(event_url, headers={'content-type': 'application/json'},
-                                     json={'user': user, 'token': token})
-            logger.info("Training data generator event completed" + response.content.decode('utf8'))
-        except Exception as e:
-            logger.error(str(e))
-            TrainingDataGenerationProcessor.set_status(bot=bot,
-                                                       user=user,
-                                                       status=EVENT_STATUS.FAIL.value,
-                                                       exception=str(e))
 
     @staticmethod
     def validate_flow_events(events, event_type, name):

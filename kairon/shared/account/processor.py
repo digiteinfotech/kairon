@@ -248,7 +248,6 @@ class AccountProcessor:
             Rules,
             SessionConfigs,
             Slots,
-            TrainingDataGenerator,
             TrainingExamples,
         )
         from kairon.shared.test.data_objects import ModelTestingLogs
@@ -287,7 +286,6 @@ class AccountProcessor:
                     SessionConfigs,
                     Slots,
                     Stories,
-                    TrainingDataGenerator,
                     TrainingExamples,
                     ActionServerLogs,
                     ModelTraining,

@@ -1,23 +1,20 @@
-import time
-
-import ujson as json
 import os
 import re
 import shutil
 import tarfile
 import tempfile
+import time
 from datetime import datetime, timedelta
 from io import BytesIO
-
+from unittest import mock
 from unittest.mock import patch
-import yaml
-
 from urllib.parse import urljoin
 from zipfile import ZipFile
 
-from unittest import mock
 import pytest
 import responses
+import ujson as json
+import yaml
 from botocore.exceptions import ClientError
 from bson import ObjectId
 from fastapi.testclient import TestClient
@@ -33,7 +30,6 @@ from kairon.shared.actions.models import ActionParameterType, DbActionOperationT
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
-from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.utils import Utility, MailUtility
 
 Utility.load_system_metadata()
@@ -74,9 +70,6 @@ from kairon.shared.data.data_objects import (
 )
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.data.training_data_generation_processor import (
-    TrainingDataGenerationProcessor,
-)
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.models import StoryEventType
@@ -2626,7 +2619,9 @@ def test_get_executor_logs(get_executor_logs):
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
+    print(actual["data"]["logs"])
     assert len(actual["data"]["logs"]) == actual["data"]["total"] == 2
+
     assert actual["data"]["logs"][0]["task_type"] == "Event"
     assert actual["data"]["logs"][0]["event_class"] == "model_testing"
     assert actual["data"]["logs"][0]["status"] == "Initiated"
@@ -12278,18 +12273,6 @@ def test_download_model_testing_logs(monkeypatch):
     assert response.content
 
 
-def test_get_file_training_history():
-    response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"] is True
-    assert actual["error_code"] == 0
-    assert actual["data"]
-    assert "training_history" in actual["data"]
-
-
 def test_deploy_missing_configuration():
     response = client.post(
         f"/api/bot/{pytest.bot}/deploy",
@@ -16511,347 +16494,6 @@ def test_train_using_event():
     )
 
 
-def test_update_training_data_generator_status(monkeypatch):
-    request_body = {"status": EVENT_STATUS.INITIATED.value}
-    response = client.put(
-        f"/api/bot/{pytest.bot}/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["message"] == "Status updated successfully!"
-
-
-def test_get_training_data_history(monkeypatch):
-    response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    response = actual["data"]
-    assert response is not None
-    response["status"] = "Initiated"
-    assert actual["message"] is None
-
-
-def test_update_training_data_generator_status_completed(monkeypatch):
-    training_data = [
-        {
-            "intent": "intent1_test_add_training_data",
-            "training_examples": ["example1", "example2"],
-            "response": "response1",
-        },
-        {
-            "intent": "intent2_test_add_training_data",
-            "training_examples": ["example3", "example4"],
-            "response": "response2",
-        },
-    ]
-    request_body = {"status": EVENT_STATUS.COMPLETED.value, "response": training_data}
-    response = client.put(
-        f"/api/bot/{pytest.bot}/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["message"] == "Status updated successfully!"
-
-
-def test_update_training_data_generator_wrong_status(monkeypatch):
-    training_data = [
-        {
-            "intent": "intent1_test_add_training_data",
-            "training_examples": ["example1", "example2"],
-            "response": "response1",
-        },
-        {
-            "intent": "intent2_test_add_training_data",
-            "training_examples": ["example3", "example4"],
-            "response": "response2",
-        },
-    ]
-    request_body = {"status": "test", "response": training_data}
-    response = client.put(
-        f"/api/bot/{pytest.bot}/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
-    assert str(actual["message"]).__contains__(
-        "value is not a valid enumeration member"
-    )
-    assert not actual["success"]
-
-
-def test_add_training_data(monkeypatch):
-    response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    response = actual["data"]
-    assert response is not None
-    response["status"] = "Initiated"
-    assert actual["message"] is None
-    doc_id = response["training_history"][0]["_id"]
-    training_data = {
-        "history_id": doc_id,
-        "training_data": [
-            {
-                "intent": "intent1_test_add_training_data",
-                "training_examples": ["example1", "example2"],
-                "response": "response1",
-            },
-            {
-                "intent": "intent2_test_add_training_data",
-                "training_examples": ["example3", "example4"],
-                "response": "response2",
-            },
-        ],
-    }
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/bulk",
-        json=training_data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is not None
-    assert actual["message"] == "Training data added successfully!"
-
-    assert Intents.objects(name="intent1_test_add_training_data").get() is not None
-    assert Intents.objects(name="intent2_test_add_training_data").get() is not None
-    training_examples = list(
-        TrainingExamples.objects(intent="intent1_test_add_training_data")
-    )
-    assert training_examples is not None
-    assert len(training_examples) == 2
-    training_examples = list(
-        TrainingExamples.objects(intent="intent2_test_add_training_data")
-    )
-    assert len(training_examples) == 2
-    assert Responses.objects(name="utter_intent1_test_add_training_data") is not None
-    assert Responses.objects(name="utter_intent2_test_add_training_data") is not None
-    story = Stories.objects(block_name="path_intent1_test_add_training_data").get()
-    assert story is not None
-    assert story["events"][0]["name"] == "intent1_test_add_training_data"
-    assert story["events"][0]["type"] == StoryEventType.user
-    assert story["events"][1]["name"] == "utter_intent1_test_add_training_data"
-    assert story["events"][1]["type"] == StoryEventType.action
-    story = Stories.objects(block_name="path_intent2_test_add_training_data").get()
-    assert story is not None
-    assert story["events"][0]["name"] == "intent2_test_add_training_data"
-    assert story["events"][0]["type"] == StoryEventType.user
-    assert story["events"][1]["name"] == "utter_intent2_test_add_training_data"
-    assert story["events"][1]["type"] == StoryEventType.action
-
-
-def test_get_training_data_history_1(monkeypatch):
-    response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] is None
-    training_data = actual["data"]["training_history"][0]
-
-    assert training_data["status"] == EVENT_STATUS.COMPLETED.value
-    end_timestamp = training_data["end_timestamp"]
-    assert end_timestamp is not None
-    assert training_data["last_update_timestamp"] == end_timestamp
-    response = training_data["response"]
-    assert response is not None
-    assert response[0]["intent"] == "intent1_test_add_training_data"
-    assert response[0]["training_examples"][0]["training_example"] == "example1"
-    assert response[0]["training_examples"][0]["is_persisted"]
-    assert response[0]["training_examples"][1]["training_example"] == "example2"
-    assert response[0]["training_examples"][1]["is_persisted"]
-    assert response[0]["response"] == "response1"
-    assert response[1]["intent"] == "intent2_test_add_training_data"
-    assert response[1]["training_examples"][0]["training_example"] == "example3"
-    assert response[1]["training_examples"][0]["is_persisted"]
-    assert response[1]["training_examples"][1]["training_example"] == "example4"
-    assert response[1]["training_examples"][1]["is_persisted"]
-    assert response[1]["response"] == "response2"
-
-
-def test_update_training_data_generator_status_exception(monkeypatch):
-    request_body = {
-        "status": EVENT_STATUS.INITIATED.value,
-    }
-    response = client.put(
-        f"/api/bot/{pytest.bot}/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["message"] == "Status updated successfully!"
-
-    request_body = {"status": EVENT_STATUS.FAIL.value, "exception": "Exception message"}
-    response = client.put(
-        f"/api/bot/{pytest.bot}/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["message"] == "Status updated successfully!"
-
-
-def test_get_training_data_history_2(monkeypatch):
-    response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] is None
-    training_data = actual["data"]["training_history"][0]
-    assert training_data["status"] == EVENT_STATUS.FAIL.value
-    end_timestamp = training_data["end_timestamp"]
-    assert end_timestamp is not None
-    assert training_data["last_update_timestamp"] == end_timestamp
-    assert training_data["exception"] == "Exception message"
-
-
-def test_fetch_latest(monkeypatch):
-    request_body = {
-        "status": EVENT_STATUS.INITIATED.value,
-    }
-    response = client.put(
-        f"/api/bot/{pytest.bot}/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/latest",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]["status"] == EVENT_STATUS.INITIATED.value
-    assert actual["message"] is None
-
-
-async def mock_upload(doc):
-    if not (
-            doc.filename.lower().endswith(".pdf") or doc.filename.lower().endswith(".docx")
-    ):
-        raise AppException("Invalid File Format")
-
-
-@pytest.fixture
-def mock_file_upload(monkeypatch):
-    def _in_progress_mock(*args, **kwargs):
-        return None
-
-    def _daily_limit_mock(*args, **kwargs):
-        return None
-
-    def _set_status_mock(*args, **kwargs):
-        return None
-
-    def _train_data_gen(*args, **kwargs):
-        return None
-
-    monkeypatch.setattr(
-        TrainingDataGenerationProcessor, "is_in_progress", _in_progress_mock
-    )
-    monkeypatch.setattr(
-        TrainingDataGenerationProcessor,
-        "check_data_generation_limit",
-        _daily_limit_mock,
-    )
-    monkeypatch.setattr(TrainingDataGenerationProcessor, "set_status", _set_status_mock)
-    monkeypatch.setattr(DataUtility, "trigger_data_generation_event", _train_data_gen)
-
-
-def test_file_upload_docx(mock_file_upload, monkeypatch):
-    monkeypatch.setattr(Utility, "upload_document", mock_upload)
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/upload/data_generation/file",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files={
-            "doc": (
-                "tests/testing_data/file_data/sample1.docx",
-                open("tests/testing_data/file_data/sample1.docx", "rb"),
-            )
-        },
-    )
-
-    actual = response.json()
-    assert (
-            actual["message"]
-            == "File uploaded successfully and training data generation has begun"
-    )
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["success"]
-
-
-def test_file_upload_pdf(mock_file_upload, monkeypatch):
-    monkeypatch.setattr(Utility, "upload_document", mock_upload)
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/upload/data_generation/file",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files={
-            "doc": (
-                "tests/testing_data/file_data/sample1.pdf",
-                open("tests/testing_data/file_data/sample1.pdf", "rb"),
-            )
-        },
-    )
-
-    actual = response.json()
-    assert (
-            actual["message"]
-            == "File uploaded successfully and training data generation has begun"
-    )
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["success"]
-
-
-def test_file_upload_error(mock_file_upload, monkeypatch):
-    monkeypatch.setattr(Utility, "upload_document", mock_upload)
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/upload/data_generation/file",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files={"doc": ("nlu.yml", open("tests/testing_data/all/data/nlu.yml", "rb"))},
-    )
-
-    actual = response.json()
-    assert actual["message"] == "Invalid File Format"
-    assert actual["error_code"] == 422
-    assert not actual["success"]
-
-
 def test_list_action_server_logs_empty():
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs?start_idx=0&page_size=10",
@@ -17052,52 +16694,6 @@ def test_list_action_server_logs():
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 1
     assert actual["data"]["total"] == 11
-
-
-def test_add_training_data_invalid_id(monkeypatch):
-    request_body = {"status": EVENT_STATUS.COMPLETED.value}
-    client.put(
-        f"/api/bot/{pytest.bot}/update/data/generator/status",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    response = client.get(
-        f"/api/bot/{pytest.bot}/data/generation/history",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    response = actual["data"]
-    assert response is not None
-    response["status"] = "Initiated"
-    assert actual["message"] is None
-    doc_id = response["training_history"][0]["_id"]
-    training_data = {
-        "history_id": doc_id,
-        "training_data": [
-            {
-                "intent": "intent1_test_add_training_data",
-                "training_examples": ["example1", "example2"],
-                "response": "response1",
-            },
-            {
-                "intent": "intent2_test_add_training_data",
-                "training_examples": ["example3", "example4"],
-                "response": "response2",
-            },
-        ],
-    }
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/bulk",
-        json=training_data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert actual["message"] == "No Training Data Generated"
 
 
 def test_feedback():
@@ -18908,8 +18504,8 @@ def test_get_stories_another_bot():
     assert actual["data"][0]["template_type"] == "CUSTOM"
     assert actual["data"][1]["template_type"] == "CUSTOM"
     assert actual["data"][8]["template_type"] == "CUSTOM"
-    assert actual["data"][8]["name"] == "test_add_story_with_no_type"
-    assert actual["data"][9]["template_type"] == "CUSTOM"
+    assert actual["data"][8]["name"] == "ask the user to rephrase whenever they send a message with low nlu confidence"
+    assert actual["data"][9]["template_type"] == "Q&A"
     assert actual["data"][9]["name"] == "test_path"
 
 
@@ -27668,150 +27264,6 @@ def test_multilingual_language_support(monkeypatch):
     assert response["data"] == ["es", "en", "hi"]
     assert response["success"]
     assert response["error_code"] == 0
-
-
-@responses.activate
-def test_data_generation_from_website(monkeypatch):
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.data_generation_limit_per_day = 10
-    bot_settings.save()
-
-    event_url = urljoin(
-        Utility.environment["events"]["server_url"],
-        f"/api/events/execute/{EventClass.data_generator}",
-    )
-    responses.add(
-        "POST",
-        event_url,
-        json={"success": True, "message": "Event triggered successfully!"},
-        match=[
-            responses.matchers.json_params_matcher(
-                {
-                    "data": {
-                        "bot": pytest.bot,
-                        "user": "integ1@gmail.com",
-                        "type": "--from-website",
-                        "website_url": "website.com",
-                        "depth": 1,
-                    },
-                    "cron_exp": None,
-                    "timezone": None,
-                }
-            )
-        ],
-    )
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com&depth=1",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-    assert response["success"]
-    assert response["message"] == "Story generator in progress! Check logs."
-    assert response["error_code"] == 0
-    TrainingDataGenerationProcessor.set_status(
-        pytest.bot, "integ1@gmail.com", status="Completed"
-    )
-
-
-def test_data_generation_invalid_bot_id():
-    response = client.post(
-        f"/api/bot/{pytest.bot + '0'}/data/generator/website?website_url=website.com",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-
-    assert not response["success"]
-    assert response["message"] == "Access to bot is denied"
-    assert response["error_code"] == 422
-
-
-def test_data_generation_no_website_url(monkeypatch):
-    monkeypatch.setitem(Utility.environment["data_generation"], "limit_per_day", 10)
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/generator/website",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-
-    assert not response["success"]
-    assert response["message"] == [
-        {
-            "loc": ["query", "website_url"],
-            "msg": "field required",
-            "type": "value_error.missing",
-        }
-    ]
-    assert response["error_code"] == 422
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/generator/website?website_url= ",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-
-    assert not response["success"]
-    assert response["message"] == "website_url cannot be empty"
-    assert response["error_code"] == 422
-
-
-@responses.activate
-def test_data_generation_limit_exceeded(monkeypatch):
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.data_generation_limit_per_day = 0
-    bot_settings.save()
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-
-    assert response["message"] == "Daily limit exceeded."
-    assert response["error_code"] == 422
-    assert not response["success"]
-
-
-@responses.activate
-def test_data_generation_in_progress(monkeypatch):
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.data_generation_limit_per_day = 10
-    bot_settings.save()
-
-    event_url = urljoin(
-        Utility.environment["events"]["server_url"],
-        f"/api/events/execute/{EventClass.data_generator}",
-    )
-    responses.add(
-        "POST",
-        event_url,
-        json={"success": True, "message": "Event triggered successfully!"},
-        match=[
-            responses.matchers.json_params_matcher(
-                {
-                    "data": {
-                        "bot": pytest.bot,
-                        "user": "integ1@gmail.com",
-                        "type": "--from-website",
-                        "website_url": "website.com",
-                        "depth": 0,
-                    },
-                    "cron_exp": None,
-                    "timezone": None,
-                }
-            )
-        ],
-    )
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-    assert response["success"]
-    assert response["message"] == "Story generator in progress! Check logs."
-    assert response["error_code"] == 0
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-    assert response["error_code"] == 422
-    assert response["message"] == "Event already in progress! Check logs."
-    assert not response["success"]
 
 
 def test_download_logs(monkeypatch):

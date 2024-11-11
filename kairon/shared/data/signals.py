@@ -26,12 +26,12 @@ def handler(event1):
 @handler(signals.post_save)
 def push_notification(sender, document, **kwargs):
     from kairon.shared.utils import Utility
-    from kairon.shared.data.data_objects import ModelTraining, ModelDeployment, TrainingDataGenerator
+    from kairon.shared.data.data_objects import ModelTraining, ModelDeployment
     from kairon.shared.importer.data_objects import ValidationLogs
     from kairon.shared.test.data_objects import ModelTestingLogs
 
     is_enabled = Utility.environment['notifications']['enable']
-    message_type_events = [ModelTraining, ModelTestingLogs, ModelDeployment, TrainingDataGenerator, ValidationLogs]
+    message_type_events = [ModelTraining, ModelTestingLogs, ModelDeployment, ValidationLogs]
     message_type_events = {event.__name__ for event in message_type_events}
     if is_enabled:
         try:

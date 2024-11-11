@@ -1,4 +1,5 @@
 import time
+import urllib.parse
 from secrets import randbelow, choice
 from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
@@ -10,6 +11,7 @@ from tiktoken import get_encoding
 from tqdm import tqdm
 
 from kairon.exceptions import AppException
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData
@@ -22,6 +24,7 @@ from kairon.shared.llm.logger import LiteLLMLogger
 from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
+from http import HTTPStatus
 
 litellm.callbacks = [LiteLLMLogger()]
 
@@ -175,14 +178,25 @@ class LLMProcessor(LLMBase):
         return formatted_response
 
     async def __get_completion(self, messages, hyperparameters, user, **kwargs):
-        response = await litellm.acompletion(messages=messages,
-                                             metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-                                             api_key=self.llm_secret.get('api_key'),
-                                             num_retries=3,
-                                             **hyperparameters)
-        formatted_response = await self.__parse_completion_response(response,
-                                                                    **hyperparameters)
-        return formatted_response, response.dict()
+        body = {
+            'messages': messages,
+            'hyperparameters': hyperparameters,
+            'user': user,
+            'invocation': kwargs.get("invocation")
+        }
+        http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/completion/{self.llm_type}",
+                                                                     request_method="POST",
+                                                                     request_body=body)
+
+        logging.info(f"LLM request completed in {elapsed_time} for bot: {self.bot}")
+        if status_code not in [200, 201, 202, 203, 204]:
+            raise Exception(HTTPStatus(status_code).phrase)
+
+        if isinstance(http_response, dict):
+            return http_response.get("formatted_response"), http_response.get("response")
+        else:
+            return http_response, http_response
+
 
     async def __get_answer(self, query, system_prompt: Text, context: Text, user, **kwargs):
         use_query_prompt = False
@@ -209,7 +223,6 @@ class LLMProcessor(LLMBase):
             messages.extend(previous_bot_responses)
         messages.append({"role": "user", "content": f"{context} \n{instructions} \nQ: {query} \nA:"}) if instructions \
             else messages.append({"role": "user", "content": f"{context} \nQ: {query} \nA:"})
-
         completion, raw_response = await self.__get_completion(messages=messages,
                                                                hyperparameters=hyperparameters,
                                                                user=user,

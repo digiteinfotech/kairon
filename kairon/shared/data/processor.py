@@ -157,7 +157,7 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
+    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig,
     MultiflowStories, MultiflowStoryEvents, MultiFlowStoryMetadata,
     Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
 )
@@ -4829,7 +4829,6 @@ class MongoProcessor:
             EventClass.delete_history: ConversationsHistoryDeleteLogs,
             EventClass.data_importer: ValidationLogs,
             EventClass.multilingual: BotReplicationLogs,
-            EventClass.data_generator: TrainingDataGenerator,
             EventClass.faq_importer: ValidationLogs,
             EventClass.message_broadcast: MessageBroadcastLogs
         }
@@ -7783,7 +7782,6 @@ class MongoProcessor:
         from kairon.shared.importer.data_objects import ValidationLogs
 
         logs = {
-            LogType.training_data_generator.value: TrainingDataGenerator,
             LogType.model_training.value: ModelTraining,
             LogType.model_testing.value: ModelTestingLogs,
             LogType.action_logs.value: ActionServerLogs,

@@ -1,7 +1,7 @@
-import ujson as json
 import re
 from datetime import datetime
 
+import ujson as json
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -16,7 +16,6 @@ from mongoengine import (
     DynamicField,
     IntField,
     FloatField,
-    SequenceField,
 )
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.slots import (
@@ -38,11 +37,9 @@ from kairon.shared.models import (
     TemplateType,
     StoryStepType,
     StoryType,
-    CognitionDataType,
-    CognitionMetadataType,
 )
 from kairon.shared.utils import Utility
-from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType, DEMO_REQUEST_STATUS
+from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, DEMO_REQUEST_STATUS
 from ..constants import WhatsappBSPTypes, LLMResourceProvider
 
 
@@ -878,28 +875,6 @@ class TrainingDataGeneratorResponse(EmbeddedDocument):
         EmbeddedDocumentField(TrainingExamplesTrainingDataGenerator), required=True
     )
     response = StringField(required=True)
-
-
-@push_notification.apply
-class TrainingDataGenerator(Document):
-    bot = StringField(required=True)
-    user = StringField(required=True)
-    document_path = StringField(default=None)
-    source_type = StringField(
-        choices=[
-            TrainingDataSourceType.document.value,
-            TrainingDataSourceType.website.value,
-        ],
-        default=TrainingDataSourceType.document.value,
-    )
-    status = StringField(default=EVENT_STATUS.INITIATED.value)
-    start_timestamp = DateTimeField(default=None)
-    last_update_timestamp = DateTimeField(default=None)
-    end_timestamp = DateTimeField(default=None)
-    response = ListField(
-        EmbeddedDocumentField(TrainingDataGeneratorResponse), default=None
-    )
-    exception = StringField(default=None)
 
 
 class LLMSettings(EmbeddedDocument):
