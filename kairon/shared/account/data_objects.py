@@ -20,7 +20,7 @@ from validators import email, ValidationError as ValidationFailure
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, ONBOARDING_STATUS
 from kairon.shared.utils import Utility
 
 
@@ -49,6 +49,9 @@ class User(Auditlog):
     account = LongField(required=True)
     user = StringField(required=True)
     is_onboarded = BooleanField(default=False)
+    onboarding_status = StringField(default=ONBOARDING_STATUS.NOT_COMPLETED.value,
+                                    choices=[a_type.value for a_type in ONBOARDING_STATUS])
+    onboarding_timestamp = DateTimeField(default=None)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
     meta = {"indexes": [{"fields": ["$email", "$first_name", "$last_name"]}]}
@@ -65,6 +68,8 @@ class User(Auditlog):
             )
         elif isinstance(email(self.email), ValidationFailure):
             raise ValidationError("Please enter valid email address")
+        elif self.onboarding_status not in [status.value for status in ONBOARDING_STATUS]:
+            raise ValidationError(f"{self.onboarding_status} is not a valid status")
 
 
 class BotMetaData(EmbeddedDocument):

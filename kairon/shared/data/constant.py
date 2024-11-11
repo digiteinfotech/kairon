@@ -110,6 +110,13 @@ class EVENT_STATUS(str, Enum):
     ABORTED = "Aborted"
 
 
+class ONBOARDING_STATUS(str, Enum):
+    NOT_COMPLETED = "Not Completed"
+    SKIPPED = "Skipped"
+    IN_PROGRESS = "In Progress"
+    COMPLETED = "Completed"
+
+
 class TASK_TYPE(str, Enum):
     ACTION = "Action"
     EVENT = "Event"
@@ -245,11 +252,6 @@ class LogType(str, Enum):
     action_logs = "action_logs"
     training_data_generator = "training_data_generator"
     data_importer = "data_importer"
-
-
-class TrainingDataSourceType(str, Enum):
-    website = "website"
-    document = "document"
 
 
 class FeatureMappings(str, Enum):
