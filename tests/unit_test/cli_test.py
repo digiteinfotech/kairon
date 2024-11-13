@@ -9,7 +9,6 @@ from mongoengine import connect
 from kairon import cli
 from kairon.cli.content_importer import import_doc_content
 from kairon.cli.conversations_deletion import initiate_history_deletion_archival
-from kairon.cli.data_generator import generate_training_data
 from kairon.cli.delete_logs import delete_logs
 from kairon.cli.importer import validate_and_import
 from kairon.cli.message_broadcast import send_notifications
@@ -17,7 +16,6 @@ from kairon.cli.testing import run_tests_on_model
 from kairon.cli.training import train
 from kairon.cli.translator import translate_multilingual_bot
 from kairon.events.definitions.content_importer import DocContentImporterEvent
-from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
@@ -302,50 +300,6 @@ class TestDataGeneratorCli:
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
-
-    @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=generate_training_data))
-    def test_data_generator_no_arguments(self, monkeypatch):
-        with pytest.raises(AttributeError) as e:
-            cli()
-        assert str(e).__contains__("'Namespace' object has no attribute 'bot'")
-
-    @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=generate_training_data, bot="test_cli"))
-    def test_data_generator_no_user(self, monkeypatch):
-        with pytest.raises(AttributeError) as e:
-            cli()
-        assert str(e).__contains__("'Namespace' object has no attribute 'user'")
-
-    @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=generate_training_data, bot="test_cli", user="testUser",
-                                                path="test/website.com", from_website=True, depth=1))
-    def test_data_generator_from_website(self, monkeypatch):
-        def mock_generator(*args, **kwargs):
-            return None
-
-        monkeypatch.setattr(DataGenerationEvent, "execute", mock_generator)
-        cli()
-
-    @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=generate_training_data, bot="test_cli", user="testUser",
-                                                path="test/website.com", from_document=True))
-    def test_data_generator_from_document(self, monkeypatch):
-        def mock_generator(*args, **kwargs):
-            return None
-
-        monkeypatch.setattr(DataGenerationEvent, "execute", mock_generator)
-        cli()
-
-    @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=generate_training_data, bot="test_cli", user="testUser",
-                                                path="test/website.com", from_website="yes", depth=None))
-    def test_data_generator_import_as_string_argument(self, monkeypatch):
-        def mock_generator(*args, **kwargs):
-            return None
-
-        monkeypatch.setattr(DataGenerationEvent, "execute", mock_generator)
-        cli()
 
 
 class TestDeleteLogsCli:

@@ -55,7 +55,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         """
         config = None
         reference_id = None
-        status = EVENT_STATUS.FAIL.value
+        status = EVENT_STATUS.INITIATED.value
         exception = None
         is_resend = kwargs.get('is_resend', "False") == "True"
         try:
@@ -72,6 +72,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         except Exception as e:
             logger.exception(e)
             exception = str(e)
+            status = EVENT_STATUS.FAIL.value
         finally:
             time.sleep(5)
             MessageBroadcastProcessor.insert_status_received_on_channel_webhook(reference_id, config["name"],

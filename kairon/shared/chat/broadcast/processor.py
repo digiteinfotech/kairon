@@ -124,12 +124,12 @@ class MessageBroadcastProcessor:
     @staticmethod
     def update_broadcast_logs_with_template(reference_id: Text, event_id: Text, raw_template: List[Dict],
                                             log_type: MessageBroadcastLogType,
-                                            retry_count: int = 0):
+                                            retry_count: int = 0, **kwargs):
         message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
                                                               event_id=event_id,
                                                               log_type=log_type,
                                                               retry_count=retry_count)
-        message_broadcast_logs.update(template=raw_template)
+        message_broadcast_logs.update(template=raw_template, **kwargs)
 
     @staticmethod
     def extract_message_ids_from_broadcast_logs(reference_id: Text, retry_count: int = 0):

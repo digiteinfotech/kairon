@@ -58,6 +58,8 @@ class UserActivityType(str, Enum):
     delete_asset = "delete_asset"
     link_usage = "link_usage"
     login = 'login'
+    social_login = 'social_login'
+    logout = 'logout'
     login_refresh_token = "login_refresh_token"
     invalid_login = 'invalid_login'
     download = "download"
@@ -85,11 +87,6 @@ class EventRequestType(str, Enum):
     update_schedule = "update_schedule"
     add_schedule = "add_schedule"
     resend_broadcast = "resend_broadcast"
-
-
-class DataGeneratorCliTypes(str, Enum):
-    from_website = '--from-website'
-    from_document = '--from-document'
 
 
 class EventExecutor(str, Enum):

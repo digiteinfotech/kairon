@@ -1,6 +1,5 @@
 import asyncio
 import glob
-import ujson as json
 import os
 import re
 import shutil
@@ -9,11 +8,12 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
 
+import ujson as json
 import yaml
 
-from kairon.api.app.routers.bot.data import processor
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.utils import Utility
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
 Utility.load_system_metadata()
@@ -76,8 +76,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Intents,
                                              Responses,
                                              ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
-                                             TrainingDataGenerator, TrainingDataGeneratorResponse,
-                                             TrainingExamplesTrainingDataGenerator, Rules, Configs,
+                                             Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault, MultiflowStories, LLMSettings,
                                              MultiflowStoryEvents, Synonyms,
@@ -86,7 +85,6 @@ from kairon.shared.data.data_objects import (TrainingExamples,
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
@@ -1337,17 +1335,6 @@ class TestMongoProcessor:
         mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.model_testing)
         model_testing_object = ModelTestingLogs.objects(bot=bot).get()
         assert model_testing_object.event_status == EVENT_STATUS.ABORTED.value
-
-    @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
-    def test_abort_current_event_with_data_generator(self, mock_event_server):
-        mongo_processor = MongoProcessor()
-        bot = "test_bot"
-        user = "test_user"
-        mock_event_server.return_value = {"success": True, "message": "Event triggered successfully!"}
-        TrainingDataGenerationProcessor.set_status(bot=bot, user=user, status=EVENT_STATUS.ENQUEUED.value)
-        mongo_processor.abort_current_event(bot=bot, user=user, event_type=EventClass.data_generator)
-        data_generator_object = TrainingDataGenerator.objects(bot=bot).get()
-        assert data_generator_object.status == EVENT_STATUS.ABORTED.value
 
     @pytest.mark.asyncio
     async def test_save_from_path_yml(self):
@@ -16230,20 +16217,7 @@ class TestMongoProcessor:
         start_time = datetime.utcnow() - timedelta(days=1)
         end_time = datetime.utcnow() + timedelta(days=1)
         processor = MongoProcessor()
-        TrainingDataGenerationProcessor.set_status(
-            bot=bot,
-            user=user,
-            document_path='document/doc.pdf',
-            status='Completed'
-        )
-        TrainingDataGenerationProcessor.set_status(
-            bot=bot,
-            user=user,
-            document_path='document/doc.pdf',
-            status='Completed'
-        )
-        log_one = processor.get_logs(bot, "training_data_generator", start_time, end_time)
-        assert len(log_one) == 2
+
         ModelProcessor.set_training_status(bot, user, "Done")
         ModelProcessor.set_training_status(bot, user, "Done")
         log_two = processor.get_logs(bot, "model_training", start_time, end_time)
@@ -17154,175 +17128,6 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'testing'
         assert list(processor.list_cognition_data(bot)) == []
-
-
-class TestTrainingDataProcessor:
-
-    @pytest.fixture(autouse=True, scope='class')
-    def init_connection(self):
-        os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_environment()
-        connect(**Utility.mongoengine_connection())
-
-    def test_set_status_new_status(self):
-        TrainingDataGenerationProcessor.set_status(
-            bot="tests2",
-            user="testUser2",
-            document_path='document/doc.pdf',
-            status=''
-        )
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.INITIATED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-
-    def test_fetch_latest_workload(self):
-        status = TrainingDataGenerationProcessor.fetch_latest_workload(
-            bot="tests2",
-            user="testUser2"
-        )
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.INITIATED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-
-    def test_validate_history_id_no_response_generated(self):
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        with pytest.raises(AppException):
-            TrainingDataGenerationProcessor.validate_history_id(status["id"])
-
-    def test_is_in_progress_true(self):
-        status = TrainingDataGenerationProcessor.is_in_progress(
-            bot="tests2",
-            raise_exception=False
-        )
-        assert status
-
-    def test_is_in_progress_exception(self):
-        with pytest.raises(AppException):
-            TrainingDataGenerationProcessor.is_in_progress(
-                bot="tests2",
-            )
-
-    def test_set_status_update_status(self):
-        training_examples1 = [TrainingExamplesTrainingDataGenerator(training_example="example1"),
-                              TrainingExamplesTrainingDataGenerator(training_example="example2")]
-        training_examples2 = [TrainingExamplesTrainingDataGenerator(training_example="example3"),
-                              TrainingExamplesTrainingDataGenerator(training_example="example4")]
-        TrainingDataGenerationProcessor.set_status(
-            bot="tests2",
-            user="testUser2",
-            status=EVENT_STATUS.COMPLETED.value,
-            response=[TrainingDataGeneratorResponse(
-                intent="intent1",
-                training_examples=training_examples1,
-                response="this is response1"
-            ),
-                TrainingDataGeneratorResponse(
-                    intent="intent2",
-                    training_examples=training_examples2,
-                    response="this is response2"
-                )
-            ]
-        )
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.COMPLETED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-        assert status['end_timestamp'] is not None
-        assert status['response'] is not None
-
-    def test_validate_history_id(self):
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert not TrainingDataGenerationProcessor.validate_history_id(status["id"])
-
-    def test_validate_history_id_invalid(self):
-        with pytest.raises(AppException):
-            TrainingDataGenerationProcessor.validate_history_id("6076f751452a66f16b7f1276")
-
-    def test_update_is_persisted_flag(self):
-        training_data = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        doc_id = training_data['id']
-        persisted_training_examples = {
-            "intent1": ["example1"],
-            "intent2": ["example3", "example4"]
-        }
-        TrainingDataGenerationProcessor.update_is_persisted_flag(doc_id, persisted_training_examples)
-        status = TrainingDataGenerator.objects(
-            bot="tests2",
-            user="testUser2").get()
-        assert status['bot'] == 'tests2'
-        assert status['user'] == 'testUser2'
-        assert status['status'] == EVENT_STATUS.COMPLETED.value
-        assert status['document_path'] == 'document/doc.pdf'
-        assert status['start_timestamp'] is not None
-        assert status['last_update_timestamp'] is not None
-        assert status['end_timestamp'] is not None
-        response = status['response']
-        assert response is not None
-        assert response[0]['intent'] == 'intent1'
-        assert response[0]['training_examples'][0]['training_example'] == 'example2'
-        assert not response[0]['training_examples'][0]['is_persisted']
-        assert response[0]['training_examples'][1]['training_example'] == 'example1'
-        assert response[0]['training_examples'][1]['is_persisted']
-        assert response[1]['intent'] == 'intent2'
-        assert response[1]['training_examples'][0]['training_example'] == 'example3'
-        assert response[1]['training_examples'][0]['is_persisted']
-        assert response[1]['training_examples'][1]['training_example'] == 'example4'
-        assert response[1]['training_examples'][1]['is_persisted']
-
-    def test_is_in_progress_false(self):
-        status = TrainingDataGenerationProcessor.is_in_progress(
-            bot="tests2",
-            raise_exception=False
-        )
-        assert not status
-
-    def test_get_training_data_processor_history(self):
-        history = TrainingDataGenerationProcessor.get_training_data_generator_history(bot='tests2')
-        assert len(history) == 1
-
-    def test_daily_file_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 4)
-        TrainingDataGenerationProcessor.set_status(
-            "tests", "testUser", "Initiated")
-        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests")
-        assert actual_response is False
-
-    def test_daily_file_limit_exceeded_True(self, monkeypatch):
-        bot = 'tests'
-        bot_settings = BotSettings.objects(bot=bot).get()
-        bot_settings.data_generation_limit_per_day = 0
-        bot_settings.save()
-        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit(bot, False)
-        assert actual_response is True
-
-    def test_daily_file_limit_exceeded_exception(self, monkeypatch):
-        bot = 'tests'
-        bot_settings = BotSettings.objects(bot=bot).get()
-        bot_settings.data_generation_limit_per_day = 0
-        bot_settings.save()
-        with pytest.raises(AppException) as exp:
-            assert TrainingDataGenerationProcessor.check_data_generation_limit(bot)
-        assert str(exp.value) == "Daily limit exceeded."
 
 
 class TestAgentProcessor:
