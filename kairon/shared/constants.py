@@ -58,6 +58,8 @@ class UserActivityType(str, Enum):
     delete_asset = "delete_asset"
     link_usage = "link_usage"
     login = 'login'
+    social_login = 'social_login'
+    logout = 'logout'
     login_refresh_token = "login_refresh_token"
     invalid_login = 'invalid_login'
     download = "download"
