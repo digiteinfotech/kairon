@@ -569,6 +569,7 @@ class MongoProcessor:
             other_collections: dict = None,
             overwrite: bool = False,
             what: set = REQUIREMENTS.copy(),
+            file_upload: bool = False
     ):
         if overwrite:
             self.delete_bot_data(bot, user, what)
@@ -585,7 +586,7 @@ class MongoProcessor:
         if "rules" in what:
             self.save_rules(story_graph.story_steps, bot, user)
         if "config" in what:
-            self.add_or_overwrite_config(config, bot, user)
+            self.add_or_overwrite_config(config, bot, user, file_upload)
         if "chat_client_config" in what:
             self.save_chat_client_config(chat_client_config, bot, user)
         if "multiflow_stories" in what:
@@ -2131,7 +2132,7 @@ class MongoProcessor:
             logging.info(e)
             raise AppException(e)
 
-    def add_or_overwrite_config(self, configs: dict, bot: Text, user: Text):
+    def add_or_overwrite_config(self, configs: dict, bot: Text, user: Text, file_upload: bool = False):
         """
         saves bot configuration
 
@@ -2142,7 +2143,7 @@ class MongoProcessor:
         """
         for custom_component in Utility.environment["model"]["pipeline"]["custom"]:
             self.__insert_bot_id(configs, bot, custom_component)
-        self.add_default_fallback_config(configs, bot, user)
+        self.add_default_fallback_config(configs, bot, user, file_upload)
         try:
             config_obj = Configs.objects().get(bot=bot)
         except DoesNotExist:
@@ -5402,7 +5403,7 @@ class MongoProcessor:
             rules = self.get_rules_for_training(bot)
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
 
-    def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text):
+    def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text, file_upload: bool = False):
         idx = next(
             (
                 idx
@@ -5449,7 +5450,8 @@ class MongoProcessor:
                 fallback = {"name": "FallbackClassifier", "threshold": 0.7}
                 config_obj["pipeline"].insert(property_idx + 1, fallback)
 
-        self.add_default_fallback_data(bot, user, True, True)
+        if not file_upload:
+            self.add_default_fallback_data(bot, user, True, True)
 
     def add_default_fallback_data(
             self,
