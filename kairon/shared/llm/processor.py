@@ -184,9 +184,12 @@ class LLMProcessor(LLMBase):
             'user': user,
             'invocation': kwargs.get("invocation")
         }
+
+        timeout = Utility.environment['llm'].get('request_timeout', 30)
         http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/completion/{self.llm_type}",
                                                                      request_method="POST",
-                                                                     request_body=body)
+                                                                     request_body=body,
+                                                                     timeout=timeout)
 
         logging.info(f"LLM request completed in {elapsed_time} for bot: {self.bot}")
         if status_code not in [200, 201, 202, 203, 204]:

@@ -209,6 +209,7 @@ llm:
   faq: ${LLM_FAQ_TYPE:GPT3_FAQ_EMBED}
   key: ${TEMPLATE_LLM_KEY}
   url: ${LLM_SERVER_URL:http://localhost}
+  request_timeout: ${LLM_REQUEST_TIMEOUT:30}
 
 vector:
   db: ${VECTOR_DB:http://localhost:6333}
