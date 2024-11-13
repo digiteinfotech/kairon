@@ -56,6 +56,7 @@ class ActionUtility:
         @param request_body: Request body to be sent with the request
         @param headers: header for the HTTP request
         @param content_type: request content type HTTP request
+        @param timeout request timeout
         :return: JSON/string response
         """
         response = None
