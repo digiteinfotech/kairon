@@ -165,7 +165,7 @@ async def sso_callback(
             MailUtility.format_and_send_mail, mail_type='password_generated', email=user_details['email'],
             first_name=user_details['first_name'], password=user_details['password'].get_secret_value()
         )
-    UserActivityLogger.add_log(a_type=UserActivityType.sso_login.value, email=user_details['email'],
+    UserActivityLogger.add_log(a_type=UserActivityType.social_login.value, email=user_details['email'],
                                data={"username": user_details['email'], "sso_type": sso_type})
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},

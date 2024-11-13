@@ -21308,13 +21308,13 @@ def test_sso_get_login_token(monkeypatch):
     )
     assert actual["success"]
     assert actual["error_code"] == 0
-    values = list(AuditLogData.objects(user="new_user@digite.com", action='activity', entity='sso_login').order_by(
+    values = list(AuditLogData.objects(user="new_user@digite.com", action='activity', entity='social_login').order_by(
         "-timestamp"))
     audit_log_data = values[0].to_mongo().to_dict()
     assert audit_log_data['user'] == 'new_user@digite.com'
     assert audit_log_data["attributes"] == [{'key': 'email', 'value': 'new_user@digite.com'}]
     assert audit_log_data["action"] == 'activity'
-    assert audit_log_data['entity'] == 'sso_login'
+    assert audit_log_data['entity'] == 'social_login'
     assert audit_log_data['data']['username'] == 'new_user@digite.com'
     assert audit_log_data['data']['sso_type'] == 'google'
 
@@ -21331,13 +21331,13 @@ def test_sso_get_login_token(monkeypatch):
     )
     assert actual["success"]
     assert actual["error_code"] == 0
-    values = list(AuditLogData.objects(user="new_user@digite.com", action='activity', entity='sso_login').order_by(
+    values = list(AuditLogData.objects(user="new_user@digite.com", action='activity', entity='social_login').order_by(
         "-timestamp"))
     audit_log_data = values[0].to_mongo().to_dict()
     assert audit_log_data['user'] == 'new_user@digite.com'
     assert audit_log_data["attributes"] == [{'key': 'email', 'value': 'new_user@digite.com'}]
     assert audit_log_data["action"] == 'activity'
-    assert audit_log_data['entity'] == 'sso_login'
+    assert audit_log_data['entity'] == 'social_login'
     assert audit_log_data['data']['username'] == 'new_user@digite.com'
     assert audit_log_data['data']['sso_type'] == 'linkedin'
 
@@ -21354,13 +21354,13 @@ def test_sso_get_login_token(monkeypatch):
     )
     assert actual["success"]
     assert actual["error_code"] == 0
-    values = list(AuditLogData.objects(user="new_user@digite.com", action='activity', entity='sso_login').order_by(
+    values = list(AuditLogData.objects(user="new_user@digite.com", action='activity', entity='social_login').order_by(
         "-timestamp"))
     audit_log_data = values[0].to_mongo().to_dict()
     assert audit_log_data['user'] == 'new_user@digite.com'
     assert audit_log_data["attributes"] == [{'key': 'email', 'value': 'new_user@digite.com'}]
     assert audit_log_data["action"] == 'activity'
-    assert audit_log_data['entity'] == 'sso_login'
+    assert audit_log_data['entity'] == 'social_login'
     assert audit_log_data['data']['username'] == 'new_user@digite.com'
     assert audit_log_data['data']['sso_type'] == 'facebook'
 
