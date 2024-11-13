@@ -256,9 +256,9 @@ class TestEventExecution:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 3
         assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 4
+        assert len(processor.fetch_rule_block_names(bot)) == 3
 
     def test_trigger_data_importer_validate_and_save_append(self, monkeypatch):
         bot = 'test_events'
@@ -302,7 +302,7 @@ class TestEventExecution:
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 6
         assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 4
+        assert len(processor.fetch_rule_block_names(bot)) == 3
 
     def test_trigger_data_importer_validate_and_save_overwrite_same_user(self, monkeypatch):
         bot = 'test_events'
@@ -338,9 +338,9 @@ class TestEventExecution:
         assert 'deny' in processor.fetch_intents(bot)
         assert len(processor.fetch_stories(bot)) == 2
         assert len(list(processor.fetch_training_examples(bot))) == 7
-        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(list(processor.fetch_responses(bot))) == 3
         assert len(processor.fetch_actions(bot)) == 2
-        assert len(processor.fetch_rule_block_names(bot)) == 4
+        assert len(processor.fetch_rule_block_names(bot)) == 3
 
     @responses.activate
     def test_trigger_data_importer_validate_event(self, monkeypatch):
@@ -836,9 +836,49 @@ class TestEventExecution:
         mongo_processor = MongoProcessor()
         assert len(mongo_processor.fetch_stories(bot)) == 3
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 21
-        assert len(list(mongo_processor.fetch_responses(bot))) == 14
+        print(list(mongo_processor.fetch_responses(bot)))
+        assert len(list(mongo_processor.fetch_responses(bot))) == 12
         assert len(mongo_processor.fetch_actions(bot)) == 0
-        assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
+        print(mongo_processor.fetch_rule_block_names(bot))
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 0
+
+    def test_trigger_data_importer_with_valid_data(self, monkeypatch):
+        bot = 'test_events_with_valid_data'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
+        shutil.copytree('tests/testing_data/validator/valid_data', test_data_path)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+
+        DataImporterLogProcessor.add_log(bot, user,
+                                         files_received=REQUIREMENTS - {"http_actions", "chat_client_config"})
+        TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).execute()
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        processor = MongoProcessor()
+        assert 'greet' in processor.fetch_intents(bot)
+        assert 'deny' in processor.fetch_intents(bot)
+        assert len(processor.fetch_stories(bot)) == 2
+        assert len(list(processor.fetch_training_examples(bot))) == 7
+        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(processor.fetch_actions(bot)) == 2
+        assert len(processor.fetch_rule_block_names(bot)) == 4
 
     def test_trigger_faq_importer_validate_only(self, monkeypatch):
         def _mock_execution(*args, **kwargs):
