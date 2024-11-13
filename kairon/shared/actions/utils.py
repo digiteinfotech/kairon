@@ -46,7 +46,8 @@ class ActionUtility:
                                     request_method: str,
                                     request_body=None,
                                     headers=None,
-                                    content_type: str = HttpRequestContentType.json.value):
+                                    content_type: str = HttpRequestContentType.json.value,
+                                    timeout=None):
         """
         Executes http urls provided in asynchronous fashion.
 
@@ -60,7 +61,8 @@ class ActionUtility:
         response = None
         http_response = None
         response_headers = None
-        timeout = Utility.environment['action'].get('request_timeout', 1)
+        if not timeout:
+            timeout = Utility.environment['action'].get('request_timeout', 1)
         headers = headers if headers else {}
         headers.update({
             REQUEST_TIMESTAMP_HEADER: datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
