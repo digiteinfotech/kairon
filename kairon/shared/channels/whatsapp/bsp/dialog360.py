@@ -162,6 +162,9 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         except DoesNotExist as e:
             logger.exception(e)
             raise AppException("Channel not found!")
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(str(e))
 
     @staticmethod
     def get_partner_auth_token():
