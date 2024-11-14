@@ -569,7 +569,36 @@ class MongoProcessor:
             other_collections: dict = None,
             overwrite: bool = False,
             what: set = REQUIREMENTS.copy(),
+            default_fallback_data: bool = False
     ):
+        """
+            Save various components of the bot's training data to the database. Components can include the bot's domain,
+            stories, NLU data, actions, configuration, multiflow stories, bot content, and chat client configuration.
+
+            Args:
+                bot (Text): The unique identifier of the bot.
+                user (Text): The identifier of the user making the request.
+                config (dict, optional): Configuration settings for the bot.
+                domain (Domain, optional): The domain data for the bot, defining intents, entities, slots, and actions.
+                story_graph (StoryGraph, optional): Graph representation of the bot's stories and rules.
+                nlu (TrainingData, optional): NLU training data for the bot, including intents, entities, and examples.
+                actions (dict, optional): Action data for the bot, containing details of custom actions.
+                multiflow_stories (dict, optional): Multi-step story flows used in complex conversations.
+                bot_content (list, optional): Additional content for the bot, such as FAQs or responses.
+                chat_client_config (dict, optional): Configuration settings specific to the chat client.
+                other_collections (dict, optional): Other related data collections for extended functionalities.
+                overwrite (bool, optional): If True, existing data will be overwritten; otherwise, new data is appended.
+                what (set, optional): A set of data types to save, e.g., {"domain", "stories", "nlu"}.
+                default_fallback_data (bool, optional): If True, default fallback data is included.
+
+            Behavior:
+                - Deletes the specified existing data if `overwrite` is True.
+                - Saves each specified component in `what` to the database, invoking relevant helper functions for each data type.
+
+            Raises:
+                Exception: Raises exceptions if saving any component fails.
+
+            """
         if overwrite:
             self.delete_bot_data(bot, user, what)
 
@@ -585,7 +614,7 @@ class MongoProcessor:
         if "rules" in what:
             self.save_rules(story_graph.story_steps, bot, user)
         if "config" in what:
-            self.add_or_overwrite_config(config, bot, user)
+            self.add_or_overwrite_config(config, bot, user, default_fallback_data)
         if "chat_client_config" in what:
             self.save_chat_client_config(chat_client_config, bot, user)
         if "multiflow_stories" in what:
@@ -2131,18 +2160,19 @@ class MongoProcessor:
             logging.info(e)
             raise AppException(e)
 
-    def add_or_overwrite_config(self, configs: dict, bot: Text, user: Text):
+    def add_or_overwrite_config(self, configs: dict, bot: Text, user: Text, default_fallback_data: bool = False):
         """
         saves bot configuration
 
         :param configs: configuration
         :param bot: bot id
         :param user: user id
+        :param default_fallback_data: If True, default fallback data is included
         :return: config unique id
         """
         for custom_component in Utility.environment["model"]["pipeline"]["custom"]:
             self.__insert_bot_id(configs, bot, custom_component)
-        self.add_default_fallback_config(configs, bot, user)
+        self.add_default_fallback_config(configs, bot, user, default_fallback_data)
         try:
             config_obj = Configs.objects().get(bot=bot)
         except DoesNotExist:
@@ -5402,7 +5432,7 @@ class MongoProcessor:
             rules = self.get_rules_for_training(bot)
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
 
-    def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text):
+    def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text, default_fallback_data: bool = False):
         idx = next(
             (
                 idx
@@ -5449,7 +5479,8 @@ class MongoProcessor:
                 fallback = {"name": "FallbackClassifier", "threshold": 0.7}
                 config_obj["pipeline"].insert(property_idx + 1, fallback)
 
-        self.add_default_fallback_data(bot, user, True, True)
+        if not default_fallback_data:
+            self.add_default_fallback_data(bot, user, True, True)
 
     def add_default_fallback_data(
             self,

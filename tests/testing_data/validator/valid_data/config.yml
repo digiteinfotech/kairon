@@ -1,0 +1,26 @@
+recipe: default.v1
+language: en
+pipeline:
+- name: WhitespaceTokenizer
+- name: RegexFeaturizer
+- name: LexicalSyntacticFeaturizer
+- name: CountVectorsFeaturizer
+- analyzer: char_wb
+  max_ngram: 4
+  min_ngram: 1
+  name: CountVectorsFeaturizer
+- name: FallbackClassifier
+  threshold: 0.75
+- epochs: 5
+  name: DIETClassifier
+- name: EntitySynonymMapper
+- epochs: 5
+  name: ResponseSelector
+policies:
+- name: MemoizationPolicy
+- epochs: 5
+  max_history: 5
+  name: TEDPolicy
+- name: RulePolicy
+  core_fallback_threshold: 0.3
+  core_fallback_action_name: action_small_talk
