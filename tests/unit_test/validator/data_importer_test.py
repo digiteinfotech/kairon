@@ -143,6 +143,29 @@ class TestDataImporter:
         assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
+    async def test_import_data_with_actions(self):
+        path = 'tests/testing_data/validator/valid_data'
+        actions = 'tests/testing_data/valid_yml/actions.yml'
+        bot = 'test_data_import_with_valid_data'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
+        shutil.copytree(path, test_data_path)
+        shutil.copy2(actions, test_data_path)
+        importer = DataImporter(test_data_path, bot, user,
+                                REQUIREMENTS - {"http_actions", "chat_client_config"}, True, False)
+        await importer.validate()
+        importer.import_data()
+
+        processor = MongoProcessor()
+        assert 'greet' in processor.fetch_intents(bot)
+        assert 'deny' in processor.fetch_intents(bot)
+        assert len(processor.fetch_stories(bot)) == 2
+        assert len(list(processor.fetch_training_examples(bot))) == 7
+        assert len(list(processor.fetch_responses(bot))) == 4
+        assert len(processor.fetch_actions(bot)) == 16
+        assert len(processor.fetch_rule_block_names(bot)) == 4
+
+    @pytest.mark.asyncio
     async def test_import_data_with_multiflow(self):
         path = 'tests/testing_data/multiflow_stories/valid_with_multiflow'
         bot = 'test_data_import_multiflow'

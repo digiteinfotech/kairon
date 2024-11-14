@@ -57,4 +57,4 @@ class DataImporter:
                                                           self.validator.chat_client_config.get('config'),
                                                           self.validator.other_collections,
                                                           self.overwrite, self.files_to_save,
-                                                          file_upload=True)
+                                                          default_fallback_data=True)
