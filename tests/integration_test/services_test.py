@@ -1406,13 +1406,20 @@ def test_default_values():
 
 @pytest.mark.asyncio
 @responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync(mock_embedding):
+def test_knowledge_vault_sync(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
+
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})

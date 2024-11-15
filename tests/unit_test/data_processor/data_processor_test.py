@@ -12,6 +12,7 @@ import ujson as json
 import yaml
 
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
+from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -1519,8 +1520,11 @@ class TestMongoProcessor:
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
 
     @pytest.mark.asyncio
+    @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+    @patch.object(LLMProcessor, "__create_collection__", autospec=True)
+    @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
     @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_success(self, mock_embedding):
+    async def test_upsert_data_success(self, mock_embedding, mock_collection_upsert, mock_create_collection, mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
@@ -1574,6 +1578,10 @@ class TestMongoProcessor:
         )
         llm_secret.save()
 
+        mock_collection_exists.return_value = False
+        mock_create_collection.return_value = None
+        mock_collection_upsert.return_value = None
+
         embedding = list(np.random.random(1532))
         mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
 
@@ -1609,8 +1617,11 @@ class TestMongoProcessor:
         LLMSecret.objects.delete()
 
     @pytest.mark.asyncio
+    @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+    @patch.object(LLMProcessor, "__create_collection__", autospec=True)
+    @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
     @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_empty_data_list(self, mock_embedding):
+    async def test_upsert_data_empty_data_list(self, mock_embedding, mock_collection_upsert, mock_create_collection, mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
@@ -1660,6 +1671,10 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+
+        mock_collection_exists.return_value = False
+        mock_create_collection.return_value = None
+        mock_collection_upsert.return_value = None
 
         embedding = list(np.random.random(1532))
         mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
