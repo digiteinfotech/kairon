@@ -1747,6 +1747,16 @@ class TestMongoProcessor:
             timestamp=datetime.utcnow()
         )
         document.save()
+
+        saved_document = None
+        for doc in CognitionData.objects(bot=bot, collection=collection_name):
+            doc_dict = doc.to_mongo().to_dict()
+            if doc_dict.get("data", {}).get("id") == "2":  # Match based on `data.id`
+                saved_document = doc_dict
+                break
+        assert saved_document, "Saved CognitionData document not found"
+        vector_id = saved_document["vector_id"]
+
         if not isinstance(document, dict):
             document = document.to_mongo().to_dict()
 
@@ -1789,7 +1799,7 @@ class TestMongoProcessor:
             {
                 "points": [
                     {
-                        "id": 12,
+                        "id": vector_id,
                         "vector": embedding,
                         "payload": {'id': 2, 'item': 'Milk', 'price': 2.8, 'quantity': 5}
                     }

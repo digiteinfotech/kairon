@@ -421,7 +421,6 @@ class CognitionDataProcessor:
     def get_pydantic_type(data_type: str):
         if data_type == 'str':
             return (constr(strict=True, min_length=1), ...)
-            # return (str, ...)
         elif data_type == 'int':
             return (int, ...)
         elif data_type == 'float':
