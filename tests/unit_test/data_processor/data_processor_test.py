@@ -12,6 +12,7 @@ import ujson as json
 import yaml
 
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
+from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 from kairon.shared.llm.processor import LLMProcessor
 
@@ -20,7 +21,7 @@ Utility.load_environment()
 Utility.load_system_metadata()
 
 
-from unittest.mock import patch
+from unittest.mock import patch, ANY
 import numpy as np
 import pandas as pd
 import pytest
@@ -31,7 +32,7 @@ from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
-from pydantic import SecretStr
+from pydantic import SecretStr, constr
 from rasa.core.agent import Agent
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH, \
     DEFAULT_NLU_FALLBACK_INTENT_NAME
@@ -1705,6 +1706,199 @@ class TestMongoProcessor:
         CognitionData.objects(bot=bot, collection=collection_name).delete()
         LLMSecret.objects.delete()
 
+    @pytest.mark.asyncio
+    @patch.object(litellm, "aembedding", autospec=True)
+    @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+    async def test_sync_with_qdrant_success(self, mock_collection_upsert, mock_embedding):
+        bot = "test_bot"
+        user = "test_user"
+        collection_name = "groceries"
+        primary_key_col = "id"
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        document_data = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        document = CognitionData(
+            data=document_data,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        document.save()
+        if not isinstance(document, dict):
+            document = document.to_mongo().to_dict()
+
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        mock_collection_upsert.return_value = None
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = CognitionDataProcessor()
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+        await processor.sync_with_qdrant(
+            llm_processor=llm_processor,
+            collection_name=collection_name,
+            bot=bot,
+            document=document,
+            user=user,
+            primary_key_col=primary_key_col
+        )
+
+        mock_embedding.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
+            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
+            api_key="openai_key",
+            num_retries=3
+        )
+        mock_collection_upsert.assert_called_once_with(
+            llm_processor,
+            collection_name,
+            {
+                "points": [
+                    {
+                        "id": 12,
+                        "vector": embedding,
+                        "payload": {'id': 2, 'item': 'Milk', 'price': 2.8, 'quantity': 5}
+                    }
+                ]
+            },
+            err_msg="Unable to train FAQ! Contact support"
+        )
+
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch.object(litellm, "aembedding", autospec=True)
+    @patch.object(AioRestClient, "request", autospec=True)
+    async def test_sync_with_qdrant_upsert_failure(self, mock_request, mock_embedding):
+        bot = "test_bot"
+        user = "test_user"
+        collection_name = "groceries"
+        primary_key_col = "id"
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        document_data = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        document = CognitionData(
+            data=document_data,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        document.save()
+        if not isinstance(document, dict):
+            document = document.to_mongo().to_dict()
+
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        mock_request.side_effect = ConnectionError("Failed to connect to Qdrant")
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = CognitionDataProcessor()
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+
+        with pytest.raises(AppException, match="Failed to sync document with Qdrant: Failed to connect to Qdrant"):
+            await processor.sync_with_qdrant(
+                llm_processor=llm_processor,
+                collection_name=collection_name,
+                bot=bot,
+                document=document,
+                user=user,
+                primary_key_col=primary_key_col
+            )
+
+        mock_embedding.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
+            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
+            api_key="openai_key",
+            num_retries=3
+        )
+
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+        LLMSecret.objects.delete()
+
+    def test_get_pydantic_type_int(self):
+        result = CognitionDataProcessor().get_pydantic_type('int')
+        expected = (int, ...)
+        assert result == expected
+
+    def test_get_pydantic_type_float(self):
+        result = CognitionDataProcessor.get_pydantic_type('float')
+        expected = (float, ...)
+        assert result == expected
+
+    def test_get_pydantic_type_invalid(self):
+        with pytest.raises(ValueError, match="Unsupported data type: unknown"):
+            CognitionDataProcessor.get_pydantic_type('unknown')
 
     def test_save_and_validate_success(self):
         bot = 'test_bot'
