@@ -472,7 +472,7 @@ class CognitionDataProcessor:
                 continue
 
             try:
-                model_instance = DynamicModel(**row)
+                DynamicModel(**row)
             except ValidationError as e:
                 error_details = []
                 for error in e.errors():

@@ -1516,7 +1516,177 @@ class TestMongoProcessor:
         assert validation_summary["1"][0]["status"] == "Column headers mismatch"
         assert validation_summary["1"][0]["expected_columns"] == ["id", "item", "price", "quantity"]
         assert validation_summary["1"][0]["actual_columns"] == ["id", "item", "quantity", "discount"]
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
 
+    @pytest.mark.asyncio
+    @patch.object(litellm, "aembedding", autospec=True)
+    async def test_upsert_data_success(self, mock_embedding):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = 'id'
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        dummy_data = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        existing_document = CognitionData(
+            data=dummy_data,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        existing_document.save()
+
+        upsert_data = [
+            {"id": 1, "item": "Juice", "price": "2.50", "quantity": "10"},  # New entry
+            {"id": 2, "item": "Milk", "price": "3.00", "quantity": "5"}  # Existing entry to be updated
+        ]
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        processor = CognitionDataProcessor()
+
+        result = await processor.upsert_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            data=upsert_data,
+            bot=bot,
+            user=user
+        )
+
+        upserted_data = list(CognitionData.objects(bot=bot, collection=collection_name))
+
+        assert result["message"] == "Upsert complete!"
+        assert len(upserted_data) == 2
+
+        inserted_record = next((item for item in upserted_data if item.data["id"] == "1"), None)
+        assert inserted_record is not None
+        assert inserted_record.data["item"] == "Juice"
+        assert inserted_record.data["price"] == "2.50"
+        assert inserted_record.data["quantity"] == "10"
+
+        updated_record = next((item for item in upserted_data if item.data["id"] == "2"), None)
+        assert updated_record is not None
+        assert updated_record.data["item"] == "Milk"
+        assert updated_record.data["price"] == "3.00"  # Updated price
+        assert updated_record.data["quantity"] == "5"
+
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch.object(litellm, "aembedding", autospec=True)
+    async def test_upsert_data_empty_data_list(self, mock_embedding):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = 'id'
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        dummy_data = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        existing_document = CognitionData(
+            data=dummy_data,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        existing_document.save()
+
+        upsert_data = []
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        processor = CognitionDataProcessor()
+        result = await processor.upsert_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            data=upsert_data,
+            bot=bot,
+            user=user
+        )
+
+        data = list(CognitionData.objects(bot=bot, collection=collection_name))
+
+        assert result["message"] == "Upsert complete!"
+        assert len(data) == 1
+
+        existing_record = data[0]
+        assert existing_record.data["id"] == "2"
+        assert existing_record.data["item"] == "Milk"
+        assert existing_record.data["price"] == "2.80"
+        assert existing_record.data["quantity"] == "5"
+
+        CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
+        CognitionData.objects(bot=bot, collection=collection_name).delete()
+        LLMSecret.objects.delete()
 
     def test_save_and_validate_success(self):
         bot = 'test_bot'

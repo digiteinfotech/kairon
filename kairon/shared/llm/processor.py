@@ -9,7 +9,6 @@ from loguru import logger as logging
 from mongoengine.base import BaseList
 from tiktoken import get_encoding
 from tqdm import tqdm
-from loguru import logger
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
@@ -303,7 +302,7 @@ class LLMProcessor(LLMBase):
             )
             return response.get('status') == "ok"
         except Exception as e:
-            logger.info(e)
+            logging.info(e)
             return False
 
     async def __collection_search__(self, collection_name: Text, vector: List, limit: int, score_threshold: float):
