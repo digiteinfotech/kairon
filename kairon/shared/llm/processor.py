@@ -9,6 +9,7 @@ from loguru import logger as logging
 from mongoengine.base import BaseList
 from tiktoken import get_encoding
 from tqdm import tqdm
+from loguru import logger
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
@@ -289,6 +290,21 @@ class LLMProcessor(LLMBase):
                 logging.exception(response['status'].get('error'))
                 if raise_err:
                     raise AppException(err_msg)
+
+    async def __collection_exists__(self, collection_name: Text) -> bool:
+        """Check if a collection exists."""
+        try:
+            response = await AioRestClient().request(
+                http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
+                request_method="GET",
+                headers=self.headers,
+                return_json=True,
+                timeout=5
+            )
+            return response.get('status') == "ok"
+        except Exception as e:
+            logger.info(e)
+            return False
 
     async def __collection_search__(self, collection_name: Text, vector: List, limit: int, score_threshold: float):
         client = AioRestClient()

@@ -1363,6 +1363,161 @@ class TestMongoProcessor:
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
 
+    def test_validate_data_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+
+        metadata = [
+            {
+                "column_name": "id",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "item",
+                "data_type": "str",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "price",
+                "data_type": "float",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "quantity",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            }
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        data = [
+            {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
+            {"id": 2, "item": "Apples", "price": 1.20, "quantity": 20},
+            {"id": 3, "item": "Bananas", "price": 0.50, "quantity": 15},
+        ]
+
+        processor = CognitionDataProcessor()
+        validation_summary = processor.validate_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            data=data,
+            bot=bot
+        )
+
+        assert validation_summary == {}
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+
+    def test_validate_data_missing_collection(self):
+        bot = 'test_bot'
+        collection_name = 'nonexistent_collection'
+        primary_key_col = "id"
+        data = [{"id": 1, "item": "Juice", "price": 2.50, "quantity": 10}]
+
+        processor = CognitionDataProcessor()
+
+        with pytest.raises(AppException, match=f"Collection '{collection_name}' does not exist."):
+            processor.validate_data(
+                primary_key_col=primary_key_col,
+                collection_name=collection_name,
+                data=data,
+                bot=bot
+            )
+
+    def test_validate_data_missing_primary_key(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True}
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        data = [
+            {"item": "Juice", "price": 2.50, "quantity": 10}
+        ]
+
+        processor = CognitionDataProcessor()
+
+        with pytest.raises(AppException, match=f"Primary key '{primary_key_col}' must exist in each row."):
+            processor.validate_data(
+                primary_key_col=primary_key_col,
+                collection_name=collection_name,
+                data=data,
+                bot=bot
+            )
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+
+    def test_validate_data_column_header_mismatch(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True}
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        data = [
+            {"id": "1", "item": "Juice", "quantity": 10, "discount": 0.10}
+        ]
+
+        processor = CognitionDataProcessor()
+        validation_summary = processor.validate_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            data=data,
+            bot=bot
+        )
+
+        assert "1" in validation_summary
+        assert validation_summary["1"][0]["status"] == "Column headers mismatch"
+        assert validation_summary["1"][0]["expected_columns"] == ["id", "item", "price", "quantity"]
+        assert validation_summary["1"][0]["actual_columns"] == ["id", "item", "quantity", "discount"]
+
+
     def test_save_and_validate_success(self):
         bot = 'test_bot'
         user = 'test_user'

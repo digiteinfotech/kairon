@@ -326,3 +326,34 @@ async def download_error_csv(
             data=None,
             error_code=e.status_code
         )
+
+@router.post("/cognition/sync", response_model=Response)
+async def knowledge_vault_sync(
+    primary_key_col: str,
+    collection_name: str,
+    data: List[dict],
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Validates and syncs data to the specified MongoDB collection and vector database.
+    """
+    data = [{key.lower(): value for key, value in row.items()} for row in data]
+
+    error_summary = cognition_processor.validate_data(primary_key_col.lower(), collection_name.lower(), data, current_user.get_bot())
+
+    if error_summary:
+        return Response(
+            success=False,
+            message="Validation failed",
+            data=error_summary,
+            error_code=400
+        )
+
+    await cognition_processor.upsert_data(primary_key_col.lower(), collection_name.lower(), data,
+                                    current_user.get_bot(), current_user.get_user())
+
+    return Response(
+        success=True,
+        message="Processing completed successfully",
+        data=None
+    )
