@@ -1478,6 +1478,7 @@ def test_knowledge_vault_sync(mock_embedding):
     )
 
     actual= response.json()
+    print(actual)
     assert actual["success"]
     assert actual["message"] == "Processing completed successfully"
     assert actual["error_code"] == 0
