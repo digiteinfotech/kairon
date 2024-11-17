@@ -9,6 +9,7 @@ from absl.logging import exception
 from aiohttp import ClientConnectionError
 from mongoengine import connect
 
+from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 
 Utility.load_system_metadata()
@@ -1288,3 +1289,71 @@ class TestLLM:
                     "api_key": key,
                     "num_retries": 3}
         assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
+    @pytest.mark.asyncio
+    @mock.patch.object(AioRestClient, "request", autospec=True)
+    async def test_collection_exists_success(self, mock_request):
+        collection_name = "test_collection"
+        bot = "test_collection_exists_success"
+        user = "test_new"
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_request.return_value = {"status": "ok"}
+
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+
+        result = await llm_processor.__collection_exists__(collection_name)
+
+        mock_request.assert_called_once_with(
+            mock.ANY,
+            http_url=f"{llm_processor.db_url}/collections/{collection_name}",
+            request_method="GET",
+            headers=llm_processor.headers,
+            return_json=True,
+            timeout=5
+        )
+        assert result is True
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(AioRestClient, "request", autospec=True)
+    async def test_collection_exists_failure(self, mock_request):
+        collection_name = "test_collection"
+        bot = "test_collection_exists_failure"
+        user = "test_new"
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_request.side_effect = Exception("Connection error")
+
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+
+        result = await llm_processor.__collection_exists__(collection_name)
+
+        mock_request.assert_called_once_with(
+            mock.ANY,
+            http_url=f"{llm_processor.db_url}/collections/{collection_name}",
+            request_method="GET",
+            headers=llm_processor.headers,
+            return_json=True,
+            timeout=5
+        )
+        assert result is False
+        LLMSecret.objects.delete()
