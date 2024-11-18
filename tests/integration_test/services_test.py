@@ -10,6 +10,7 @@ from unittest import mock
 from unittest.mock import patch
 from urllib.parse import urljoin
 from zipfile import ZipFile
+import litellm
 
 import pytest
 import responses
@@ -31,6 +32,8 @@ from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.utils import Utility, MailUtility
+from kairon.shared.llm.processor import LLMProcessor
+import numpy as np
 
 Utility.load_system_metadata()
 
@@ -1397,6 +1400,310 @@ def test_default_values():
     ]
 
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_knowledge_vault_sync(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.content_importer_limit_per_day = 10
+    bot_settings.cognition_collections_limit = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "groceries"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    schema_response = response.json()
+    assert schema_response["message"] == "Schema saved!"
+    assert schema_response["error_code"] == 0
+
+    dummy_data = {
+        "id": "1",
+        "item": "Juice",
+        "price": "2.00",
+        "quantity": "9"
+    }
+    dummy_doc = CognitionData(
+        data=dummy_data,
+        content_type="json",
+        collection="groceries",
+        user="himanshu.gupta@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow()
+    )
+    dummy_doc.save()
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="groceries")
+    assert cognition_data.count() == 1
+
+    sync_data = [
+        {"id": 1, "item": "Juice", "price": "2.50", "quantity": "10"},
+        {"id": 2, "item": "Apples", "price": "1.20", "quantity": "20"}
+    ]
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries",
+        json=sync_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual= response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["message"] == "Processing completed successfully"
+    assert actual["error_code"] == 0
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="groceries")
+    assert cognition_data.count() == 2
+
+    expected_data = [
+        {"id": "1", "item": "Juice", "price": "2.50", "quantity": "10"},
+        {"id": "2", "item": "Apples", "price": "1.20", "quantity": "20"}
+    ]
+
+    for index, doc in enumerate(cognition_data):
+        doc_data = doc.to_mongo().to_dict()["data"]
+        assert doc_data == expected_data[index]
+
+    expected_calls = [
+        {
+            "model": "text-embedding-3-small",
+            "input": ['{"id":1,"item":"Juice","price":2.5,"quantity":10}'],  # First input
+            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
+            "api_key": "common_openai_key",
+            "num_retries": 3
+        },
+        {
+            "model": "text-embedding-3-small",
+            "input": ['{"id":2,"item":"Apples","price":1.2,"quantity":20}'],  # Second input
+            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
+            "api_key": "common_openai_key",
+            "num_retries": 3
+        }
+    ]
+
+    for i, expected in enumerate(expected_calls):
+        actual_call = mock_embedding.call_args_list[i].kwargs
+        assert actual_call == expected
+
+    CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
+    CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
+    LLMSecret.objects.delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_knowledge_vault_sync_missing_collection(mock_embedding):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.content_importer_limit_per_day = 10
+    bot_settings.cognition_collections_limit = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        }
+    ]
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    sync_data = [
+        {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
+        {"id": 2, "item": "Apples", "price": 1.20, "quantity": 20}
+    ]
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=nonexistent_collection",
+        json=sync_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Collection 'nonexistent_collection' does not exist."
+    assert actual["error_code"] == 422
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="nonexistent_collection")
+    assert cognition_data.count() == 0
+
+    LLMSecret.objects.delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_knowledge_vault_sync_column_header_mismatch(mock_embedding):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.content_importer_limit_per_day = 10
+    bot_settings.cognition_collections_limit = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        }
+    ]
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    schema_response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "groceries"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    assert schema_response.status_code == 200
+    assert schema_response.json()["message"] == "Schema saved!"
+    assert schema_response.json()["error_code"] == 0
+
+    sync_data = [
+        {"id": 1, "item": "Juice", "quantity": 10, "description": "Orange juice"},
+        {"id": 2, "item": "Apples", "quantity": 20, "description": "Fresh apples"}
+    ]
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries",
+        json=sync_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["message"] == "Validation failed"
+    assert actual["error_code"] == 400
+    assert actual["data"] == {'1': [{'status': 'Column headers mismatch', 'expected_columns': ['id', 'item', 'price', 'quantity'], 'actual_columns': ['id', 'item', 'quantity', 'description']}], '2': [{'status': 'Column headers mismatch', 'expected_columns': ['id', 'item', 'price', 'quantity'], 'actual_columns': ['id', 'item', 'quantity', 'description']}]}
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="groceries")
+    assert cognition_data.count() == 0
+
+    CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
+    LLMSecret.objects.delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.content_importer_limit_per_day = 10
+    bot_settings.cognition_collections_limit = 10
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        }
+    ]
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    schema_response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+                {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            ],
+            "collection_name": "groceries"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    assert schema_response.status_code == 200
+    assert schema_response.json()["message"] == "Schema saved!"
+    assert schema_response.json()["error_code"] == 0
+
+    sync_data = [
+        {"item": "Juice", "price": 2.50, "quantity": 10},
+        {"item": "Apples", "price": 1.20, "quantity": 20}
+    ]
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries",
+        json=sync_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["message"] == "Primary key 'id' must exist in each row."
+    assert actual["error_code"] == 422
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="groceries")
+    assert cognition_data.count() == 0
+
+    CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
+    LLMSecret.objects.delete()
 
 @responses.activate
 def test_upload_doc_content():
