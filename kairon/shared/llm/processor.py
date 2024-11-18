@@ -290,6 +290,21 @@ class LLMProcessor(LLMBase):
                 if raise_err:
                     raise AppException(err_msg)
 
+    async def __collection_exists__(self, collection_name: Text) -> bool:
+        """Check if a collection exists."""
+        try:
+            response = await AioRestClient().request(
+                http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
+                request_method="GET",
+                headers=self.headers,
+                return_json=True,
+                timeout=5
+            )
+            return response.get('status') == "ok"
+        except Exception as e:
+            logging.info(e)
+            return False
+
     async def __collection_search__(self, collection_name: Text, vector: List, limit: int, score_threshold: float):
         client = AioRestClient()
         response = await client.request(

@@ -1,13 +1,15 @@
 from datetime import datetime
-from typing import Text, Dict, Any
+from typing import Text, Dict, Any, List
 
 from loguru import logger
 from mongoengine import DoesNotExist, Q
+from pydantic import constr, create_model, ValidationError
 
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
+from kairon.shared.data.constant import DEFAULT_LLM
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import CognitionDataType, CognitionMetadataType
 
@@ -414,3 +416,157 @@ class CognitionDataProcessor:
             raise AppException(f'Cannot remove collection {collection} linked to action "{prompt_action[0].name}"!')
         if database_action:
             raise AppException(f'Cannot remove collection {collection} linked to action "{database_action[0].name}"!')
+
+    @staticmethod
+    def get_pydantic_type(data_type: str):
+        if data_type == 'str':
+            return (constr(strict=True, min_length=1), ...)
+        elif data_type == 'int':
+            return (int, ...)
+        elif data_type == 'float':
+            return (float, ...)
+        else:
+            raise ValueError(f"Unsupported data type: {data_type}")
+
+    def validate_data(self, primary_key_col: str, collection_name: str, data: List[Dict], bot: str) -> Dict:
+        """
+        Validates each dictionary in the data list according to the expected schema from column_dict.
+
+        Args:
+            data: List of dictionaries where each dictionary represents a row to be validated.
+            collection_name: The name of the collection (table name).
+            bot: The bot identifier.
+            primary_key_col: The primary key column for identifying rows.
+
+        Returns:
+            Dict: Summary of validation errors, if any.
+        """
+        if not CognitionSchema.objects(collection_name=collection_name).first():
+            raise AppException(f"Collection '{collection_name}' does not exist.")
+
+        column_dict = MongoProcessor().get_column_datatype_dict(bot, collection_name)
+
+        error_summary = {}
+
+        model_fields = {
+            column_name: self.get_pydantic_type(data_type)
+            for column_name, data_type in column_dict.items()
+        }
+        DynamicModel = create_model('DynamicModel', **model_fields)
+
+        for row in data:
+            row_key = row.get(primary_key_col)
+            if not row_key:
+                raise AppException(f"Primary key '{primary_key_col}' must exist in each row.")
+
+            row_errors = []
+            if set(row.keys()) != set(column_dict.keys()):
+                row_errors.append({
+                    "status": "Column headers mismatch",
+                    "expected_columns": list(column_dict.keys()),
+                    "actual_columns": list(row.keys())
+                })
+            if row_errors:
+                error_summary[row_key] = row_errors
+                continue
+
+            try:
+                DynamicModel(**row)
+            except ValidationError as e:
+                error_details = []
+                for error in e.errors():
+                    column_name = error['loc'][0]
+                    input_value = row.get(column_name)
+                    status = "Required Field is Empty" if input_value == "" else "Invalid DataType"
+                    error_details.append({
+                        "column_name": column_name,
+                        "input": input_value,
+                        "status": status
+                    })
+                error_summary[row_key] = error_details
+
+        return error_summary
+
+    async def upsert_data(self, primary_key_col: str, collection_name: str, data: List[Dict], bot: str, user: Text):
+        """
+        Upserts data into the CognitionData collection.
+        If document with the primary key exists, it will be updated.
+        If not, it will be inserted.
+
+        Args:
+            primary_key_col: The primary key column name to check for uniqueness.
+            collection_name: The collection name (table).
+            data: List of rows of data to upsert.
+            bot: The bot identifier associated with the data.
+            user: The user
+        """
+
+        from kairon.shared.llm.processor import LLMProcessor
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+        suffix = "_faq_embd"
+        qdrant_collection = f"{bot}_{collection_name}{suffix}" if collection_name else f"{bot}{suffix}"
+
+        if await llm_processor.__collection_exists__(qdrant_collection) is False:
+            await llm_processor.__create_collection__(qdrant_collection)
+
+        for row in data:
+            row = {str(key): str(value) for key, value in row.items()}
+            primary_key_value = row.get(primary_key_col)
+
+            payload = {
+                "data": row,
+                "content_type": CognitionDataType.json.value,
+                "collection": collection_name
+            }
+            existing_document = CognitionData.objects(
+                Q(bot=bot) &
+                Q(collection=collection_name) &
+                Q(**{f"data__{primary_key_col}": str(primary_key_value)})
+            ).first()
+
+            if existing_document:
+                if not isinstance(existing_document, dict):
+                    existing_document = existing_document.to_mongo().to_dict()
+                row_id = str(existing_document["_id"])
+                self.update_cognition_data(row_id, payload, user, bot)
+                updated_document = CognitionData.objects(id=row_id).first()
+                if not isinstance(updated_document, dict):
+                    updated_document = updated_document.to_mongo().to_dict()
+                logger.info(f"Row with {primary_key_col}: {primary_key_value} updated in MongoDB")
+                await self.sync_with_qdrant(llm_processor, qdrant_collection, bot, updated_document, user,
+                                            primary_key_col)
+            else:
+                row_id = self.save_cognition_data(payload, user, bot)
+                new_document = CognitionData.objects(id=row_id).first()
+                if not isinstance(new_document, dict):
+                    new_document = new_document.to_mongo().to_dict()
+                logger.info(f"Row with {primary_key_col}: {primary_key_value} inserted in MongoDB")
+                await self.sync_with_qdrant(llm_processor, qdrant_collection, bot, new_document, user, primary_key_col)
+
+        return {"message": "Upsert complete!"}
+
+    async def sync_with_qdrant(self, llm_processor, collection_name, bot, document, user, primary_key_col):
+        """
+        Syncs a document with Qdrant vector database by generating embeddings and upserting them.
+
+        Args:
+            llm_processor (LLMProcessor): Instance of LLMProcessor for embedding and Qdrant operations.
+            collection_name (str): Name of the Qdrant collection.
+            bot (str): Bot identifier.
+            document (CognitionData): Document to sync with Qdrant.
+            user (Text): User performing the operation.
+
+        Raises:
+            AppException: If Qdrant upsert operation fails.
+        """
+        try:
+            metadata = self.find_matching_metadata(bot, document['data'], document.get('collection'))
+            search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
+                document['data'], metadata)
+            embeddings = await llm_processor.get_embedding(embedding_payload, user, invocation='knowledge_vault_sync')
+            points = [{'id': document['vector_id'], 'vector': embeddings, 'payload': search_payload}]
+            await llm_processor.__collection_upsert__(collection_name, {'points': points},
+                                                      err_msg="Unable to train FAQ! Contact support")
+            logger.info(f"Row with {primary_key_col}: {document['data'].get(primary_key_col)} upserted in Qdrant.")
+        except Exception as e:
+            raise AppException(f"Failed to sync document with Qdrant: {str(e)}")
