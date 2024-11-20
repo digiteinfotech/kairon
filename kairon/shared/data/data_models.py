@@ -1341,3 +1341,11 @@ class ScheduleActionRequest(BaseModel):
             raise ValueError("Schedule action can not be empty, it is needed to execute on schedule time")
 
         return values
+
+
+class MailConfigRequest(BaseModel):
+    intent: str
+    entities: list[str] = []
+    subjects: list[str] = []
+    classification_prompt: str
+    reply_template: str = None
