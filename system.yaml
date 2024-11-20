@@ -120,13 +120,14 @@ notifications:
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5056"}
   executor:
-    type: ${EVENTS_EXECUTOR_TYPE}
+    type: ${EVENTS_EXECUTOR_TYPE:"standalone"}
     region: ${EVENTS_EXECUTOR_REGION}
     timeout: ${EVENTS_EXECUTOR_TIMEOUT_MINUTES:60}
   queue:
     type: ${EVENTS_QUEUE_TYPE:"mongo"}
     url: ${EVENTS_QUEUE_URL:"mongodb://localhost:27017/events"}
     name: ${EVENTS_DB_NAME:"kairon_events"}
+    mail_queue_name: ${EVENTS_MAIL_QUEUE_NAME:"mail_queue"}
   task_definition:
     model_training: ${MODEL_TRAINING_TASK_DEFINITION}
     model_testing: ${MODEL_TESTING_TASK_DEFINITION}
@@ -141,6 +142,7 @@ events:
     content_importer: ${DOC_CONTENT_IMPORTER_TASK_DEFINITION}
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
+    mail_scheduler_collection: ${MAIL_SCHEDULER_COLLECTION:"mail_scheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
     min_trigger_interval: ${MIN_SCHDULER_TRIGGER_INTERVAL:86340}
   audit_logs:
@@ -153,7 +155,7 @@ evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://192.168.100.109:8085/evaluate"}
   pyscript:
     trigger_task: ${PYSCRIPT_TRIGGER_TASK:false}
-    url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8087/evaluate"}
+    url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://localhost:8087/evaluate"}
 
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}
