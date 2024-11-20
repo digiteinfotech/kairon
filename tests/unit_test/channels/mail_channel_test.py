@@ -563,7 +563,9 @@ def test_extract_jsons_from_text():
     assert result == expected_output
 
 
-# @patch("kairon.shared.channels.mail.processor.MailProcessor.login_imap")
+
+
+
 @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
 @patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
 @patch("kairon.shared.channels.mail.processor.MailBox")
@@ -595,9 +597,16 @@ async def test_process_mails(mock_get_channel_config, mock_llm_processor,
 
     mock_mailbox_instance = MagicMock()
     mock_mailbox.return_value = mock_mailbox_instance
-    mock_mailbox.fetch.return_value = [
-        MagicMock(subject="Test Subject", from_="test@example.com", date="2023-10-10", text="Test Body", html=None)
-    ]
+
+    mock_mail_message = MagicMock(spec=MailMessage)
+    mock_mail_message.subject = "Test Subject"
+    mock_mail_message.from_ = "test@example.com"
+    mock_mail_message.date = "2023-10-10"
+    mock_mail_message.text = "Test Body"
+    mock_mail_message.html = None
+
+    mock_mailbox_instance.login.return_value = mock_mailbox_instance
+    mock_mailbox_instance.fetch.return_value = [mock_mail_message]
 
     # Act
     message_count, time_shift = await MailProcessor.process_mails(bot_id, scheduler_instance)
@@ -606,3 +615,67 @@ async def test_process_mails(mock_get_channel_config, mock_llm_processor,
     scheduler_instance.add_job.assert_called_once()
     assert message_count == 1
     assert time_shift == 300  # 5 minutes in seconds
+
+
+
+import pytest
+from unittest.mock import patch, MagicMock
+from kairon.shared.channels.mail.processor import MailProcessor, MailConstants
+from imap_tools import MailMessage
+
+@patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
+@patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
+@patch("kairon.shared.channels.mail.processor.MailBox")
+@patch("kairon.shared.channels.mail.processor.BackgroundScheduler")
+@patch("kairon.shared.channels.mail.processor.LLMProcessor")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+@pytest.mark.asyncio
+async def test_process_mails_no_messages(mock_get_channel_config, mock_llm_processor,
+                                         mock_scheduler, mock_mailbox, mock_process_message_task,
+                                         mock_logout_imap):
+    # Arrange
+    bot_id = pytest.bot
+
+    mock_get_channel_config.return_value = {
+        'config': {
+            'email_account': "testuser@testuser.com",
+            'email_password': "password",
+            'imap_server': "imap.testuser.com",
+            'llm_type': "openai",
+            'hyperparameters': MailConstants.DEFAULT_HYPERPARAMETERS,
+        }
+    }
+
+    mock_llm_processor_instance = MagicMock()
+    mock_llm_processor.return_value = mock_llm_processor_instance
+
+    scheduler_instance = MagicMock()
+    mock_scheduler.return_value = scheduler_instance
+
+    mock_mailbox_instance = MagicMock()
+    mock_mailbox.return_value = mock_mailbox_instance
+
+    mock_mailbox_instance.login.return_value = mock_mailbox_instance
+    mock_mailbox_instance.fetch.return_value = []
+
+    # Act
+    message_count, time_shift = await MailProcessor.process_mails(bot_id, scheduler_instance)
+
+    # Assert
+    assert message_count == 0
+    assert time_shift == 300
+
+    mock_logout_imap.assert_called_once()
+
+
+
+
+
+
+
+
+
+
+
+
+
