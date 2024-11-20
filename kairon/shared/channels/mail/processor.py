@@ -200,7 +200,6 @@ class MailProcessor:
         try:
             mp.login_imap()
             msgs = mp.mailbox.fetch(AND(seen=False, date_gte=last_read_timestamp.date()))
-            print(msgs)
             for msg in msgs:
                 subject = msg.subject
                 sender_id = msg.from_
