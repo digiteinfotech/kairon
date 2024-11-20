@@ -56,6 +56,8 @@ async def lifespan(app: FastAPI):
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
+    from kairon.shared.channels.mail.scheduler import MailScheduler
+    MailScheduler.epoch()
     yield
     disconnect()
 
