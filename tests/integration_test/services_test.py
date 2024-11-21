@@ -27,6 +27,7 @@ from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
+from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
@@ -28591,6 +28592,7 @@ def test_delete_account(mock_password_reset):
         data={"username": "integration@demo.ai", "password": "Welcome@10"},
     )
     actual = response_log.json()
+    UserEmailConfirmation(email="integration@demo.ai").save()
 
     assert actual["success"]
     assert actual["error_code"] == 0
