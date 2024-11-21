@@ -1,7 +1,5 @@
 import time
-from mongoengine import Document, StringField, DictField, ListField, FloatField, BooleanField
-
-from kairon import Utility
+from mongoengine import Document, StringField, ListField, FloatField, BooleanField
 from kairon.exceptions import AppException
 
 
