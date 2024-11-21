@@ -238,7 +238,11 @@ class WhatsappBot(OutputChannel):
             from kairon.chat.converters.channels.response_factory import ConverterFactory
             converter_instance = ConverterFactory.getConcreteInstance(messagetype, ChannelTypes.WHATSAPP.value)
             response = await converter_instance.messageConverter(message)
-            self.whatsapp_client.send(response, recipient_id, messaging_type)
+            resp = self.whatsapp_client.send(response, recipient_id, messaging_type)
+            if resp.get("error"):
+                bot = kwargs.get("assistant_id")
+                ChatDataProcessor.save_whatsapp_failed_messages(resp, bot, recipient_id, ChannelTypes.WHATSAPP.value,
+                                                                json_message=json_message)
         else:
             self.send(recipient_id, {"preview_url": True, "body": str(json_message)})
 

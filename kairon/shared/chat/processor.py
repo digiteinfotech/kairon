@@ -168,6 +168,38 @@ class ChatDataProcessor:
         ).save()
 
     @staticmethod
+    def save_whatsapp_failed_messages(resp: Dict, bot: Text, recipient: Text, channel_type: Text, **kwargs):
+        """
+        Logs failed WhatsApp message responses for debugging and tracking purposes.
+
+        Args:
+            resp (Dict): The response dictionary containing error details.
+            bot (Text): The bot identifier.
+            recipient (Text): The recipient identifier.
+            channel_type (Text): The type of channel (e.g., WhatsApp).
+
+        Returns:
+            None
+        """
+        error = resp.get("error", {})
+        message_id = f"failed-{channel_type}-{recipient}-{bot}"
+        user = "unknown_user"
+        failure_reason = error.get("error_data", {}).get("details")
+        logger.debug(f"WhatsApp message failed to send: {error}")
+
+        ChannelLogs(
+            type=channel_type,
+            status="failed",
+            data=resp,
+            failure_reason=failure_reason,
+            message_id=message_id,
+            user=user,
+            bot=bot,
+            recipient=recipient,
+            json_message=kwargs.get('json_message')
+        ).save()
+
+    @staticmethod
     def get_instagram_static_comment(bot: str) -> str:
         channel = ChatDataProcessor.get_channel_config(bot=bot, connector_type="instagram", mask_characters=False)
         comment_response = channel.get("config", {}).get("static_comment_reply")
