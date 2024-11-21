@@ -121,6 +121,7 @@ events:
     type: ${EVENTS_QUEUE_TYPE:"mongo"}
     url: ${EVENTS_QUEUE_URL:"mongodb://localhost:27017/events"}
     name: ${EVENTS_DB_NAME:"kairon_events"}
+    mail_queue_name: ${EVENTS_MAIL_QUEUE_NAME:"mail_queue"}
   task_definition:
     model_training: ${MODEL_TRAINING_TASK_DEFINITION}
     model_testing: ${MODEL_TESTING_TASK_DEFINITION}
@@ -140,6 +141,7 @@ events:
       - bot
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
+    mail_scheduler_collection: ${MAIL_SCHEDULER_COLLECTION:"mail_scheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
     min_trigger_interval: ${MIN_SCHDULER_TRIGGER_INTERVAL:86340}
 
