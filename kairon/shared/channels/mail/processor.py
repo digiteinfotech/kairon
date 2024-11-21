@@ -197,8 +197,10 @@ class MailProcessor:
         time_shift = int(mp.config.get('interval', 5 * 60))
         last_read_timestamp = datetime.now() - timedelta(seconds=time_shift)
         messages = []
+        is_logged_in = False
         try:
             mp.login_imap()
+            is_logged_in = True
             msgs = mp.mailbox.fetch(AND(seen=False, date_gte=last_read_timestamp.date()))
             for msg in msgs:
                 subject = msg.subject
@@ -214,6 +216,7 @@ class MailProcessor:
                 }
                 messages.append(message_entry)
             mp.logout_imap()
+            is_logged_in = False
 
             if not messages or len(messages) == 0:
                 return 0, time_shift
@@ -225,6 +228,8 @@ class MailProcessor:
             return len(messages), time_shift
         except Exception as e:
             logger.exception(e)
+            if is_logged_in:
+                mp.logout_imap()
             return 0, time_shift
 
     @staticmethod
