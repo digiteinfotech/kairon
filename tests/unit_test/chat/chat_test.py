@@ -198,6 +198,73 @@ class TestChat:
                     "client_secret": "a23456789sfdghhtyutryuivcbn", "is_primary": False}}, "test", "test"
             )
 
+    def test_save_whatsapp_failed_messages(self):
+        from kairon.shared.chat.data_objects import ChannelLogs
+        json_message = {
+            'data': [
+                {
+                    'type': 'button',
+                    'value': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+                    'id': 1,
+                    'children': [
+                        {
+                            'text': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+                        }
+                    ]
+                 }
+            ],
+            'type': 'button'
+        }
+
+        resp = {
+            'error': {
+                'message': '(#131009) Parameter value is not valid', 'type': 'OAuthException',
+                'code': 131009,
+                'error_data': {
+                    'messaging_product': 'whatsapp',
+                    'details': 'Button title length invalid. Min length: 1, Max length: 20'
+                },
+                'fbtrace_id': 'ALfhCiNWtld8enTUJyg0FFo'
+            }
+        }
+        bot = "5e564fbcdcf0d5fad89e3abd"
+        recipient = "919876543210"
+        channel_type = "whatsapp"
+        ChatDataProcessor.save_whatsapp_failed_messages(resp, bot, recipient, channel_type, json_message=json_message)
+        log = (
+            ChannelLogs.objects(
+                bot=bot,
+                message_id="failed-whatsapp-919876543210-5e564fbcdcf0d5fad89e3abd",
+            )
+            .get()
+            .to_mongo()
+            .to_dict()
+        )
+        print(log)
+        assert log['type'] == 'whatsapp'
+        assert log['data'] == resp
+        assert log['status'] == 'failed'
+        assert log['message_id'] == 'failed-whatsapp-919876543210-5e564fbcdcf0d5fad89e3abd'
+        assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
+        assert log['recipient'] == '919876543210'
+        assert log['type'] == 'whatsapp'
+        assert log['user'] == 'unknown_user'
+        assert log['json_message'] == {
+            'data': [
+                {
+                    'type': 'button',
+                    'value': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+                    'id': 1,
+                    'children': [
+                        {
+                            'text': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+                        }
+                    ]
+                 }
+            ],
+            'type': 'button'
+        }
+
     def test_list_channels(self):
         channels = list(ChatDataProcessor.list_channel_config("test"))
         assert channels.__len__() == 3
