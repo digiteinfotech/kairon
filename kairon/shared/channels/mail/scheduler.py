@@ -30,7 +30,7 @@ class MailScheduler:
                 job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
 
         bots = Channels.objects(connector_type= ChannelTypes.MAIL)
-        bots = set(list(bots.values_list('bot')))
+        bots = set(bot['bot'] for bot in bots.values_list('bot'))
 
 
         unscheduled_bots = bots - MailScheduler.scheduled_bots
@@ -42,11 +42,10 @@ class MailScheduler:
             MailScheduler.scheduled_bots.add(bot)
 
         MailScheduler.scheduled_bots = MailScheduler.scheduled_bots.intersection(bots)
-
-
-
         if is_initialized:
             MailScheduler.scheduler.start()
+            return True
+        return False
 
     @staticmethod
     def process_mails_task(bot, scheduler: BackgroundScheduler = None):
