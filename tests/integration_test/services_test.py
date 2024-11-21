@@ -21438,6 +21438,76 @@ def test_add_http_action_case_insensitivity():
     assert actual["success"]
 
 
+def test_add_slot_mapping_1():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "name_slot", "type": "text"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "name_slot",
+            "mapping": {"type": "from_text", "value": "user", "entity": "name_slot"},
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_delete_slot_mapping_1():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    for slot_mapping in actual["data"]:
+        if slot_mapping['slot'] == "name_slot":
+            mapping_id = slot_mapping['mapping'][0]['_id']
+            break
+    assert len(actual["data"]) == 12
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/slots/mapping_id/{mapping_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Slot mapping deleted"
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 11
+
+
+def test_delete_slot_mapping_does_not_exist():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/slots/mapping_id/{pytest.bot}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert not actual["data"]
+    assert actual["message"] == 'No slot mapping exists'
+    assert actual["error_code"] == 422
+
+
 def test_get_ui_config_empty():
     response = client.get(
         url=f"/api/account/config/ui",
