@@ -13,7 +13,7 @@ from kairon.api.models import (
     Response,
     Endpoint,
     RasaConfig,
-    BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
+    StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
     TextDataLowerCase, SlotMappingRequest, EventConfig, MultiFlowStoryRequest, BotSettingsRequest
@@ -32,16 +32,12 @@ from kairon.shared.content_importer.content_processor import ContentImporterLogP
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
-from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
-    TrainingDataSourceType, AuditlogActions
-from kairon.shared.data.data_models import MailConfigRequest
 from kairon.shared.data.constant import ENDPOINT_TYPE, ModelTestType, \
     AuditlogActions
+from kairon.shared.data.data_models import MailConfigRequest
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
-from kairon.shared.data.utils import DataUtility
 from kairon.shared.events.processor import ExecutorProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.importer.processor import DataImporterLogProcessor
@@ -612,30 +608,6 @@ def upload_files(
     return {"message": "Upload in progress! Check logs."}
 
 
-@router.post("/upload/data_generation/file", response_model=Response)
-async def upload_data_generation_file(
-        background_tasks: BackgroundTasks,
-        doc: UploadFile,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Uploads document for training data generation and triggers event for intent creation
-    """
-    TrainingDataGenerationProcessor.is_in_progress(current_user.get_bot())
-    TrainingDataGenerationProcessor.check_data_generation_limit(current_user.get_bot())
-    file_path = await Utility.upload_document(doc)
-    TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
-                                               user=current_user.get_user(), status=EVENT_STATUS.INITIATED.value,
-                                               document_path=file_path)
-    token, _ = Authentication.generate_integration_token(
-        current_user.get_bot(), current_user.email, token_type=TOKEN_TYPE.DYNAMIC.value
-    )
-    background_tasks.add_task(
-        DataUtility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token
-    )
-    return {"message": "File uploaded successfully and training data generation has begun"}
-
-
 @router.get("/download/data")
 async def download_data(
         background_tasks: BackgroundTasks,
@@ -864,68 +836,6 @@ async def get_action_server_logs(start_idx: int = 0, page_size: int = 10,
         "total": row_cnt
     }
     return Response(data=data)
-
-
-@router.post("/data/bulk", response_model=Response)
-async def add_training_data(
-        request_data: BulkTrainingDataAddRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Adds intents, training examples and responses along with story against the responses
-    """
-    try:
-        TrainingDataGenerationProcessor.validate_history_id(request_data.history_id)
-        status, training_data_added = mongo_processor.add_training_data(
-            training_data=request_data.training_data,
-            bot=current_user.get_bot(),
-            user=current_user.get_user(),
-            is_integration=current_user.get_integration_status()
-        )
-        TrainingDataGenerationProcessor.update_is_persisted_flag(request_data.history_id, training_data_added)
-    except Exception as e:
-        raise AppException(e)
-    return {"message": "Training data added successfully!", "data": status}
-
-
-@router.put("/update/data/generator/status", response_model=Response)
-async def update_training_data_generator_status(
-        request_data: TrainingDataGeneratorStatusModel,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Update training data generator status
-    """
-    try:
-        TrainingDataGenerationProcessor.retrieve_response_and_set_status(request_data, current_user.get_bot(),
-                                                                         current_user.get_user())
-    except Exception as e:
-        raise AppException(e)
-    return {"message": "Status updated successfully!"}
-
-
-@router.get("/data/generation/history", response_model=Response)
-async def get_train_data_history(
-        log_type: TrainingDataSourceType = TrainingDataSourceType.document.value,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
-):
-    """
-    Fetches File Data Generation history, when and who initiated the process
-    """
-    file_history = TrainingDataGenerationProcessor.get_training_data_generator_history(current_user.get_bot(), log_type)
-    return {"data": {"training_history": file_history}}
-
-
-@router.get("/data/generation/latest", response_model=Response)
-async def get_latest_data_generation_status(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
-):
-    """
-    Fetches status for latest data generation request
-    """
-    latest_data_generation_status = TrainingDataGenerationProcessor.fetch_latest_workload(current_user.get_bot(),
-                                                                                          current_user.get_user())
-    return {"data": latest_data_generation_status}
 
 
 @router.get("/slots", response_model=Response)
@@ -1749,4 +1659,61 @@ async def get_slot_actions(
     """
     llm_models = MongoProcessor.get_slot_mapped_actions(current_user.get_bot(), slot_name)
     return Response(data=llm_models)
+
+
+@router.get("/mail/config", response_model=Response)
+async def get_all_mail_configs(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Fetches mail config
+    """
+    data = MailClassificationConfig.objects(bot=current_user.get_bot(), status=True)
+    formatted_data = [
+        {key: value for key, value in item.to_mongo().items() if key not in {"_id", "user"}}
+        for item in data
+    ]
+
+    return {"data": formatted_data}
+
+
+
+@router.post("/mail/config", response_model=Response)
+async def set_mail_config(
+        request_data: MailConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Applies the mail config
+    """
+    request_dict = request_data.dict()
+    MailClassificationConfig.create_doc(**request_dict, bot=current_user.get_bot(), user=current_user.get_user())
+    return {"message": "Config applied!"}
+
+
+@router.put("/mail/config", response_model=Response)
+async def update_mail_config(
+        request_data: MailConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    update the mail config
+    """
+    request_dict = request_data.dict()
+    MailClassificationConfig.update_doc(**request_dict, bot=current_user.get_bot())
+    return {"message": "Config updated!"}
+
+
+
+@router.delete("/mail/config/{intent}", response_model=Response)
+async def del_soft_mail_config(
+        intent: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    delete the mail config
+    """
+    MailClassificationConfig.soft_delete_doc(current_user.get_bot(), intent)
+    return {"message": "Config deleted!"}
+
+
 
