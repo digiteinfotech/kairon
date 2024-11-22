@@ -62,26 +62,29 @@ def init_bot_model(bot):
     pytest_bot_trained = True
     return bot
 
-@pytest.fixture(autouse=True, scope='class')
+
+
+@pytest.fixture(autouse=True, scope='function')
 def setup():
     connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
-    Account.objects(user="mail_channel_test_user").delete()
-    Bot.objects(user="mail_channel_test_user").delete()
-    BotSettings.objects(user="mail_channel_test_user").delete()
+    # Clear collections before running tests
+    Account.objects.delete()
+    Bot.objects.delete()
+    BotSettings.objects.delete()
     MailClassificationConfig.objects.delete()
 
-    a = Account.objects.create(name="mail_channel_test_user", user="mail_channel_test_user")
-    bot = Bot.objects.create(name="mail_channel_test_bot", user="mail_channel_test_user", status=True, account=a.id)
+    a = Account.objects.create(name="mail_channel_test_user_acc", user="mail_channel_test_user_acc")
+    bot = Bot.objects.create(name="mail_channel_test_bot", user="mail_channel_test_user_acc", status=True, account=a.id)
     pytest.bot = str(bot.id)
-    b = BotSettings.objects.create(bot=pytest.bot, user="mail_channel_test_user")
+    b = BotSettings.objects.create(bot=pytest.bot, user="mail_channel_test_user_acc")
     b.llm_settings.enable_faq = True
     b.save()
     ChatDataProcessor.save_channel_config(
         {
             "connector_type": ChannelTypes.MAIL.value,
             "config": {
-                'email_account': "mail_channel_test_user@testuser.com",
+                'email_account': "mail_channel_test_user_acc@testuser.com",
                 'email_password': "password",
                 'imap_server': "imap.testuser.com",
                 'smtp_server': "smtp.testuser.com",
@@ -89,19 +92,19 @@ def setup():
             }
         },
         pytest.bot,
-        user="mail_channel_test_user",
+        user="mail_channel_test_user_acc",
     )
     yield
 
+    # Clear collections after running tests
     MailClassificationConfig.objects.delete()
-    BotSettings.objects(user="mail_channel_test_user").delete()
-    Bot.objects(user="mail_channel_test_user").delete()
-    Account.objects(user="mail_channel_test_user").delete()
+    BotSettings.objects(user="mail_channel_test_user_acc").delete()
+    Bot.objects(user="mail_channel_test_user_acc").delete()
+    Account.objects(user="mail_channel_test_user_acc").delete()
 
     disconnect()
     if len(model_path) > 0:
         shutil.rmtree(model_path)
-
 
 
 def test_create_doc_new_entry():
@@ -113,7 +116,7 @@ def test_create_doc_new_entry():
         classification_prompt="Classify this email as a greeting.",
         reply_template="Hi, how can I help?",
         bot=pytest.bot,
-        user="mail_channel_test_user"
+        user="mail_channel_test_user_acc"
     )
     assert doc.intent == "greeting"
     assert doc.bot == pytest.bot
@@ -130,7 +133,7 @@ def test_create_doc_existing_active_entry():
         classification_prompt="Classify this email as a greeting.",
         reply_template="Hi, how can I help?",
         bot=pytest.bot,
-        user="mail_channel_test_user"
+        user="mail_channel_test_user_acc"
     )
     with pytest.raises(AppException, match=r"Mail configuration already exists for intent \[greeting\]"):
         MailClassificationConfig.create_doc(
@@ -140,7 +143,7 @@ def test_create_doc_existing_active_entry():
             classification_prompt="Another greeting.",
             reply_template="Hello!",
             bot=pytest.bot,
-            user="mail_channel_test_user"
+            user="mail_channel_test_user_acc"
         )
     MailClassificationConfig.objects.delete()
 
@@ -154,7 +157,7 @@ def test_get_docs():
         classification_prompt="Classify this email as a greeting.",
         reply_template="Hi, how can I help?",
         bot=pytest.bot,
-        user="mail_channel_test_user"
+        user="mail_channel_test_user_acc"
     )
     MailClassificationConfig.create_doc(
         intent="goodbye",
@@ -163,7 +166,7 @@ def test_get_docs():
         classification_prompt="Classify this email as a goodbye.",
         reply_template="Goodbye!",
         bot=pytest.bot,
-        user="mail_channel_test_user"
+        user="mail_channel_test_user_acc"
     )
     docs = MailClassificationConfig.get_docs(bot=pytest.bot)
     assert len(docs) == 2
@@ -181,7 +184,7 @@ def test_get_doc():
         classification_prompt="Classify this email as a greeting.",
         reply_template="Hi, how can I help?",
         bot=pytest.bot,
-        user="mail_channel_test_user"
+        user="mail_channel_test_user_acc"
     )
     doc = MailClassificationConfig.get_doc(bot=pytest.bot, intent="greeting")
     assert doc["intent"] == "greeting"
@@ -206,7 +209,7 @@ def test_delete_doc():
         classification_prompt="Classify this email as a greeting.",
         reply_template="Hi, how can I help?",
         bot=pytest.bot,
-        user="mail_channel_test_user"
+        user="mail_channel_test_user_acc"
     )
     MailClassificationConfig.delete_doc(bot=pytest.bot, intent="greeting")
     with pytest.raises(AppException, match=r"Mail configuration does not exist for intent \[greeting\]"):
@@ -223,7 +226,7 @@ def test_soft_delete_doc():
         classification_prompt="Classify this email as a greeting.",
         reply_template="Hi, how can I help?",
         bot=pytest.bot,
-        user="mail_channel_test_user"
+        user="mail_channel_test_user_acc"
     )
     MailClassificationConfig.soft_delete_doc(bot=pytest.bot, intent="greeting")
     with pytest.raises(AppException, match=r"Mail configuration does not exist for intent \[greeting\]"):
@@ -241,7 +244,7 @@ def test_update_doc():
         classification_prompt="Classify this email as a greeting.",
         reply_template="Hi, how can I help?",
         bot=pytest.bot,
-        user="mail_channel_test_user"
+        user="mail_channel_test_user_acc"
     )
     MailClassificationConfig.update_doc(
         bot=pytest.bot,
@@ -263,7 +266,7 @@ def test_update_doc_invalid_key():
         classification_prompt="Classify this email as a greeting.",
         reply_template="Hi, how can I help?",
         bot=pytest.bot,
-        user="mail_channel_test_user"
+        user="mail_channel_test_user_acc"
     )
     with pytest.raises(AppException, match=r"Invalid  key \[invalid_key\] provided for updating mail config"):
         MailClassificationConfig.update_doc(
@@ -290,7 +293,7 @@ def test_login_imap(mock_get_channel_config, mock_mailbox, mock_llm_processor):
 
     mock_get_channel_config.return_value = {
         'config': {
-            'email_account': "mail_channel_test_user@testuser.com",
+            'email_account': "mail_channel_test_user_acc@testuser.com",
             'email_password': "password",
             'imap_server': "imap.testuser.com"
         }
@@ -303,7 +306,7 @@ def test_login_imap(mock_get_channel_config, mock_mailbox, mock_llm_processor):
 
     mock_get_channel_config.assert_called_once_with(ChannelTypes.MAIL, bot_id, False)
     mock_mailbox.assert_called_once_with("imap.testuser.com")
-    mock_mailbox_instance.login.assert_called_once_with("mail_channel_test_user@testuser.com", "password")
+    mock_mailbox_instance.login.assert_called_once_with("mail_channel_test_user_acc@testuser.com", "password")
     mock_llm_processor.assert_called_once_with(bot_id, mp.llm_type)
 
 
@@ -323,7 +326,7 @@ def test_login_imap_logout(mock_get_channel_config, mock_mailbox, mock_llm_proce
 
     mock_get_channel_config.return_value = {
         'config': {
-            'email_account': "mail_channel_test_user@testuser.com",
+            'email_account': "mail_channel_test_user_acc@testuser.com",
             'email_password': "password",
             'imap_server': "imap.testuser.com"
         }
@@ -351,7 +354,7 @@ def test_login_smtp(mock_get_channel_config, mock_llm_processor, mock_smtp):
 
     mock_get_channel_config.return_value = {
         'config': {
-            'email_account': "mail_channel_test_user@testuser.com",
+            'email_account': "mail_channel_test_user_acc@testuser.com",
             'email_password': "password",
             'smtp_server': "smtp.testuser.com",
             'smtp_port': 587
@@ -366,7 +369,7 @@ def test_login_smtp(mock_get_channel_config, mock_llm_processor, mock_smtp):
     mock_get_channel_config.assert_called_once_with(ChannelTypes.MAIL, bot_id, False)
     mock_smtp.assert_called_once_with("smtp.testuser.com", 587)
     mock_smtp_instance.starttls.assert_called_once()
-    mock_smtp_instance.login.assert_called_once_with("mail_channel_test_user@testuser.com", "password")
+    mock_smtp_instance.login.assert_called_once_with("mail_channel_test_user_acc@testuser.com", "password")
 
 
 @patch("kairon.shared.channels.mail.processor.smtplib.SMTP")
@@ -382,7 +385,7 @@ def test_logout_smtp(mock_get_channel_config, mock_llm_processor, mock_smtp):
 
     mock_get_channel_config.return_value = {
         'config': {
-            'email_account': "mail_channel_test_user@testuser.com",
+            'email_account': "mail_channel_test_user_acc@testuser.com",
             'email_password': "password",
             'smtp_server': "smtp.testuser.com",
             'smtp_port': 587
@@ -413,7 +416,7 @@ async def test_send_mail(mock_get_channel_config, mock_llm_processor, mock_smtp)
 
     mock_get_channel_config.return_value = {
         'config': {
-            'email_account': "mail_channel_test_user@testuser.com",
+            'email_account': "mail_channel_test_user_acc@testuser.com",
             'email_password': "password",
             'smtp_server': "smtp.testuser.com",
             'smtp_port': 587
@@ -427,7 +430,7 @@ async def test_send_mail(mock_get_channel_config, mock_llm_processor, mock_smtp)
     await mp.send_mail("recipient@test.com", "Test Subject", "Test Body")
 
     mock_smtp_instance.sendmail.assert_called_once()
-    assert mock_smtp_instance.sendmail.call_args[0][0] == "mail_channel_test_user@testuser.com"
+    assert mock_smtp_instance.sendmail.call_args[0][0] == "mail_channel_test_user_acc@testuser.com"
     assert mock_smtp_instance.sendmail.call_args[0][1] == "recipient@test.com"
     assert "Test Subject" in mock_smtp_instance.sendmail.call_args[0][2]
     assert "Test Body" in mock_smtp_instance.sendmail.call_args[0][2]
@@ -439,7 +442,7 @@ async def test_send_mail(mock_get_channel_config, mock_llm_processor, mock_smtp)
 def test_process_mail( mock_get_channel_config, llm_processor, mock_mail_classification_config):
     mock_get_channel_config.return_value = {
         'config': {
-            'email_account': "mail_channel_test_user@testuser.com",
+            'email_account': "mail_channel_test_user_acc@testuser.com",
             'email_password': "password",
             'imap_server': "imap.testuser.com"
         }
@@ -481,7 +484,7 @@ async def test_classify_messages(mock_bot_objects, mock_mail_classification_conf
     # Arrange
     mock_get_channel_config.return_value = {
         'config': {
-            'email_account': "mail_channel_test_user@testuser.com",
+            'email_account': "mail_channel_test_user_acc@testuser.com",
             'email_password': "password",
             'imap_server': "imap.testuser.com",
             'llm_type': "openai",
@@ -593,7 +596,7 @@ async def test_process_mails(mock_get_channel_config, mock_llm_processor,
 
     mock_get_channel_config.return_value = {
         'config': {
-            'email_account': "mail_channel_test_user@testuser.com",
+            'email_account': "mail_channel_test_user_acc@testuser.com",
             'email_password': "password",
             'imap_server': "imap.testuser.com",
             'llm_type': "openai",
@@ -650,7 +653,7 @@ async def test_process_mails_no_messages(mock_get_channel_config, mock_llm_proce
 
     mock_get_channel_config.return_value = {
         'config': {
-            'email_account': "mail_channel_test_user@testuser.com",
+            'email_account': "mail_channel_test_user_acc@testuser.com",
             'email_password': "password",
             'imap_server': "imap.testuser.com",
             'llm_type': "openai",
