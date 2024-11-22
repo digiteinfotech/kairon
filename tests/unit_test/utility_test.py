@@ -2848,7 +2848,8 @@ class TestUtility:
             "messenger",
             "instagram",
             "whatsapp",
-            "line"
+            "line",
+            "mail"
         ]
         channels = Utility.get_channels()
         assert channels == expected_channels
