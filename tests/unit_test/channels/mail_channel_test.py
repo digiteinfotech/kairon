@@ -1,65 +1,28 @@
 import asyncio
 import os
-import shutil
+from unittest.mock import patch, MagicMock
 
-import bson
 import pytest
-from apscheduler.schedulers.background import BackgroundScheduler
 from imap_tools import MailMessage
 
 from mongoengine import connect, disconnect
-from telebot.types import BotCommandScopeChat
 
 from kairon import Utility
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+Utility.load_environment()
+Utility.load_system_metadata()
+
 from kairon.shared.account.data_objects import Bot, Account
 from kairon.shared.channels.mail.constants import MailConstants
+from kairon.shared.channels.mail.processor import MailProcessor
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.data_objects import BotSettings
 
-os.environ["system_file"] = "./tests/testing_data/system.yaml"
-Utility.load_environment()
-Utility.load_system_metadata()
-from kairon.exceptions import AppException
 from kairon.shared.channels.mail.data_objects import MailClassificationConfig
-from unittest.mock import patch, MagicMock
 from kairon.exceptions import AppException
-from kairon.shared.channels.mail.processor import MailProcessor
 from kairon.shared.constants import ChannelTypes
-from kairon.shared.data.constant import EVENT_STATUS
-from kairon.shared.data.model_processor import ModelProcessor
 
-
-
-pytest_bot_trained = False
-model_path = ""
-
-#
-# def init_bot_model(bot):
-#     global pytest_bot_trained
-#     if pytest_bot_trained:
-#         return
-#     from rasa import train
-#     model_path = os.path.join('models', bot)
-#     if not os.path.exists(model_path):
-#         os.mkdir(model_path)
-#     model_file = train(
-#         domain='tests/testing_data/model_tester/domain.yml',
-#         config='tests/testing_data/model_tester/config.yml',
-#         training_files=['tests/testing_data/model_tester/nlu_with_entities/nlu.yml',
-#                         'tests/testing_data/model_tester/training_stories_success/stories.yml'],
-#         output=model_path,
-#         core_additional_arguments={"augmentation_factor": 100},
-#         force_training=True
-#     ).model
-#     ModelProcessor.set_training_status(
-#         bot=bot,
-#         user="test",
-#         status=EVENT_STATUS.DONE.value,
-#         model_path=model_file,
-#     )
-#     pytest_bot_trained = True
-#     return bot
 
 
 class TestMailChannel:
@@ -67,33 +30,17 @@ class TestMailChannel:
     def setup(self):
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
-        # Clear collections before running tests
-        # Account.objects.delete()
-        # Bot.objects.delete()
-        # BotSettings.objects.delete()
-        # MailClassificationConfig.objects.delete()
-
-
         yield
 
-        # Clear collections after running tests
-        # MailClassificationConfig.objects.delete()
-        # BotSettings.objects(user="mail_channel_test_user_acc").delete()
-        # Bot.objects(user="mail_channel_test_user_acc").delete()
-        # Account.objects(user="mail_channel_test_user_acc").delete()
-
+        self.remove_basic_data()
         disconnect()
-        # if len(model_path) > 0:
-        #     shutil.rmtree(model_path)
-
 
     def create_basic_data(self):
         a = Account.objects.create(name="mail_channel_test_user_acc", user="mail_channel_test_user_acc")
         bot = Bot.objects.create(name="mail_channel_test_bot", user="mail_channel_test_user_acc", status=True, account=a.id)
-        print(bot)
-        pytest.bot = str(bot.id)
-        b = BotSettings.objects.create(bot=pytest.bot, user="mail_channel_test_user_acc")
-        b.llm_settings.enable_faq = True
+        pytest.mail_test_bot = str(bot.id)
+        b = BotSettings.objects.create(bot=pytest.mail_test_bot, user="mail_channel_test_user_acc")
+        # b.llm_settings.enable_faq = True
         b.save()
         ChatDataProcessor.save_channel_config(
             {
@@ -106,7 +53,7 @@ class TestMailChannel:
                     'smtp_port': "587",
                 }
             },
-            pytest.bot,
+            pytest.mail_test_bot,
             user="mail_channel_test_user_acc",
         )
 
@@ -115,21 +62,22 @@ class TestMailChannel:
         BotSettings.objects(user="mail_channel_test_user_acc").delete()
         Bot.objects(user="mail_channel_test_user_acc").delete()
         Account.objects(user="mail_channel_test_user_acc").delete()
+        Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
 
     def test_create_doc_new_entry(self):
         self.create_basic_data()
-        print(pytest.bot)
+        print(pytest.mail_test_bot)
         doc = MailClassificationConfig.create_doc(
             intent="greeting",
             entities=["user_name"],
             subjects=["hello"],
             classification_prompt="Classify this email as a greeting.",
             reply_template="Hi, how can I help?",
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             user="mail_channel_test_user_acc"
         )
         assert doc.intent == "greeting"
-        assert doc.bot == pytest.bot
+        assert doc.bot == pytest.mail_test_bot
         assert doc.status is True
         MailClassificationConfig.objects.delete()
 
@@ -142,7 +90,7 @@ class TestMailChannel:
             subjects=["hello"],
             classification_prompt="Classify this email as a greeting.",
             reply_template="Hi, how can I help?",
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             user="mail_channel_test_user_acc"
         )
         with pytest.raises(AppException, match=r"Mail configuration already exists for intent \[greeting\]"):
@@ -152,7 +100,7 @@ class TestMailChannel:
                 subjects=["hi"],
                 classification_prompt="Another greeting.",
                 reply_template="Hello!",
-                bot=pytest.bot,
+                bot=pytest.mail_test_bot,
                 user="mail_channel_test_user_acc"
             )
         MailClassificationConfig.objects.delete()
@@ -166,7 +114,7 @@ class TestMailChannel:
             subjects=["hello"],
             classification_prompt="Classify this email as a greeting.",
             reply_template="Hi, how can I help?",
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             user="mail_channel_test_user_acc"
         )
         MailClassificationConfig.create_doc(
@@ -175,10 +123,10 @@ class TestMailChannel:
             subjects=["bye"],
             classification_prompt="Classify this email as a goodbye.",
             reply_template="Goodbye!",
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             user="mail_channel_test_user_acc"
         )
-        docs = MailClassificationConfig.get_docs(bot=pytest.bot)
+        docs = MailClassificationConfig.get_docs(bot=pytest.mail_test_bot)
         assert len(docs) == 2
         assert docs[0]["intent"] == "greeting"
         assert docs[1]["intent"] == "goodbye"
@@ -193,10 +141,10 @@ class TestMailChannel:
             subjects=["hello"],
             classification_prompt="Classify this email as a greeting.",
             reply_template="Hi, how can I help?",
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             user="mail_channel_test_user_acc"
         )
-        doc = MailClassificationConfig.get_doc(bot=pytest.bot, intent="greeting")
+        doc = MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
         assert doc["intent"] == "greeting"
         assert doc["classification_prompt"] == "Classify this email as a greeting."
         MailClassificationConfig.objects.delete()
@@ -205,7 +153,7 @@ class TestMailChannel:
     def test_get_doc_nonexistent(self):
         """Test retrieving a non-existent document."""
         with pytest.raises(AppException, match=r"Mail configuration does not exist for intent \[greeting\]"):
-            MailClassificationConfig.get_doc(bot=pytest.bot, intent="greeting")
+            MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
 
         MailClassificationConfig.objects.delete()
 
@@ -218,12 +166,12 @@ class TestMailChannel:
             subjects=["hello"],
             classification_prompt="Classify this email as a greeting.",
             reply_template="Hi, how can I help?",
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             user="mail_channel_test_user_acc"
         )
-        MailClassificationConfig.delete_doc(bot=pytest.bot, intent="greeting")
+        MailClassificationConfig.delete_doc(bot=pytest.mail_test_bot, intent="greeting")
         with pytest.raises(AppException, match=r"Mail configuration does not exist for intent \[greeting\]"):
-            MailClassificationConfig.get_doc(bot=pytest.bot, intent="greeting")
+            MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
 
         MailClassificationConfig.objects.delete()
 
@@ -235,12 +183,12 @@ class TestMailChannel:
             subjects=["hello"],
             classification_prompt="Classify this email as a greeting.",
             reply_template="Hi, how can I help?",
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             user="mail_channel_test_user_acc"
         )
-        MailClassificationConfig.soft_delete_doc(bot=pytest.bot, intent="greeting")
+        MailClassificationConfig.soft_delete_doc(bot=pytest.mail_test_bot, intent="greeting")
         with pytest.raises(AppException, match=r"Mail configuration does not exist for intent \[greeting\]"):
-            MailClassificationConfig.get_doc(bot=pytest.bot, intent="greeting")
+            MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
 
         MailClassificationConfig.objects.delete()
 
@@ -253,16 +201,16 @@ class TestMailChannel:
             subjects=["hello"],
             classification_prompt="Classify this email as a greeting.",
             reply_template="Hi, how can I help?",
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             user="mail_channel_test_user_acc"
         )
         MailClassificationConfig.update_doc(
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             intent="greeting",
             entities=["user_name", "greeting"],
             reply_template="Hello there!"
         )
-        doc = MailClassificationConfig.get_doc(bot=pytest.bot, intent="greeting")
+        doc = MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
         assert doc["entities"] == ["user_name", "greeting"]
         assert doc["reply_template"] == "Hello there!"
 
@@ -275,12 +223,12 @@ class TestMailChannel:
             subjects=["hello"],
             classification_prompt="Classify this email as a greeting.",
             reply_template="Hi, how can I help?",
-            bot=pytest.bot,
+            bot=pytest.mail_test_bot,
             user="mail_channel_test_user_acc"
         )
         with pytest.raises(AppException, match=r"Invalid  key \[invalid_key\] provided for updating mail config"):
             MailClassificationConfig.update_doc(
-                bot=pytest.bot,
+                bot=pytest.mail_test_bot,
                 intent="greeting",
                 invalid_key="value"
             )
@@ -310,7 +258,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
 
         mp.login_imap()
@@ -344,7 +292,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
 
         mp.login_imap()
@@ -373,7 +321,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
 
         mp.login_smtp()
@@ -403,7 +351,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
 
         mp.login_smtp()
@@ -432,7 +380,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
         mp.login_smtp()
 
@@ -457,7 +405,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
         mp.mail_configs_dict = {
             "greeting": MagicMock(reply_template="Hello {name}, {bot_response}")
@@ -490,7 +438,6 @@ class TestMailChannel:
     @pytest.mark.asyncio
     async def test_classify_messages(self, mock_bot_objects, mock_mail_classification_config_objects,
                                      mock_bot_settings_objects, mock_get_channel_config, mock_llm_processor):
-        # Arrange
         mock_get_channel_config.return_value = {
             'config': {
                 'email_account': "mail_channel_test_user_acc@testuser.com",
@@ -516,7 +463,7 @@ class TestMailChannel:
         future.set_result({"content": '[{"intent": "greeting", "entities": {"name": "John Doe"}, "mail_id": "123", "subject": "Hello"}]'})
         mock_llm_processor_instance.predict.return_value = future
 
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
 
         messages = [{"mail_id": "123", "subject": "Hello", "body": "Hi there"}]
@@ -529,7 +476,7 @@ class TestMailChannel:
 
     @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     def test_get_context_prompt(self, llm_processor):
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
         mail_configs = [
             {
                 'intent': 'greeting',
@@ -567,7 +514,6 @@ class TestMailChannel:
 
 
     def test_extract_jsons_from_text(self):
-        # Arrange
         text = '''
         Here is some text with JSON objects.
         {"key1": "value1", "key2": "value2"}
@@ -580,10 +526,8 @@ class TestMailChannel:
             [{"key3": "value3"}, {"key4": "value4"}]
         ]
 
-        # Act
         result = MailProcessor.extract_jsons_from_text(text)
 
-        # Assert
         assert result == expected_output
 
 
@@ -600,8 +544,7 @@ class TestMailChannel:
     async def test_process_mails(self, mock_get_channel_config, mock_llm_processor,
                                  mock_scheduler, mock_mailbox, mock_process_message_task,
                                  mock_logout_imap):
-        # Arrange
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -632,10 +575,8 @@ class TestMailChannel:
         mock_mailbox_instance.login.return_value = mock_mailbox_instance
         mock_mailbox_instance.fetch.return_value = [mock_mail_message]
 
-        # Act
         message_count, time_shift = await MailProcessor.process_mails(bot_id, scheduler_instance)
 
-        # Assert
         scheduler_instance.add_job.assert_called_once()
         assert message_count == 1
         assert time_shift == 300  # 5 minutes in seconds
@@ -652,8 +593,7 @@ class TestMailChannel:
     async def test_process_mails_no_messages(self, mock_get_channel_config, mock_llm_processor,
                                              mock_scheduler, mock_mailbox, mock_process_message_task,
                                              mock_logout_imap):
-        # Arrange
-        bot_id = pytest.bot
+        bot_id = pytest.mail_test_bot
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -677,10 +617,8 @@ class TestMailChannel:
         mock_mailbox_instance.login.return_value = mock_mailbox_instance
         mock_mailbox_instance.fetch.return_value = []
 
-        # Act
         message_count, time_shift = await MailProcessor.process_mails(bot_id, scheduler_instance)
 
-        # Assert
         assert message_count == 0
         assert time_shift == 300
 
