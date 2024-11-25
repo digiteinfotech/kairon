@@ -1384,7 +1384,7 @@ async def delete_slot_mapping(mapping_id: str = Path(description="Slot Mapping i
     """
     Deletes a slot mapping.
     """
-    mongo_processor.delete_single_slot_mapping(mapping_id, user=current_user.get_user())
+    mongo_processor.delete_singular_slot_mapping(mapping_id)
     return Response(message='Slot mapping deleted')
 
 
