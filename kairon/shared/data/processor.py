@@ -4788,7 +4788,7 @@ class MongoProcessor:
                 raise AppException("Cannot delete slot without removing its mappings!")
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(
-                bot=bot, status=True, required_slots__contains=slot_name
+                bot=bot, status=True, required_slots__in=[slot_name]
             )
             action_with_slot = GoogleSearchAction.objects(
                 bot=bot, status=True, set_slot=slot_name
@@ -6709,7 +6709,7 @@ class MongoProcessor:
         """
         try:
             forms_with_slot = Forms.objects(
-                bot=bot, status=True, required_slots__contains=name
+                bot=bot, status=True, required_slots__in=[name]
             )
             if len(forms_with_slot) > 0:
                 raise AppException(
