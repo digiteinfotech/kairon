@@ -327,7 +327,7 @@ class TestMailChannel:
         mp.login_smtp()
 
         mock_get_channel_config.assert_called_once_with(ChannelTypes.MAIL, bot_id, False)
-        mock_smtp.assert_called_once_with("smtp.testuser.com", 587)
+        mock_smtp.assert_called_once_with("smtp.testuser.com", 587, timeout=30)
         mock_smtp_instance.starttls.assert_called_once()
         mock_smtp_instance.login.assert_called_once_with("mail_channel_test_user_acc@testuser.com", "password")
 
@@ -624,10 +624,25 @@ class TestMailChannel:
 
         mock_logout_imap.assert_called_once()
 
-        self.remove_basic_data()
 
 
+    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @pytest.mark.asyncio
+    async def test_classify_messages_invalid_llm_response(self, mock_get_channel_config, mock_llm_processor):
+        mock_llm_processor_instance = MagicMock()
+        mock_llm_processor.return_value = mock_llm_processor_instance
 
+        future = asyncio.Future()
+        future.set_result({"content": 'invalid json content'})
+        mock_llm_processor_instance.predict.return_value = future
+
+        mp = MailProcessor(bot=pytest.mail_test_bot)
+        messages = [{"mail_id": "123", "subject": "Hello", "body": "Hi there"}]
+
+
+        ans = await mp.classify_messages(messages)
+        assert not ans
 
 
 
