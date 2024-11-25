@@ -59,7 +59,7 @@ class MailProcessor:
         smtp_server = self.config.get('smtp_server', MailConstants.DEFAULT_SMTP_SERVER)
         smtp_port = self.config.get('smtp_port', MailConstants.DEFAULT_SMTP_PORT)
         smtp_port = int(smtp_port)
-        self.smtp = smtplib.SMTP(smtp_server, smtp_port)
+        self.smtp = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
         self.smtp.starttls()
         self.smtp.login(email_account, email_password)
 
@@ -82,8 +82,10 @@ class MailProcessor:
 
     def process_mail(self, intent: str, rasa_chat_response: dict):
         slots = rasa_chat_response.get('slots', [])
-        slots = {key.strip(): value.strip() for slot_str in slots for key, value in [slot_str.split(":", 1)] if
-                 value.strip() != 'None'}
+        slots = {key.strip(): value.strip() for slot_str in slots
+                    for split_result in [slot_str.split(":", 1)]
+                    if len(split_result) == 2
+                    for key, value in [split_result]}
 
 
         responses = '<br/><br/>'.join(response.get('text', '') for response in rasa_chat_response.get('response', []))
