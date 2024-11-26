@@ -230,11 +230,14 @@ class TestChat:
         bot = "5e564fbcdcf0d5fad89e3abd"
         recipient = "919876543210"
         channel_type = "whatsapp"
-        ChatDataProcessor.save_whatsapp_failed_messages(resp, bot, recipient, channel_type, json_message=json_message)
+        message_id = "wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA"
+        user = "91865712345"
+        ChatDataProcessor.save_whatsapp_failed_messages(resp, bot, recipient, channel_type, json_message=json_message,
+                                                        message_id=message_id, user=user)
         log = (
             ChannelLogs.objects(
                 bot=bot,
-                message_id="failed-whatsapp-919876543210-5e564fbcdcf0d5fad89e3abd",
+                message_id="wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA",
             )
             .get()
             .to_mongo()
@@ -244,11 +247,11 @@ class TestChat:
         assert log['type'] == 'whatsapp'
         assert log['data'] == resp
         assert log['status'] == 'failed'
-        assert log['message_id'] == 'failed-whatsapp-919876543210-5e564fbcdcf0d5fad89e3abd'
+        assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
         assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
         assert log['recipient'] == '919876543210'
         assert log['type'] == 'whatsapp'
-        assert log['user'] == 'unknown_user'
+        assert log['user'] == '91865712345'
         assert log['json_message'] == {
             'data': [
                 {
@@ -302,13 +305,29 @@ class TestChat:
         mock_bsp.return_value = resp
         bot = "5e564fbcdcf0d5fad89e3abcd"
         recipient = "919876543210"
+        user = "91865712345"
         channel_type = "whatsapp"
-        client = BSP360Dialog("asajjdkjskdkdjfk")
+        metadata = {
+            'from': '919876543210',
+            'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA',
+            'timestamp': '1732622052',
+            'text': {'body': '/btn'},
+            'type': 'text',
+            'is_integration_user': True,
+            'bot': bot,
+            'account': 8,
+            'channel_type': 'whatsapp',
+            'bsp_type': '360dialog',
+            'tabname': 'default',
+            'display_phone_number': '91865712345',
+            'phone_number_id': '142427035629239'
+        }
+        client = BSP360Dialog("asajjdkjskdkdjfk", metadata=metadata)
         await WhatsappBot(client).send_custom_json(recipient, json_message, assistant_id=bot)
         log = (
             ChannelLogs.objects(
                 bot=bot,
-                message_id="failed-whatsapp-919876543210-5e564fbcdcf0d5fad89e3abcd",
+                message_id="wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA",
             )
             .get()
             .to_mongo()
@@ -317,11 +336,11 @@ class TestChat:
         assert log['type'] == 'whatsapp'
         assert log['data'] == resp
         assert log['status'] == 'failed'
-        assert log['message_id'] == 'failed-whatsapp-919876543210-5e564fbcdcf0d5fad89e3abcd'
+        assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
         assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
         assert log['recipient'] == '919876543210'
         assert log['type'] == 'whatsapp'
-        assert log['user'] == 'unknown_user'
+        assert log['user'] == '91865712345'
         assert log['json_message'] == {
             'data': [
                 {
@@ -336,6 +355,21 @@ class TestChat:
                 }
             ],
             'type': 'button'
+        }
+        assert log['metadata'] == {
+            'from': recipient,
+            'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA',
+            'timestamp': '1732622052',
+            'text': {'body': '/btn'},
+            'type': 'text',
+            'is_integration_user': True,
+            'bot': bot,
+            'account': 8,
+            'channel_type': 'whatsapp',
+            'bsp_type': '360dialog',
+            'tabname': 'default',
+            'display_phone_number': user,
+            'phone_number_id': '142427035629239'
         }
 
     def test_list_channels(self):

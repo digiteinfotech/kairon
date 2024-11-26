@@ -158,6 +158,7 @@ class Whatsapp:
     ) -> None:
         """Pass on the text to the dialogue engine for processing."""
         out_channel = WhatsappBot(self.client)
+        self.client.metadata = metadata
         await out_channel.mark_as_read(metadata["id"])
         user_msg = UserMessage(
             text, out_channel, sender_id, input_channel=self.name(), metadata=metadata
@@ -242,6 +243,8 @@ class WhatsappBot(OutputChannel):
 
             if resp.get("error"):
                 bot = kwargs.get("assistant_id")
+                message_id = self.whatsapp_client.metadata.get("id")
+                user = self.whatsapp_client.metadata.get("display_phone_number")
                 if not bot:
                     logger.error("Missing assistant_id in kwargs for failed message logging")
                     return
@@ -249,7 +252,8 @@ class WhatsappBot(OutputChannel):
                 try:
                     ChatDataProcessor.save_whatsapp_failed_messages(
                         resp, bot, recipient_id, ChannelTypes.WHATSAPP.value,
-                        json_message=json_message
+                        json_message=json_message, message_id=message_id, user=user,
+                        metadata=self.whatsapp_client.metadata
                     )
                 except Exception as e:
                     logger.error(f"Failed to log WhatsApp error: {str(e)}")

@@ -182,8 +182,10 @@ class ChatDataProcessor:
             None
         """
         error = resp.get("error", {})
-        message_id = f"failed-{channel_type}-{recipient}-{bot}"
-        user = "unknown_user"
+        message_id = kwargs.get("message_id")
+        user = kwargs.get("user")
+        json_message = kwargs.get('json_message')
+        metadata = kwargs.get("metadata")
         failure_reason = error.get("error_data", {}).get("details")
         logger.debug(f"WhatsApp message failed to send: {error}")
 
@@ -196,7 +198,8 @@ class ChatDataProcessor:
             user=user,
             bot=bot,
             recipient=recipient,
-            json_message=kwargs.get('json_message')
+            json_message=json_message,
+            metadata=metadata
         ).save()
 
     @staticmethod
