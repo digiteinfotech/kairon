@@ -239,10 +239,20 @@ class WhatsappBot(OutputChannel):
             converter_instance = ConverterFactory.getConcreteInstance(messagetype, ChannelTypes.WHATSAPP.value)
             response = await converter_instance.messageConverter(message)
             resp = self.whatsapp_client.send(response, recipient_id, messaging_type)
+
             if resp.get("error"):
                 bot = kwargs.get("assistant_id")
-                ChatDataProcessor.save_whatsapp_failed_messages(resp, bot, recipient_id, ChannelTypes.WHATSAPP.value,
-                                                                json_message=json_message)
+                if not bot:
+                    logger.error("Missing assistant_id in kwargs for failed message logging")
+                    return
+                logger.error(f"WhatsApp message failed: {resp.get('error')}")
+                try:
+                    ChatDataProcessor.save_whatsapp_failed_messages(
+                        resp, bot, recipient_id, ChannelTypes.WHATSAPP.value,
+                        json_message=json_message
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to log WhatsApp error: {str(e)}")
         else:
             self.send(recipient_id, {"preview_url": True, "body": str(json_message)})
 
