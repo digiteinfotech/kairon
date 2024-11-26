@@ -19586,6 +19586,54 @@ def test_add_form():
     assert actual["message"] == "Form added"
 
 
+def test_add_slot_mapping_2():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "na", "type": "text"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots/mapping",
+        json={
+            "slot": "na",
+            "mapping": {"type": "from_text", "value": "user", "entity": "na"},
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Slot mapping added"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_delete_slot_mapping_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/slots/mapping/na",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Slot mapping deleted"
+
+
+def test_delete_slots_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/slots/na",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Slot deleted!"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
 def test_add_form_with_any_slot():
     response = client.post(
         f"/api/bot/{pytest.bot}/slots",

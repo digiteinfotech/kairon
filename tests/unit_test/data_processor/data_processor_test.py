@@ -9433,6 +9433,47 @@ class TestMongoProcessor:
         assert validations_added[5].slot_set.type == 'custom'
         assert validations_added[5].slot_set.value == "Very Nice!"
 
+    def test_add_number_slot_with_min_max(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+
+        processor.add_slot({"name": "na", "type": "float", "initial_value": 0.2,
+                            "max_value": 0.5, "min_value": 0.1,
+                            "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='na', bot=bot, user=user).get()
+        assert slot['name'] == 'na'
+        assert slot['type'] == "float"
+        assert slot['max_value'] == 0.5
+        assert slot['min_value'] == 0.1
+
+    def test_delete_slot_exist(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+
+        processor.delete_slot(slot_name='na', bot=bot, user=user)
+
+        with pytest.raises(DoesNotExist):
+            Slots.objects(name__iexact='na', bot=bot).get()
+        assert not Entities.objects(name='na', bot=bot, status=True)
+
+    def test_delete_slot_having_slot_mapping_attached_1(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        slot_name = 'na'
+        slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": False}
+        mapping = {"slot": slot_name, 'mapping': {'type': 'from_entity', 'entity': 'name'}}
+        processor.add_slot(slot_value=slot, bot=bot, user=user)
+        processor.add_slot_mapping(mapping, bot, user)
+
+        with pytest.raises(AppException, match="Cannot delete slot without removing its mappings!"):
+            processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
+
+        processor.delete_slot_mapping(slot_name, bot, user)
+        processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
+
     def test_add_form_already_exists(self):
         processor = MongoProcessor()
         bot = 'test'
