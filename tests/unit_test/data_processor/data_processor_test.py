@@ -92,7 +92,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
-from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType
+from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType, VaultSyncEventType
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
@@ -2249,6 +2249,46 @@ class TestMongoProcessor:
     def test_get_pydantic_type_invalid(self):
         with pytest.raises(ValueError, match="Unsupported data type: unknown"):
             CognitionDataProcessor.get_pydantic_type('unknown')
+
+    def test_validate_event_type_valid(self):
+        processor = CognitionDataProcessor()
+        valid_event_type = list(VaultSyncEventType.__members__.keys())[0]
+        processor._validate_event_type(valid_event_type)
+
+    def test_validate_event_type_invalid(self):
+        processor = CognitionDataProcessor()
+        invalid_event_type = "invalid_event"
+        with pytest.raises(AppException, match="Event type does not exist"):
+            processor._validate_event_type(invalid_event_type)
+
+    def test_validate_collection_exists_valid(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True}
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        processor = CognitionDataProcessor()
+        processor._validate_collection_exists(collection_name)
+
+        CognitionSchema.objects(collection_name=collection_name).delete()
+
+    def test_validate_collection_exists_invalid(self):
+        processor = CognitionDataProcessor()
+        invalid_collection_name = "non_existent_collection"
+        with pytest.raises(AppException, match=f"Collection '{invalid_collection_name}' does not exist."):
+            processor._validate_collection_exists(invalid_collection_name)
 
     def test_save_and_validate_success(self):
         bot = 'test_bot'

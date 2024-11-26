@@ -442,14 +442,10 @@ class CognitionDataProcessor:
         Returns:
             Dict: Summary of validation errors, if any.
         """
-        if event_type not in VaultSyncEventType.__members__.keys():
-            raise AppException("Event type does not exist")
-
+        self._validate_event_type(event_type)
         event_validations = VaultSyncEventType[event_type].value
 
-        if not CognitionSchema.objects(collection_name=collection_name).first():
-            raise AppException(f"Collection '{collection_name}' does not exist.")
-
+        self._validate_collection_exists(collection_name)
         column_dict = MongoProcessor().get_column_datatype_dict(bot, collection_name)
 
         error_summary = {}
@@ -616,3 +612,11 @@ class CognitionDataProcessor:
             logger.info(f"Row with {primary_key_col}: {document['data'].get(primary_key_col)} upserted in Qdrant.")
         except Exception as e:
             raise AppException(f"Failed to sync document with Qdrant: {str(e)}")
+
+    def _validate_event_type(self, event_type: str):
+        if event_type not in VaultSyncEventType.__members__.keys():
+            raise AppException("Event type does not exist")
+
+    def _validate_collection_exists(self, collection_name: str):
+        if not CognitionSchema.objects(collection_name=collection_name).first():
+            raise AppException(f"Collection '{collection_name}' does not exist.")
