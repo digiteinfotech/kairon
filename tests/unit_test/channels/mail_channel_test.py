@@ -575,9 +575,8 @@ class TestMailChannel:
         mock_mailbox_instance.login.return_value = mock_mailbox_instance
         mock_mailbox_instance.fetch.return_value = [mock_mail_message]
 
-        message_count, time_shift = await MailProcessor.process_mails(bot_id, scheduler_instance)
+        message_count, time_shift = await MailProcessor.process_mails(bot_id)
 
-        scheduler_instance.add_job.assert_called_once()
         assert message_count == 1
         assert time_shift == 300  # 5 minutes in seconds
 
@@ -617,7 +616,7 @@ class TestMailChannel:
         mock_mailbox_instance.login.return_value = mock_mailbox_instance
         mock_mailbox_instance.fetch.return_value = []
 
-        message_count, time_shift = await MailProcessor.process_mails(bot_id, scheduler_instance)
+        message_count, time_shift = await MailProcessor.process_mails(bot_id)
 
         assert message_count == 0
         assert time_shift == 300
