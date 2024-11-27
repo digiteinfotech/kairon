@@ -7,6 +7,7 @@ from pydantic.schema import timedelta
 from pydantic.validators import datetime
 from imap_tools import MailBox, AND
 from kairon.chat.utils import ChatUtils
+from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.channels.mail.constants import MailConstants
@@ -194,7 +195,7 @@ class MailProcessor:
 
 
     @staticmethod
-    async def process_mails(bot: str, scheduler : BackgroundScheduler = None):
+    async def process_mails(bot: str):
         mp = MailProcessor(bot)
         time_shift = int(mp.config.get('interval', 5 * 60))
         last_read_timestamp = datetime.now() - timedelta(seconds=time_shift)
@@ -209,7 +210,7 @@ class MailProcessor:
                 sender_id = msg.from_
                 date = msg.date
                 body = msg.text or msg.html or ""
-                logger.info(subject, sender_id, date, body)
+                logger.info(subject, sender_id, date)
                 message_entry = {
                     'mail_id': sender_id,
                     'subject': subject,
@@ -225,7 +226,7 @@ class MailProcessor:
 
             for batch_id in range(0, len(messages), MailConstants.PROCESS_MESSAGE_BATCH_SIZE):
                 batch = messages[batch_id: batch_id + MailConstants.PROCESS_MESSAGE_BATCH_SIZE]
-                scheduler.add_job(MailProcessor.process_message_task, args=[bot, batch], run_date=datetime.now())
+                MailChannelScheduleEvent(bot, mp.bot_settings.user).enqueue(mails=batch)
 
             return len(messages), time_shift
         except Exception as e:
