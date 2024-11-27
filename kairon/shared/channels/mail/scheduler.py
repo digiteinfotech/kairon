@@ -58,8 +58,9 @@ class MailScheduler:
         if bot not in MailScheduler.scheduled_bots:
             return
         logger.info(f"MailScheduler: Processing mails for bot {bot}")
-        _, next_delay = await MailProcessor.process_mails(bot, scheduler)
+        _, next_delay = await MailProcessor.process_mails(bot)
         logger.info(f"next_delay: {next_delay}")
         next_timestamp = datetime.now() + timedelta(seconds=next_delay)
         MailScheduler.scheduler.add_job(MailScheduler.process_mails_task, 'date', args=[bot, scheduler], run_date=next_timestamp)
         MailScheduler.epoch()
+

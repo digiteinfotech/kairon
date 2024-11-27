@@ -11,7 +11,6 @@ from fastapi import UploadFile
 from unittest.mock import patch
 from mongoengine import connect
 
-from augmentation.utils import WebsiteParser
 from kairon import Utility
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
@@ -1199,3 +1198,28 @@ class TestEventDefinitions:
         assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 1
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(setting_id, bot)
+
+
+    @responses.activate
+    def test_trigger_mail_channel_schedule_event_enqueue(self):
+        from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.email_channel_scheduler}?is_scheduled=False"
+        responses.add(
+            "POST", url,
+            json={"message": "Failed", "success": True, "error_code": 400, "data": None}
+        )
+        event = MailChannelScheduleEvent(bot, user)
+        try:
+            event.enqueue()
+        except AppException as e:
+            pytest.fail(f"Unexpected exception: {e}")
+
+    @responses.activate
+    def test_trigger_mail_channel_schedule_event_execute(self):
+        from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
+        try:
+            MailChannelScheduleEvent("", "").execute()
+        except AppException as e:
+            pytest.fail(f"Unexpected exception: {e}")
