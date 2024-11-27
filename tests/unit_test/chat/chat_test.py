@@ -198,6 +198,180 @@ class TestChat:
                     "client_secret": "a23456789sfdghhtyutryuivcbn", "is_primary": False}}, "test", "test"
             )
 
+    def test_save_whatsapp_failed_messages(self):
+        from kairon.shared.chat.data_objects import ChannelLogs
+        json_message = {
+            'data': [
+                {
+                    'type': 'button',
+                    'value': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+                    'id': 1,
+                    'children': [
+                        {
+                            'text': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+                        }
+                    ]
+                 }
+            ],
+            'type': 'button'
+        }
+
+        resp = {
+            'error': {
+                'message': '(#131009) Parameter value is not valid', 'type': 'OAuthException',
+                'code': 131009,
+                'error_data': {
+                    'messaging_product': 'whatsapp',
+                    'details': 'Button title length invalid. Min length: 1, Max length: 20'
+                },
+                'fbtrace_id': 'ALfhCiNWtld8enTUJyg0FFo'
+            }
+        }
+        bot = "5e564fbcdcf0d5fad89e3abd"
+        recipient = "919876543210"
+        channel_type = "whatsapp"
+        message_id = "wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA"
+        user = "91865712345"
+        ChatDataProcessor.save_whatsapp_failed_messages(resp, bot, recipient, channel_type, json_message=json_message,
+                                                        message_id=message_id, user=user)
+        log = (
+            ChannelLogs.objects(
+                bot=bot,
+                message_id="wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA",
+            )
+            .get()
+            .to_mongo()
+            .to_dict()
+        )
+        print(log)
+        assert log['type'] == 'whatsapp'
+        assert log['data'] == resp
+        assert log['status'] == 'failed'
+        assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
+        assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
+        assert log['recipient'] == '919876543210'
+        assert log['type'] == 'whatsapp'
+        assert log['user'] == '91865712345'
+        assert log['json_message'] == {
+            'data': [
+                {
+                    'type': 'button',
+                    'value': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+                    'id': 1,
+                    'children': [
+                        {
+                            'text': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+                        }
+                    ]
+                 }
+            ],
+            'type': 'button'
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send", autospec=True)
+    async def test_save_whatsapp_failed_messages_through_send_custom_json(self, mock_bsp):
+        from kairon.shared.chat.data_objects import ChannelLogs
+        from kairon.chat.handlers.channels.whatsapp import WhatsappBot
+        from kairon.chat.handlers.channels.clients.whatsapp.dialog360 import BSP360Dialog
+
+        json_message = {
+            'data': [
+                {
+                    'type': 'button',
+                    'value': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+                    'id': 1,
+                    'children': [
+                        {
+                            'text': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+                        }
+                    ]
+                }
+            ],
+            'type': 'button'
+        }
+
+        resp = {
+            'error': {
+                'message': '(#131009) Parameter value is not valid', 'type': 'OAuthException',
+                'code': 131009,
+                'error_data': {
+                    'messaging_product': 'whatsapp',
+                    'details': 'Button title length invalid. Min length: 1, Max length: 20'
+                },
+                'fbtrace_id': 'ALfhCiNWtld8enTUJyg0FFo'
+            }
+        }
+        mock_bsp.return_value = resp
+        bot = "5e564fbcdcf0d5fad89e3abcd"
+        recipient = "919876543210"
+        user = "91865712345"
+        channel_type = "whatsapp"
+        metadata = {
+            'from': '919876543210',
+            'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA',
+            'timestamp': '1732622052',
+            'text': {'body': '/btn'},
+            'type': 'text',
+            'is_integration_user': True,
+            'bot': bot,
+            'account': 8,
+            'channel_type': 'whatsapp',
+            'bsp_type': '360dialog',
+            'tabname': 'default',
+            'display_phone_number': '91865712345',
+            'phone_number_id': '142427035629239'
+        }
+        client = BSP360Dialog("asajjdkjskdkdjfk", metadata=metadata)
+        await WhatsappBot(client).send_custom_json(recipient, json_message, assistant_id=bot)
+        log = (
+            ChannelLogs.objects(
+                bot=bot,
+                message_id="wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA",
+            )
+            .get()
+            .to_mongo()
+            .to_dict()
+        )
+        assert log['type'] == 'whatsapp'
+        assert log['data'] == resp
+        assert log['status'] == 'failed'
+        assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
+        assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
+        assert log['recipient'] == '919876543210'
+        assert log['type'] == 'whatsapp'
+        assert log['user'] == '91865712345'
+        assert log['json_message'] == {
+            'data': [
+                {
+                    'type': 'button',
+                    'value': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+                    'id': 1,
+                    'children': [
+                        {
+                            'text': '/byeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+                        }
+                    ]
+                }
+            ],
+            'type': 'button'
+        }
+        assert log['metadata'] == {
+            'from': recipient,
+            'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA',
+            'timestamp': '1732622052',
+            'text': {'body': '/btn'},
+            'type': 'text',
+            'is_integration_user': True,
+            'bot': bot,
+            'account': 8,
+            'channel_type': 'whatsapp',
+            'bsp_type': '360dialog',
+            'tabname': 'default',
+            'display_phone_number': user,
+            'phone_number_id': '142427035629239'
+        }
+
     def test_list_channels(self):
         channels = list(ChatDataProcessor.list_channel_config("test"))
         assert channels.__len__() == 3
