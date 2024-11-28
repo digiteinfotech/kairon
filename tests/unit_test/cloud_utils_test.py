@@ -205,6 +205,123 @@ class TestCloudUtils:
         assert log['from_executor'] is False
         assert log['elapsed_time']
 
+    def test_trigger_lambda_scheduler_evaluator_executor_log_when_success(self):
+        mock_env = Utility.environment.copy()
+        mock_env['events']['executor']['type'] = 'aws_lambda'
+        mock_env['events']['task_definition'][EventClass.scheduler_evaluator] = 'callback-pyscript-executor'
+        response_payload = json.dumps({'response': "Query submittes"}).encode("utf-8")
+        response = {'StatusCode': 200, 'FunctionError': 'Unhandled',
+                    'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+                    'ExecutedVersion': '$LATEST',
+                    'Payload': StreamingBody(io.BytesIO(response_payload),
+                                             len(response_payload))}
+
+        def __mock_make_api_call(self, operation_name, kwargs):
+            assert kwargs == {'FunctionName': 'callback-pyscript-executor',
+                              'InvocationType': 'RequestResponse',
+                              'LogType': 'Tail',
+                              'Payload': b'[{"name":"SOURCE_CODE","value":"import requests\\n\\nurl=\\"https:\\/\\/w'
+                                         b'aba-v2.360dialog.io\\/messages\\"\\n\\nheaders={\'Content-Type\': \'app'
+                                         b"lication\\/json', 'D360-API-KEY' : 'api_key'}\\n\\ncontacts = ['9196571"
+                                         b'11111\',\'918210011111\']\\ncontacts = [\\"9191111111111\\"]\\nbody = {'
+                                         b'\\n    \\"messaging_product\\": \\"whatsapp\\",\\n    \\"recipient_type'
+                                         b'\\": \\"individual\\",\\n    \\"to\\": \\"9191111111111\\",\\n    \\"t'
+                                         b'ype\\": \\"template\\",\\n    \\"template\\": {\\n        \\"namespace\\"'
+                                         b': \\"54500467_f322_4595_becd_419af8111111\\",\\n        \\"language\\": {'
+                                         b'\\n            \\"policy\\": \\"deterministic\\",\\n            \\"code'
+                                         b'\\": \\"en\\"\\n        },\\n        \\"name\\": \\"schedule_action_test'
+                                         b'\\"\\n    }\\n}\\n\\nfor contact in contacts:\\n  body[\\"to\\"] = conta'
+                                         b'ct\\n  resp = requests.post(url, headers=headers, data=json.dumps(bod'
+                                         b'y))\\n  resp = resp.json()\\n  print(resp[\\"messages\\"])\\n\\nbot_re'
+                                         b'sponse = \'this from callback pyscript\'"},{"name":"PREDEFINED_OBJECTS'
+                                         b'","value":{"val1":"rajan","val2":"hitesh","myuser":"mahesh.sattala@digit'
+                                         b'e.com","bot":"test_bot","event":"event_id"}}]',
+                              }
+            if operation_name == 'Invoke':
+                return response
+
+            raise Exception("Invalid operation_name")
+
+        with patch.dict(Utility.environment, mock_env):
+            with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
+                resp = CloudUtility.trigger_lambda(
+                    EventClass.scheduler_evaluator.value,
+                       [
+                           {
+                               "name": "SOURCE_CODE",
+                               "value": "import requests\n\nurl=\"https://waba-v2.360dialog.io/messages\"\n\n"
+                                        "headers={'Content-Type': 'application/json', 'D360-API-KEY' : 'api_key'}\n\n"
+                                        "contacts = ['919657111111','918210011111']\ncontacts = [\"9191111111111\"]\n"
+                                        "body = {\n    \"messaging_product\": \"whatsapp\",\n    "
+                                        "\"recipient_type\": \"individual\",\n    \"to\": \"9191111111111\",\n    "
+                                        "\"type\": \"template\",\n    \"template\": {\n        "
+                                        "\"namespace\": \"54500467_f322_4595_becd_419af8111111\",\n        "
+                                        "\"language\": {\n            \"policy\": \"deterministic\",\n            "
+                                        "\"code\": \"en\"\n        },\n        \"name\": \"schedule_action_test"
+                                        "\"\n    }\n}\n\nfor contact in contacts:\n  body[\"to\"] = contact\n  "
+                                        "resp = requests.post(url, headers=headers, data=json.dumps(body))\n  "
+                                        "resp = resp.json()\n  print(resp[\"messages\"])\n\n"
+                                        "bot_response = 'this from callback pyscript'"
+                           },
+                           {
+                               "name": "PREDEFINED_OBJECTS",
+                               "value": {
+                                   "val1": "rajan",
+                                   "val2": "hitesh",
+                                   "myuser": "mahesh.sattala@digite.com",
+                                   "bot": "test_bot",
+                                   "event": "event_id"
+                               }
+                           }
+                       ],
+                    task_type=None)
+                assert resp == response
+
+        from kairon.shared.events.data_objects import ExecutorLogs
+        logs = ExecutorLogs.objects(event_class=EventClass.scheduler_evaluator.value)
+        log = logs[0].to_mongo().to_dict()
+        print(log)
+        assert log['task_type'] == TASK_TYPE.CALLBACK.value
+        assert log['event_class'] == EventClass.scheduler_evaluator.value
+        assert log['data'] == [
+                           {
+                               "name": "SOURCE_CODE",
+                               "value": "import requests\n\nurl=\"https://waba-v2.360dialog.io/messages\"\n\n"
+                                        "headers={'Content-Type': 'application/json', 'D360-API-KEY' : 'api_key'}\n\n"
+                                        "contacts = ['919657111111','918210011111']\ncontacts = [\"9191111111111\"]\n"
+                                        "body = {\n    \"messaging_product\": \"whatsapp\",\n    "
+                                        "\"recipient_type\": \"individual\",\n    \"to\": \"9191111111111\",\n    "
+                                        "\"type\": \"template\",\n    \"template\": {\n        "
+                                        "\"namespace\": \"54500467_f322_4595_becd_419af8111111\",\n        "
+                                        "\"language\": {\n            \"policy\": \"deterministic\",\n            "
+                                        "\"code\": \"en\"\n        },\n        \"name\": \"schedule_action_test"
+                                        "\"\n    }\n}\n\nfor contact in contacts:\n  body[\"to\"] = contact\n  "
+                                        "resp = requests.post(url, headers=headers, data=json.dumps(body))\n  "
+                                        "resp = resp.json()\n  print(resp[\"messages\"])\n\n"
+                                        "bot_response = 'this from callback pyscript'"
+                           },
+                           {
+                               "name": "PREDEFINED_OBJECTS",
+                               "value": {
+                                   "val1": "rajan",
+                                   "val2": "hitesh",
+                                   "myuser": "mahesh.sattala@digite.com",
+                                   "bot": "test_bot",
+                                   "event": "event_id"
+                               }
+                           }
+                       ]
+        assert log['status'] == 'Completed'
+        assert log['response'] == {
+            'StatusCode': 200,
+            'FunctionError': 'Unhandled',
+            'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+            'ExecutedVersion': '$LATEST',
+            'Payload': {'response': 'Query submittes'}
+        }
+        assert log['from_executor'] is False
+        assert log['elapsed_time']
+
     def test_trigger_lambda_model_training_executor_log_when_failed(self):
         mock_env = Utility.environment.copy()
         mock_env['events']['executor']['type'] = 'aws_lambda'
@@ -395,7 +512,8 @@ class TestCloudUtils:
         with patch.dict(Utility.environment, mock_env):
             with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
                 resp = CloudUtility.trigger_lambda(EventClass.web_search,
-                                                   {"text": "demo", "site": "www.google.com", "topn": 3})
+                                                   {"text": "demo", "site": "www.google.com", "topn": 3},
+                                                   task_type=TASK_TYPE.ACTION.value)
                 assert resp == response
 
     def test_trigger_lambda_delete_history(self):
