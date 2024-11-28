@@ -59,7 +59,7 @@ class CloudUtility:
             s3.delete_object(Bucket=bucket, Key=file)
 
     @staticmethod
-    def trigger_lambda(event_class: EventClass, env_data: Any, task_type: TASK_TYPE,
+    def trigger_lambda(event_class: EventClass, env_data: Any, task_type: TASK_TYPE = TASK_TYPE.CALLBACK.value,
                        from_executor: bool = False):
         """
         Triggers lambda based on the event class.
