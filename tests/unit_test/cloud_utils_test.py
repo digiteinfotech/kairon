@@ -278,7 +278,8 @@ class TestCloudUtils:
                 assert resp == response
 
         from kairon.shared.events.data_objects import ExecutorLogs
-        logs = ExecutorLogs.objects(event_class=EventClass.scheduler_evaluator.value)
+        logs = ExecutorLogs.objects(event_class=EventClass.scheduler_evaluator.value,
+                                    task_type=TASK_TYPE.CALLBACK.value)
         log = logs[0].to_mongo().to_dict()
         print(log)
         assert log['task_type'] == TASK_TYPE.CALLBACK.value
