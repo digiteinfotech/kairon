@@ -5,7 +5,7 @@ from kairon.shared.data.constant import TASK_TYPE
 
 
 class ExecutorLogs(DynamicDocument):
-    task_type = StringField(choices=[task_type.value for task_type in TASK_TYPE])
+    task_type = StringField(default=TASK_TYPE.CALLBACK.value, choices=[task_type.value for task_type in TASK_TYPE])
     event_class = StringField()
     data = DynamicField()
     status = StringField(required=True)
