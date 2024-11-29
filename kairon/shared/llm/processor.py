@@ -106,6 +106,7 @@ class LLMProcessor(LLMBase):
         start_time = time.time()
         embeddings_created = False
         invocation = kwargs.pop('invocation', None)
+        llm_type = kwargs.pop('llm_type', DEFAULT_LLM)
         try:
             query_embedding = await self.get_embedding(query, user, invocation=invocation)
             embeddings_created = True
@@ -114,7 +115,7 @@ class LLMProcessor(LLMBase):
             context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
 
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
-            answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,**kwargs)
+            answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,llm_type = llm_type, **kwargs)
             response = {"content": answer}
         except Exception as e:
             logging.exception(e)
@@ -205,6 +206,7 @@ class LLMProcessor(LLMBase):
         use_query_prompt = False
         query_prompt = ''
         invocation = kwargs.pop('invocation')
+        llm_type = kwargs.get('llm_type')
         if kwargs.get('query_prompt', {}):
             query_prompt_dict = kwargs.pop('query_prompt')
             query_prompt = query_prompt_dict.get('query_prompt', '')
@@ -224,6 +226,7 @@ class LLMProcessor(LLMBase):
         ]
         if previous_bot_responses:
             messages.extend(previous_bot_responses)
+            query = self.modify_user_message_for_perplexity(query, llm_type, hyperparameters)
         messages.append({"role": "user", "content": f"{context} \n{instructions} \nQ: {query} \nA:"}) if instructions \
             else messages.append({"role": "user", "content": f"{context} \nQ: {query} \nA:"})
         completion, raw_response = await self.__get_completion(messages=messages,
@@ -397,3 +400,21 @@ class LLMProcessor(LLMBase):
             metadata[llm_type]['properties']['model']['enum'] = models
 
         return metadata
+
+    @staticmethod
+    def modify_user_message_for_perplexity(user_msg: str, llm_type: str, hyperparameters: Dict) -> str:
+        """
+        Modify the user message if the LLM type is 'perplexity' and a search domain filter is provided.
+        :param user_msg: The original user message.
+        :param llm_type: The LLM type to check if it's 'perplexity'.
+        :param hyperparameters: LLM hyperparameters
+        :return: Modified user message.
+        """
+        if llm_type == 'perplexity':
+            search_domain_filter = hyperparameters.get('search_domain_filter')
+            if search_domain_filter:
+                search_domain_filter_str = "|".join(
+                    [domain.strip() for domain in search_domain_filter if domain.strip()]
+                )
+                user_msg = f"{user_msg} inurl:{search_domain_filter_str}"
+        return user_msg
