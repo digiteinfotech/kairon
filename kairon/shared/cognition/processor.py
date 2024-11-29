@@ -454,7 +454,7 @@ class CognitionDataProcessor:
         existing_document_map = {
             doc["data"].get(primary_key_col): doc
             for doc in existing_documents
-            if doc["data"].get(primary_key_col) is not None  # Ensure primary key exists in map
+            if doc["data"].get(primary_key_col) is not None
         }
 
         for row in data:
