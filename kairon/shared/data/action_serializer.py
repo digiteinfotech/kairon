@@ -338,6 +338,10 @@ class ActionSerializer:
                     elif action_info.get('single_instance'):
                         if overwrite:
                             filtered_actions[action_type] = actions[action_type]
+                        else:
+                            existing_action = action_info.get("db_model").objects(bot=bot).first()
+                            if not existing_action:
+                                filtered_actions[action_type] = actions[action_type]
                     else:
                         new_actions = []
                         action_names = []
