@@ -315,7 +315,7 @@ class TestDeleteLogsCli:
     def test_delete_logs(self, mock_args):
         cli()
 
-class TestMailChanelCli:
+class TestMailChannelCli:
 
     @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
@@ -323,10 +323,12 @@ class TestMailChanelCli:
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
-    def test_start_mail_channel(self):
+    @mock.patch("kairon.cli.mail_channel.MailChannelScheduleEvent.execute")
+    def test_start_mail_channel(self, mock_execute):
         from kairon.cli.mail_channel import process_channel_mails
-        with patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(func=process_channel_mails)):
+        with patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(func=process_channel_mails, bot="test_bot", user="test_user", mails=[{"mail": "test_mail"}])):
             cli()
+        mock_execute.assert_called_once()
 
 
 class TestMessageBroadcastCli:
