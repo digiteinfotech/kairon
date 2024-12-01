@@ -64,8 +64,10 @@ class TestMailChannel:
         Account.objects(user="mail_channel_test_user_acc").delete()
         Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
 
-    def test_create_doc_new_entry(self):
+    @patch("kairon.shared.utils.Utility.execute_http_request")
+    def test_create_doc_new_entry(self, execute_http_request):
         self.create_basic_data()
+        execute_http_request.return_value = {"success": True}
         print(pytest.mail_test_bot)
         doc = MailClassificationConfig.create_doc(
             intent="greeting",
@@ -239,8 +241,10 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.channels.mail.processor.MailBox")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    def test_login_imap(self, mock_get_channel_config, mock_mailbox, mock_llm_processor):
+    @patch("kairon.shared.utils.Utility.execute_http_request")
+    def test_login_imap(self, execute_http_req, mock_get_channel_config, mock_mailbox, mock_llm_processor):
         self.create_basic_data()
+        execute_http_req.return_value = {"success": True}
         mock_mailbox_instance = MagicMock()
         mock_mailbox.return_value = mock_mailbox_instance
         mock_mailbox_instance.login.return_value = ("OK", ["Logged in"])
@@ -273,8 +277,10 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.channels.mail.processor.MailBox")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    def test_login_imap_logout(self, mock_get_channel_config, mock_mailbox, mock_llm_processor):
+    @patch("kairon.shared.utils.Utility.execute_http_request")
+    def test_login_imap_logout(self,execute_http_request, mock_get_channel_config, mock_mailbox, mock_llm_processor):
         self.create_basic_data()
+        execute_http_request.return_value = {"success": True}
         mock_mailbox_instance = MagicMock()
         mock_mailbox.return_value = mock_mailbox_instance
         mock_mailbox_instance.login.return_value = mock_mailbox_instance  # Ensure login returns the instance
@@ -541,7 +547,7 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @pytest.mark.asyncio
-    async def test_process_mails(self, mock_get_channel_config, mock_llm_processor,
+    async def test_read_mails(self, mock_get_channel_config, mock_llm_processor,
                                  mock_scheduler, mock_mailbox, mock_process_message_task,
                                  mock_logout_imap):
         bot_id = pytest.mail_test_bot
@@ -575,10 +581,16 @@ class TestMailChannel:
         mock_mailbox_instance.login.return_value = mock_mailbox_instance
         mock_mailbox_instance.fetch.return_value = [mock_mail_message]
 
-        message_count, time_shift = await MailProcessor.process_mails(bot_id)
+        mails, user, time_shift = MailProcessor.read_mails(bot_id)
+        print(mails)
+        assert len(mails) == 1
+        assert mails[0]["subject"] == "Test Subject"
+        assert mails[0]["mail_id"] == "test@example.com"
+        assert mails[0]["date"] == "2023-10-10"
+        assert mails[0]["body"] == "Test Body"
+        assert user == 'mail_channel_test_user_acc'
+        assert time_shift == 1200
 
-        assert message_count == 1
-        assert time_shift == 300  # 5 minutes in seconds
 
 
 
@@ -589,7 +601,7 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @pytest.mark.asyncio
-    async def test_process_mails_no_messages(self, mock_get_channel_config, mock_llm_processor,
+    async def test_read_mails_no_messages(self, mock_get_channel_config, mock_llm_processor,
                                              mock_scheduler, mock_mailbox, mock_process_message_task,
                                              mock_logout_imap):
         bot_id = pytest.mail_test_bot
@@ -616,10 +628,10 @@ class TestMailChannel:
         mock_mailbox_instance.login.return_value = mock_mailbox_instance
         mock_mailbox_instance.fetch.return_value = []
 
-        message_count, time_shift = await MailProcessor.process_mails(bot_id)
-
-        assert message_count == 0
-        assert time_shift == 300
+        mails, user, time_shift = MailProcessor.read_mails(bot_id)
+        assert len(mails) == 0
+        assert user == 'mail_channel_test_user_acc'
+        assert time_shift == 1200
 
         mock_logout_imap.assert_called_once()
 
