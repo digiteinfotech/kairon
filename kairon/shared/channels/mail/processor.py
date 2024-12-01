@@ -6,8 +6,6 @@ from loguru import logger
 from pydantic.schema import timedelta
 from pydantic.validators import datetime
 from imap_tools import MailBox, AND
-from kairon.chat.utils import ChatUtils
-from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.channels.mail.constants import MailConstants
@@ -118,9 +116,14 @@ class MailProcessor:
                 logger.error(str(e))
                 raise AppException(str(e))
 
+
     @staticmethod
     async def process_messages(bot: str, batch: [dict]):
+        """
+        classify and respond to a batch of messages
+        """
         try:
+            from kairon.chat.utils import ChatUtils
             mp = MailProcessor(bot)
             classifications = await mp.classify_messages(batch)
             user_messages: [str] = []
@@ -135,7 +138,7 @@ class MailProcessor:
                     sender_id = classification['mail_id']
                     subject = f"{classification['subject']}"
 
-                    #mail_id is in the format "name <email>"
+                    # mail_id is in the format "name <email>" or "email"
                     if '<' in sender_id:
                         sender_id = sender_id.split('<')[1].split('>')[0]
 
@@ -163,10 +166,8 @@ class MailProcessor:
                                                                 })
             logger.info(chat_responses)
 
-
             for index, response in enumerate(chat_responses):
                 responses[index]['body'] = mp.process_mail(intents[index], response)
-
 
             mp.login_smtp()
             tasks = [mp.send_mail(**response) for response in responses]
@@ -190,14 +191,31 @@ class MailProcessor:
 
     @staticmethod
     def process_message_task(bot: str, message_batch: [dict]):
+        """
+        Process a batch of messages
+        used for execution by executor
+        """
         asyncio.run(MailProcessor.process_messages(bot, message_batch))
 
 
-
     @staticmethod
-    async def process_mails(bot: str):
+    def read_mails(bot: str) -> ([dict], str, int):
+        """
+        Read mails from the mailbox
+        Parameters:
+        - bot: str - bot id
+        Returns:
+        - list of messages - each message is a dict with the following
+            - mail_id
+            - subject
+            - date
+            - body
+        - user
+        - time_shift
+
+        """
         mp = MailProcessor(bot)
-        time_shift = int(mp.config.get('interval', 5 * 60))
+        time_shift = int(mp.config.get('interval', 20 * 60))
         last_read_timestamp = datetime.now() - timedelta(seconds=time_shift)
         messages = []
         is_logged_in = False
@@ -220,23 +238,18 @@ class MailProcessor:
                 messages.append(message_entry)
             mp.logout_imap()
             is_logged_in = False
-
-            if not messages or len(messages) == 0:
-                return 0, time_shift
-
-            for batch_id in range(0, len(messages), MailConstants.PROCESS_MESSAGE_BATCH_SIZE):
-                batch = messages[batch_id: batch_id + MailConstants.PROCESS_MESSAGE_BATCH_SIZE]
-                MailChannelScheduleEvent(bot, mp.bot_settings.user).enqueue(mails=batch)
-
-            return len(messages), time_shift
+            return messages, mp.bot_settings.user, time_shift
         except Exception as e:
             logger.exception(e)
             if is_logged_in:
                 mp.logout_imap()
-            return 0, time_shift
+            return [], mp.bot_settings.user, time_shift
 
     @staticmethod
-    def extract_jsons_from_text(text):
+    def extract_jsons_from_text(text) -> list:
+        """
+        Extract json objects from text as a list
+        """
         json_pattern = re.compile(r'(\{.*?\}|\[.*?\])', re.DOTALL)
         jsons = []
         for match in json_pattern.findall(text):

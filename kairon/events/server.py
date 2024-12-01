@@ -146,3 +146,10 @@ def delete_scheduled_event(event_id: Text = Path(description="Event id")):
 def dispatch_scheduled_event(event_id: Text = Path(description="Event id")):
     KScheduler().dispatch_event(event_id)
     return {"data": None, "message": "Scheduled event dispatch!"}
+
+
+@app.get('/api/mail/request_epoch', response_model=Response)
+def request_epoch():
+    from kairon.shared.channels.mail.scheduler import MailScheduler
+    MailScheduler.epoch()
+    return {"data": None, "message": "Mail scheduler epoch request!"}

@@ -1208,7 +1208,7 @@ class TestEventDefinitions:
         url = f"http://localhost:5001/api/events/execute/{EventClass.email_channel_scheduler}?is_scheduled=False"
         responses.add(
             "POST", url,
-            json={"message": "Failed", "success": True, "error_code": 400, "data": None}
+            json={"message": "test msg", "success": True, "error_code": 400, "data": None}
         )
         event = MailChannelScheduleEvent(bot, user)
         try:
