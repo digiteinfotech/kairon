@@ -75,6 +75,16 @@ channels:
     required_fields:
       - channel_secret
       - channel_access_token
+  mail:
+    required_fields:
+      - email_account
+      - email_password
+      - imap_server
+      - smtp_server
+      - smtp_port
+    optional_fields:
+      - interval
+      - llm_type
 
 actions:
   pipedrive:

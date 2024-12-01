@@ -4406,6 +4406,129 @@ def test_get_live_agent_after_disabled():
     assert actual["success"]
 
 
+
+
+def test_add_mail_config():
+    data = {
+        "intent": "greet",
+        "entities": ["name", "subject", "summery"],
+        "classification_prompt": "any personal mail of greeting"
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/mail/config",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual['message'] == 'Config applied!'
+    assert actual['error_code'] == 0
+
+def test_add_mail_config_missing_field():
+    data = {
+        "entities": ["name", "subject", "summery"],
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/mail/config",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert len(actual['message'])
+    assert actual['error_code'] == 422
+
+def test_add_mail_config_same_intent():
+    data = {
+        "intent": "greet",
+        "entities": ["name", "subject", "summery"],
+        "classification_prompt": "any personal mail of greeting"
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/mail/config",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual['message'] == 'Mail configuration already exists for intent [greet]'
+    assert actual['error_code'] == 422
+
+
+def test_get_mail_config():
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/mail/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert len(actual['data']) == 1
+    assert actual['data'][0]['intent'] == 'greet'
+    assert actual['error_code'] == 0
+
+
+
+def test_update_mail_config():
+    data = {
+        "intent": "greet",
+        "entities": ["name", "subject", "summery"],
+        "classification_prompt": "any personal email of greeting"
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/mail/config",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual['message'] == 'Config updated!'
+    assert actual['error_code'] == 0
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/mail/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert len(actual['data']) == 1
+    assert actual['data'][0]['intent'] == 'greet'
+    assert actual['data'][0]['classification_prompt'] == 'any personal email of greeting'
+    assert actual['error_code'] == 0
+
+
+def test_delete_mail_config():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/mail/config/greet",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['success']
+    assert actual['message'] == 'Config deleted!'
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/mail/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert len(actual['data']) == 0
+
+
+
+
 def test_callback_config_add_syntax_error():
     request_body = {
         "name": "callback_1",
@@ -4744,6 +4867,7 @@ def test_callback_action_delete():
 
     actual = response.json()
     assert actual == {'success': True, 'message': 'Callback action deleted successfully!', 'data': None, 'error_code': 0}
+
 
 
 def test_add_pyscript_action_empty_name():
@@ -23858,6 +23982,9 @@ def test_add_channel_config_error():
             actual["message"]
             == "Cannot edit secondary slack app. Please delete and install the app again using oAuth."
     )
+
+
+
 
 
 def test_add_bot_with_template_name(monkeypatch):

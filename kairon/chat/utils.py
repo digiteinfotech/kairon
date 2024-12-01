@@ -44,6 +44,25 @@ class ChatUtils:
         return chat_response
 
     @staticmethod
+    async  def process_messages_via_bot(
+            messages: [str],
+            account: int,
+            bot: str,
+            user: str,
+            is_integration_user: bool = False,
+            metadata: Dict = None,
+    ):
+        responses = []
+        uncached_model = AgentProcessor.get_agent_without_cache(bot, False)
+        metadata = ChatUtils.get_metadata(account, bot, is_integration_user, metadata)
+        for message in messages:
+            msg = UserMessage(message, sender_id=user, metadata=metadata)
+            chat_response = await uncached_model.handle_message(msg)
+            responses.append(chat_response)
+        return responses
+
+
+    @staticmethod
     def reload(bot: Text, user: Text):
         exc = None
         status = "Success"
