@@ -543,12 +543,11 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
     @patch("kairon.shared.channels.mail.processor.MailBox")
-    @patch("kairon.shared.channels.mail.processor.BackgroundScheduler")
     @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @pytest.mark.asyncio
     async def test_read_mails(self, mock_get_channel_config, mock_llm_processor,
-                                 mock_scheduler, mock_mailbox, mock_process_message_task,
+                                  mock_mailbox, mock_process_message_task,
                                  mock_logout_imap):
         bot_id = pytest.mail_test_bot
 
@@ -565,8 +564,6 @@ class TestMailChannel:
         mock_llm_processor_instance = MagicMock()
         mock_llm_processor.return_value = mock_llm_processor_instance
 
-        scheduler_instance = MagicMock()
-        mock_scheduler.return_value = scheduler_instance
 
         mock_mailbox_instance = MagicMock()
         mock_mailbox.return_value = mock_mailbox_instance
@@ -597,12 +594,11 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
     @patch("kairon.shared.channels.mail.processor.MailBox")
-    @patch("kairon.shared.channels.mail.processor.BackgroundScheduler")
     @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @pytest.mark.asyncio
     async def test_read_mails_no_messages(self, mock_get_channel_config, mock_llm_processor,
-                                             mock_scheduler, mock_mailbox, mock_process_message_task,
+                                              mock_mailbox, mock_process_message_task,
                                              mock_logout_imap):
         bot_id = pytest.mail_test_bot
 
@@ -619,8 +615,6 @@ class TestMailChannel:
         mock_llm_processor_instance = MagicMock()
         mock_llm_processor.return_value = mock_llm_processor_instance
 
-        scheduler_instance = MagicMock()
-        mock_scheduler.return_value = scheduler_instance
 
         mock_mailbox_instance = MagicMock()
         mock_mailbox.return_value = mock_mailbox_instance
