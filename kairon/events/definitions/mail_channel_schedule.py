@@ -3,7 +3,7 @@ from loguru import logger
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
 from kairon.shared.channels.mail.processor import MailProcessor
-from kairon.shared.constants import EventClass, ChannelTypes
+from kairon.shared.constants import EventClass
 
 
 class MailChannelScheduleEvent(EventsBase):
