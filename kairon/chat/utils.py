@@ -52,6 +52,18 @@ class ChatUtils:
             is_integration_user: bool = False,
             metadata: Dict = None,
     ):
+        """Process a list of messages through the bot.
+         Args:
+             messages: List of messages to process
+             account: Account ID
+             bot: Bot ID
+             user: User ID
+             is_integration_user: Flag indicating if user is integration user
+             metadata: Additional metadata
+
+         Returns:
+             List of responses from the bot
+        """
         responses = []
         uncached_model = AgentProcessor.get_agent_without_cache(bot, False)
         metadata = ChatUtils.get_metadata(account, bot, is_integration_user, metadata)
