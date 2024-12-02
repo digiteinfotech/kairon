@@ -656,6 +656,57 @@ class TestMailChannel:
         assert not ans
 
 
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.classify_messages")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.login_smtp")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_smtp")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.send_mail")
+    @patch("kairon.chat.utils.ChatUtils.process_messages_via_bot")
+    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
+    @pytest.mark.asyncio
+    async def test_process_messages(self, mock_llm_processor, mock_process_messages_via_bot, mock_send_mail, mock_logout_smtp, mock_login_smtp,
+                                    mock_classify_messages):
+
+
+        # Arrange
+        bot = pytest.mail_test_bot
+        batch = [{"mail_id": "test@example.com", "subject": "Test Subject", "date": "2023-10-10", "body": "Test Body"}]
+        mock_classify_messages.return_value = [{
+            "intent": "test_intent",
+            "entities": {"entity_name": "value"},
+            "mail_id": "test@example.com",
+            "subject": "Test Subject",
+            "name": "spandan"
+        }]
+        mock_process_messages_via_bot.return_value = [{
+            "slots": ["name: spandan"],
+            "response": [{"text": "Test Response"}]
+        }]
+
+        mock_llm_processor_instance = MagicMock()
+        mock_llm_processor.return_value = mock_llm_processor_instance
+
+        # Act
+        await MailProcessor.process_messages(bot, batch)
+
+        # Assert
+        mock_classify_messages.assert_called_once_with(batch)
+        mock_process_messages_via_bot.assert_called_once()
+        mock_login_smtp.assert_called_once()
+        mock_send_mail.assert_called_once()
+        mock_logout_smtp.assert_called_once()
+
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.classify_messages")
+    @pytest.mark.asyncio
+    async def test_process_messages_exception(self, mock_classify_messages):
+        # Arrange
+        bot = "test_bot"
+        batch = [{"mail_id": "test@example.com", "subject": "Test Subject", "date": "2023-10-10", "body": "Test Body"}]
+        mock_classify_messages.side_effect = Exception("Test Exception")
+
+        # Act & Assert
+        with pytest.raises(AppException):
+            await MailProcessor.process_messages(bot, batch)
+
 
 
 
