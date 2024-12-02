@@ -2,6 +2,7 @@ from typing import Text
 from loguru import logger
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
+from kairon.exceptions import AppException
 from kairon.shared.channels.mail.processor import MailProcessor
 from kairon.shared.constants import EventClass
 
@@ -35,7 +36,7 @@ class MailChannelScheduleEvent(EventsBase):
             Utility.request_event_server(EventClass.email_channel_scheduler, payload)
         except Exception as e:
             logger.error(str(e))
-            raise e
+            raise AppException(e)
 
     def execute(self, **kwargs):
         """
@@ -47,4 +48,4 @@ class MailChannelScheduleEvent(EventsBase):
                 MailProcessor.process_message_task(self.bot, mails)
         except Exception as e:
             logger.error(str(e))
-            raise e
+            raise AppException(e)
