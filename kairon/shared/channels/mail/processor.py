@@ -1,7 +1,6 @@
 import asyncio
 import re
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from loguru import logger
 from pydantic.schema import timedelta
 from pydantic.validators import datetime

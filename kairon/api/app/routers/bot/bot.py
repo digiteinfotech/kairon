@@ -26,7 +26,6 @@ from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
 from kairon.shared.channels.mail.data_objects import MailClassificationConfig
-from kairon.shared.channels.mail.scheduler import MailScheduler
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     EventClass, AGENT_ACCESS
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
