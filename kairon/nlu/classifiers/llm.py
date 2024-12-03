@@ -3,6 +3,8 @@ import logging
 import typing
 from typing import Any, Dict, List, Optional, Text
 from abc import ABC
+
+from pydantic import BaseModel
 from rasa.nlu.classifiers.classifier import IntentClassifier
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
@@ -11,24 +13,39 @@ from rasa.engine.storage.storage import ModelStorage
 import faiss
 import rasa.utils.io as io_utils
 import os
-from rasa.shared.nlu.constants import TEXT, INTENT
-import openai
+from rasa.shared.nlu.constants import TEXT, INTENT, ENTITIES
 import numpy as np
+from tensorflow.python.ops.gen_batch_ops import batch
 from tqdm import tqdm
 from rasa.engine.graph import GraphComponent, ExecutionContext
 from rasa.engine.recipes.default_recipe import DefaultV1Recipe
+import litellm
+from rasa.shared.utils.io import create_directory_for_file
+from more_itertools import chunked
+
+litellm.drop_params = True
 
 logger = logging.getLogger(__name__)
 
 if typing.TYPE_CHECKING:
     pass
 
+class Entities(BaseModel):
+    value: str
+    start: int
+    end: int
+    entity: str
+
+
+class ClassifierOutput(BaseModel):
+    intent: str
+    entities: List[Entities] = None
 
 @DefaultV1Recipe.register(
-    DefaultV1Recipe.ComponentType.INTENT_CLASSIFIER, is_trainable=False
+    DefaultV1Recipe.ComponentType.INTENT_CLASSIFIER, is_trainable=True
 )
-class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
-    """Intent and Entity classifier using the OpenAI Completion framework"""
+class LLMClassifier(IntentClassifier, GraphComponent, ABC):
+    """Intent and Entity classifiers using the OpenAI Completion framework"""
 
     system_prompt = "You will be provided with a text, and your task is to classify its intent as {0}. Provide output in json format with the following keys intent, explanation, text."
 
@@ -41,7 +58,7 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
         vector: Optional[faiss.IndexFlatIP] = None,
         data: Optional[Dict[Text, Any]] = None,
     ) -> None:
-        """Construct a new intent classifier using the OpenAI Completion framework."""
+        """Construct a new intent classifiers using the OpenAI Completion framework."""
         self.component_config = config
         self._model_storage = model_storage
         self._resource = resource
@@ -55,15 +72,16 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
 
         self.data = data
 
+
     @classmethod
     def required_packages(cls) -> List[Text]:
-        return ["openai", "faiss", "numpy"]
+        return ["litellm", "numpy"]
 
     @staticmethod
     def get_default_config() -> Dict[Text, Any]:
         return {
             "bot_id": None,
-            "prediction_model": "gpt-4",
+            "prediction_model": "gpt-4o-mini",
             "embedding_model": "text-embedding-3-small",
             "embedding_size": 1536,
             "top_k": 5,
@@ -77,103 +95,105 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
             from kairon.shared.admin.processor import Sysadmin
             llm_secret = Sysadmin.get_llm_secret("openai", bot_id)
             self.api_key = llm_secret.get('api_key')
-        elif os.environ.get("OPENAI_API_KEY"):
-            self.api_key = os.environ.get("OPENAI_API_KEY")
+        elif os.environ.get("LLM_API_KEY"):
+            self.api_key = os.environ.get("LLM_API_KEY")
         else:
             raise KeyError(
-                f"either set bot_id'in OpenAIClassifier config or set OPENAI_API_KEY in environment variables"
+                f"either set bot_id'in LLMClassifier config or set LLM_API_KEY in environment variables"
             )
 
     def get_embeddings(self, text):
-        embedding = openai.Embedding.create(
+        embeddings = litellm.embedding(
             model="text-embedding-3-small", input=text, api_key=self.api_key
-        )["data"][0]["embedding"]
-        return embedding
+        )
+        return [ embedding['embedding'] for embedding in embeddings['data']]
 
-    def process_training_data(self, training_data: TrainingData) -> TrainingData:
-        """Train the intent classifier on a data set."""
+    def train(self, training_data: TrainingData) -> Resource:
+        """Train the intent classifiers on a data set."""
         data_map = []
         vector_map = []
-        for example in tqdm(training_data.intent_examples):
-            vector_map.append(self.get_embeddings(example.get(TEXT)))
-            data_map.append({"text": example.get(TEXT), "intent": example.get(INTENT)})
+        batch_size = 100
+        with tqdm(len(training_data.intent_examples)) as pbar:
+            counter = 1
+            for chunks in chunked(training_data.intent_examples, batch_size):
+                data = [{"text": example.get(TEXT), INTENT: example.get(INTENT), ENTITIES: example.get(ENTITIES)} for example in chunks]
+                vector_data = [example.get(TEXT) for example in chunks]
+                vector_map.extend(self.get_embeddings(vector_data))
+                data_map.extend(data)
+                pbar.update(batch_size*counter)
+                counter +=1
+
         np_vector = np.asarray(vector_map, dtype=np.float32)
         faiss.normalize_L2(np_vector)
         self.vector.add(np_vector)
         self.data = data_map
-        return training_data
+        self.persist()
+        return self._resource
 
     def prepare_context(self, embeddings, text):
         dist, indx = self.vector.search(
             np.asarray([embeddings], dtype=np.float32),
             k=self.component_config.get("top_k", 5),
         )
-        labels = ",".join(set(self.data[i]["intent"] for i in indx[0]))
+        labels = []
+        context = ""
+        for i in indx[0]:
+            labels.append(self.data[i]["intent"])
+            context += "text: "+self.data[i]["intent"]+"\nclassifier: {'intent': "+self.data[i][INTENT]+", 'entities': "+self.data[i][ENTITIES]+"}"
+
         messages = [
             {"role": "system", "content": self.system_prompt.format(labels)},
+            {"role": "user", "content": f"""##{self.system_prompt}\n##Based on the below sample generate the intent.If text does not belongs to the {labels} then classify it as nlu_fallback\n\n{context}\n\ntext: {text}\nclassifier"""}
         ]
-        context = "\n\n".join(
-            f"\n\ntext: {self.data[i]['text']}\nintent: {self.data[i]['intent']}"
-            for i in indx[0]
-        )
-        messages.append(
-            {
-                "role": "user",
-                "content": f"##{self.system_prompt}\n\n##Based on the below sample generate the intent.If text does not belongs to the labels then classify it as nlu_fallback\n\n{context}\n\ntext: {text}",
-            }
-        )
+
         return messages
 
     def predict(self, text):
         embedding = self.get_embeddings(text)
         messages = self.prepare_context(embedding, text)
-        retry = 0
         intent = None
         explanation = None
-        while retry < self.component_config.get("retry", 3):
-            try:
-                response = openai.ChatCompletion.create(
-                    model=self.component_config.get("prediction_model", "gpt-3.5-turbo"),
-                    messages=messages,
-                    temperature=self.component_config.get("temperature", 0.0),
-                    max_tokens=self.component_config.get("max_tokens", 50),
-                    top_p=1,
-                    frequency_penalty=0,
-                    presence_penalty=0,
-                    stop=["\n\n"],
-                    api_key=self.api_key,
-                )
-                logger.debug(response)
-                responses = json.loads(response.choices[0]["message"]["content"])
-                intent = responses["intent"] if "intent" in responses.keys() else None
-                explanation = (
-                    responses["explanation"]
-                    if "explanation" in responses.keys()
-                    else None
-                )
-                break
-            except TimeoutError as e:
-                logger.error(e)
-                retry += 1
-                if retry == 3:
-                    raise e
+        try:
+            response = litellm.completion(
+                model=self.component_config.get("prediction_model", "gpt-3.5-turbo"),
+                messages=messages,
+                response_format=ClassifierOutput,
+                temperature=self.component_config.get("temperature", 0.0),
+                max_tokens=self.component_config.get("max_tokens", 50),
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0,
+                api_key=self.api_key,
+                retry=3
+            )
+            logger.debug(response)
+            responses = json.loads(response.choices[0]["message"]["content"])
+            intent = responses["intent"] if "intent" in responses.keys() else None
+            explanation = (
+                responses["explanation"]
+                if "explanation" in responses.keys()
+                else None
+            )
+        except Exception as e:
+            logger.error(e)
         return intent, explanation
 
-    def process(self, message: Message) -> None:
+    def process(self, messages: List[Message]) -> List[Message]:
         """Return the most likely intent and its probability for a message."""
+        for message in messages:
+            if not self.vector and not self.data:
+                # component is either not trained or didn't
+                # receive enough training data
+                intent = None
+                intent_ranking = []
+            else:
+                label, reason = self.predict(message.get(TEXT))
+                intent = {"name": label, "confidence": 1, "reason": reason}
+                intent_ranking = []
 
-        if not self.vector and not self.data:
-            # component is either not trained or didn't
-            # receive enough training data
-            intent = None
-            intent_ranking = []
-        else:
-            label, reason = self.predict(message.get(TEXT))
-            intent = {"name": label, "confidence": 1, "reason": reason}
-            intent_ranking = []
-
-        message.set("intent", intent, add_to_output=True)
-        message.set("intent_ranking", intent_ranking, add_to_output=True)
+            message.set("intent", intent, add_to_output=True)
+            message.set("intent_ranking", intent_ranking, add_to_output=True)
+        return messages
 
     @classmethod
     def create(
@@ -182,7 +202,7 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
         model_storage: ModelStorage,
         resource: Resource,
         execution_context: ExecutionContext,
-    ) -> "OpenAIClassifier":
+    ) -> "LLMClassifier":
         """Creates a new untrained component (see parent class for full docstring)."""
         return cls(config, model_storage, resource, execution_context)
 
@@ -194,7 +214,7 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
         resource: Resource,
         execution_context: ExecutionContext,
         **kwargs: Any,
-    ) -> "OpenAIClassifier":
+    ) -> "LLMClassifier":
         """Loads a policy from the storage (see parent class for full docstring)."""
         try:
             with model_storage.read_from(resource) as model_path:
@@ -223,6 +243,7 @@ class OpenAIClassifier(IntentClassifier, GraphComponent, ABC):
             vector_file_name = file_name + "_vector.db"
             data_file_name = file_name + "_data.pkl"
             if self.vector and self.data:
+                create_directory_for_file(model_path)
                 faiss.write_index(
                     self.vector, os.path.join(model_path, vector_file_name)
                 )

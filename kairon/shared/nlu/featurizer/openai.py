@@ -190,7 +190,7 @@ class OpenAIFeaturizer(DenseFeaturizer, GraphComponent, ABC):
                     batch_start_index += batch_size
         return training_data
 
-    def process(self, message: Message) -> None:
+    def process(self, messages: List[Message]) -> List[Message]:
         """Process an incoming message by computing its tokens and dense features.
 
         Args:
@@ -199,15 +199,17 @@ class OpenAIFeaturizer(DenseFeaturizer, GraphComponent, ABC):
         # process of all featurizers operates only on TEXT and ACTION_TEXT attributes,
         # because all other attributes are labels which are featurized during training
         # and their features are stored by the model itself.
-        for attribute in {TEXT, ACTION_TEXT}:
-            if message.get(attribute):
-                self._set_lm_features(
-                    self._get_docs_for_batch(
-                        [message], attribute=attribute
-                    )[0],
-                    message,
-                    attribute,
-                )
+        for message in messages:
+            for attribute in {TEXT, ACTION_TEXT}:
+                if message.get(attribute):
+                    self._set_lm_features(
+                        self._get_docs_for_batch(
+                            [message], attribute=attribute
+                        )[0],
+                        message,
+                        attribute,
+                    )
+        return messages
 
     def _set_lm_features(
             self, doc: Dict[Text, Any], message: Message, attribute: Text = TEXT
