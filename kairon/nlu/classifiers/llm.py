@@ -15,15 +15,16 @@ import rasa.utils.io as io_utils
 import os
 from rasa.shared.nlu.constants import TEXT, INTENT, ENTITIES
 import numpy as np
-from tensorflow.python.ops.gen_batch_ops import batch
 from tqdm import tqdm
 from rasa.engine.graph import GraphComponent, ExecutionContext
 from rasa.engine.recipes.default_recipe import DefaultV1Recipe
 import litellm
 from rasa.shared.utils.io import create_directory_for_file
 from more_itertools import chunked
+import os
 
 litellm.drop_params = True
+os.environ["LITELLM_LOG"] = "ERROR"
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,7 @@ class LLMClassifier(IntentClassifier, GraphComponent, ABC):
                 vector_data = [example.get(TEXT) for example in chunks]
                 vector_map.extend(self.get_embeddings(vector_data))
                 data_map.extend(data)
-                pbar.update(batch_size*counter)
+                pbar.update(batch_size)
                 counter +=1
 
         np_vector = np.asarray(vector_map, dtype=np.float32)
