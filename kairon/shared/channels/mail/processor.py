@@ -74,7 +74,7 @@ class MailProcessor:
             mp.login_smtp()
             mp.logout_smtp()
             return True
-        except Exception as e:
+        except:
             return False
 
     async def send_mail(self, to: str, subject: str, body: str):
