@@ -89,7 +89,7 @@ class Translator:
         client = translate.TranslationServiceClient(credentials=credentials)
 
         location = "global"
-        parent = f"projects/{Utility.environment['multilingual']['project_id']}/locations/{location}"
+        parent = f"projects/{multilingual_env.get('project_id')}/locations/{location}"
         response = client.get_supported_languages(parent=parent, display_language_code="en")
         result = {language.language_code: language.display_name for language in response.languages}
         return result
