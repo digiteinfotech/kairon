@@ -1,3 +1,4 @@
+import json
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from typing import List
 from rasa.cli import SubParsersAction
@@ -6,7 +7,10 @@ from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleE
 
 
 def process_channel_mails(args):
-    MailChannelScheduleEvent(args.bot, args.user).execute(mails=args.mails)
+    mails = json.loads(args.mails)
+    if not isinstance(mails, list):
+        raise ValueError("Mails should be a list")
+    MailChannelScheduleEvent(args.bot, args.user).execute(mails=mails)
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
@@ -26,7 +30,7 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                             help="Kairon user who is initiating the command", action='store')
 
     mail_parser.add_argument('mails',
-                            type=list,
-                            help="List of mails to be processed", action='store')
+                            type=str,
+                            help="json representing List of mails to be processed", action='store')
 
     mail_parser.set_defaults(func=process_channel_mails)
