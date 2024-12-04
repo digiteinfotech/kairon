@@ -1,7 +1,9 @@
 import argparse
+import json
 import os
 from datetime import datetime
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from mongoengine import connect
@@ -314,6 +316,39 @@ class TestDeleteLogsCli:
     def test_delete_logs(self, mock_args):
         cli()
 
+class TestMailChannelCli:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @mock.patch("kairon.cli.mail_channel.MailChannelScheduleEvent.execute")
+    def test_start_mail_channel(self, mock_execute):
+        from kairon.cli.mail_channel import process_channel_mails
+        data = [{"mail": "test_mail"}]
+        data = json.dumps(data)
+        with patch('argparse.ArgumentParser.parse_args',
+                   return_value=argparse.Namespace(func=process_channel_mails,
+                                                   bot="test_bot",
+                                                    user="test_user", mails=data)):
+            cli()
+        mock_execute.assert_called_once()
+
+
+    @mock.patch("kairon.cli.mail_channel.MailChannelScheduleEvent.execute")
+    def test_start_mail_channel_wrong_format(self, mock_execute):
+        from kairon.cli.mail_channel import process_channel_mails
+        data = {"mail": "test_mail"}
+        data = json.dumps(data)
+        with patch('argparse.ArgumentParser.parse_args',
+                   return_value=argparse.Namespace(func=process_channel_mails,
+                                                   bot="test_bot",
+                                                    user="test_user", mails=data)):
+            with pytest.raises(ValueError):
+                cli()
+        mock_execute.assert_not_called()
 
 class TestMessageBroadcastCli:
 

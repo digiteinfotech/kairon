@@ -1,4 +1,5 @@
 import time
+from unittest.mock import MagicMock, patch, AsyncMock
 
 import ujson as json
 import os
@@ -934,3 +935,32 @@ class TestChat:
         assert len(data) == 1
         assert data[0]['tag'] == 'tracker_store'
         assert data[0]['type'] == 'flattened'
+
+
+
+
+@pytest.mark.asyncio
+@patch("kairon.chat.utils.AgentProcessor.get_agent_without_cache")
+@patch("kairon.chat.utils.ChatUtils.get_metadata")
+async def test_process_messages_via_bot(mock_get_metadata, mock_get_agent_without_cache):
+    messages = ["/greet", "/bye"]
+    account = 1
+    bot = "test_bot"
+    user = "test_user"
+    is_integration_user = False
+    metadata = {"key": "value"}
+
+    mock_get_metadata.return_value = metadata
+    mock_model = MagicMock()
+    mock_get_agent_without_cache.return_value = mock_model
+    mock_model.handle_message = AsyncMock(side_effect=[{"text": "Hello"}, {"text": "Goodbye"}])
+    from kairon.chat.utils import ChatUtils
+
+    responses = await ChatUtils.process_messages_via_bot(messages, account, bot, user, is_integration_user, metadata)
+
+    assert len(responses) == 2
+    assert responses[0] == {"text": "Hello"}
+    assert responses[1] == {"text": "Goodbye"}
+    mock_get_metadata.assert_called_once_with(account, bot, is_integration_user, metadata)
+    mock_get_agent_without_cache.assert_called_once_with(bot, False)
+    assert mock_model.handle_message.call_count == 2

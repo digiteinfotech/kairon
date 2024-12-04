@@ -135,6 +135,13 @@ class TestAgentProcessor:
         assert len(list(ModelProcessor.get_training_history(pytest.bot))) == 1
         assert not Utility.check_empty_string(model.model_ver)
 
+    def test_get_agent_no_cache(self):
+        model = AgentProcessor.get_agent_without_cache(pytest.bot, False)
+        assert model
+        assert len(list(ModelProcessor.get_training_history(pytest.bot))) == 1
+        assert not Utility.check_empty_string(model.model_ver)
+
+
     def test_get_agent_not_cached(self):
         assert AgentProcessor.get_agent(pytest.bot)
 
