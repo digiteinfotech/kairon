@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 from datetime import datetime
 from unittest import mock
@@ -326,10 +327,28 @@ class TestMailChannelCli:
     @mock.patch("kairon.cli.mail_channel.MailChannelScheduleEvent.execute")
     def test_start_mail_channel(self, mock_execute):
         from kairon.cli.mail_channel import process_channel_mails
-        with patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(func=process_channel_mails, bot="test_bot", user="test_user", mails=[{"mail": "test_mail"}])):
+        data = [{"mail": "test_mail"}]
+        data = json.dumps(data)
+        with patch('argparse.ArgumentParser.parse_args',
+                   return_value=argparse.Namespace(func=process_channel_mails,
+                                                   bot="test_bot",
+                                                    user="test_user", mails=data)):
             cli()
         mock_execute.assert_called_once()
 
+
+    @mock.patch("kairon.cli.mail_channel.MailChannelScheduleEvent.execute")
+    def test_start_mail_channel_wrong_format(self, mock_execute):
+        from kairon.cli.mail_channel import process_channel_mails
+        data = {"mail": "test_mail"}
+        data = json.dumps(data)
+        with patch('argparse.ArgumentParser.parse_args',
+                   return_value=argparse.Namespace(func=process_channel_mails,
+                                                   bot="test_bot",
+                                                    user="test_user", mails=data)):
+            with pytest.raises(ValueError):
+                cli()
+        mock_execute.assert_not_called()
 
 class TestMessageBroadcastCli:
 

@@ -66,6 +66,17 @@ class MailProcessor:
             self.smtp.quit()
             self.smtp = None
 
+
+    @staticmethod
+    def validate_smpt_connection(bot):
+        try:
+            mp = MailProcessor(bot)
+            mp.login_smtp()
+            mp.logout_smtp()
+            return True
+        except Exception as e:
+            return False
+
     async def send_mail(self, to: str, subject: str, body: str):
         try:
             email_account = self.config['email_account']

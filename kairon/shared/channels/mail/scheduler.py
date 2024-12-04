@@ -57,7 +57,7 @@ class MailScheduler:
                 event_server_url,
                 "/api/mail/request_epoch",
             ),
-            err_msg=f"Failed to request epoch",
+            err_msg="Failed to request epoch",
         )
         if not resp['success']:
             raise AppException("Failed to request email channel epoch")
@@ -78,7 +78,9 @@ class MailScheduler:
         print(vals)
         emails, user, next_delay = vals
         for email in emails:
-            MailChannelScheduleEvent(bot, user).enqueue(mails=[email])
+            ev = MailChannelScheduleEvent(bot, user)
+            ev.validate()
+            ev.enqueue(mails=[email])
         next_timestamp = datetime.now() + timedelta(seconds=next_delay)
         return next_timestamp
 

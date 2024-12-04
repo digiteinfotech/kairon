@@ -23,7 +23,7 @@ class MailChannelScheduleEvent(EventsBase):
         """
         validate mail channel exists
         """
-        pass
+        return MailProcessor.validate_smpt_connection(self.bot)
 
 
     def enqueue(self, **kwargs):
