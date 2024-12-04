@@ -28113,7 +28113,18 @@ def test_multilingual_translate_logs():
 
 def test_multilingual_language_support(monkeypatch):
     def _mock_supported_languages(*args, **kwargs):
-        return ["es", "en", "hi"]
+        return {"ab": "Abkhaz",
+                "ace": "Acehnese",
+                "ach": "Acholi",
+                "af": "Afrikaans",
+                "sq": "Albanian",
+                "alz": "Alur",
+                "am": "Amharic",
+                "ar": "Arabic",
+                "hy": "Armenian",
+                "as": "Assamese",
+                "awa": "Awadhi",
+                "ay": "Aymara"}
 
     monkeypatch.setattr(
         Translator, "get_supported_languages", _mock_supported_languages
@@ -28124,7 +28135,18 @@ def test_multilingual_language_support(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
 
-    assert response["data"] == ["es", "en", "hi"]
+    assert response["data"] == {"ab": "Abkhaz",
+                                "ace": "Acehnese",
+                                "ach": "Acholi",
+                                "af": "Afrikaans",
+                                "sq": "Albanian",
+                                "alz": "Alur",
+                                "am": "Amharic",
+                                "ar": "Arabic",
+                                "hy": "Armenian",
+                                "as": "Assamese",
+                                "awa": "Awadhi",
+                                "ay": "Aymara"}
     assert response["success"]
     assert response["error_code"] == 0
 
