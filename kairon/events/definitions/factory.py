@@ -2,6 +2,7 @@ from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
+from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
 from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
@@ -20,7 +21,8 @@ class EventFactory:
         EventClass.multilingual: MultilingualEvent,
         EventClass.faq_importer: FaqDataImporterEvent,
         EventClass.message_broadcast: MessageBroadcastEvent,
-        EventClass.content_importer: DocContentImporterEvent
+        EventClass.content_importer: DocContentImporterEvent,
+        EventClass.email_channel_scheduler: MailChannelScheduleEvent
     }
 
     @staticmethod

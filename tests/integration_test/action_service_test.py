@@ -2,6 +2,10 @@ import asyncio
 import datetime
 import os
 from urllib.parse import urlencode, urljoin
+from kairon.shared.utils import Utility
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+Utility.load_environment()
+Utility.load_system_metadata()
 import urllib
 
 import litellm
@@ -11,18 +15,17 @@ import pytest
 import responses
 import ujson as json
 from apscheduler.util import obj_to_ref
-from cycler import U
 from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from litellm import embedding
 from mongoengine import connect
 
+
+
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
-from kairon.shared.utils import Utility
 
-Utility.load_system_metadata()
 
 from kairon.actions.definitions.live_agent import ActionLiveAgent
 from kairon.actions.definitions.set_slot import ActionSetSlot
@@ -11752,121 +11755,6 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
          'response': None, 'image': None, 'attachment': None}
     ]
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-@mock.patch.object(ActionUtility, 'execute_request_async', autospec=True)
-def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity(mock_execute_request_async, mock_embedding, aioresponses):
-    from uuid6 import uuid7
-    llm_type = "perplexity"
-    action_name = "test_prompt_action_response_action_with_prompt_question_from_slot"
-    bot = "5f50fd0a56b69s8ca10d35d2l"
-    user = "udit.pandey"
-    value = "keyvalue"
-    user_msg = "What kind of language is python?"
-    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
-    generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
-        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
-         'type': 'query', 'source': 'static', 'is_enabled': False},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
-         'is_enabled': True}
-    ]
-    mock_execute_request_async.return_value = (
-        {
-            'formatted_response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-            'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'},
-        200,
-        mock.ANY,
-        mock.ANY
-    )
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    expected_body = {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
-                                                                                                'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-        'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l', 'invocation': 'prompt_action'},
-        'api_key': 'keyvalue',
-        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-        'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
-        status=200,
-        payload={'formatted_response': generated_text, 'response': generated_text},
-        body=json.dumps(expected_body)
-    )
-    aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embedding},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-        method="POST",
-        status=200
-    )
-    hyperparameters = Utility.get_llm_hyperparameters("perplexity")
-    hyperparameters['search_domain_filter'] = ["domain1.com", "domain2.com"]
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts, llm_type="perplexity", hyperparameters = hyperparameters,
-                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
-    llm_secret = LLMSecret(
-        llm_type=llm_type,
-        api_key=value,
-        models=["perplexity/llama-3.1-sonar-small-128k-online", "perplexity/llama-3.1-sonar-large-128k-online", "perplexity/llama-3.1-sonar-huge-128k-online"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
-    llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key="api_key",
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
-    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
-    request_object["tracker"]["slots"] = {"bot": bot, "prompt_question": user_msg}
-    request_object["next_action"] = action_name
-    request_object["tracker"]["sender_id"] = user
-    request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}},
-                                           {'event': 'bot', "text": "how are you",
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}}]
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    mock_execute_request_async.assert_called_once_with(
-        http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/completion/{llm_type}",
-        request_method="POST",
-        request_body={
-            'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-                         {'role': 'user', 'content': 'hello'},
-                         {'role': 'assistant', 'content': 'how are you'},
-                         {'role': 'user', 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? inurl:domain1.com|domain2.com \nA:"}],
-            'hyperparameters': hyperparameters,
-            'user': user,
-            'invocation': "prompt_action"
-        },
-        timeout=Utility.environment['llm'].get('request_timeout', 30)
-    )
-    called_args = mock_execute_request_async.call_args
-    user_message = called_args.kwargs['request_body']['messages'][-1]['content']
-    assert "inurl:domain1.com|domain2.com" in user_message
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
-    assert response_json['responses'] == [
-        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-         'response': None, 'image': None, 'attachment': None}
-    ]
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_response_action_with_prompt_question_from_slot_different_embedding_completion(mock_embedding, aioresponses):

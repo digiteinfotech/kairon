@@ -2,6 +2,7 @@ import argparse
 import os
 from datetime import datetime
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from mongoengine import connect
@@ -313,6 +314,21 @@ class TestDeleteLogsCli:
     @mock.patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(func=delete_logs))
     def test_delete_logs(self, mock_args):
         cli()
+
+class TestMailChannelCli:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @mock.patch("kairon.cli.mail_channel.MailChannelScheduleEvent.execute")
+    def test_start_mail_channel(self, mock_execute):
+        from kairon.cli.mail_channel import process_channel_mails
+        with patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(func=process_channel_mails, bot="test_bot", user="test_user", mails=[{"mail": "test_mail"}])):
+            cli()
+        mock_execute.assert_called_once()
 
 
 class TestMessageBroadcastCli:
