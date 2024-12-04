@@ -701,7 +701,36 @@ class TestMailChannel:
         with pytest.raises(AppException):
             await MailProcessor.process_messages(bot, batch)
 
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.__init__')
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.login_smtp')
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.logout_smtp')
+    def test_validate_smpt_connection(self, mp, mock_logout_smtp, mock_login_smtp):
+        # Mock the login and logout methods to avoid actual SMTP server interaction
+        mp.return_value = None
+        mock_login_smtp.return_value = None
+        mock_logout_smtp.return_value = None
 
+        # Call the static method validate_smpt_connection
+        result = MailProcessor.validate_smpt_connection('test_bot_id')
+
+        # Assert that the method returns True
+        assert  result
+
+        # Assert that login_smtp and logout_smtp were called once
+        mock_login_smtp.assert_called_once()
+        mock_logout_smtp.assert_called_once()
+
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.login_smtp')
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.logout_smtp')
+    def test_validate_smpt_connection_failure(self, mock_logout_smtp, mock_login_smtp):
+        # Mock the login method to raise an exception
+        mock_login_smtp.side_effect = Exception("SMTP login failed")
+
+        # Call the static method validate_smpt_connection
+        result = MailProcessor.validate_smpt_connection('test_bot_id')
+
+        # Assert that the method returns False
+        assert not result
 
 
 
