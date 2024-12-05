@@ -12,8 +12,7 @@ from rasa.engine.storage.resource import Resource
 from rasa.engine.storage.storage import ModelStorage
 import faiss
 import rasa.utils.io as io_utils
-import os
-from rasa.shared.nlu.constants import TEXT, INTENT, ENTITIES
+from rasa.shared.nlu.constants import TEXT, INTENT, ENTITIES, ENTITY_ATTRIBUTE_TYPE
 import numpy as np
 from tqdm import tqdm
 from rasa.engine.graph import GraphComponent, ExecutionContext
@@ -22,6 +21,7 @@ import litellm
 from rasa.shared.utils.io import create_directory_for_file
 from more_itertools import chunked
 import os
+from rasa.nlu.extractors.extractor import EntityExtractorMixin
 
 litellm.drop_params = True
 os.environ["LITELLM_LOG"] = "ERROR"
@@ -31,24 +31,13 @@ logger = logging.getLogger(__name__)
 if typing.TYPE_CHECKING:
     pass
 
-class Entities(BaseModel):
-    value: str
-    start: int
-    end: int
-    entity: str
-
-
-class ClassifierOutput(BaseModel):
-    intent: str
-    entities: List[Entities] = None
-
 @DefaultV1Recipe.register(
     DefaultV1Recipe.ComponentType.INTENT_CLASSIFIER, is_trainable=True
 )
-class LLMClassifier(IntentClassifier, GraphComponent, ABC):
+class LLMClassifier(IntentClassifier, GraphComponent, EntityExtractorMixin, ABC):
     """Intent and Entity classifiers using the OpenAI Completion framework"""
 
-    system_prompt = "You will be provided with a text, and your task is to classify its intent as {0}. Provide output in json format with the following keys intent, explanation, text."
+    system_prompt = "You will be provided with a text, and your task is to classify its intent and entities. Provide output in json format with the following keys intent, explanation, text and entities."
 
     def __init__(
         self,
@@ -87,7 +76,6 @@ class LLMClassifier(IntentClassifier, GraphComponent, ABC):
             "embedding_size": 1536,
             "top_k": 5,
             "temperature": 0.0,
-            "max_tokens": 50,
             "retry": 3,
         }
 
@@ -105,7 +93,7 @@ class LLMClassifier(IntentClassifier, GraphComponent, ABC):
 
     def get_embeddings(self, text):
         embeddings = litellm.embedding(
-            model="text-embedding-3-small", input=text, api_key=self.api_key
+            model="text-embedding-3-small", input=text, api_key=self.api_key, max_retries=3
         )
         return [ embedding['embedding'] for embedding in embeddings['data']]
 
@@ -117,10 +105,11 @@ class LLMClassifier(IntentClassifier, GraphComponent, ABC):
         with tqdm(len(training_data.intent_examples)) as pbar:
             counter = 1
             for chunks in chunked(training_data.intent_examples, batch_size):
-                data = [{"text": example.get(TEXT), INTENT: example.get(INTENT), ENTITIES: example.get(ENTITIES)} for example in chunks]
-                vector_data = [example.get(TEXT) for example in chunks]
-                vector_map.extend(self.get_embeddings(vector_data))
-                data_map.extend(data)
+                data = [{"text": example.get(TEXT).strip(), INTENT: example.get(INTENT).strip(), ENTITIES: example.get(ENTITIES)} for example in chunks if example.get(INTENT) and example.get(INTENT)]
+                vector_data = [example.get(TEXT).strip() for example in chunks if example.get(INTENT) and example.get(TEXT)]
+                if data and vector_data:
+                    vector_map.extend(self.get_embeddings(vector_data))
+                    data_map.extend(data)
                 pbar.update(batch_size)
                 counter +=1
 
@@ -136,48 +125,81 @@ class LLMClassifier(IntentClassifier, GraphComponent, ABC):
             np.asarray([embeddings], dtype=np.float32),
             k=self.component_config.get("top_k", 5),
         )
-        labels = []
-        context = ""
+        intents = set()
+        entities = set()
+        data = []
         for i in indx[0]:
-            labels.append(self.data[i]["intent"])
-            context += "text: "+self.data[i]["intent"]+"\nclassifier: {'intent': "+self.data[i][INTENT]+", 'entities': "+self.data[i][ENTITIES]+"}"
+            if self.data[i].get(INTENT):
+                intents.add(self.data[i][INTENT])
+                entities = set([entity[ENTITY_ATTRIBUTE_TYPE] for entity in entities])
+                entities_obj = self.data[i][ENTITIES]if self.data[i][ENTITIES] else []
+                data.append({
+                    'text': self.data[i][TEXT],
+                    'intent': self.data[i][INTENT],
+                    'entities': entities_obj
+                })
 
         messages = [
-            {"role": "system", "content": self.system_prompt.format(labels)},
-            {"role": "user", "content": f"""##{self.system_prompt}\n##Based on the below sample generate the intent.If text does not belongs to the {labels} then classify it as nlu_fallback\n\n{context}\n\ntext: {text}\nclassifier"""}
+            {"role": "user", "content": f"""You will be provided with a text, and your task is to classify its intent and extract any relevant entities. Provide the output in JSON format with the following keys: `intent`, `explanation`, `text`, and `entities`.
+
+### Intents
+The possible intents are:
+{intents}
+
+### Entities
+You should extract entities from the text, although no specific entity types are provided (currently set to an empty set). 
+
+The entities that can be extracted are:
+{entities}
+
+Ensure to only extract entities that are relevant to the classification.
+
+---
+
+**Example:**
+
+```json
+{json.dumps(data)}
+```
+
+### Task
+Classify the intent and extract entities for the given text:
+
+**Text**: `"take to xy100"`
+
+Please provide your answer in the specified JSON format."""
+             }
         ]
+
 
         return messages
 
     def predict(self, text):
-        embedding = self.get_embeddings(text)
+        embedding = self.get_embeddings(text)[0]
         messages = self.prepare_context(embedding, text)
         intent = None
         explanation = None
+        entities = []
         try:
             response = litellm.completion(
                 model=self.component_config.get("prediction_model", "gpt-3.5-turbo"),
                 messages=messages,
-                response_format=ClassifierOutput,
+                response_format={ "type": "json_object" },
                 temperature=self.component_config.get("temperature", 0.0),
-                max_tokens=self.component_config.get("max_tokens", 50),
                 top_p=1,
                 frequency_penalty=0,
                 presence_penalty=0,
                 api_key=self.api_key,
-                retry=3
+                max_retries=3
             )
             logger.debug(response)
             responses = json.loads(response.choices[0]["message"]["content"])
-            intent = responses["intent"] if "intent" in responses.keys() else None
-            explanation = (
-                responses["explanation"]
-                if "explanation" in responses.keys()
-                else None
-            )
+            intent = responses["intent"] if "intent" in responses.keys() else "nlu_fallback"
+            explanation = responses["explanation"] if "explanation" in responses.keys() else None
+            entities = responses["entities"]if "entities" in responses.keys() else []
         except Exception as e:
             logger.error(e)
-        return intent, explanation
+        return intent, explanation, entities
 
     def process(self, messages: List[Message]) -> List[Message]:
         """Return the most likely intent and its probability for a message."""
@@ -187,13 +209,16 @@ class LLMClassifier(IntentClassifier, GraphComponent, ABC):
                 # receive enough training data
                 intent = None
                 intent_ranking = []
+                entities = []
             else:
-                label, reason = self.predict(message.get(TEXT))
+                label, reason, entities = self.predict(message.get(TEXT))
                 intent = {"name": label, "confidence": 1, "reason": reason}
                 intent_ranking = []
+                entities = self.add_extractor_name(entities)
 
             message.set("intent", intent, add_to_output=True)
             message.set("intent_ranking", intent_ranking, add_to_output=True)
+            message.set(ENTITIES, entities, add_to_output=True)
         return messages
 
     @classmethod
@@ -219,8 +244,10 @@ class LLMClassifier(IntentClassifier, GraphComponent, ABC):
         """Loads a policy from the storage (see parent class for full docstring)."""
         try:
             with model_storage.read_from(resource) as model_path:
-                vector_file = os.path.join(model_path, config.get("vector"))
-                data_file = os.path.join(model_path, config.get("data"))
+                file_name = cls.__name__
+
+                vector_file = os.path.join(model_path, file_name + "_vector.db")
+                data_file = os.path.join(model_path, file_name + "_data.pkl")
 
                 if os.path.exists(vector_file):
                     vector = faiss.read_index(vector_file)
