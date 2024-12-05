@@ -9699,18 +9699,13 @@ def test_get_slots():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    excluded_slots = list(KaironSystemSlots)
-
     assert "data" in actual
+    assert len(actual["data"]) == 21
     assert actual["success"]
     assert actual["error_code"] == 0
-
-    assert len(actual["data"]) == 21 - len(excluded_slots)
-    returned_slot_names = [slot["name"] for slot in actual["data"]]
-    for excluded_slot in excluded_slots:
-        assert excluded_slot not in returned_slot_names
-
     assert Utility.check_empty_string(actual["message"])
+    default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
+    assert default_slots_count == 14
 
 
 def test_add_slots():

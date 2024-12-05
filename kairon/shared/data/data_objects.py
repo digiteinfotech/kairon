@@ -513,6 +513,7 @@ class Slots(Auditlog):
     status = BooleanField(default=True)
     influence_conversation = BooleanField(default=False)
     _has_been_set = BooleanField(default=False)
+    is_default = BooleanField(default=False)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "name")]}]}
 
