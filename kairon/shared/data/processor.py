@@ -5264,7 +5264,9 @@ class MongoProcessor:
         :param status: active or inactive, default is active
         :return: list of slots
         """
-        for slot in Slots.objects(bot=bot, status=True):
+        excluded_slots = list(KaironSystemSlots)
+        query = Q(bot=bot, status=True) & Q(name__nin=excluded_slots)
+        for slot in Slots.objects(query):
             slot = slot.to_mongo().to_dict()
             slot.pop("bot")
             slot.pop("user")

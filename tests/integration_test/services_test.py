@@ -47,7 +47,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData
-from kairon.shared.constants import EventClass, ChannelTypes
+from kairon.shared.constants import EventClass, ChannelTypes, KaironSystemSlots
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import (
     UTTERANCE_TYPE,
@@ -9699,10 +9699,17 @@ def test_get_slots():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    excluded_slots = list(KaironSystemSlots)
+
     assert "data" in actual
-    assert len(actual["data"]) == 21
     assert actual["success"]
     assert actual["error_code"] == 0
+
+    assert len(actual["data"]) == 21 - len(excluded_slots)
+    returned_slot_names = [slot["name"] for slot in actual["data"]]
+    for excluded_slot in excluded_slots:
+        assert excluded_slot not in returned_slot_names
+
     assert Utility.check_empty_string(actual["message"])
 
 
@@ -28106,7 +28113,18 @@ def test_multilingual_translate_logs():
 
 def test_multilingual_language_support(monkeypatch):
     def _mock_supported_languages(*args, **kwargs):
-        return ["es", "en", "hi"]
+        return {"ab": "Abkhaz",
+                "ace": "Acehnese",
+                "ach": "Acholi",
+                "af": "Afrikaans",
+                "sq": "Albanian",
+                "alz": "Alur",
+                "am": "Amharic",
+                "ar": "Arabic",
+                "hy": "Armenian",
+                "as": "Assamese",
+                "awa": "Awadhi",
+                "ay": "Aymara"}
 
     monkeypatch.setattr(
         Translator, "get_supported_languages", _mock_supported_languages
@@ -28117,7 +28135,18 @@ def test_multilingual_language_support(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
 
-    assert response["data"] == ["es", "en", "hi"]
+    assert response["data"] == {"ab": "Abkhaz",
+                                "ace": "Acehnese",
+                                "ach": "Acholi",
+                                "af": "Afrikaans",
+                                "sq": "Albanian",
+                                "alz": "Alur",
+                                "am": "Amharic",
+                                "ar": "Arabic",
+                                "hy": "Armenian",
+                                "as": "Assamese",
+                                "awa": "Awadhi",
+                                "ay": "Aymara"}
     assert response["success"]
     assert response["error_code"] == 0
 

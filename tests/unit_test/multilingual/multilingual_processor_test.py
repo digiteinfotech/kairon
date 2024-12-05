@@ -585,9 +585,11 @@ class TestMultilingualProcessor:
 
                         class Language:
                             language_code = "en"
+                            display_name = "English"
 
                             def __init__(self):
                                 self.language_code = "en"
+                                self.display_name = "English"
 
                         languages = []
 
@@ -603,7 +605,7 @@ class TestMultilingualProcessor:
                 mocked_new.side_effect = _mock_service_client
 
                 supported_languages = Translator.get_supported_languages()
-                assert supported_languages == ["en"]
+                assert supported_languages == {"en": "English"}
 
     def test_translation_call_fail(self, monkeypatch):
 

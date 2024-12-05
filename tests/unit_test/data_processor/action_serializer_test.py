@@ -3,7 +3,7 @@ import os
 from mongoengine import connect
 
 from kairon import Utility
-from kairon.shared.actions.data_objects import Actions, HttpActionConfig, PyscriptActionConfig
+from kairon.shared.actions.data_objects import Actions, HttpActionConfig, PyscriptActionConfig, LiveAgentActionConfig
 from kairon.shared.actions.models import ActionType, ActionParameterType, DbActionOperationType
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.data.data_validation import DataValidation
@@ -587,6 +587,39 @@ def test_action_serializer_deserialize():
     callback = CallbackConfig.objects(bot=bot).get()
     assert callback.name == "cb1"
 
+
+def test_action_serializer_deserialize_single_instance_append():
+    bot = "my_test_bot"
+    user = "test_user@test_user.com"
+
+    actions = {
+        "live_agent_action": [
+            {
+                'name': 'live_agent_action',
+            }
+        ]
+    }
+
+    other_collections = {}
+
+    # Case : action doesn't exist
+    ActionSerializer.deserialize(bot, user, actions, other_collections)
+
+    actions_added = Actions.objects(bot=bot, user=user)
+    action_names = [action.name for action in actions_added]
+    print(action_names)
+    assert len(list(actions_added)) == 3
+    names = [action.name for action in actions_added]
+    assert "live_agent_action" in names
+
+    # Case : action already exists
+
+    ActionSerializer.deserialize(bot, user, actions, other_collections)
+    assert len(list(actions_added)) == 3
+    la_action_count = Actions.objects(bot=bot, user=user, name="live_agent_action").count()
+    assert la_action_count == 1
+    live_agent_action = LiveAgentActionConfig.objects(bot=bot, user=user).get()
+    assert live_agent_action.name == "live_agent_action"
 
 def test_action_serializer_deserialize_overwrite():
     bot = "my_test_bot"

@@ -9348,20 +9348,6 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         slots = list(processor.get_existing_slots(bot))
         expected = [
-            {'name': 'kairon_action_response', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'order', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'payment', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'flow_reply', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'http_status_code', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'image', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'audio', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'video', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'document', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'doc_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'longitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'latitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
             {'name': 'date_time', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
             {'name': 'category', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
             {'name': 'file', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
@@ -9375,9 +9361,8 @@ class TestMongoProcessor:
             {'name': 'age', 'type': 'float', 'max_value': 1.0, 'min_value': 0.0, 'influence_conversation': True,
              '_has_been_set': False},
             {'name': 'occupation', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'quick_reply', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}
         ]
-        assert len(slots) == 24
+        assert len(slots) == 10
         assert not DeepDiff(slots, expected, ignore_order=True)
 
     def test_update_slot_add_value_intent_and_not_intent(self):
