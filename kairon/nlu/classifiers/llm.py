@@ -1,27 +1,26 @@
-import ujson as json
 import logging
+import os
 import typing
-from typing import Any, Dict, List, Optional, Text
 from abc import ABC
+from typing import Any, Dict, List, Optional, Text
 
-from pydantic import BaseModel
-from rasa.nlu.classifiers.classifier import IntentClassifier
-from rasa.shared.nlu.training_data.message import Message
-from rasa.shared.nlu.training_data.training_data import TrainingData
-from rasa.engine.storage.resource import Resource
-from rasa.engine.storage.storage import ModelStorage
 import faiss
-import rasa.utils.io as io_utils
-from rasa.shared.nlu.constants import TEXT, INTENT, ENTITIES, ENTITY_ATTRIBUTE_TYPE
+import litellm
 import numpy as np
-from tqdm import tqdm
+import rasa.utils.io as io_utils
+import ujson as json
+from more_itertools import chunked
 from rasa.engine.graph import GraphComponent, ExecutionContext
 from rasa.engine.recipes.default_recipe import DefaultV1Recipe
-import litellm
-from rasa.shared.utils.io import create_directory_for_file
-from more_itertools import chunked
-import os
+from rasa.engine.storage.resource import Resource
+from rasa.engine.storage.storage import ModelStorage
+from rasa.nlu.classifiers.classifier import IntentClassifier
 from rasa.nlu.extractors.extractor import EntityExtractorMixin
+from rasa.shared.nlu.constants import TEXT, INTENT, ENTITIES, ENTITY_ATTRIBUTE_TYPE
+from rasa.shared.nlu.training_data.message import Message
+from rasa.shared.nlu.training_data.training_data import TrainingData
+from rasa.shared.utils.io import create_directory_for_file
+from tqdm import tqdm
 
 litellm.drop_params = True
 os.environ["LITELLM_LOG"] = "ERROR"
