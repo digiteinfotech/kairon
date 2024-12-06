@@ -1203,10 +1203,10 @@ class TestEventDefinitions:
 
     @responses.activate
     def test_validate_mail_channel_schedule_event(self):
-        from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
+        from kairon.events.definitions.mail_channel import MailProcessEvent
         bot = "test_add_schedule_event"
         user = "test_user"
-        url = f"http://localhost:5001/api/events/execute/{EventClass.email_channel_scheduler}?is_scheduled=False"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.mail_channel_process_mails}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "test msg", "success": True, "error_code": 400, "data": None}
@@ -1215,21 +1215,21 @@ class TestEventDefinitions:
             with patch('kairon.shared.channels.mail.processor.MailProcessor.login_smtp', return_value=None) as mock_login:
                 with patch('kairon.shared.channels.mail.processor.MailProcessor.logout_smtp', return_value=None) as mock_logout:
 
-                    event = MailChannelScheduleEvent(bot, user)
+                    event = MailProcessEvent(bot, user)
                     status = event.validate()
                     assert status
 
     @responses.activate
     def test_validate_mail_channel_schedule_event_fail(self):
-        from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
+        from kairon.events.definitions.mail_channel import MailProcessEvent
         bot = "test_add_schedule_event"
         user = "test_user"
-        url = f"http://localhost:5001/api/events/execute/{EventClass.email_channel_scheduler}?is_scheduled=False"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.mail_channel_process_mails}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "test msg", "success": True, "error_code": 400, "data": None}
         )
-        event = MailChannelScheduleEvent(bot, user)
+        event = MailProcessEvent(bot, user)
         status = event.validate()
         assert not status
 
@@ -1237,15 +1237,15 @@ class TestEventDefinitions:
 
     @responses.activate
     def test_trigger_mail_channel_schedule_event_enqueue(self):
-        from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
+        from kairon.events.definitions.mail_channel import MailProcessEvent
         bot = "test_add_schedule_event"
         user = "test_user"
-        url = f"http://localhost:5001/api/events/execute/{EventClass.email_channel_scheduler}?is_scheduled=False"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.mail_channel_process_mails}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "test msg", "success": True, "error_code": 400, "data": None}
         )
-        event = MailChannelScheduleEvent(bot, user)
+        event = MailProcessEvent(bot, user)
         try:
             event.enqueue()
         except AppException as e:
@@ -1253,36 +1253,36 @@ class TestEventDefinitions:
 
     @responses.activate
     def test_trigger_mail_channel_schedule_event_enqueue_exception(self):
-        from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
+        from kairon.events.definitions.mail_channel import MailProcessEvent
         from kairon.exceptions import AppException
         from unittest.mock import patch
 
         bot = "test_add_schedule_event"
         user = "test_user"
-        url = f"http://localhost:5001/api/events/execute/{EventClass.email_channel_scheduler}?is_scheduled=False"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.mail_channel_process_mails}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "test msg", "success": False, "error_code": 400, "data": None}
         )
-        event = MailChannelScheduleEvent(bot, user)
+        event = MailProcessEvent(bot, user)
         with pytest.raises(AppException, match="Failed to trigger email_channel_scheduler event: test msg"):
             event.enqueue()
 
     @responses.activate
     def test_trigger_mail_channel_schedule_event_execute(self):
-        from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
+        from kairon.events.definitions.mail_channel import MailProcessEvent
         try:
-            MailChannelScheduleEvent("", "").execute()
+            MailProcessEvent("", "").execute()
         except AppException as e:
             pytest.fail(f"Unexpected exception: {e}")
 
     @responses.activate
     def test_trigger_mail_channel_schedule_event_execute_exception(self):
-        from kairon.events.definitions.mail_channel_schedule import MailChannelScheduleEvent
+        from kairon.events.definitions.mail_channel import MailProcessEvent
         from kairon.exceptions import AppException
         from unittest.mock import patch
 
         with patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task",
                    side_effect=Exception("Test")):
             with pytest.raises(AppException, match="Test"):
-                MailChannelScheduleEvent("", "").execute(mails=["test@mail.com"])
+                MailProcessEvent("", "").execute(mails=["test@mail.com"])

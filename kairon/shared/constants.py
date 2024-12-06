@@ -80,7 +80,8 @@ class EventClass(str, Enum):
     web_search = "web_search"
     scheduler_evaluator = "scheduler_evaluator"
     content_importer = "content_importer"
-    email_channel_scheduler = "email_channel_scheduler"
+    mail_channel_process_mails = "email_channel_process_mails"
+    mail_channel_read_mails = "email_channel_read_mails"
 
 
 class EventRequestType(str, Enum):

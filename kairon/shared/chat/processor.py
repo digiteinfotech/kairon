@@ -41,7 +41,7 @@ class ChatDataProcessor:
         channel.save()
         if configuration['connector_type'] == ChannelTypes.MAIL.value:
             from kairon.shared.channels.mail.scheduler import MailScheduler
-            MailScheduler.request_epoch()
+            MailScheduler.request_epoch(bot)
         if primary_slack_config_changed:
             ChatDataProcessor.delete_channel_config(bot, connector_type="slack", config__is_primary=False)
         channel_endpoint = DataUtility.get_channel_endpoint(channel)

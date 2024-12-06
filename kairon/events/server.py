@@ -56,8 +56,6 @@ async def lifespan(app: FastAPI):
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
-    from kairon.shared.channels.mail.scheduler import MailScheduler
-    MailScheduler.epoch()
     yield
     disconnect()
 
@@ -148,8 +146,7 @@ def dispatch_scheduled_event(event_id: Text = Path(description="Event id")):
     return {"data": None, "message": "Scheduled event dispatch!"}
 
 
-@app.get('/api/mail/request_epoch', response_model=Response)
-def request_epoch():
-    from kairon.shared.channels.mail.scheduler import MailScheduler
-    MailScheduler.epoch()
+@app.get('/api/mail/schedule/{bot}', response_model=Response)
+def request_epoch(bot: Text = Path(description="Bot id")):
+    EventUtility.schedule_channel_mail_reading(bot)
     return {"data": None, "message": "Mail scheduler epoch request!"}

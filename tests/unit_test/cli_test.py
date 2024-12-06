@@ -326,7 +326,7 @@ class TestMailChannelCli:
 
     @mock.patch("kairon.cli.mail_channel.MailChannelScheduleEvent.execute")
     def test_start_mail_channel(self, mock_execute):
-        from kairon.cli.mail_channel import process_channel_mails
+        from kairon.cli.mail_channel_process import process_channel_mails
         data = [{"mail": "test_mail"}]
         data = json.dumps(data)
         with patch('argparse.ArgumentParser.parse_args',
@@ -339,7 +339,7 @@ class TestMailChannelCli:
 
     @mock.patch("kairon.cli.mail_channel.MailChannelScheduleEvent.execute")
     def test_start_mail_channel_wrong_format(self, mock_execute):
-        from kairon.cli.mail_channel import process_channel_mails
+        from kairon.cli.mail_channel_process import process_channel_mails
         data = {"mail": "test_mail"}
         data = json.dumps(data)
         with patch('argparse.ArgumentParser.parse_args',

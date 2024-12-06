@@ -711,7 +711,7 @@ class TestMailChannel:
         mock_logout_smtp.return_value = None
 
         # Call the static method validate_smpt_connection
-        result = MailProcessor.validate_smpt_connection('test_bot_id')
+        result = MailProcessor.validate_smtp_connection('test_bot_id')
 
         # Assert that the method returns True
         assert  result
@@ -727,7 +727,7 @@ class TestMailChannel:
         mock_login_smtp.side_effect = Exception("SMTP login failed")
 
         # Call the static method validate_smpt_connection
-        result = MailProcessor.validate_smpt_connection('test_bot_id')
+        result = MailProcessor.validate_smtp_connection('test_bot_id')
 
         # Assert that the method returns False
         assert not result
