@@ -1,0 +1,25 @@
+http_action:
+- action_name: action_say_hello
+  content_type: json
+  headers: []
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: []
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+  set_slots: []
+- action_name: action_say_goodbye
+  content_type: json
+  headers: []
+  http_url: https://jsonplaceholder.typicode.com/posts/1
+  params_list: []
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: ${data}
+  set_slots: []

@@ -1,15 +1,17 @@
 from datetime import datetime
-from typing import Text, Dict, Any
+from typing import Text, Dict, Any, List
 
 from loguru import logger
 from mongoengine import DoesNotExist, Q
+from pydantic import constr, create_model, ValidationError
 
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
+from kairon.shared.data.constant import DEFAULT_LLM
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.models import CognitionDataType, CognitionMetadataType
+from kairon.shared.models import CognitionDataType, CognitionMetadataType, VaultSyncEventType
 
 
 class CognitionDataProcessor:
@@ -414,3 +416,207 @@ class CognitionDataProcessor:
             raise AppException(f'Cannot remove collection {collection} linked to action "{prompt_action[0].name}"!')
         if database_action:
             raise AppException(f'Cannot remove collection {collection} linked to action "{database_action[0].name}"!')
+
+    @staticmethod
+    def get_pydantic_type(data_type: str):
+        if data_type == 'str':
+            return (constr(strict=True, min_length=1), ...)
+        elif data_type == 'int':
+            return (int, ...)
+        elif data_type == 'float':
+            return (float, ...)
+        else:
+            raise ValueError(f"Unsupported data type: {data_type}")
+
+    def validate_data(self, primary_key_col: str, collection_name: str, event_type: str, data: List[Dict], bot: str) -> Dict:
+        """
+        Validates each dictionary in the data list according to the expected schema from column_dict.
+
+        Args:
+            data: List of dictionaries where each dictionary represents a row to be validated.
+            collection_name: The name of the collection (table name).
+            event_type: The type of the event being validated.
+            bot: The bot identifier.
+            primary_key_col: The primary key column for identifying rows.
+
+        Returns:
+            Dict: Summary of validation errors, if any.
+        """
+        self._validate_event_type(event_type)
+        event_validations = VaultSyncEventType[event_type].value
+
+        self._validate_collection_exists(collection_name)
+        column_dict = MongoProcessor().get_column_datatype_dict(bot, collection_name)
+
+        error_summary = {}
+
+        existing_documents = CognitionData.objects(bot=bot, collection=collection_name).as_pymongo()
+        existing_document_map = {
+            doc["data"].get(primary_key_col): doc
+            for doc in existing_documents
+            if doc["data"].get(primary_key_col) is not None
+        }
+
+        for row in data:
+            row_key = row.get(primary_key_col)
+            if not row_key:
+                raise AppException(f"Primary key '{primary_key_col}' must exist in each row.")
+
+            row_errors = []
+
+            if "column_length_mismatch" in event_validations:
+                if len(row.keys()) != len(column_dict.keys()):
+                    row_errors.append({
+                        "status": "Column length mismatch",
+                        "expected_columns": list(column_dict.keys()),
+                        "actual_columns": list(row.keys())
+                    })
+
+            if "invalid_columns" in event_validations:
+                expected_columns = list(column_dict.keys())
+                if event_type == "field_update":
+                    expected_columns = [primary_key_col + " + any from " + str([col for col in column_dict.keys() if col != primary_key_col])]
+                if not set(row.keys()).issubset(set(column_dict.keys())):
+                    row_errors.append({
+                        "status": "Invalid columns in input data",
+                        "expected_columns": expected_columns,
+                        "actual_columns": list(row.keys())
+                    })
+
+            if "document_non_existence" in event_validations:
+                if str(row_key) not in existing_document_map:
+                    row_errors.append({
+                        "status": "Document does not exist",
+                        "primary_key": row_key,
+                        "message": f"No document found for '{primary_key_col}': {row_key}"
+                    })
+
+            if row_errors:
+                error_summary[row_key] = row_errors
+                continue
+
+            model_fields = {}
+            for column_name in row.keys():
+                value = column_dict.get(column_name)
+                model_fields[column_name] = self.get_pydantic_type(value)
+
+            DynamicModel = create_model('DynamicModel', **model_fields)
+
+            if "pydantic_validation" in event_validations:
+                try:
+                    DynamicModel(**row)
+                except ValidationError as e:
+                    error_details = []
+                    for error in e.errors():
+                        column_name = error['loc'][0]
+                        input_value = row.get(column_name)
+                        status = "Required Field is Empty" if input_value == "" else "Invalid DataType"
+                        error_details.append({
+                            "column_name": column_name,
+                            "input": input_value,
+                            "status": status
+                        })
+                    error_summary[row_key] = error_details
+
+        return error_summary
+
+    async def upsert_data(self, primary_key_col: str, collection_name: str, event_type: str, data: List[Dict], bot: str, user: Text):
+        """
+        Upserts data into the CognitionData collection.
+        If document with the primary key exists, it will be updated.
+        If not, it will be inserted.
+
+        Args:
+            primary_key_col: The primary key column name to check for uniqueness.
+            collection_name: The collection name (table).
+            event_type: The type of the event being upserted
+            data: List of rows of data to upsert.
+            bot: The bot identifier associated with the data.
+            user: The user
+        """
+
+        from kairon.shared.llm.processor import LLMProcessor
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+        suffix = "_faq_embd"
+        qdrant_collection = f"{bot}_{collection_name}{suffix}" if collection_name else f"{bot}{suffix}"
+
+        if await llm_processor.__collection_exists__(qdrant_collection) is False:
+            await llm_processor.__create_collection__(qdrant_collection)
+
+        existing_documents = CognitionData.objects(bot=bot, collection=collection_name).as_pymongo()
+
+        existing_document_map = {
+            doc["data"].get(primary_key_col): doc for doc in existing_documents
+        }
+
+        for row in data:
+            row = {str(key): str(value) for key, value in row.items()}
+            primary_key_value = row.get(primary_key_col)
+
+            existing_document = existing_document_map.get(primary_key_value)
+
+            if event_type == "field_update" and existing_document:
+                existing_data = existing_document.get("data", {})
+                merged_data = {**existing_data, **row}
+                logger.debug(f"Merged row for {primary_key_col} {primary_key_value}: {merged_data}")
+            else:
+                merged_data = row
+
+            payload = {
+                "data": merged_data,
+                "content_type": CognitionDataType.json.value,
+                "collection": collection_name
+            }
+
+            if existing_document:
+                row_id = str(existing_document["_id"])
+                self.update_cognition_data(row_id, payload, user, bot)
+                updated_document = CognitionData.objects(id=row_id).first()
+                if not isinstance(updated_document, dict):
+                    updated_document = updated_document.to_mongo().to_dict()
+                logger.info(f"Row with {primary_key_col}: {primary_key_value} updated in MongoDB")
+                await self.sync_with_qdrant(llm_processor, qdrant_collection, bot, updated_document, user,
+                                            primary_key_col)
+            else:
+                row_id = self.save_cognition_data(payload, user, bot)
+                new_document = CognitionData.objects(id=row_id).first()
+                if not isinstance(new_document, dict):
+                    new_document = new_document.to_mongo().to_dict()
+                logger.info(f"Row with {primary_key_col}: {primary_key_value} inserted in MongoDB")
+                await self.sync_with_qdrant(llm_processor, qdrant_collection, bot, new_document, user, primary_key_col)
+
+        return {"message": "Upsert complete!"}
+
+    async def sync_with_qdrant(self, llm_processor, collection_name, bot, document, user, primary_key_col):
+        """
+        Syncs a document with Qdrant vector database by generating embeddings and upserting them.
+
+        Args:
+            llm_processor (LLMProcessor): Instance of LLMProcessor for embedding and Qdrant operations.
+            collection_name (str): Name of the Qdrant collection.
+            bot (str): Bot identifier.
+            document (CognitionData): Document to sync with Qdrant.
+            user (Text): User performing the operation.
+
+        Raises:
+            AppException: If Qdrant upsert operation fails.
+        """
+        try:
+            metadata = self.find_matching_metadata(bot, document['data'], document.get('collection'))
+            search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
+                document['data'], metadata)
+            embeddings = await llm_processor.get_embedding(embedding_payload, user, invocation='knowledge_vault_sync')
+            points = [{'id': document['vector_id'], 'vector': embeddings, 'payload': search_payload}]
+            await llm_processor.__collection_upsert__(collection_name, {'points': points},
+                                                      err_msg="Unable to train FAQ! Contact support")
+            logger.info(f"Row with {primary_key_col}: {document['data'].get(primary_key_col)} upserted in Qdrant.")
+        except Exception as e:
+            raise AppException(f"Failed to sync document with Qdrant: {str(e)}")
+
+    def _validate_event_type(self, event_type: str):
+        if event_type not in VaultSyncEventType.__members__.keys():
+            raise AppException("Event type does not exist")
+
+    def _validate_collection_exists(self, collection_name: str):
+        if not CognitionSchema.objects(collection_name=collection_name).first():
+            raise AppException(f"Collection '{collection_name}' does not exist.")

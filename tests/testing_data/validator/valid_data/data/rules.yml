@@ -1,0 +1,25 @@
+rules:
+- rule: ask the user to rephrase whenever they send a message with low nlu confidence
+  steps:
+  - intent: nlu_fallback
+  - action: utter_please_rephrase
+
+- rule: Only say `hello` if the user provided a location
+  condition:
+  - slot_was_set:
+    - location: true
+  steps:
+  - intent: greet
+  - action: utter_greet
+
+- rule: Say `hello` when the user starts a conversation with intent `greet`
+  conversation_start: true
+  steps:
+  - intent: greet
+  - action: utter_greet
+
+- rule: Rule which will not wait for user message once it was applied
+  steps:
+  - intent: greet
+  - action: utter_greet
+  wait_for_user_input: false

@@ -46,6 +46,7 @@ class WhatsappCloud(object):
         self.api_version = kwargs.get('api_version', DEFAULT_API_VERSION)
         self.app = 'https://graph.facebook.com/v{api_version}'.format(api_version=self.api_version)
         self.app_secret = kwargs.get('app_secret')
+        self.metadata = kwargs.get("metadata")
 
     @property
     def client_type(self):

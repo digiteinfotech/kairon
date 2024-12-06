@@ -12,14 +12,16 @@ import ujson as json
 import yaml
 
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
+from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
+from kairon.shared.llm.processor import LLMProcessor
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
 Utility.load_system_metadata()
 
 
-from unittest.mock import patch
+from unittest.mock import patch, ANY
 import numpy as np
 import pandas as pd
 import pytest
@@ -30,7 +32,7 @@ from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
-from pydantic import SecretStr
+from pydantic import SecretStr, constr
 from rasa.core.agent import Agent
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH, \
     DEFAULT_NLU_FALLBACK_INTENT_NAME
@@ -90,7 +92,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
-from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType
+from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType, VaultSyncEventType
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
@@ -1362,6 +1364,931 @@ class TestMongoProcessor:
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
+
+    def test_validate_data_push_menu_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+        event_type = 'push_menu'
+
+        metadata = [
+            {
+                "column_name": "id",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "item",
+                "data_type": "str",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "price",
+                "data_type": "float",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "quantity",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            }
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        data = [
+            {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
+            {"id": 2, "item": "Apples", "price": 1.20, "quantity": 20},
+            {"id": 3, "item": "Bananas", "price": 0.50, "quantity": 15},
+        ]
+
+        processor = CognitionDataProcessor()
+        validation_summary = processor.validate_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            event_type=event_type,
+            data=data,
+            bot=bot
+        )
+
+        assert validation_summary == {}
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+
+    def test_validate_data_field_update_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+        event_type = "field_update"
+
+        metadata = [
+            {
+                "column_name": "id",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "item",
+                "data_type": "str",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "price",
+                "data_type": "float",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "quantity",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            }
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        dummy_data_one = {
+            "id": "1",
+            "item": "Juice",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        existing_document = CognitionData(
+            data=dummy_data_one,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        existing_document.save()
+
+        dummy_data_two = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "50"
+        }
+        existing_document = CognitionData(
+            data=dummy_data_two,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        existing_document.save()
+
+        data = [
+            {"id": 1, "price": 2.50},
+            {"id": 2, "price": 1.20}
+        ]
+
+        processor = CognitionDataProcessor()
+        validation_summary = processor.validate_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            event_type=event_type,
+            data=data,
+            bot=bot
+        )
+
+        assert validation_summary == {}
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+
+    def test_validate_data_event_type_does_not_exist(self):
+        bot = 'test_bot'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+        data = [{"id": 1, "item": "Juice", "price": 2.50, "quantity": 10}]
+        event_type = 'non_existent_event_type'
+
+        processor = CognitionDataProcessor()
+
+        with pytest.raises(AppException, match=f"Event type does not exist"):
+            processor.validate_data(
+                primary_key_col=primary_key_col,
+                collection_name=collection_name,
+                event_type=event_type,
+                data=data,
+                bot=bot
+            )
+
+    def test_validate_data_missing_collection(self):
+        bot = 'test_bot'
+        collection_name = 'nonexistent_collection'
+        primary_key_col = "id"
+        data = [{"id": 1, "item": "Juice", "price": 2.50, "quantity": 10}]
+        event_type = 'push_menu'
+
+        processor = CognitionDataProcessor()
+
+        with pytest.raises(AppException, match=f"Collection '{collection_name}' does not exist."):
+            processor.validate_data(
+                primary_key_col=primary_key_col,
+                collection_name=collection_name,
+                event_type=event_type,
+                data=data,
+                bot=bot
+            )
+
+    def test_validate_data_missing_primary_key(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+        event_type = 'push_menu'
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True}
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        data = [
+            {"item": "Juice", "price": 2.50, "quantity": 10}
+        ]
+
+        processor = CognitionDataProcessor()
+
+        with pytest.raises(AppException, match=f"Primary key '{primary_key_col}' must exist in each row."):
+            processor.validate_data(
+                primary_key_col=primary_key_col,
+                collection_name=collection_name,
+                data=data,
+                event_type=event_type,
+                bot=bot
+            )
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+
+    def test_validate_data_column_length_mismatch(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+        event_type = 'push_menu'
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True}
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        data = [
+            {"id": "1", "item": "Milk", "quantity": 10}
+        ]
+
+        processor = CognitionDataProcessor()
+        validation_summary = processor.validate_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            event_type=event_type,
+            data=data,
+            bot=bot
+        )
+        assert "1" in validation_summary
+        assert validation_summary["1"][0]["status"] == "Column length mismatch"
+        assert validation_summary["1"][0]["expected_columns"] == ["id", "item", "price", "quantity"]
+        assert validation_summary["1"][0]["actual_columns"] == ["id", "item", "quantity"]
+        CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
+
+    def test_validate_data_invalid_columns(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+        event_type = 'push_menu'
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True}
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        data = [
+            {"id": "1", "item": "Juice", "quantity": 10, "discount": 0.10}  # Invalid "discount" column
+        ]
+
+        processor = CognitionDataProcessor()
+        validation_summary = processor.validate_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            event_type=event_type,
+            data=data,
+            bot=bot
+        )
+        assert "1" in validation_summary
+        assert validation_summary["1"][0]["status"] == "Invalid columns in input data"
+        assert validation_summary["1"][0]["expected_columns"] == ["id", "item", "price", "quantity"]
+        assert validation_summary["1"][0]["actual_columns"] == ["id", "item", "quantity", "discount"]
+        CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
+
+    def test_validate_data_document_non_existence(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+        event_type = 'field_update'
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True}
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        dummy_data = {
+            "id": "1",
+            "item": "Juice",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        existing_document = CognitionData(
+            data=dummy_data,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        existing_document.save()
+
+        data = [
+            {"id": "2", "price": 27.0}
+        ]
+
+        processor = CognitionDataProcessor()
+        validation_summary = processor.validate_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            event_type=event_type,
+            data=data,
+            bot=bot
+        )
+        assert "2" in validation_summary
+        assert validation_summary["2"][0]["status"] == "Document does not exist"
+        assert validation_summary["2"][0]["primary_key"] == "2"
+
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+
+    @pytest.mark.asyncio
+    @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+    @patch.object(LLMProcessor, "__create_collection__", autospec=True)
+    @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+    @patch.object(litellm, "aembedding", autospec=True)
+    async def test_upsert_data_push_menu_success(self, mock_embedding, mock_collection_upsert, mock_create_collection,
+                                       mock_collection_exists):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = 'id'
+        event_type = 'push_menu'
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        dummy_data = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        existing_document = CognitionData(
+            data=dummy_data,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        existing_document.save()
+
+        upsert_data = [
+            {"id": 1, "item": "Juice", "price": "2.50", "quantity": "10"},  # New entry
+            {"id": 2, "item": "Milk", "price": "3.00", "quantity": "5"}  # Existing entry to be updated
+        ]
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_collection_exists.return_value = False
+        mock_create_collection.return_value = None
+        mock_collection_upsert.return_value = None
+
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        processor = CognitionDataProcessor()
+
+        result = await processor.upsert_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            event_type=event_type,
+            data=upsert_data,
+            bot=bot,
+            user=user
+        )
+
+        upserted_data = list(CognitionData.objects(bot=bot, collection=collection_name))
+
+        assert result["message"] == "Upsert complete!"
+        assert len(upserted_data) == 2
+
+        inserted_record = next((item for item in upserted_data if item.data["id"] == "1"), None)
+        assert inserted_record is not None
+        assert inserted_record.data["item"] == "Juice"
+        assert inserted_record.data["price"] == "2.50"
+        assert inserted_record.data["quantity"] == "10"
+
+        updated_record = next((item for item in upserted_data if item.data["id"] == "2"), None)
+        assert updated_record is not None
+        assert updated_record.data["item"] == "Milk"
+        assert updated_record.data["price"] == "3.00"  # Updated price
+        assert updated_record.data["quantity"] == "5"
+
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+    @patch.object(LLMProcessor, "__create_collection__", autospec=True)
+    @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+    @patch.object(litellm, "aembedding", autospec=True)
+    async def test_upsert_data_field_update_success(self, mock_embedding, mock_collection_upsert, mock_create_collection,
+                                                 mock_collection_exists):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = 'id'
+        event_type = 'field_update'
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        dummy_data_one = {
+            "id": "1",
+            "item": "Juice",
+            "price": "2.80",
+            "quantity": "56"
+        }
+        existing_document = CognitionData(
+            data=dummy_data_one,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        existing_document.save()
+
+        dummy_data_two = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "12"
+        }
+        existing_document = CognitionData(
+            data=dummy_data_two,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        existing_document.save()
+
+        upsert_data = [
+            {"id": 1, "price": "80.50"},
+            {"id": 2, "price": "27.00"}
+        ]
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_collection_exists.return_value = False
+        mock_create_collection.return_value = None
+        mock_collection_upsert.return_value = None
+
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        processor = CognitionDataProcessor()
+
+        result = await processor.upsert_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            event_type=event_type,
+            data=upsert_data,
+            bot=bot,
+            user=user
+        )
+
+        upserted_data = list(CognitionData.objects(bot=bot, collection=collection_name))
+
+        assert result["message"] == "Upsert complete!"
+        assert len(upserted_data) == 2
+
+        inserted_record = next((item for item in upserted_data if item.data["id"] == "1"), None)
+        assert inserted_record is not None
+        assert inserted_record.data["item"] == "Juice"
+        assert inserted_record.data["price"] == "80.50"
+        assert inserted_record.data["quantity"] == "56"
+
+        updated_record = next((item for item in upserted_data if item.data["id"] == "2"), None)
+        assert updated_record is not None
+        assert updated_record.data["item"] == "Milk"
+        assert updated_record.data["price"] == "27.00"  # Updated price
+        assert updated_record.data["quantity"] == "12"
+
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+    @patch.object(LLMProcessor, "__create_collection__", autospec=True)
+    @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+    @patch.object(litellm, "aembedding", autospec=True)
+    async def test_upsert_data_empty_data_list(self, mock_embedding, mock_collection_upsert, mock_create_collection,
+                                               mock_collection_exists):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = 'id'
+        event_type = 'push_menu'
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        dummy_data = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        existing_document = CognitionData(
+            data=dummy_data,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        existing_document.save()
+
+        upsert_data = []
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_collection_exists.return_value = False
+        mock_create_collection.return_value = None
+        mock_collection_upsert.return_value = None
+
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        processor = CognitionDataProcessor()
+        result = await processor.upsert_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            event_type=event_type,
+            data=upsert_data,
+            bot=bot,
+            user=user
+        )
+
+        data = list(CognitionData.objects(bot=bot, collection=collection_name))
+
+        assert result["message"] == "Upsert complete!"
+        assert len(data) == 1
+
+        existing_record = data[0]
+        assert existing_record.data["id"] == "2"
+        assert existing_record.data["item"] == "Milk"
+        assert existing_record.data["price"] == "2.80"
+        assert existing_record.data["quantity"] == "5"
+
+        CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
+        CognitionData.objects(bot=bot, collection=collection_name).delete()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch.object(litellm, "aembedding", autospec=True)
+    @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+    async def test_sync_with_qdrant_success(self, mock_collection_upsert, mock_embedding):
+        bot = "test_bot"
+        user = "test_user"
+        collection_name = "groceries"
+        primary_key_col = "id"
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        document_data = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        document = CognitionData(
+            data=document_data,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        document.save()
+
+        saved_document = None
+        for doc in CognitionData.objects(bot=bot, collection=collection_name):
+            doc_dict = doc.to_mongo().to_dict()
+            if doc_dict.get("data", {}).get("id") == "2":  # Match based on `data.id`
+                saved_document = doc_dict
+                break
+        assert saved_document, "Saved CognitionData document not found"
+        vector_id = saved_document["vector_id"]
+
+        if not isinstance(document, dict):
+            document = document.to_mongo().to_dict()
+
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        mock_collection_upsert.return_value = None
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = CognitionDataProcessor()
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+        await processor.sync_with_qdrant(
+            llm_processor=llm_processor,
+            collection_name=collection_name,
+            bot=bot,
+            document=document,
+            user=user,
+            primary_key_col=primary_key_col
+        )
+
+        mock_embedding.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
+            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
+            api_key="openai_key",
+            num_retries=3
+        )
+        mock_collection_upsert.assert_called_once_with(
+            llm_processor,
+            collection_name,
+            {
+                "points": [
+                    {
+                        "id": vector_id,
+                        "vector": embedding,
+                        "payload": {'id': 2, 'item': 'Milk', 'price': 2.8, 'quantity': 5}
+                    }
+                ]
+            },
+            err_msg="Unable to train FAQ! Contact support"
+        )
+
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch.object(litellm, "aembedding", autospec=True)
+    @patch.object(AioRestClient, "request", autospec=True)
+    async def test_sync_with_qdrant_upsert_failure(self, mock_request, mock_embedding):
+        bot = "test_bot"
+        user = "test_user"
+        collection_name = "groceries"
+        primary_key_col = "id"
+
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
+            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        document_data = {
+            "id": "2",
+            "item": "Milk",
+            "price": "2.80",
+            "quantity": "5"
+        }
+        document = CognitionData(
+            data=document_data,
+            content_type="json",
+            collection=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        document.save()
+        if not isinstance(document, dict):
+            document = document.to_mongo().to_dict()
+
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        mock_request.side_effect = ConnectionError("Failed to connect to Qdrant")
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = CognitionDataProcessor()
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+
+        with pytest.raises(AppException, match="Failed to sync document with Qdrant: Failed to connect to Qdrant"):
+            await processor.sync_with_qdrant(
+                llm_processor=llm_processor,
+                collection_name=collection_name,
+                bot=bot,
+                document=document,
+                user=user,
+                primary_key_col=primary_key_col
+            )
+
+        mock_embedding.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
+            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
+            api_key="openai_key",
+            num_retries=3
+        )
+
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+        LLMSecret.objects.delete()
+
+    def test_get_pydantic_type_int(self):
+        result = CognitionDataProcessor().get_pydantic_type('int')
+        expected = (int, ...)
+        assert result == expected
+
+    def test_get_pydantic_type_float(self):
+        result = CognitionDataProcessor.get_pydantic_type('float')
+        expected = (float, ...)
+        assert result == expected
+
+    def test_get_pydantic_type_invalid(self):
+        with pytest.raises(ValueError, match="Unsupported data type: unknown"):
+            CognitionDataProcessor.get_pydantic_type('unknown')
+
+    def test_validate_event_type_valid(self):
+        processor = CognitionDataProcessor()
+        valid_event_type = list(VaultSyncEventType.__members__.keys())[0]
+        processor._validate_event_type(valid_event_type)
+
+    def test_validate_event_type_invalid(self):
+        processor = CognitionDataProcessor()
+        invalid_event_type = "invalid_event"
+        with pytest.raises(AppException, match="Event type does not exist"):
+            processor._validate_event_type(invalid_event_type)
+
+    def test_validate_collection_exists_valid(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        metadata = [
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True}
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        processor = CognitionDataProcessor()
+        processor._validate_collection_exists(collection_name)
+
+        CognitionSchema.objects(collection_name=collection_name).delete()
+
+    def test_validate_collection_exists_invalid(self):
+        processor = CognitionDataProcessor()
+        invalid_collection_name = "non_existent_collection"
+        with pytest.raises(AppException, match=f"Collection '{invalid_collection_name}' does not exist."):
+            processor._validate_collection_exists(invalid_collection_name)
 
     def test_save_and_validate_success(self):
         bot = 'test_bot'
@@ -8421,34 +9348,34 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         slots = list(processor.get_existing_slots(bot))
         expected = [
-            {'name': 'kairon_action_response', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
+            {'name': 'kairon_action_response', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'order', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'payment', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'flow_reply', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'http_status_code', 'type': 'any', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'image', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'audio', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'video', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'document', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'doc_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'longitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'latitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'date_time', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'category', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'file', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'file_error', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'file_text', 'type': 'text', 'influence_conversation': False, '_has_been_set': False},
-            {'name': 'name', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
+             '_has_been_set': False, 'is_default': True},
+            {'name': 'order', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'payment', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'flow_reply', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'http_status_code', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'image', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
+            {'name': 'audio', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
+            {'name': 'video', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
+            {'name': 'document', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
+            {'name': 'doc_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
+            {'name': 'longitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
+            {'name': 'latitude', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
+            {'name': 'date_time', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': False},
+            {'name': 'category', 'type': 'text', 'influence_conversation': False, '_has_been_set': False, 'is_default': False},
+            {'name': 'file', 'type': 'text', 'influence_conversation': False, '_has_been_set': False, 'is_default': False},
+            {'name': 'file_error', 'type': 'text', 'influence_conversation': False, '_has_been_set': False, 'is_default': False},
+            {'name': 'file_text', 'type': 'text', 'influence_conversation': False, '_has_been_set': False, 'is_default': False},
+            {'name': 'name', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': False},
             {'name': 'priority', 'type': 'categorical', 'values': ['low', 'medium', 'high', '__other__'],
-             'influence_conversation': True, '_has_been_set': False},
+             'influence_conversation': True, '_has_been_set': False, 'is_default': False},
             {'name': 'ticketid', 'type': 'float', 'initial_value': 1.0, 'max_value': 1.0, 'min_value': 0.0,
-             'influence_conversation': True, '_has_been_set': False},
+             'influence_conversation': True, '_has_been_set': False, 'is_default': False},
             {'name': 'age', 'type': 'float', 'max_value': 1.0, 'min_value': 0.0, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'occupation', 'type': 'text', 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'quick_reply', 'type': 'text', 'influence_conversation': True, '_has_been_set': False}
+             '_has_been_set': False, 'is_default': False},
+            {'name': 'occupation', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': False},
+            {'name': 'quick_reply', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True}
         ]
         assert len(slots) == 24
         assert not DeepDiff(slots, expected, ignore_order=True)
@@ -8885,6 +9812,47 @@ class TestMongoProcessor:
         assert validations_added[5].is_required
         assert validations_added[5].slot_set.type == 'custom'
         assert validations_added[5].slot_set.value == "Very Nice!"
+
+    def test_add_number_slot_with_min_max(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+
+        processor.add_slot({"name": "na", "type": "float", "initial_value": 0.2,
+                            "max_value": 0.5, "min_value": 0.1,
+                            "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='na', bot=bot, user=user).get()
+        assert slot['name'] == 'na'
+        assert slot['type'] == "float"
+        assert slot['max_value'] == 0.5
+        assert slot['min_value'] == 0.1
+
+    def test_delete_slot_exist(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+
+        processor.delete_slot(slot_name='na', bot=bot, user=user)
+
+        with pytest.raises(DoesNotExist):
+            Slots.objects(name__iexact='na', bot=bot).get()
+        assert not Entities.objects(name='na', bot=bot, status=True)
+
+    def test_delete_slot_having_slot_mapping_attached_1(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        slot_name = 'na'
+        slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": False}
+        mapping = {"slot": slot_name, 'mapping': {'type': 'from_entity', 'entity': 'name'}}
+        processor.add_slot(slot_value=slot, bot=bot, user=user)
+        processor.add_slot_mapping(mapping, bot, user)
+
+        with pytest.raises(AppException, match="Cannot delete slot without removing its mappings!"):
+            processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
+
+        processor.delete_slot_mapping(slot_name, bot, user)
+        processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
 
     def test_add_form_already_exists(self):
         processor = MongoProcessor()

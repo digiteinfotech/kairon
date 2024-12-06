@@ -106,6 +106,7 @@ class LLMProcessor(LLMBase):
         start_time = time.time()
         embeddings_created = False
         invocation = kwargs.pop('invocation', None)
+        llm_type = kwargs.pop('llm_type', DEFAULT_LLM)
         try:
             query_embedding = await self.get_embedding(query, user, invocation=invocation)
             embeddings_created = True
@@ -114,7 +115,7 @@ class LLMProcessor(LLMBase):
             context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
 
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
-            answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,**kwargs)
+            answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,llm_type = llm_type, **kwargs)
             response = {"content": answer}
         except Exception as e:
             logging.exception(e)
@@ -184,9 +185,12 @@ class LLMProcessor(LLMBase):
             'user': user,
             'invocation': kwargs.get("invocation")
         }
+
+        timeout = Utility.environment['llm'].get('request_timeout', 30)
         http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/completion/{self.llm_type}",
                                                                      request_method="POST",
-                                                                     request_body=body)
+                                                                     request_body=body,
+                                                                     timeout=timeout)
 
         logging.info(f"LLM request completed in {elapsed_time} for bot: {self.bot}")
         if status_code not in [200, 201, 202, 203, 204]:
@@ -202,6 +206,7 @@ class LLMProcessor(LLMBase):
         use_query_prompt = False
         query_prompt = ''
         invocation = kwargs.pop('invocation')
+        llm_type = kwargs.get('llm_type')
         if kwargs.get('query_prompt', {}):
             query_prompt_dict = kwargs.pop('query_prompt')
             query_prompt = query_prompt_dict.get('query_prompt', '')
@@ -221,6 +226,7 @@ class LLMProcessor(LLMBase):
         ]
         if previous_bot_responses:
             messages.extend(previous_bot_responses)
+            query = self.modify_user_message_for_perplexity(query, llm_type, hyperparameters)
         messages.append({"role": "user", "content": f"{context} \n{instructions} \nQ: {query} \nA:"}) if instructions \
             else messages.append({"role": "user", "content": f"{context} \nQ: {query} \nA:"})
         completion, raw_response = await self.__get_completion(messages=messages,
@@ -286,6 +292,21 @@ class LLMProcessor(LLMBase):
                 logging.exception(response['status'].get('error'))
                 if raise_err:
                     raise AppException(err_msg)
+
+    async def __collection_exists__(self, collection_name: Text) -> bool:
+        """Check if a collection exists."""
+        try:
+            response = await AioRestClient().request(
+                http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
+                request_method="GET",
+                headers=self.headers,
+                return_json=True,
+                timeout=5
+            )
+            return response.get('status') == "ok"
+        except Exception as e:
+            logging.info(e)
+            return False
 
     async def __collection_search__(self, collection_name: Text, vector: List, limit: int, score_threshold: float):
         client = AioRestClient()
@@ -379,3 +400,21 @@ class LLMProcessor(LLMBase):
             metadata[llm_type]['properties']['model']['enum'] = models
 
         return metadata
+
+    @staticmethod
+    def modify_user_message_for_perplexity(user_msg: str, llm_type: str, hyperparameters: Dict) -> str:
+        """
+        Modify the user message if the LLM type is 'perplexity' and a search domain filter is provided.
+        :param user_msg: The original user message.
+        :param llm_type: The LLM type to check if it's 'perplexity'.
+        :param hyperparameters: LLM hyperparameters
+        :return: Modified user message.
+        """
+        if llm_type == 'perplexity':
+            search_domain_filter = hyperparameters.get('search_domain_filter')
+            if search_domain_filter:
+                search_domain_filter_str = "|".join(
+                    [domain.strip() for domain in search_domain_filter if domain.strip()]
+                )
+                user_msg = f"{user_msg} inurl:{search_domain_filter_str}"
+        return user_msg
