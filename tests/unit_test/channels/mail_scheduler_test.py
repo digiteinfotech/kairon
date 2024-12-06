@@ -38,7 +38,7 @@ async def test_mail_scheduler_epoch(setup_environment):
     MailScheduler.scheduler = mock_scheduler
 
     # Act
-    MailScheduler.epoch()
+    MailScheduler.schedule_channel_mail_reading()
 
     # Assert
     mock_scheduler.add_job.assert_called()
@@ -80,7 +80,7 @@ async def test_mail_scheduler_epoch_creates_scheduler(setup_environment2):
             patch("apscheduler.schedulers.background.BackgroundScheduler.add_job", autospec=True) as mock_add_job:
         MailScheduler.scheduler = None
 
-        started = MailScheduler.epoch()
+        started = MailScheduler.schedule_channel_mail_reading()
 
         assert started
         assert MailScheduler.scheduler is not None

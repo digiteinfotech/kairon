@@ -25,7 +25,7 @@ from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
-from kairon.shared.channels.mail.data_objects import MailClassificationConfig
+from kairon.shared.channels.mail.processor import MailProcessor
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     EventClass, AGENT_ACCESS
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
@@ -1661,59 +1661,13 @@ async def get_slot_actions(
     return Response(data=llm_models)
 
 
-@router.get("/mail/config", response_model=Response)
-async def get_all_mail_configs(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+
+@router.get("/mail_channel/logs", response_model=Response)
+async def get_action_server_logs(start_idx: int = 0, page_size: int = 10,
+                                 current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                               scopes=TESTER_ACCESS)):
     """
-    Fetches mail config
+    Retrieves mail channel related logs for the bot.
     """
-    data = MailClassificationConfig.objects(bot=current_user.get_bot(), status=True)
-    formatted_data = [
-        {key: value for key, value in item.to_mongo().items() if key not in {"_id", "user"}}
-        for item in data
-    ]
-
-    return {"data": formatted_data}
-
-
-
-@router.post("/mail/config", response_model=Response)
-async def set_mail_config(
-        request_data: MailConfigRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Applies the mail config
-    """
-    request_dict = request_data.dict()
-    MailClassificationConfig.create_doc(**request_dict, bot=current_user.get_bot(), user=current_user.get_user())
-    return {"message": "Config applied!"}
-
-
-@router.put("/mail/config", response_model=Response)
-async def update_mail_config(
-        request_data: MailConfigRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    update the mail config
-    """
-    request_dict = request_data.dict()
-    MailClassificationConfig.update_doc(**request_dict, bot=current_user.get_bot())
-    return {"message": "Config updated!"}
-
-
-
-@router.delete("/mail/config/{intent}", response_model=Response)
-async def del_soft_mail_config(
-        intent: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    delete the mail config
-    """
-    MailClassificationConfig.soft_delete_doc(current_user.get_bot(), intent)
-    return {"message": "Config deleted!"}
-
-
-
+    data = MailProcessor.get_log(current_user.get_bot(), start_idx, page_size)
+    return Response(data=data)
