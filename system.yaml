@@ -236,11 +236,8 @@ properties:
 
 core:
   components:
-    - custom.ner.SpacyPatternNER
-    - custom.fallback.FallbackIntentFilter
     - kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer
-    - kairon.shared.nlu.classifier.openai.OpenAIClassifier
-    - kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
+    - kairon.nlu.LLMClassifier
   policies:
     - kairon.shared.rule_policy.RulePolicy
   deprecated-components:

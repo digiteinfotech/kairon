@@ -1,6 +1,3 @@
-import time
-
-import ujson as json
 import logging
 import re
 import time
