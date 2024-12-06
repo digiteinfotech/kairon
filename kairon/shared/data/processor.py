@@ -1675,6 +1675,7 @@ class MongoProcessor:
                 bot,
                 user,
                 raise_exception_if_exists=False,
+                is_default = True
             )
 
         for slot in [s for s in KaironSystemSlots if s.value not in non_conversational_slots]:
@@ -1688,6 +1689,7 @@ class MongoProcessor:
                 bot,
                 user,
                 raise_exception_if_exists=False,
+                is_default=True
             )
 
     def fetch_slots(self, bot: Text, status=True):
@@ -3407,6 +3409,7 @@ class MongoProcessor:
             bot,
             user,
             raise_exception_if_exists=False,
+            is_default=True
         )
 
         return id
@@ -3469,6 +3472,7 @@ class MongoProcessor:
             bot,
             user,
             raise_exception_if_exists=False,
+            is_default=True
         )
 
         return id
@@ -4728,7 +4732,7 @@ class MongoProcessor:
             action.pop("timestamp")
             yield action
 
-    def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
+    def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True, is_default = False):
         """
         Adds slot if it doesn't exist, updates slot if it exists
         :param slot_value: slot data dict
@@ -4766,6 +4770,7 @@ class MongoProcessor:
             slot.max_value = slot_value.get("max_value")
             slot.min_value = slot_value.get("min_value")
 
+        slot.is_default = is_default
         slot.user = user
         slot.bot = bot
         slot_id = slot.save().id.__str__()
@@ -5264,9 +5269,7 @@ class MongoProcessor:
         :param status: active or inactive, default is active
         :return: list of slots
         """
-        excluded_slots = list(KaironSystemSlots)
-        query = Q(bot=bot, status=True) & Q(name__nin=excluded_slots)
-        for slot in Slots.objects(query):
+        for slot in Slots.objects(bot=bot, status=True):
             slot = slot.to_mongo().to_dict()
             slot.pop("bot")
             slot.pop("user")
