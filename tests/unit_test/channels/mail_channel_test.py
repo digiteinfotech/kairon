@@ -6,8 +6,11 @@ import pytest
 from imap_tools import MailMessage
 
 from mongoengine import connect, disconnect
+from uuid6 import uuid7
 
 from kairon import Utility
+from kairon.shared.channels.mail.data_objects import MailResponseLog, MailChannelStateData
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
 Utility.load_system_metadata()
@@ -16,243 +19,48 @@ from kairon.shared.account.data_objects import Bot, Account
 from kairon.shared.channels.mail.constants import MailConstants
 from kairon.shared.channels.mail.processor import MailProcessor
 from kairon.shared.chat.data_objects import Channels
-from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.data_objects import BotSettings
 
-from kairon.shared.channels.mail.data_objects import MailClassificationConfig
 from kairon.exceptions import AppException
 from kairon.shared.constants import ChannelTypes
 
+
+bot_data_created = False
 
 
 class TestMailChannel:
     @pytest.fixture(autouse=True, scope='class')
     def setup(self):
+        global bot_data_created
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
-
+        a = Account.objects.create(name="mail_channel_test_user_acc", user="mail_channel_test_user_acc")
+        bot = Bot.objects.create(name="mail_channel_test_bot", user="mail_channel_test_user_acc", status=True,
+                                 account=a.id)
+        pytest.mail_test_bot = str(bot.id)
+        BotSettings(bot=pytest.mail_test_bot, user="mail_channel_test_user_acc").save()
         yield
 
-        self.remove_basic_data()
-        disconnect()
-
-    def create_basic_data(self):
-        a = Account.objects.create(name="mail_channel_test_user_acc", user="mail_channel_test_user_acc")
-        bot = Bot.objects.create(name="mail_channel_test_bot", user="mail_channel_test_user_acc", status=True, account=a.id)
-        pytest.mail_test_bot = str(bot.id)
-        b = BotSettings.objects.create(bot=pytest.mail_test_bot, user="mail_channel_test_user_acc")
-        # b.llm_settings.enable_faq = True
-        b.save()
-        ChatDataProcessor.save_channel_config(
-            {
-                "connector_type": ChannelTypes.MAIL.value,
-                "config": {
-                    'email_account': "mail_channel_test_user_acc@testuser.com",
-                    'email_password': "password",
-                    'imap_server': "imap.testuser.com",
-                    'smtp_server': "smtp.testuser.com",
-                    'smtp_port': "587",
-                }
-            },
-            pytest.mail_test_bot,
-            user="mail_channel_test_user_acc",
-        )
-
-    def remove_basic_data(self):
-        MailClassificationConfig.objects.delete()
         BotSettings.objects(user="mail_channel_test_user_acc").delete()
         Bot.objects(user="mail_channel_test_user_acc").delete()
         Account.objects(user="mail_channel_test_user_acc").delete()
         Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
 
-    @patch("kairon.shared.utils.Utility.execute_http_request")
-    def test_create_doc_new_entry(self, execute_http_request):
-        self.create_basic_data()
-        execute_http_request.return_value = {"success": True}
-        print(pytest.mail_test_bot)
-        doc = MailClassificationConfig.create_doc(
-            intent="greeting",
-            entities=["user_name"],
-            subjects=["hello"],
-            classification_prompt="Classify this email as a greeting.",
-            reply_template="Hi, how can I help?",
-            bot=pytest.mail_test_bot,
-            user="mail_channel_test_user_acc"
-        )
-        assert doc.intent == "greeting"
-        assert doc.bot == pytest.mail_test_bot
-        assert doc.status is True
-        MailClassificationConfig.objects.delete()
+
+        disconnect()
 
 
 
-    def test_create_doc_existing_active_entry(self):
-        MailClassificationConfig.create_doc(
-            intent="greeting",
-            entities=["user_name"],
-            subjects=["hello"],
-            classification_prompt="Classify this email as a greeting.",
-            reply_template="Hi, how can I help?",
-            bot=pytest.mail_test_bot,
-            user="mail_channel_test_user_acc"
-        )
-        with pytest.raises(AppException, match=r"Mail configuration already exists for intent \[greeting\]"):
-            MailClassificationConfig.create_doc(
-                intent="greeting",
-                entities=["user_email"],
-                subjects=["hi"],
-                classification_prompt="Another greeting.",
-                reply_template="Hello!",
-                bot=pytest.mail_test_bot,
-                user="mail_channel_test_user_acc"
-            )
-        MailClassificationConfig.objects.delete()
 
-
-
-    def test_get_docs(self):
-        MailClassificationConfig.create_doc(
-            intent="greeting",
-            entities=["user_name"],
-            subjects=["hello"],
-            classification_prompt="Classify this email as a greeting.",
-            reply_template="Hi, how can I help?",
-            bot=pytest.mail_test_bot,
-            user="mail_channel_test_user_acc"
-        )
-        MailClassificationConfig.create_doc(
-            intent="goodbye",
-            entities=["farewell"],
-            subjects=["bye"],
-            classification_prompt="Classify this email as a goodbye.",
-            reply_template="Goodbye!",
-            bot=pytest.mail_test_bot,
-            user="mail_channel_test_user_acc"
-        )
-        docs = MailClassificationConfig.get_docs(bot=pytest.mail_test_bot)
-        assert len(docs) == 2
-        assert docs[0]["intent"] == "greeting"
-        assert docs[1]["intent"] == "goodbye"
-        MailClassificationConfig.objects.delete()
-
-
-
-    def test_get_doc(self):
-        MailClassificationConfig.create_doc(
-            intent="greeting",
-            entities=["user_name"],
-            subjects=["hello"],
-            classification_prompt="Classify this email as a greeting.",
-            reply_template="Hi, how can I help?",
-            bot=pytest.mail_test_bot,
-            user="mail_channel_test_user_acc"
-        )
-        doc = MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
-        assert doc["intent"] == "greeting"
-        assert doc["classification_prompt"] == "Classify this email as a greeting."
-        MailClassificationConfig.objects.delete()
-
-
-    def test_get_doc_nonexistent(self):
-        """Test retrieving a non-existent document."""
-        with pytest.raises(AppException, match=r"Mail configuration does not exist for intent \[greeting\]"):
-            MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
-
-        MailClassificationConfig.objects.delete()
-
-
-    def test_delete_doc(self):
-        """Test deleting a document."""
-        MailClassificationConfig.create_doc(
-            intent="greeting",
-            entities=["user_name"],
-            subjects=["hello"],
-            classification_prompt="Classify this email as a greeting.",
-            reply_template="Hi, how can I help?",
-            bot=pytest.mail_test_bot,
-            user="mail_channel_test_user_acc"
-        )
-        MailClassificationConfig.delete_doc(bot=pytest.mail_test_bot, intent="greeting")
-        with pytest.raises(AppException, match=r"Mail configuration does not exist for intent \[greeting\]"):
-            MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
-
-        MailClassificationConfig.objects.delete()
-
-
-    def test_soft_delete_doc(self):
-        MailClassificationConfig.create_doc(
-            intent="greeting",
-            entities=["user_name"],
-            subjects=["hello"],
-            classification_prompt="Classify this email as a greeting.",
-            reply_template="Hi, how can I help?",
-            bot=pytest.mail_test_bot,
-            user="mail_channel_test_user_acc"
-        )
-        MailClassificationConfig.soft_delete_doc(bot=pytest.mail_test_bot, intent="greeting")
-        with pytest.raises(AppException, match=r"Mail configuration does not exist for intent \[greeting\]"):
-            MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
-
-        MailClassificationConfig.objects.delete()
-
-
-
-    def test_update_doc(self):
-        MailClassificationConfig.create_doc(
-            intent="greeting",
-            entities=["user_name"],
-            subjects=["hello"],
-            classification_prompt="Classify this email as a greeting.",
-            reply_template="Hi, how can I help?",
-            bot=pytest.mail_test_bot,
-            user="mail_channel_test_user_acc"
-        )
-        MailClassificationConfig.update_doc(
-            bot=pytest.mail_test_bot,
-            intent="greeting",
-            entities=["user_name", "greeting"],
-            reply_template="Hello there!"
-        )
-        doc = MailClassificationConfig.get_doc(bot=pytest.mail_test_bot, intent="greeting")
-        assert doc["entities"] == ["user_name", "greeting"]
-        assert doc["reply_template"] == "Hello there!"
-
-        MailClassificationConfig.objects.delete()
-
-    def test_update_doc_invalid_key(self):
-        MailClassificationConfig.create_doc(
-            intent="greeting",
-            entities=["user_name"],
-            subjects=["hello"],
-            classification_prompt="Classify this email as a greeting.",
-            reply_template="Hi, how can I help?",
-            bot=pytest.mail_test_bot,
-            user="mail_channel_test_user_acc"
-        )
-        with pytest.raises(AppException, match=r"Invalid  key \[invalid_key\] provided for updating mail config"):
-            MailClassificationConfig.update_doc(
-                bot=pytest.mail_test_bot,
-                intent="greeting",
-                invalid_key="value"
-            )
-
-        MailClassificationConfig.objects.delete()
-
-
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.channels.mail.processor.MailBox")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.execute_http_request")
-    def test_login_imap(self, execute_http_req, mock_get_channel_config, mock_mailbox, mock_llm_processor):
-        self.create_basic_data()
+    def test_login_imap(self, execute_http_req, mock_get_channel_config, mock_mailbox):
         execute_http_req.return_value = {"success": True}
         mock_mailbox_instance = MagicMock()
         mock_mailbox.return_value = mock_mailbox_instance
         mock_mailbox_instance.login.return_value = ("OK", ["Logged in"])
         mock_mailbox_instance._simple_command.return_value = ("OK", ["Logged in"])
         mock_mailbox_instance.select.return_value = ("OK", ["INBOX"])
-
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -264,22 +72,18 @@ class TestMailChannel:
 
         bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
-
         mp.login_imap()
 
         mock_get_channel_config.assert_called_once_with(ChannelTypes.MAIL, bot_id, False)
         mock_mailbox.assert_called_once_with("imap.testuser.com")
         mock_mailbox_instance.login.assert_called_once_with("mail_channel_test_user_acc@testuser.com", "password")
-        mock_llm_processor.assert_called_once_with(bot_id, mp.llm_type)
 
 
 
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.channels.mail.processor.MailBox")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.execute_http_request")
-    def test_login_imap_logout(self,execute_http_request, mock_get_channel_config, mock_mailbox, mock_llm_processor):
-        self.create_basic_data()
+    def test_login_imap_logout(self,execute_http_request, mock_get_channel_config, mock_mailbox):
         execute_http_request.return_value = {"success": True}
         mock_mailbox_instance = MagicMock()
         mock_mailbox.return_value = mock_mailbox_instance
@@ -287,8 +91,6 @@ class TestMailChannel:
         mock_mailbox_instance._simple_command.return_value = ("OK", ["Logged in"])
         mock_mailbox_instance.select.return_value = ("OK", ["INBOX"])
 
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -308,15 +110,11 @@ class TestMailChannel:
 
 
     @patch("kairon.shared.channels.mail.processor.smtplib.SMTP")
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    def test_login_smtp(self, mock_get_channel_config, mock_llm_processor, mock_smtp):
+    def test_login_smtp(self, mock_get_channel_config, mock_smtp):
         # Arrange
         mock_smtp_instance = MagicMock()
         mock_smtp.return_value = mock_smtp_instance
-
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -339,14 +137,10 @@ class TestMailChannel:
 
 
     @patch("kairon.shared.channels.mail.processor.smtplib.SMTP")
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    def test_logout_smtp(self, mock_get_channel_config, mock_llm_processor, mock_smtp):
+    def test_logout_smtp(self, mock_get_channel_config, mock_smtp):
         mock_smtp_instance = MagicMock()
         mock_smtp.return_value = mock_smtp_instance
-
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -366,16 +160,23 @@ class TestMailChannel:
         mock_smtp_instance.quit.assert_called_once()
         assert mp.smtp is None
 
+
+
     @patch("kairon.shared.channels.mail.processor.smtplib.SMTP")
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @pytest.mark.asyncio
-    async def test_send_mail(self, mock_get_channel_config, mock_llm_processor, mock_smtp):
+    async def test_send_mail(self, mock_get_channel_config, mock_smtp):
         mock_smtp_instance = MagicMock()
         mock_smtp.return_value = mock_smtp_instance
 
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
+        mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
+                                            sender_id="recipient@test.com",
+                                            user="mail_channel_test_user_acc",
+                                            subject="Test Subject",
+                                            body="Test Body",
+                                            )
+        mail_response_log.save()
+        mail_response_log.save()
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -385,12 +186,13 @@ class TestMailChannel:
                 'smtp_port': 587
             }
         }
-
         bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
         mp.login_smtp()
 
-        await mp.send_mail("recipient@test.com", "Test Subject", "Test Body")
+        await mp.send_mail("recipient@test.com", "Test Subject", "Test Body", mail_response_log.id)
+
+        MailResponseLog.objects().delete()
 
         mock_smtp_instance.sendmail.assert_called_once()
         assert mock_smtp_instance.sendmail.call_args[0][0] == "mail_channel_test_user_acc@testuser.com"
@@ -399,10 +201,9 @@ class TestMailChannel:
         assert "Test Body" in mock_smtp_instance.sendmail.call_args[0][2]
 
 
-    @patch("kairon.shared.channels.mail.processor.MailClassificationConfig")
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
+
     @patch("kairon.shared.channels.mail.processor.ChatDataProcessor.get_channel_config")
-    def test_process_mail(self,  mock_get_channel_config, llm_processor, mock_mail_classification_config):
+    def test_process_mail(self,  mock_get_channel_config):
         mock_get_channel_config.return_value = {
             'config': {
                 'email_account': "mail_channel_test_user_acc@testuser.com",
@@ -411,142 +212,41 @@ class TestMailChannel:
             }
         }
 
+        mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
+                                            sender_id="recipient@test.com",
+                                            user="mail_channel_test_user_acc",
+                                            subject="Test Subject",
+                                            body="Test Body",
+                                            )
+        mail_response_log.save()
+
         bot_id = pytest.mail_test_bot
         mp = MailProcessor(bot=bot_id)
-        mp.mail_configs_dict = {
-            "greeting": MagicMock(reply_template="Hello {name}, {bot_response}")
-        }
 
         rasa_chat_response = {
             "slots": ["name: John Doe"],
             "response": [{"text": "How can I help you today?"}]
         }
+        result = mp.process_mail( rasa_chat_response, mail_response_log.id)
+        assert result == MailConstants.DEFAULT_TEMPLATE.format(bot_response="How can I help you today?")
 
-        result = mp.process_mail("greeting", rasa_chat_response)
 
+        rasa_chat_response = {
+            "slots": ["name: John Doe"],
+            "response": [{"text": "How can I help you today?"}]
+        }
+        mp.mail_template = "Hello {name}, {bot_response}"
+        result = mp.process_mail(rasa_chat_response, mail_response_log.id)
+        MailResponseLog.objects().delete()
         assert result == "Hello John Doe, How can I help you today?"
-
-        rasa_chat_response = {
-            "slots": ["name: John Doe"],
-            "response": [{"text": "How can I help you today?"}]
-        }
-        mp.mail_configs_dict = {}  # No template for the intent
-        result = mp.process_mail("greeting", rasa_chat_response)
-        assert result == MailConstants.DEFAULT_TEMPLATE.format(name="John Doe", bot_response="How can I help you today?")
-
-
-
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
-    @patch("kairon.shared.channels.mail.processor.ChatDataProcessor.get_channel_config")
-    @patch("kairon.shared.channels.mail.processor.BotSettings.objects")
-    @patch("kairon.shared.channels.mail.processor.MailClassificationConfig.objects")
-    @patch("kairon.shared.channels.mail.processor.Bot.objects")
-    @pytest.mark.asyncio
-    async def test_classify_messages(self, mock_bot_objects, mock_mail_classification_config_objects,
-                                     mock_bot_settings_objects, mock_get_channel_config, mock_llm_processor):
-        mock_get_channel_config.return_value = {
-            'config': {
-                'email_account': "mail_channel_test_user_acc@testuser.com",
-                'email_password': "password",
-                'imap_server': "imap.testuser.com",
-                'llm_type': "openai",
-                'hyperparameters': MailConstants.DEFAULT_HYPERPARAMETERS,
-                'system_prompt': "Test system prompt"
-            }
-        }
-
-        mock_bot_settings = MagicMock()
-        mock_bot_settings.llm_settings = {'enable_faq': True}
-        mock_bot_settings_objects.get.return_value = mock_bot_settings
-
-        mock_bot = MagicMock()
-        mock_bot_objects.get.return_value = mock_bot
-
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
-
-        future = asyncio.Future()
-        future.set_result({"content": '[{"intent": "greeting", "entities": {"name": "John Doe"}, "mail_id": "123", "subject": "Hello"}]'})
-        mock_llm_processor_instance.predict.return_value = future
-
-        bot_id = pytest.mail_test_bot
-        mp = MailProcessor(bot=bot_id)
-
-        messages = [{"mail_id": "123", "subject": "Hello", "body": "Hi there"}]
-
-        result = await mp.classify_messages(messages)
-
-        assert result == [{"intent": "greeting", "entities": {"name": "John Doe"}, "mail_id": "123", "subject": "Hello"}]
-        mock_llm_processor_instance.predict.assert_called_once()
-
-
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
-    def test_get_context_prompt(self, llm_processor):
-        bot_id = pytest.mail_test_bot
-        mail_configs = [
-            {
-                'intent': 'greeting',
-                'entities': 'name',
-                'subjects': 'Hello',
-                'classification_prompt': 'If the email says hello, classify it as greeting'
-            },
-            {
-                'intent': 'farewell',
-                'entities': 'name',
-                'subjects': 'Goodbye',
-                'classification_prompt': 'If the email says goodbye, classify it as farewell'
-            }
-        ]
-
-        mp = MailProcessor(bot=bot_id)
-        mp.mail_configs = mail_configs
-
-        expected_context_prompt = (
-            "intent: greeting \n"
-            "entities: name \n"
-            "\nclassification criteria: \n"
-            "subjects: Hello \n"
-            "rule: If the email says hello, classify it as greeting \n\n\n"
-            "intent: farewell \n"
-            "entities: name \n"
-            "\nclassification criteria: \n"
-            "subjects: Goodbye \n"
-            "rule: If the email says goodbye, classify it as farewell \n\n\n"
-        )
-
-        context_prompt = mp.get_context_prompt()
-
-        assert context_prompt == expected_context_prompt
-
-
-    def test_extract_jsons_from_text(self):
-        text = '''
-        Here is some text with JSON objects.
-        {"key1": "value1", "key2": "value2"}
-        Some more text.
-        [{"key3": "value3"}, {"key4": "value4"}]
-        And some final text.
-        '''
-        expected_output = [
-            {"key1": "value1", "key2": "value2"},
-            [{"key3": "value3"}, {"key4": "value4"}]
-        ]
-
-        result = MailProcessor.extract_jsons_from_text(text)
-
-        assert result == expected_output
-
-
-
 
 
     @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
     @patch("kairon.shared.channels.mail.processor.MailBox")
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @pytest.mark.asyncio
-    async def test_read_mails(self, mock_get_channel_config, mock_llm_processor,
+    async def test_read_mails(self, mock_get_channel_config,
                                   mock_mailbox, mock_process_message_task,
                                  mock_logout_imap):
         bot_id = pytest.mail_test_bot
@@ -556,13 +256,8 @@ class TestMailChannel:
                 'email_account': "mail_channel_test_user_acc@testuser.com",
                 'email_password': "password",
                 'imap_server': "imap.testuser.com",
-                'llm_type': "openai",
-                'hyperparameters': MailConstants.DEFAULT_HYPERPARAMETERS,
             }
         }
-
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
 
 
         mock_mailbox_instance = MagicMock()
@@ -594,10 +289,9 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
     @patch("kairon.shared.channels.mail.processor.MailBox")
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @pytest.mark.asyncio
-    async def test_read_mails_no_messages(self, mock_get_channel_config, mock_llm_processor,
+    async def test_read_mails_no_messages(self, mock_get_channel_config,
                                               mock_mailbox, mock_process_message_task,
                                              mock_logout_imap):
         bot_id = pytest.mail_test_bot
@@ -607,13 +301,8 @@ class TestMailChannel:
                 'email_account': "mail_channel_test_user_acc@testuser.com",
                 'email_password': "password",
                 'imap_server': "imap.testuser.com",
-                'llm_type': "openai",
-                'hyperparameters': MailConstants.DEFAULT_HYPERPARAMETERS,
-            }
+                }
         }
-
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
 
 
         mock_mailbox_instance = MagicMock()
@@ -631,71 +320,56 @@ class TestMailChannel:
 
 
 
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    @pytest.mark.asyncio
-    async def test_classify_messages_invalid_llm_response(self, mock_get_channel_config, mock_llm_processor):
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
-
-        future = asyncio.Future()
-        future.set_result({"content": 'invalid json content'})
-        mock_llm_processor_instance.predict.return_value = future
-
-        mp = MailProcessor(bot=pytest.mail_test_bot)
-        messages = [{"mail_id": "123", "subject": "Hello", "body": "Hi there"}]
-
-
-        ans = await mp.classify_messages(messages)
-        assert not ans
-
-
-    @patch("kairon.shared.channels.mail.processor.MailProcessor.classify_messages")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.login_smtp")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_smtp")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.send_mail")
     @patch("kairon.chat.utils.ChatUtils.process_messages_via_bot")
-    @patch("kairon.shared.channels.mail.processor.LLMProcessor")
     @pytest.mark.asyncio
-    async def test_process_messages(self, mock_llm_processor, mock_process_messages_via_bot, mock_send_mail, mock_logout_smtp, mock_login_smtp,
-                                    mock_classify_messages):
+    async def test_process_messages(self, mock_process_messages_via_bot, mock_send_mail, mock_logout_smtp, mock_login_smtp, mock_get_channel_config):
+
+        mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
+                                            sender_id="recipient@test.com",
+                                            user="mail_channel_test_user_acc",
+                                            subject="Test Subject",
+                                            body="Test Body",
+                                            )
+        mail_response_log.save()
 
 
-        # Arrange
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'imap_server': "imap.testuser.com",
+            }
+        }
+
         bot = pytest.mail_test_bot
-        batch = [{"mail_id": "test@example.com", "subject": "Test Subject", "date": "2023-10-10", "body": "Test Body"}]
-        mock_classify_messages.return_value = [{
-            "intent": "test_intent",
-            "entities": {"entity_name": "value"},
-            "mail_id": "test@example.com",
-            "subject": "Test Subject",
-            "name": "spandan"
-        }]
+        batch = [{"mail_id": "test@example.com", "subject": "Test Subject", "date": "2023-10-10", "body": "Test Body", "log_id": str(mail_response_log.id)}]
+
         mock_process_messages_via_bot.return_value = [{
             "slots": ["name: spandan"],
             "response": [{"text": "Test Response"}]
         }]
 
-        mock_llm_processor_instance = MagicMock()
-        mock_llm_processor.return_value = mock_llm_processor_instance
-
-        # Act
         await MailProcessor.process_messages(bot, batch)
 
         # Assert
-        mock_classify_messages.assert_called_once_with(batch)
         mock_process_messages_via_bot.assert_called_once()
         mock_login_smtp.assert_called_once()
         mock_send_mail.assert_called_once()
         mock_logout_smtp.assert_called_once()
+        MailResponseLog.objects().delete()
 
-    @patch("kairon.shared.channels.mail.processor.MailProcessor.classify_messages")
+
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.login_smtp")
     @pytest.mark.asyncio
-    async def test_process_messages_exception(self, mock_classify_messages):
+    async def test_process_messages_exception(self, mock_exc):
         # Arrange
         bot = "test_bot"
         batch = [{"mail_id": "test@example.com", "subject": "Test Subject", "date": "2023-10-10", "body": "Test Body"}]
-        mock_classify_messages.side_effect = Exception("Test Exception")
+        mock_exc.side_effect = Exception("Test Exception")
 
         # Act & Assert
         with pytest.raises(AppException):
@@ -734,7 +408,87 @@ class TestMailChannel:
 
 
 
+    def test_get_mail_channel_state_data_existing_state(self):
+        bot_id = pytest.mail_test_bot
+        mock_state = MagicMock()
+
+        with patch.object(MailChannelStateData, 'objects') as mock_objects:
+            mock_objects.return_value.first.return_value = mock_state
+            result = MailProcessor.get_mail_channel_state_data(bot_id)
+
+            assert result == mock_state
+            mock_objects.return_value.first.assert_called_once()
+
+    def test_get_mail_channel_state_data_new_state(self):
+        bot_id = pytest.mail_test_bot
+        mock_state = MagicMock()
+        mock_state.bot = bot_id
+        mock_state.state = "some_state"
+        mock_state.timestamp = "some_timestamp"
+
+        with patch.object(MailChannelStateData, 'objects') as mock_objects:
+            mock_objects.return_value.first.return_value = None
+            with patch.object(MailChannelStateData, 'save', return_value=None) as mock_save:
+                with patch('kairon.shared.channels.mail.data_objects.MailChannelStateData', return_value=mock_state):
+                    result = MailProcessor.get_mail_channel_state_data(bot_id)
+
+                    assert result.bot == mock_state.bot
 
 
+    def test_get_mail_channel_state_data_exception(self):
+        bot_id = "test_bot"
+
+        with patch.object(MailChannelStateData, 'objects') as mock_objects:
+            mock_objects.side_effect = Exception("Test Exception")
+            with pytest.raises(AppException) as excinfo:
+                MailProcessor.get_mail_channel_state_data(bot_id)
+
+            assert str(excinfo.value) == "Test Exception"
 
 
+    def test_get_log(self):
+        bot_id = "test_bot"
+        offset = 0
+        limit = 10
+
+        mock_log = MagicMock()
+        mock_log.to_mongo.return_value.to_dict.return_value = {
+            '_id': 'some_id',
+            'bot': bot_id,
+            'user': 'test_user',
+            'timestamp': 1234567890,
+            'subject': 'Test Subject',
+            'body': 'Test Body',
+            'status': 'SUCCESS'
+        }
+
+        with patch.object(MailResponseLog, 'objects') as mock_objects:
+            mock_objects.return_value.count.return_value = 1
+            mock_objects.return_value.order_by.return_value.skip.return_value.limit.return_value = [mock_log]
+
+            result = MailProcessor.get_log(bot_id, offset, limit)
+
+            assert result['count'] == 1
+            assert len(result['logs']) == 1
+            assert result['logs'][0]['timestamp'] == 1234567890
+            assert result['logs'][0]['subject'] == 'Test Subject'
+            assert result['logs'][0]['body'] == 'Test Body'
+            assert result['logs'][0]['status'] == 'SUCCESS'
+
+    def test_get_log_exception(self):
+        bot_id = "test_bot"
+        offset = 0
+        limit = 10
+
+        with patch.object(MailResponseLog, 'objects') as mock_objects:
+            mock_objects.side_effect = Exception("Test Exception")
+
+            with pytest.raises(AppException) as excinfo:
+                MailProcessor.get_log(bot_id, offset, limit)
+
+            assert str(excinfo.value) == "Test Exception"
+
+        BotSettings.objects(user="mail_channel_test_user_acc").delete()
+        Bot.objects(user="mail_channel_test_user_acc").delete()
+        Account.objects(user="mail_channel_test_user_acc").delete()
+        Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()

@@ -1,4 +1,6 @@
 import asyncio
+import time
+
 from loguru import logger
 from pydantic.schema import timedelta
 from pydantic.validators import datetime
@@ -6,7 +8,7 @@ from imap_tools import MailBox, AND
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.channels.mail.constants import MailConstants
-from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus
+from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus, MailChannelStateData
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
@@ -24,17 +26,29 @@ class MailProcessor:
         self.intent = self.config.get('intent')
         self.mail_template = self.config.get('mail_template', MailConstants.DEFAULT_TEMPLATE)
         self.bot_settings = BotSettings.objects(bot=self.bot).get()
+        self.state = MailProcessor.get_mail_channel_state_data(bot)
         bot_info = Bot.objects.get(id=bot)
         self.account = bot_info.account
         self.mailbox = None
         self.smtp = None
 
-    @staticmethod
-    def update_event_id(bot, event_id):
-        channel_config = Channels.objects(bot=bot, connector_type=ChannelTypes.MAIL).get()
-        channel_config.config['event_id'] = event_id
-        channel_config.save()
+    def update_event_id(self, event_id):
+        self.state.event_id = event_id
+        self.state.save()
 
+    @staticmethod
+    def get_mail_channel_state_data(bot):
+        """
+        Get mail channel state data
+        """
+        try:
+            state = MailChannelStateData.objects(bot=bot).first()
+            if not state:
+                state = MailChannelStateData(bot=bot)
+                state.save()
+            return state
+        except Exception as e:
+            raise AppException(str(e))
 
     def login_imap(self):
         if self.mailbox:
@@ -107,7 +121,7 @@ class MailProcessor:
             mail_log.status = MailStatus.FAILED.value
             mail_log.save()
 
-    def process_mail(self, rasa_chat_response: dict):
+    def process_mail(self, rasa_chat_response: dict, log_id: str):
         slots = rasa_chat_response.get('slots', [])
         slots = {key.strip(): value.strip() for slot_str in slots
                     for split_result in [slot_str.split(":", 1)]
@@ -118,7 +132,7 @@ class MailProcessor:
         responses = '<br/><br/>'.join(response.get('text', '') for response in rasa_chat_response.get('response', []))
         slots['bot_response'] = responses
         mail_template = self.mail_template
-        mail_log = MailResponseLog.objects.get(id=slots['log_id'])
+        mail_log = MailResponseLog.objects.get(id=log_id)
         mail_log.responses = rasa_chat_response.get('response', [])
         mail_log.slots = slots
         mail_log.save()
@@ -149,6 +163,7 @@ class MailProcessor:
 
     @staticmethod
     async def process_messages(bot: str, batch: [dict]):
+        logger.info(f"processing messages: {bot}, {batch}")
         """
         Pass messages to bot and send responses
         """
@@ -189,10 +204,10 @@ class MailProcessor:
                                                                 {
                                                                     'channel': ChannelTypes.MAIL.value
                                                                 })
-            logger.info(chat_responses)
+            # logger.info(chat_responses)
 
             for index, response in enumerate(chat_responses):
-                responses[index]['body'] = mp.process_mail(response)
+                responses[index]['body'] = mp.process_mail(response, log_id=batch[index]['log_id'])
 
             mp.login_smtp()
             tasks = [mp.send_mail(**response) for response in responses]
@@ -229,32 +244,36 @@ class MailProcessor:
         - time_shift
 
         """
+        logger.info(f"reading mails for {bot}")
         mp = MailProcessor(bot)
         time_shift = int(mp.config.get('interval', 20 * 60))
         last_read_timestamp = datetime.now() - timedelta(seconds=time_shift)
         messages = []
         is_logged_in = False
-        last_processed_uid = mp.config.get('last_processed_uid', 0)
-        query = f'{last_processed_uid + 1}:*'
+        last_processed_uid = mp.state.last_email_uid
+        query = f'{int(last_processed_uid) + 1}:*'
+        logger.info(query)
         try:
             mp.login_imap()
             is_logged_in = True
-            msgs = mp.mailbox.fetch(mark_seen=False, query=AND(date_gte=last_read_timestamp.date(), uid=query))
+            msgs = mp.mailbox.fetch(AND(date_gte=last_read_timestamp.date(), uid=query), mark_seen=False)
             for msg in msgs:
-                last_processed_uid = msg.uid
+                if int(msg.uid) <= last_processed_uid:
+                    continue
+                last_processed_uid = int(msg.uid)
                 subject = msg.subject
                 sender_id = msg.from_
                 date = msg.date
                 body = msg.text or msg.html or ""
                 #attachments = msg.attachments
-                logger.info(subject, sender_id, date)
+                logger.info(f"reading: {subject}, {sender_id}, {date}")
                 mail_log = MailResponseLog(sender_id = sender_id,
                                             subject = subject,
                                             body = body,
                                             bot = bot,
                                             user = mp.bot_settings.user,
                                             status=MailStatus.Processing.value,
-                                            timestamp = date.now())
+                                            timestamp = time.time())
                 mail_log.save()
                 message_entry = {
                     'mail_id': sender_id,
@@ -266,9 +285,8 @@ class MailProcessor:
                 messages.append(message_entry)
             mp.logout_imap()
 
-            config_obj = Channels.objects(bot=bot, connector_type=ChannelTypes.MAIL).get()
-            config_obj.config['last_processed_uid'] = last_processed_uid
-            config_obj.save()
+            mp.state.last_email_uid = last_processed_uid
+            mp.state.save()
 
             is_logged_in = False
             return messages, mp.bot_settings.user, time_shift
