@@ -533,4 +533,15 @@ def test_scheduled_event_request_dispatch(mock_dispatch_event):
     assert isinstance(args[1], JobEvent)
     assert isinstance(args[0], BackgroundScheduler)
 
+
+@patch('kairon.events.utility.EventUtility.schedule_channel_mail_reading')
+def test_request_epoch(mock_epoch):
+    response = client.get('/api/mail/schedule/test_bot')
+    mock_epoch.assert_called_once()
+    assert response.status_code == 200
+    resp = response.json()
+    assert resp['data'] is None
+    assert resp['success']
+
 os_patch.stop()
+

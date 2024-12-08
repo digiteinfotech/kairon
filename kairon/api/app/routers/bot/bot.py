@@ -25,6 +25,7 @@ from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
+from kairon.shared.channels.mail.processor import MailProcessor
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     EventClass, AGENT_ACCESS
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
@@ -1658,3 +1659,14 @@ async def get_slot_actions(
     llm_models = MongoProcessor.get_slot_mapped_actions(current_user.get_bot(), slot_name)
     return Response(data=llm_models)
 
+
+
+@router.get("/mail_channel/logs", response_model=Response)
+async def get_mail_channel_logs(start_idx: int = 0, page_size: int = 10,
+                                 current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                               scopes=TESTER_ACCESS)):
+    """
+    Retrieves mail channel related logs for the bot.
+    """
+    data = MailProcessor.get_log(current_user.get_bot(), start_idx, page_size)
+    return Response(data=data)

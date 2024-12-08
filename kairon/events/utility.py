@@ -1,9 +1,14 @@
 from typing import Dict, Text
 
+from uuid6 import uuid7
+
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.scheduler.kscheduler import KScheduler
 from kairon.exceptions import AppException
+from kairon.shared.chat.data_objects import Channels
+from kairon.shared.constants import EventClass, ChannelTypes
 from kairon.shared.data.constant import TASK_TYPE
+from loguru import logger
 
 
 class EventUtility:
@@ -32,3 +37,36 @@ class EventUtility:
         KScheduler().update_job(event_class=event_type, event_id=event_id, task_type=TASK_TYPE.EVENT.value,
                                 **request_data)
         return None, 'Scheduled event updated!'
+
+    @staticmethod
+    def schedule_channel_mail_reading(bot: str):
+        from kairon.shared.channels.mail.processor import MailProcessor
+
+        try:
+            mail_processor = MailProcessor(bot)
+            interval = mail_processor.config.get("interval", 60)
+            event_id = mail_processor.state.event_id
+            if event_id:
+                KScheduler().update_job(event_id,
+                                        TASK_TYPE.EVENT,
+                                        f"*/{interval} * * * *",
+                                        EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
+            else:
+                event_id = uuid7().hex
+                mail_processor.update_event_id(event_id)
+                KScheduler().add_job(event_id,
+                                     TASK_TYPE.EVENT,
+                                     f"*/{interval} * * * *",
+                                     EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
+        except Exception as e:
+            raise AppException(f"Failed to schedule mail reading for bot {bot}. Error: {str(e)}")
+
+    @staticmethod
+    def reschedule_all_bots_channel_mail_reading():
+        try:
+            bots = list(Channels.objects(connector_type= ChannelTypes.MAIL.value).distinct("bot"))
+            for bot in bots:
+                logger.info(f"Rescheduling mail reading for bot {bot}")
+                EventUtility.schedule_channel_mail_reading(bot)
+        except Exception as e:
+            raise AppException(f"Failed to reschedule mail reading events. Error: {str(e)}")
