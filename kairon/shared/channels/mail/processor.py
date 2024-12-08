@@ -9,7 +9,6 @@ from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.channels.mail.constants import MailConstants
 from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus, MailChannelStateData
-from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.data_objects import BotSettings
@@ -105,16 +104,17 @@ class MailProcessor:
 
     async def send_mail(self, to: str, subject: str, body: str, log_id: str):
         try:
-            email_account = self.config['email_account']
-            msg = MIMEMultipart()
-            msg['From'] = email_account
-            msg['To'] = to
-            msg['Subject'] = subject
-            msg.attach(MIMEText(body, 'html'))
-            self.smtp.sendmail(email_account, to, msg.as_string())
-            mail_log = MailResponseLog.objects.get(id=log_id)
-            mail_log.status = MailStatus.SUCCESS.value
-            mail_log.save()
+            if body and len(body) > 0:
+                email_account = self.config['email_account']
+                msg = MIMEMultipart()
+                msg['From'] = email_account
+                msg['To'] = to
+                msg['Subject'] = subject
+                msg.attach(MIMEText(body, 'html'))
+                self.smtp.sendmail(email_account, to, msg.as_string())
+                mail_log = MailResponseLog.objects.get(id=log_id)
+                mail_log.status = MailStatus.SUCCESS.value
+                mail_log.save()
         except Exception as e:
             logger.error(f"Error sending mail to {to}: {str(e)}")
             mail_log = MailResponseLog.objects.get(id=log_id)
@@ -128,8 +128,9 @@ class MailProcessor:
                     if len(split_result) == 2
                     for key, value in [split_result]}
 
-
         responses = '<br/><br/>'.join(response.get('text', '') for response in rasa_chat_response.get('response', []))
+        if len(responses) == 0:
+            return ''
         slots['bot_response'] = responses
         mail_template = self.mail_template
         mail_log = MailResponseLog.objects.get(id=log_id)
@@ -163,7 +164,6 @@ class MailProcessor:
 
     @staticmethod
     async def process_messages(bot: str, batch: [dict]):
-        logger.info(f"processing messages: {bot}, {batch}")
         """
         Pass messages to bot and send responses
         """
@@ -252,7 +252,6 @@ class MailProcessor:
         is_logged_in = False
         last_processed_uid = mp.state.last_email_uid
         query = f'{int(last_processed_uid) + 1}:*'
-        logger.info(query)
         try:
             mp.login_imap()
             is_logged_in = True
@@ -266,7 +265,6 @@ class MailProcessor:
                 date = msg.date
                 body = msg.text or msg.html or ""
                 #attachments = msg.attachments
-                logger.info(f"reading: {subject}, {sender_id}, {date}")
                 mail_log = MailResponseLog(sender_id = sender_id,
                                             subject = subject,
                                             body = body,
@@ -297,17 +295,3 @@ class MailProcessor:
             return [], mp.bot_settings.user, time_shift
 
 
-    # @staticmethod
-    # def extract_jsons_from_text(text) -> list:
-    #     """
-    #     Extract json objects from text as a list
-    #     """
-    #     json_pattern = re.compile(r'(\{.*?\}|\[.*?\])', re.DOTALL)
-    #     jsons = []
-    #     for match in json_pattern.findall(text):
-    #         try:
-    #             json_obj = json.loads(match)
-    #             jsons.append(json_obj)
-    #         except json.JSONDecodeError:
-    #             continue
-    #     return jsons
