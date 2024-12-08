@@ -1342,10 +1342,3 @@ class ScheduleActionRequest(BaseModel):
 
         return values
 
-
-class MailConfigRequest(BaseModel):
-    intent: str
-    entities: list[str] = []
-    subjects: list[str] = []
-    classification_prompt: str
-    reply_template: str = None
