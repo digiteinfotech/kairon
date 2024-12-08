@@ -1,9 +1,8 @@
-import json
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from typing import List
 from rasa.cli import SubParsersAction
 
-from kairon.events.definitions.mail_channel import MailProcessEvent, MailReadEvent
+from kairon.events.definitions.mail_channel import MailReadEvent
 
 
 def read_channel_mails(args):

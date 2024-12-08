@@ -1663,7 +1663,7 @@ async def get_slot_actions(
 
 
 @router.get("/mail_channel/logs", response_model=Response)
-async def get_action_server_logs(start_idx: int = 0, page_size: int = 10,
+async def get_mail_channel_logs(start_idx: int = 0, page_size: int = 10,
                                  current_user: User = Security(Authentication.get_current_user_and_bot,
                                                                scopes=TESTER_ACCESS)):
     """

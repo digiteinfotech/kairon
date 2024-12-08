@@ -96,4 +96,3 @@ class MailReadEvent(EventsBase):
 
         except Exception as e:
             raise AppException(f"Failed to schedule mail reading for bot {self.bot}. Error: {str(e)}")
-        is_initialized = False

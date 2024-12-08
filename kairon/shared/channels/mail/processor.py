@@ -119,6 +119,7 @@ class MailProcessor:
             logger.error(f"Error sending mail to {to}: {str(e)}")
             mail_log = MailResponseLog.objects.get(id=log_id)
             mail_log.status = MailStatus.FAILED.value
+            mail_log.responses.append(str(e))
             mail_log.save()
 
     def process_mail(self, rasa_chat_response: dict, log_id: str):

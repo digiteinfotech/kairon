@@ -40,8 +40,9 @@ class EventUtility:
 
     @staticmethod
     def schedule_channel_mail_reading(bot: str):
+        from kairon.shared.channels.mail.processor import MailProcessor
+
         try:
-            from kairon.shared.channels.mail.processor import MailProcessor
             mail_processor = MailProcessor(bot)
             interval = mail_processor.config.get("interval", 60)
             event_id = mail_processor.state.event_id
