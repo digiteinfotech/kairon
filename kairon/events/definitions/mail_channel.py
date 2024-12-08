@@ -88,7 +88,7 @@ class MailReadEvent(EventsBase):
         try:
             vals = MailProcessor.read_mails(self.bot)
             print(vals)
-            emails, _, next_delay = vals
+            emails, _, _ = vals
             for email in emails:
                 ev = MailProcessEvent(self.bot, self.user)
                 ev.validate()
