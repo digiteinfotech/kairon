@@ -9,7 +9,7 @@ from mongoengine import connect, disconnect
 from uuid6 import uuid7
 
 from kairon import Utility
-from kairon.shared.channels.mail.data_objects import MailResponseLog, MailChannelStateData
+from kairon.shared.channels.mail.data_objects import MailResponseLog, MailChannelStateData, MailStatus
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -200,6 +200,44 @@ class TestMailChannel:
         assert "Test Subject" in mock_smtp_instance.sendmail.call_args[0][2]
         assert "Test Body" in mock_smtp_instance.sendmail.call_args[0][2]
 
+    @patch("kairon.shared.channels.mail.processor.smtplib.SMTP")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @pytest.mark.asyncio
+    async def test_send_mail_exception(self, mock_get_channel_config, mock_smtp):
+        mock_smtp_instance = MagicMock()
+        mock_smtp.return_value = mock_smtp_instance
+
+        mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
+                                            sender_id="recipient@test.com",
+                                            user="mail_channel_test_user_acc",
+                                            subject="Test Subject",
+                                            body="Test Body",
+                                            )
+        mail_response_log.save()
+
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'smtp_server': "smtp.testuser.com",
+                'smtp_port': 587
+            }
+        }
+
+        bot_id = pytest.mail_test_bot
+        mp = MailProcessor(bot=bot_id)
+        mp.login_smtp()
+
+        mock_smtp_instance.sendmail.side_effect = Exception("SMTP error")
+
+        await mp.send_mail("recipient@test.com", "Test Subject", "Test Body", mail_response_log.id)
+
+        log = MailResponseLog.objects.get(id=mail_response_log.id)
+        print(log.to_mongo())
+        assert log.status == MailStatus.FAILED.value
+        assert log.responses == ['SMTP error']
+        MailResponseLog.objects().delete()
+
 
 
     @patch("kairon.shared.channels.mail.processor.ChatDataProcessor.get_channel_config")
@@ -379,34 +417,49 @@ class TestMailChannel:
     @patch('kairon.shared.channels.mail.processor.MailProcessor.login_smtp')
     @patch('kairon.shared.channels.mail.processor.MailProcessor.logout_smtp')
     def test_validate_smpt_connection(self, mp, mock_logout_smtp, mock_login_smtp):
-        # Mock the login and logout methods to avoid actual SMTP server interaction
         mp.return_value = None
         mock_login_smtp.return_value = None
         mock_logout_smtp.return_value = None
 
-        # Call the static method validate_smpt_connection
         result = MailProcessor.validate_smtp_connection('test_bot_id')
 
-        # Assert that the method returns True
         assert  result
 
-        # Assert that login_smtp and logout_smtp were called once
         mock_login_smtp.assert_called_once()
         mock_logout_smtp.assert_called_once()
 
     @patch('kairon.shared.channels.mail.processor.MailProcessor.login_smtp')
     @patch('kairon.shared.channels.mail.processor.MailProcessor.logout_smtp')
     def test_validate_smpt_connection_failure(self, mock_logout_smtp, mock_login_smtp):
-        # Mock the login method to raise an exception
         mock_login_smtp.side_effect = Exception("SMTP login failed")
 
-        # Call the static method validate_smpt_connection
         result = MailProcessor.validate_smtp_connection('test_bot_id')
 
-        # Assert that the method returns False
         assert not result
 
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.__init__')
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.login_imap')
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.logout_imap')
+    def test_validate_imap_connection(self, mp, mock_logout_imap, mock_login_imap):
+        mp.return_value = None
+        mock_login_imap.return_value = None
+        mock_logout_imap.return_value = None
 
+        result = MailProcessor.validate_imap_connection('test_bot_id')
+
+        assert result
+
+        mock_login_imap.assert_called_once()
+        mock_logout_imap.assert_called_once()
+
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.login_imap')
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.logout_imap')
+    def test_validate_imap_connection_failure(self, mock_logout_imap, mock_login_imap):
+        mock_login_imap.side_effect = Exception("imap login failed")
+
+        result = MailProcessor.validate_imap_connection('test_bot_id')
+
+        assert not result
 
     def test_get_mail_channel_state_data_existing_state(self):
         bot_id = pytest.mail_test_bot
