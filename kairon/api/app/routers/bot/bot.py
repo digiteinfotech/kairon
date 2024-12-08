@@ -34,7 +34,6 @@ from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import ENDPOINT_TYPE, ModelTestType, \
     AuditlogActions
-from kairon.shared.data.data_models import MailConfigRequest
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
