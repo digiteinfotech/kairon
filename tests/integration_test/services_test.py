@@ -4408,127 +4408,6 @@ def test_get_live_agent_after_disabled():
 
 
 
-def test_add_mail_config():
-    data = {
-        "intent": "greet",
-        "entities": ["name", "subject", "summery"],
-        "classification_prompt": "any personal mail of greeting"
-    }
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/mail/config",
-        json=data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert actual['message'] == 'Config applied!'
-    assert actual['error_code'] == 0
-
-def test_add_mail_config_missing_field():
-    data = {
-        "entities": ["name", "subject", "summery"],
-    }
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/mail/config",
-        json=data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    print(actual)
-    assert not actual["success"]
-    assert len(actual['message'])
-    assert actual['error_code'] == 422
-
-def test_add_mail_config_same_intent():
-    data = {
-        "intent": "greet",
-        "entities": ["name", "subject", "summery"],
-        "classification_prompt": "any personal mail of greeting"
-    }
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/mail/config",
-        json=data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    print(actual)
-    assert not actual["success"]
-    assert actual['message'] == 'Mail configuration already exists for intent [greet]'
-    assert actual['error_code'] == 422
-
-
-def test_get_mail_config():
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/mail/config",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert len(actual['data']) == 1
-    assert actual['data'][0]['intent'] == 'greet'
-    assert actual['error_code'] == 0
-
-
-
-def test_update_mail_config():
-    data = {
-        "intent": "greet",
-        "entities": ["name", "subject", "summery"],
-        "classification_prompt": "any personal email of greeting"
-    }
-
-    response = client.put(
-        f"/api/bot/{pytest.bot}/mail/config",
-        json=data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert actual['message'] == 'Config updated!'
-    assert actual['error_code'] == 0
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/mail/config",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert len(actual['data']) == 1
-    assert actual['data'][0]['intent'] == 'greet'
-    assert actual['data'][0]['classification_prompt'] == 'any personal email of greeting'
-    assert actual['error_code'] == 0
-
-
-def test_delete_mail_config():
-    response = client.delete(
-        f"/api/bot/{pytest.bot}/mail/config/greet",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual['success']
-    assert actual['message'] == 'Config deleted!'
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/mail/config",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert len(actual['data']) == 0
-
-
-
-
 def test_callback_config_add_syntax_error():
     request_body = {
         "name": "callback_1",
@@ -8419,7 +8298,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 14
+    assert len(actual['data']) == 17
     assert actual["success"]
 
 
@@ -9186,7 +9065,8 @@ def test_list_entities():
     expected = {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                 'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
-                'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply'}
+                'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
+                'subject', 'body'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
@@ -9824,12 +9704,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 21
+    assert len(actual["data"]) == 24
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 14
+    assert default_slots_count == 17
 
 
 def test_add_slots():

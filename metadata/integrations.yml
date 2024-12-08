@@ -84,7 +84,7 @@ channels:
       - smtp_port
     optional_fields:
       - interval
-      - llm_type
+      - intent
 
 actions:
   pipedrive:

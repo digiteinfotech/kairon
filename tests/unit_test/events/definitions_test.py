@@ -1236,7 +1236,7 @@ class TestEventDefinitions:
 
 
     @responses.activate
-    def test_trigger_mail_channel_schedule_event_enqueue(self):
+    def test_trigger_mail_channel_process_event_enqueue(self):
         from kairon.events.definitions.mail_channel import MailProcessEvent
         bot = "test_add_schedule_event"
         user = "test_user"
@@ -1252,7 +1252,7 @@ class TestEventDefinitions:
             pytest.fail(f"Unexpected exception: {e}")
 
     @responses.activate
-    def test_trigger_mail_channel_schedule_event_enqueue_exception(self):
+    def test_trigger_mail_channel_process_event_enqueue_exception(self):
         from kairon.events.definitions.mail_channel import MailProcessEvent
         from kairon.exceptions import AppException
         from unittest.mock import patch
@@ -1265,11 +1265,12 @@ class TestEventDefinitions:
             json={"message": "test msg", "success": False, "error_code": 400, "data": None}
         )
         event = MailProcessEvent(bot, user)
-        with pytest.raises(AppException, match="Failed to trigger email_channel_scheduler event: test msg"):
+        with pytest.raises(AppException, match="Failed to trigger email_channel_process_mails event: test msg"):
             event.enqueue()
 
+
     @responses.activate
-    def test_trigger_mail_channel_schedule_event_execute(self):
+    def test_trigger_mail_channel_process_event_execute(self):
         from kairon.events.definitions.mail_channel import MailProcessEvent
         try:
             MailProcessEvent("", "").execute()
@@ -1277,7 +1278,7 @@ class TestEventDefinitions:
             pytest.fail(f"Unexpected exception: {e}")
 
     @responses.activate
-    def test_trigger_mail_channel_schedule_event_execute_exception(self):
+    def test_trigger_mail_channel_process_event_execute_exception(self):
         from kairon.events.definitions.mail_channel import MailProcessEvent
         from kairon.exceptions import AppException
         from unittest.mock import patch
@@ -1286,3 +1287,47 @@ class TestEventDefinitions:
                    side_effect=Exception("Test")):
             with pytest.raises(AppException, match="Test"):
                 MailProcessEvent("", "").execute(mails=["test@mail.com"])
+
+    @responses.activate
+    def test_mail_channel_read_event_enqueue(self):
+        from kairon.events.definitions.mail_channel import MailReadEvent
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.mail_channel_read_mails}?is_scheduled=False"
+        responses.add(
+            "POST", url,
+            json={"message": "test msg", "success": True, "error_code": 400, "data": None}
+        )
+        event = MailReadEvent(bot, user)
+        try:
+            event.enqueue()
+        except AppException as e:
+            pytest.fail(f"Unexpected exception: {e}")
+
+    @patch('kairon.shared.channels.mail.processor.MailProcessor.read_mails')
+    @patch('kairon.events.definitions.mail_channel.MailProcessEvent.enqueue')
+    @patch('kairon.events.definitions.mail_channel.MailProcessEvent.validate')
+    def test_mail_read_event_execute(self, mock_validate, mock_enqueue, mock_read_mails):
+        from kairon.events.definitions.mail_channel import MailReadEvent
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        mock_read_mails.return_value = (["test@mail.com"], user, 10)
+        mock_validate.return_value = True
+
+        event = MailReadEvent(bot, user)
+        event.execute()
+
+        mock_read_mails.assert_called_once_with(bot)
+        mock_validate.assert_called_once()
+        mock_enqueue.assert_called_once_with(mails=["test@mail.com"])
+
+    def test_mail_read_event_execute_exception(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+
+        with patch('kairon.shared.channels.mail.processor.MailProcessor.read_mails',
+                   side_effect=Exception("Test error")):
+            from kairon.events.definitions.mail_channel import MailReadEvent
+            event = MailReadEvent(bot, user)
+            with pytest.raises(AppException, match=f"Failed to schedule mail reading for bot {bot}. Error: Test error"):
+                event.execute()

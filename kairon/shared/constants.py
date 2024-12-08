@@ -158,6 +158,10 @@ class KaironSystemSlots(str, Enum):
     flow_reply = "flow_reply"
     quick_reply = "quick_reply"
     http_status_code = "http_status_code"
+    mail_id = "mail_id"
+    subject = "subject"
+    body = "body"
+
 
 
 class VectorEmbeddingsDatabases(str, Enum):
