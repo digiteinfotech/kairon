@@ -4406,6 +4406,8 @@ def test_get_live_agent_after_disabled():
     assert actual["success"]
 
 
+
+
 def test_callback_config_add_syntax_error():
     request_body = {
         "name": "callback_1",
@@ -4744,6 +4746,7 @@ def test_callback_action_delete():
 
     actual = response.json()
     assert actual == {'success': True, 'message': 'Callback action deleted successfully!', 'data': None, 'error_code': 0}
+
 
 
 def test_add_pyscript_action_empty_name():
@@ -8295,7 +8298,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 14
+    assert len(actual['data']) == 17
     assert actual["success"]
 
 
@@ -9062,7 +9065,8 @@ def test_list_entities():
     expected = {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                 'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
-                'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply'}
+                'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
+                'subject', 'body'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
@@ -9700,12 +9704,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 21
+    assert len(actual["data"]) == 24
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 14
+    assert default_slots_count == 17
 
 
 def test_add_slots():
@@ -23860,6 +23864,9 @@ def test_add_channel_config_error():
             actual["message"]
             == "Cannot edit secondary slack app. Please delete and install the app again using oAuth."
     )
+
+
+
 
 
 def test_add_bot_with_template_name(monkeypatch):

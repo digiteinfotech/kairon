@@ -1341,3 +1341,4 @@ class ScheduleActionRequest(BaseModel):
             raise ValueError("Schedule action can not be empty, it is needed to execute on schedule time")
 
         return values
+

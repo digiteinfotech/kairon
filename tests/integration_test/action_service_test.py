@@ -2,6 +2,10 @@ import asyncio
 import datetime
 import os
 from urllib.parse import urlencode, urljoin
+from kairon.shared.utils import Utility
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+Utility.load_environment()
+Utility.load_system_metadata()
 import urllib
 
 import litellm
@@ -11,18 +15,17 @@ import pytest
 import responses
 import ujson as json
 from apscheduler.util import obj_to_ref
-from cycler import U
 from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from litellm import embedding
 from mongoengine import connect
 
+
+
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
-from kairon.shared.utils import Utility
 
-Utility.load_system_metadata()
 
 from kairon.actions.definitions.live_agent import ActionLiveAgent
 from kairon.actions.definitions.set_slot import ActionSetSlot
@@ -11751,6 +11754,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
+
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
 @mock.patch.object(ActionUtility, 'execute_request_async', autospec=True)
