@@ -205,7 +205,6 @@ class MailProcessor:
                                                                 {
                                                                     'channel': ChannelTypes.MAIL.value
                                                                 })
-            # logger.info(chat_responses)
 
             for index, response in enumerate(chat_responses):
                 responses[index]['body'] = mp.process_mail(response, log_id=batch[index]['log_id'])
