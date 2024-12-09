@@ -103,6 +103,7 @@ class MailProcessor:
             return False
 
     async def send_mail(self, to: str, subject: str, body: str, log_id: str):
+        exception = None
         try:
             if body and len(body) > 0:
                 email_account = self.config['email_account']
@@ -112,14 +113,14 @@ class MailProcessor:
                 msg['Subject'] = subject
                 msg.attach(MIMEText(body, 'html'))
                 self.smtp.sendmail(email_account, to, msg.as_string())
-                mail_log = MailResponseLog.objects.get(id=log_id)
-                mail_log.status = MailStatus.SUCCESS.value
-                mail_log.save()
         except Exception as e:
             logger.error(f"Error sending mail to {to}: {str(e)}")
+            exception = str(e)
+        finally:
             mail_log = MailResponseLog.objects.get(id=log_id)
-            mail_log.status = MailStatus.FAILED.value
-            mail_log.responses.append(str(e))
+            mail_log.status = MailStatus.FAILED.value if exception else MailStatus.SUCCESS.value
+            if exception:
+                mail_log.responses.append(exception)
             mail_log.save()
 
     def process_mail(self, rasa_chat_response: dict, log_id: str):
