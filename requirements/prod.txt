@@ -24,7 +24,7 @@ python-docx==1.1.2
 pandas==2.2.2
 openpyxl==3.2.0b1
 sentencepiece==0.1.99
-dramatiq==1.17.0
+dramatiq==1.17.1
 dramatiq-mongodb==0.8.3
 nlpaug==1.1.11
 keybert==0.8.5
