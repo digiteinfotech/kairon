@@ -2163,10 +2163,10 @@ def test_upload_doc_content():
 
     last_row = cognition_data.order_by('-_id').first()
     assert last_row["data"] == {
-        'order_id': '67',
+        'order_id': 67,
         'order_priority': 'Low',
-        'sales': '12.34',
-        'profit': '54.98'
+        'sales': 12.34,
+        'profit': 54.98
     }
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload").delete()
 
@@ -2269,10 +2269,10 @@ def test_upload_doc_content_append():
     }
     last_row = cognition_data.order_by('-_id').first()
     assert last_row["data"] == {
-        'order_id': '67',
-        'order_priority': 'Low',
-        'sales': '12.34',
-        'profit': '54.98'
+        'order_id': 67,
+        'order_priority': "Low",
+        'sales': 12.34,
+        'profit': 54.98
     }
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_append").delete()
 
@@ -2491,18 +2491,18 @@ def test_upload_doc_content_datatype_validation_failure():
 
     third_last_row = cognition_data[-3]
     assert third_last_row["data"] == {
-        "order_id": "33",
+        "order_id": 33,
         "order_priority": "Low",
-        "sales": "905.94",
-        "profit": "-4.19"
+        "sales": 905.94,
+        "profit": -4.19
     }
 
     fourth_last_row = cognition_data[-4]
     assert fourth_last_row["data"] == {
-        "order_id": "657",
+        "order_id": 657,
         "order_priority": "Not Specified",
-        "sales": "237.28",
-        "profit": "-2088.68"
+        "sales": 237.28,
+        "profit": -2088.68
     }
 
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_datatype_validation_failure").delete()
