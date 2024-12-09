@@ -1251,7 +1251,7 @@ def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/wordcloud?from_date={from_date}"
-        f"&to_date={to_date}&u_bound=1&l_bound=0&stopword_list=None",
+        f"&to_date={to_date}&u_bound=1.0&l_bound=0.0&stopword_list=None",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
