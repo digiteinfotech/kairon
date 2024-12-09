@@ -1472,11 +1472,12 @@ class TestMongoProcessor:
         cognition_schema.save()
 
         dummy_data_one = {
-            "id": "1",
+            "id": 1,
             "item": "Juice",
-            "price": "2.80",
-            "quantity": "5"
+            "price": 2.80,
+            "quantity": 5
         }
+
         existing_document = CognitionData(
             data=dummy_data_one,
             content_type="json",
@@ -1488,10 +1489,10 @@ class TestMongoProcessor:
         existing_document.save()
 
         dummy_data_two = {
-            "id": "2",
+            "id": 2,
             "item": "Milk",
-            "price": "2.80",
-            "quantity": "50"
+            "price": 2.80,
+            "quantity": 50
         }
         existing_document = CognitionData(
             data=dummy_data_two,
@@ -1622,7 +1623,7 @@ class TestMongoProcessor:
         cognition_schema.save()
 
         data = [
-            {"id": "1", "item": "Milk", "quantity": 10}
+            {"id": 1, "item": "Milk", "quantity": 10}
         ]
 
         processor = CognitionDataProcessor()
@@ -1633,10 +1634,10 @@ class TestMongoProcessor:
             data=data,
             bot=bot
         )
-        assert "1" in validation_summary
-        assert validation_summary["1"][0]["status"] == "Column length mismatch"
-        assert validation_summary["1"][0]["expected_columns"] == ["id", "item", "price", "quantity"]
-        assert validation_summary["1"][0]["actual_columns"] == ["id", "item", "quantity"]
+        assert 1 in validation_summary
+        assert validation_summary[1][0]["status"] == "Column length mismatch"
+        assert validation_summary[1][0]["expected_columns"] == ["id", "item", "price", "quantity"]
+        assert validation_summary[1][0]["actual_columns"] == ["id", "item", "quantity"]
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
 
     def test_validate_data_invalid_columns(self):
@@ -1664,7 +1665,7 @@ class TestMongoProcessor:
         cognition_schema.save()
 
         data = [
-            {"id": "1", "item": "Juice", "quantity": 10, "discount": 0.10}  # Invalid "discount" column
+            {"id": 1, "item": "Juice", "quantity": 10, "discount": 0.10}
         ]
 
         processor = CognitionDataProcessor()
@@ -1675,10 +1676,10 @@ class TestMongoProcessor:
             data=data,
             bot=bot
         )
-        assert "1" in validation_summary
-        assert validation_summary["1"][0]["status"] == "Invalid columns in input data"
-        assert validation_summary["1"][0]["expected_columns"] == ["id", "item", "price", "quantity"]
-        assert validation_summary["1"][0]["actual_columns"] == ["id", "item", "quantity", "discount"]
+        assert 1 in validation_summary
+        assert validation_summary[1][0]["status"] == "Invalid columns in input data"
+        assert validation_summary[1][0]["expected_columns"] == ["id", "item", "price", "quantity"]
+        assert validation_summary[1][0]["actual_columns"] == ["id", "item", "quantity", "discount"]
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
 
     def test_validate_data_document_non_existence(self):
@@ -1706,10 +1707,10 @@ class TestMongoProcessor:
         cognition_schema.save()
 
         dummy_data = {
-            "id": "1",
+            "id": 1,
             "item": "Juice",
-            "price": "2.80",
-            "quantity": "5"
+            "price": 2.80,
+            "quantity": 5
         }
         existing_document = CognitionData(
             data=dummy_data,
@@ -1722,7 +1723,7 @@ class TestMongoProcessor:
         existing_document.save()
 
         data = [
-            {"id": "2", "price": 27.0}
+            {"id": 2, "price": 27.0}
         ]
 
         processor = CognitionDataProcessor()
@@ -1733,9 +1734,9 @@ class TestMongoProcessor:
             data=data,
             bot=bot
         )
-        assert "2" in validation_summary
-        assert validation_summary["2"][0]["status"] == "Document does not exist"
-        assert validation_summary["2"][0]["primary_key"] == "2"
+        assert 2 in validation_summary
+        assert validation_summary[2][0]["status"] == "Document does not exist"
+        assert validation_summary[2][0]["primary_key"] == 2
 
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
@@ -1771,10 +1772,10 @@ class TestMongoProcessor:
         cognition_schema.save()
 
         dummy_data = {
-            "id": "2",
+            "id": 2,
             "item": "Milk",
-            "price": "2.80",
-            "quantity": "5"
+            "price": 2.80,
+            "quantity": 5
         }
         existing_document = CognitionData(
             data=dummy_data,
@@ -1787,8 +1788,8 @@ class TestMongoProcessor:
         existing_document.save()
 
         upsert_data = [
-            {"id": 1, "item": "Juice", "price": "2.50", "quantity": "10"},  # New entry
-            {"id": 2, "item": "Milk", "price": "3.00", "quantity": "5"}  # Existing entry to be updated
+            {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},  # New entry
+            {"id": 2, "item": "Milk", "price": 3.00, "quantity": 5}  # Existing entry to be updated
         ]
 
         llm_secret = LLMSecret(
@@ -1824,17 +1825,17 @@ class TestMongoProcessor:
         assert result["message"] == "Upsert complete!"
         assert len(upserted_data) == 2
 
-        inserted_record = next((item for item in upserted_data if item.data["id"] == "1"), None)
+        inserted_record = next((item for item in upserted_data if item.data["id"] == 1), None)
         assert inserted_record is not None
         assert inserted_record.data["item"] == "Juice"
-        assert inserted_record.data["price"] == "2.50"
-        assert inserted_record.data["quantity"] == "10"
+        assert inserted_record.data["price"] == 2.50
+        assert inserted_record.data["quantity"] == 10
 
-        updated_record = next((item for item in upserted_data if item.data["id"] == "2"), None)
+        updated_record = next((item for item in upserted_data if item.data["id"] == 2), None)
         assert updated_record is not None
         assert updated_record.data["item"] == "Milk"
-        assert updated_record.data["price"] == "3.00"  # Updated price
-        assert updated_record.data["quantity"] == "5"
+        assert updated_record.data["price"] == 3.00  # Updated price
+        assert updated_record.data["quantity"] == 5
 
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
@@ -1871,10 +1872,10 @@ class TestMongoProcessor:
         cognition_schema.save()
 
         dummy_data_one = {
-            "id": "1",
+            "id": 1,
             "item": "Juice",
-            "price": "2.80",
-            "quantity": "56"
+            "price": 2.80,
+            "quantity": 56
         }
         existing_document = CognitionData(
             data=dummy_data_one,
@@ -1887,10 +1888,10 @@ class TestMongoProcessor:
         existing_document.save()
 
         dummy_data_two = {
-            "id": "2",
+            "id": 2,
             "item": "Milk",
-            "price": "2.80",
-            "quantity": "12"
+            "price": 2.80,
+            "quantity": 12
         }
         existing_document = CognitionData(
             data=dummy_data_two,
@@ -1903,8 +1904,8 @@ class TestMongoProcessor:
         existing_document.save()
 
         upsert_data = [
-            {"id": 1, "price": "80.50"},
-            {"id": 2, "price": "27.00"}
+            {"id": 1, "price": 80.50},
+            {"id": 2, "price": 27.00}
         ]
 
         llm_secret = LLMSecret(
@@ -1940,17 +1941,17 @@ class TestMongoProcessor:
         assert result["message"] == "Upsert complete!"
         assert len(upserted_data) == 2
 
-        inserted_record = next((item for item in upserted_data if item.data["id"] == "1"), None)
+        inserted_record = next((item for item in upserted_data if item.data["id"] == 1), None)
         assert inserted_record is not None
         assert inserted_record.data["item"] == "Juice"
-        assert inserted_record.data["price"] == "80.50"
-        assert inserted_record.data["quantity"] == "56"
+        assert inserted_record.data["price"] == 80.50
+        assert inserted_record.data["quantity"] == 56
 
-        updated_record = next((item for item in upserted_data if item.data["id"] == "2"), None)
+        updated_record = next((item for item in upserted_data if item.data["id"] == 2), None)
         assert updated_record is not None
         assert updated_record.data["item"] == "Milk"
-        assert updated_record.data["price"] == "27.00"  # Updated price
-        assert updated_record.data["quantity"] == "12"
+        assert updated_record.data["price"] == 27.00  # Updated price
+        assert updated_record.data["quantity"] == 12
 
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
@@ -1987,10 +1988,10 @@ class TestMongoProcessor:
         cognition_schema.save()
 
         dummy_data = {
-            "id": "2",
+            "id": 2,
             "item": "Milk",
-            "price": "2.80",
-            "quantity": "5"
+            "price": 2.80,
+            "quantity": 5
         }
         existing_document = CognitionData(
             data=dummy_data,
@@ -2037,10 +2038,10 @@ class TestMongoProcessor:
         assert len(data) == 1
 
         existing_record = data[0]
-        assert existing_record.data["id"] == "2"
+        assert existing_record.data["id"] == 2
         assert existing_record.data["item"] == "Milk"
-        assert existing_record.data["price"] == "2.80"
-        assert existing_record.data["quantity"] == "5"
+        assert existing_record.data["price"] == 2.80
+        assert existing_record.data["quantity"] == 5
 
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
         CognitionData.objects(bot=bot, collection=collection_name).delete()
@@ -2073,10 +2074,10 @@ class TestMongoProcessor:
         cognition_schema.save()
 
         document_data = {
-            "id": "2",
+            "id": 2,
             "item": "Milk",
-            "price": "2.80",
-            "quantity": "5"
+            "price": 2.80,
+            "quantity": 5
         }
         document = CognitionData(
             data=document_data,
@@ -2091,7 +2092,7 @@ class TestMongoProcessor:
         saved_document = None
         for doc in CognitionData.objects(bot=bot, collection=collection_name):
             doc_dict = doc.to_mongo().to_dict()
-            if doc_dict.get("data", {}).get("id") == "2":  # Match based on `data.id`
+            if doc_dict.get("data", {}).get("id") == 2:  # Match based on `data.id`
                 saved_document = doc_dict
                 break
         assert saved_document, "Saved CognitionData document not found"
@@ -2179,10 +2180,10 @@ class TestMongoProcessor:
         cognition_schema.save()
 
         document_data = {
-            "id": "2",
+            "id": 2,
             "item": "Milk",
-            "price": "2.80",
-            "quantity": "5"
+            "price": 2.80,
+            "quantity": 5
         }
         document = CognitionData(
             data=document_data,
@@ -17996,7 +17997,7 @@ class TestMongoProcessor:
             "data": {"number": "Twenty-three"},
             "content_type": "json",
             "collection": "test_save_payload_content_invalid_data_type"}
-        with pytest.raises(AppException, match="Invalid data type!"):
+        with pytest.raises(AppException, match="Invalid data type for 'number': Expected integer value"):
             processor.save_cognition_data(payload, user, bot)
 
     def test_save_payload_content_data_empty(self):

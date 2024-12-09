@@ -1452,10 +1452,10 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     assert schema_response["error_code"] == 0
 
     dummy_data = {
-        "id": "1",
+        "id": 1,
         "item": "Juice",
-        "price": "2.00",
-        "quantity": "9"
+        "price": 2.00,
+        "quantity": 9
     }
     dummy_doc = CognitionData(
         data=dummy_data,
@@ -1471,8 +1471,8 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     assert cognition_data.count() == 1
 
     sync_data = [
-        {"id": 1, "item": "Juice", "price": "2.50", "quantity": "10"},
-        {"id": 2, "item": "Apples", "price": "1.20", "quantity": "20"}
+        {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
+        {"id": 2, "item": "Apples", "price": 1.20, "quantity": 20}
     ]
 
     response = client.post(
@@ -1490,8 +1490,8 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     assert cognition_data.count() == 2
 
     expected_data = [
-        {"id": "1", "item": "Juice", "price": "2.50", "quantity": "10"},
-        {"id": "2", "item": "Apples", "price": "1.20", "quantity": "20"}
+        {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
+        {"id": 2, "item": "Apples", "price": 1.20, "quantity": 20}
     ]
 
     for index, doc in enumerate(cognition_data):
@@ -1575,10 +1575,10 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
     assert schema_response["error_code"] == 0
 
     dummy_data_one = {
-        "id": "1",
+        "id": 1,
         "item": "Juice",
-        "price": "2.80",
-        "quantity": "56"
+        "price": 2.80,
+        "quantity": 56
     }
     dummy_doc = CognitionData(
         data=dummy_data_one,
@@ -1590,10 +1590,10 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
     )
     dummy_doc.save()
     dummy_data_two = {
-        "id": "2",
+        "id": 2,
         "item": "Milk",
-        "price": "2.80",
-        "quantity": "12"
+        "price": 2.80,
+        "quantity": 12
     }
     dummy_doc = CognitionData(
         data=dummy_data_two,
@@ -1609,8 +1609,8 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
     assert cognition_data.count() == 2
 
     sync_data = [
-        {"id": 1, "price": "80.50"},
-        {"id": 2, "price": "27.00"}
+        {"id": 1, "price": 80.50},
+        {"id": 2, "price": 27.00}
     ]
 
     response = client.post(
@@ -1628,8 +1628,8 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
     assert cognition_data.count() == 2
 
     expected_data = [
-        {"id": "1", "item": "Juice", "price": "80.50", "quantity": "56"},
-        {"id": "2", "item": "Milk", "price": "27.00", "quantity": "12"}
+        {"id": 1, "item": "Juice", "price": 80.50, "quantity": 56},
+        {"id": 2, "item": "Milk", "price": 27.00, "quantity": 12}
     ]
 
     for index, doc in enumerate(cognition_data):
@@ -1871,7 +1871,6 @@ def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
         json=sync_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
-
     actual = response.json()
     assert not actual["success"]
     assert actual["message"] == "Validation failed"
@@ -1928,10 +1927,10 @@ def test_knowledge_vault_sync_invalid_columns(mock_embedding):
     assert schema_response.json()["error_code"] == 0
 
     dummy_data = {
-        "id": "2",
+        "id": 2,
         "item": "Milk",
-        "price": "2.80",
-        "quantity": "12"
+        "price": 2.80,
+        "quantity": 12
     }
     dummy_doc = CognitionData(
         data=dummy_data,
@@ -1962,7 +1961,7 @@ def test_knowledge_vault_sync_invalid_columns(mock_embedding):
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="groceries")
     assert cognition_data.count() == 1
     expected_data = [
-        {"id": "2", "item": "Milk", "price": "2.80", "quantity": "12"}
+        {"id": 2, "item": "Milk", "price": 2.80, "quantity": 12}
     ]
     for index, doc in enumerate(cognition_data):
         doc_data = doc.to_mongo().to_dict()["data"]
@@ -1971,7 +1970,6 @@ def test_knowledge_vault_sync_invalid_columns(mock_embedding):
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     LLMSecret.objects.delete()
-
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2017,10 +2015,10 @@ def test_knowledge_vault_sync_document_non_existence(mock_embedding):
     assert schema_response.json()["error_code"] == 0
 
     dummy_data = {
-        "id": "1",
+        "id": 1,
         "item": "Juice",
-        "price": "2.80",
-        "quantity": "5"
+        "price": 2.80,
+        "quantity": 5
     }
     dummy_doc = CognitionData(
         data=dummy_data,
@@ -2033,7 +2031,7 @@ def test_knowledge_vault_sync_document_non_existence(mock_embedding):
     dummy_doc.save()
 
     sync_data = [
-        {"id": "2", "price": 27.0}
+        {"id": 2, "price": 27.0}
     ]
 
     response = client.post(
@@ -2046,16 +2044,16 @@ def test_knowledge_vault_sync_document_non_existence(mock_embedding):
     assert not actual["success"]
     assert actual["message"] == "Validation failed"
     assert actual["error_code"] == 400
-    assert actual["data"] == {'2': [{'status': 'Document does not exist', 'primary_key': '2', 'message': "No document found for 'id': 2"}]}
+    assert actual["data"] == {'2': [{'status': 'Document does not exist', 'primary_key': 2, 'message': "No document found for 'id': 2"}]}
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="groceries")
     assert cognition_data.count() == 1
 
     expected_data = [
         {
-            "id": "1",
+            "id": 1,
             "item": "Juice",
-            "price": "2.80",
-            "quantity": "5"
+            "price": 2.80,
+            "quantity": 5
         }
     ]
 
