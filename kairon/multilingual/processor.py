@@ -161,7 +161,6 @@ class MultilingualTranslator:
                                      actions = actions,
                                      other_collections_data=other_collections,
                                      overwrite=True)
-        # self.mp.save_integrated_actions(actions=actions, bot=new_bot_id, user=self.user)
         self.mp.save_domain(domain=domain, bot=new_bot_id, user=self.user)
         self.mp.save_nlu(nlu=nlu, bot=new_bot_id, user=self.user)
         self.mp.save_config(configs=configs, bot=new_bot_id, user=self.user)
@@ -198,7 +197,6 @@ class MultilingualTranslator:
             nlu = self.mp.load_nlu(bot=base_bot_id)
             domain = self.mp.load_domain(bot=base_bot_id)
             actions, other_collections = ActionSerializer.serialize(bot=base_bot_id)
-            # actions = self.mp.load_action_configurations(bot=base_bot_id)
             configs = self.mp.load_config(bot=base_bot_id)
             stories = self.mp.load_stories(bot=base_bot_id).story_steps
             rules = self.mp.get_rules_for_training(bot=base_bot_id).story_steps
