@@ -78,3 +78,22 @@ class AgentProcessor:
         if not is_live_agent_enabled:
             return await AgentProcessor.get_agent(bot).handle_message(userdata)
         return await LiveAgentHandler.process_live_agent(bot, userdata)
+
+    @staticmethod
+    def get_agent_without_cache(bot: str, use_store: bool = True) -> Agent:
+        endpoint = AgentProcessor.mongo_processor.get_endpoints(
+            bot, raise_exception=False
+        )
+        action_endpoint = Utility.get_action_url(endpoint)
+        model_path = Utility.get_latest_model(bot)
+        domain = AgentProcessor.mongo_processor.load_domain(bot)
+        if use_store:
+            mongo_store = Utility.get_local_mongo_store(bot, domain)
+            lock_store_endpoint = Utility.get_lock_store(bot)
+            agent = KaironAgent.load(model_path, action_endpoint=action_endpoint, tracker_store=mongo_store,
+                                     lock_store=lock_store_endpoint)
+        else:
+            agent = KaironAgent.load(model_path, action_endpoint=action_endpoint)
+
+        agent.model_ver = model_path.split("/")[-1]
+        return agent

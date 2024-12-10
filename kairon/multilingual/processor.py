@@ -9,6 +9,7 @@ from kairon.shared.account.data_objects import Bot
 from loguru import logger
 import re
 from ..exceptions import AppException
+from ..shared.data.action_serializer import ActionSerializer
 from ..shared.data.utils import DataUtility
 
 
@@ -124,23 +125,29 @@ class MultilingualTranslator:
                         action['response']['value'] = str(translated_action[i])
 
             return actions
-
-        action_config[ActionType.http_action] = translate_responses_for_http_actions(
-            action_config[ActionType.http_action])
-        action_config[ActionType.email_action] = translate_responses(action_config[ActionType.email_action])
-        action_config[ActionType.jira_action] = translate_responses(action_config[ActionType.jira_action])
-        action_config[ActionType.zendesk_action] = translate_responses(action_config[ActionType.zendesk_action])
-        action_config[ActionType.pipedrive_leads_action] = translate_responses(
-            action_config[ActionType.pipedrive_leads_action])
-        action_config[ActionType.google_search_action] = translate_responses(
-            action_config[ActionType.google_search_action], ['failure_response'])
-        action_config[ActionType.form_validation_action] = translate_responses(
-            action_config[ActionType.form_validation_action], ['valid_response', 'invalid_response'])
+        if action_config.get(ActionType.http_action.value):
+            action_config[ActionType.http_action.value] = translate_responses_for_http_actions(
+            action_config[ActionType.http_action.value])
+        if action_config.get(ActionType.email_action.value):
+            action_config[ActionType.email_action.value] = translate_responses(action_config[ActionType.email_action.value])
+        if action_config.get(ActionType.jira_action.value):
+            action_config[ActionType.jira_action.value] = translate_responses(action_config[ActionType.jira_action.value])
+        if action_config.get(ActionType.zendesk_action.value):
+            action_config[ActionType.zendesk_action.value] = translate_responses(action_config[ActionType.zendesk_action.value])
+        if action_config.get(ActionType.pipedrive_leads_action.value):
+            action_config[ActionType.pipedrive_leads_action.value] = translate_responses(
+            action_config[ActionType.pipedrive_leads_action.value])
+        if action_config.get(ActionType.google_search_action.value):
+            action_config[ActionType.google_search_action.value] = translate_responses(
+                action_config[ActionType.google_search_action.value], ['failure_response'])
+        if action_config.get(ActionType.form_validation_action.value):
+            action_config[ActionType.form_validation_action.value] = translate_responses(
+                action_config[ActionType.form_validation_action.value], ['valid_response', 'invalid_response'])
 
         return action_config
 
     def __save_bot_files(self, new_bot_id: str, nlu: TrainingData, domain: Domain, actions: dict, configs: dict,
-                         stories: StoryGraph, rules: StoryGraph):
+                         stories: StoryGraph, rules: StoryGraph, other_collections: dict = None):
         """
         Saving translated bot files into new bot
         :param new_bot_id: id of new bot
@@ -149,8 +156,11 @@ class MultilingualTranslator:
         :return: None
         """
         self.mp.delete_domain(bot=new_bot_id, user=self.user)
-
-        self.mp.save_integrated_actions(actions=actions, bot=new_bot_id, user=self.user)
+        ActionSerializer.deserialize(bot=new_bot_id,
+                                     user=self.user,
+                                     actions = actions,
+                                     other_collections_data=other_collections,
+                                     overwrite=True)
         self.mp.save_domain(domain=domain, bot=new_bot_id, user=self.user)
         self.mp.save_nlu(nlu=nlu, bot=new_bot_id, user=self.user)
         self.mp.save_config(configs=configs, bot=new_bot_id, user=self.user)
@@ -186,7 +196,7 @@ class MultilingualTranslator:
 
             nlu = self.mp.load_nlu(bot=base_bot_id)
             domain = self.mp.load_domain(bot=base_bot_id)
-            actions = self.mp.load_action_configurations(bot=base_bot_id)
+            actions, other_collections = ActionSerializer.serialize(bot=base_bot_id)
             configs = self.mp.load_config(bot=base_bot_id)
             stories = self.mp.load_stories(bot=base_bot_id).story_steps
             rules = self.mp.get_rules_for_training(bot=base_bot_id).story_steps
@@ -218,7 +228,7 @@ class MultilingualTranslator:
             logger.info(f"Created new bot with bot_id: {str(new_bot_id)}")
 
             self.__save_bot_files(new_bot_id=new_bot_id, nlu=nlu, domain=domain, actions=actions, configs=configs,
-                                  stories=stories, rules=rules)
+                                  stories=stories, rules=rules, other_collections=other_collections)
             logger.info("Saved translated bot files successfully.")
 
         except Exception as e:

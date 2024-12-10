@@ -80,6 +80,8 @@ class EventClass(str, Enum):
     web_search = "web_search"
     scheduler_evaluator = "scheduler_evaluator"
     content_importer = "content_importer"
+    mail_channel_process_mails = "email_channel_process_mails"
+    mail_channel_read_mails = "email_channel_read_mails"
 
 
 class EventRequestType(str, Enum):
@@ -115,7 +117,7 @@ class ChannelTypes(str, Enum):
     INSTAGRAM = "instagram"
     BUSINESS_MESSAGES = "business_messages"
     LINE = "line"
-
+    MAIL = "mail"
 
 class ElementTypes(str, Enum):
     LINK = "link"
@@ -156,6 +158,10 @@ class KaironSystemSlots(str, Enum):
     flow_reply = "flow_reply"
     quick_reply = "quick_reply"
     http_status_code = "http_status_code"
+    mail_id = "mail_id"
+    subject = "subject"
+    body = "body"
+
 
 
 class VectorEmbeddingsDatabases(str, Enum):

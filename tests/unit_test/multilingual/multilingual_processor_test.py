@@ -13,7 +13,6 @@ from kairon.shared.account.data_objects import Bot
 from google.cloud.translate_v3 import TranslationServiceClient
 from google.oauth2 import service_account
 from unittest.mock import patch
-from mongomock import MongoClient
 
 
 class TestMultilingualProcessor:
@@ -618,3 +617,68 @@ class TestMultilingualProcessor:
             translated_text = Translator.translate_text_bulk(['translation text'], 'en', 'es')
 
             assert not translated_text
+
+
+    @patch('kairon.shared.multilingual.utils.translator.Translator.translate_text_bulk')
+    def test_translate_responses(self, mock_translate):
+        mock_translate.side_effect = lambda text, s_lang, d_lang: [f"translated_{t}" for t in text]
+
+        action_config = {
+            "http_action": [{"response": {"value": "hello"}}],
+            "email_action": [{"response": "hello"}],
+            "jira_action": [{"response": "hello"}],
+            "zendesk_action": [{"response": "hello"}],
+            "pipedrive_leads_action": [{"response": "hello"}],
+            "google_search_action": [{"failure_response": "not_found"}],
+            "form_validation_action": [{"valid_response": "valid", "invalid_response": "invalid"}]
+        }
+
+        expected = {
+            "http_action": [{"response": {"value": "translated_hello"}}],
+            "email_action": [{"response": "translated_hello"}],
+            "jira_action": [{"response": "translated_hello"}],
+            "zendesk_action": [{"response": "translated_hello"}],
+            "pipedrive_leads_action": [{"response": "translated_hello"}],
+            "google_search_action": [{"failure_response": "translated_not_found"}],
+            "form_validation_action": [{"valid_response": "translated_valid", "invalid_response": "translated_invalid"}]
+        }
+
+        s_lang = "en"
+        d_lang = "fr"
+        result = MultilingualTranslator._MultilingualTranslator__translate_actions(action_config, s_lang, d_lang)
+
+        assert result == expected
+        mock_translate.assert_called()
+
+    @patch('kairon.shared.multilingual.utils.translator.Translator.translate_text_bulk')
+    def test_empty_action_config(self, mock_translate):
+        mock_translate.return_value = []
+
+        action_config = {}
+        s_lang = "en"
+        d_lang = "fr"
+
+        result = MultilingualTranslator._MultilingualTranslator__translate_actions(action_config, s_lang, d_lang)
+
+        assert result == {}
+        mock_translate.assert_not_called()
+
+    @patch('kairon.shared.multilingual.utils.translator.Translator.translate_text_bulk')
+    def test_translate_actions_missing_fields(self, mock_translate):
+        mock_translate.return_value = ["translated_value"]
+
+        action_config = {
+            "http_action": [{"response": {}}],
+            "email_action": [{}],
+        }
+
+        expected = {
+            "http_action": [{"response": {}}],
+            "email_action": [{}],
+        }
+
+        s_lang = "en"
+        d_lang = "fr"
+        with pytest.raises(Exception):
+            result = MultilingualTranslator._MultilingualTranslator__translate_actions(action_config, s_lang, d_lang)
+

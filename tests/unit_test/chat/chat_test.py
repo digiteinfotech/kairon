@@ -1,5 +1,8 @@
-import os
 import time
+from unittest.mock import MagicMock, patch, AsyncMock
+
+import ujson as json
+import os
 from re import escape
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
@@ -7,10 +10,7 @@ from urllib.parse import urlencode, quote_plus
 import mongomock
 import pytest
 import responses
-import ujson as json
 from mongoengine import connect, ValidationError
-from pymongo.errors import ServerSelectionTimeoutError
-from rasa.shared.core.trackers import DialogueStateTracker
 from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
@@ -22,6 +22,8 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
+from pymongo.errors import ServerSelectionTimeoutError
+from rasa.shared.core.trackers import DialogueStateTracker
 
 
 class TestChat:
@@ -617,13 +619,16 @@ class TestChat:
 
         monkeypatch.setattr(ChatUtils, 'get_last_session', last_session)
         monkeypatch.setattr(Collection, 'aggregate', _mock_exception)
+        monkeypatch.setitem(Utility.environment["database"], "url", "mongodb://localhost:3306")
         history, message = ChatUtils.get_last_session_conversation("tests", "12345")
+        print(history, message)
         assert len(history) == 0
         assert message.__contains__("Failed to retrieve conversation: object out of memory")
 
     @mock.patch('kairon.shared.utils.Utility.create_mongo_client', autospec=True)
     def test_fetch_session_history(self, mock_mongo):
         from kairon.chat.utils import ChatUtils
+        import time
         bot = '5e564fbcdcf0d5fad89e3acd'
         test_db = Utility.environment['database']['test_db']
         mongo_client = mongomock.MongoClient("mongodb://test/conversations")
@@ -930,3 +935,32 @@ class TestChat:
         assert len(data) == 1
         assert data[0]['tag'] == 'tracker_store'
         assert data[0]['type'] == 'flattened'
+
+
+
+
+@pytest.mark.asyncio
+@patch("kairon.chat.utils.AgentProcessor.get_agent_without_cache")
+@patch("kairon.chat.utils.ChatUtils.get_metadata")
+async def test_process_messages_via_bot(mock_get_metadata, mock_get_agent_without_cache):
+    messages = ["/greet", "/bye"]
+    account = 1
+    bot = "test_bot"
+    user = "test_user"
+    is_integration_user = False
+    metadata = {"key": "value"}
+
+    mock_get_metadata.return_value = metadata
+    mock_model = MagicMock()
+    mock_get_agent_without_cache.return_value = mock_model
+    mock_model.handle_message = AsyncMock(side_effect=[{"text": "Hello"}, {"text": "Goodbye"}])
+    from kairon.chat.utils import ChatUtils
+
+    responses = await ChatUtils.process_messages_via_bot(messages, account, bot, user, is_integration_user, metadata)
+
+    assert len(responses) == 2
+    assert responses[0] == {"text": "Hello"}
+    assert responses[1] == {"text": "Goodbye"}
+    mock_get_metadata.assert_called_once_with(account, bot, is_integration_user, metadata)
+    mock_get_agent_without_cache.assert_called_once_with(bot, False)
+    assert mock_model.handle_message.call_count == 2
