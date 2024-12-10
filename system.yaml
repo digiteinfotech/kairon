@@ -139,6 +139,8 @@ events:
     pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
     scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
     content_importer: ${DOC_CONTENT_IMPORTER_TASK_DEFINITION}
+    mail_channel_read: ${MAIL_CHANNEL_READ_TASK_DEFINITION}
+    mail_channel_process: ${MAIL_CHANNEL_PROCESS_TASK_DEFINITION}
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
