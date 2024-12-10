@@ -6491,7 +6491,7 @@ def test_payload_upload_metadata_invalid_data_type(monkeypatch):
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["message"] == 'Invalid data type!'
+    assert actual["message"] == "Invalid data type for 'age': Expected integer value"
 
 
 def test_payload_updated_api_collection_does_not_exists():
