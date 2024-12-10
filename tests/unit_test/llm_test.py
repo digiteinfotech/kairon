@@ -235,7 +235,7 @@ class TestLLM:
             collection_name="payload_with_int",
             bot=bot, user=user).save()
         test_content = CognitionData(
-            data={"name": "Ram", "age": "23", "color": "red"},
+            data={"name": "Ram", "age": 23, "color": "red"},
             content_type="json",
             collection="payload_with_int",
             bot=bot, user=user).save()

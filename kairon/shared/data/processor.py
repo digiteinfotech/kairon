@@ -8717,10 +8717,26 @@ class MongoProcessor:
         from ..cognition.processor import CognitionDataProcessor
         cognition_processor = CognitionDataProcessor()
 
+        schema = CognitionSchema.objects(bot=bot, collection_name=table_name).first()
+
+        metadata_map = {meta['column_name']: meta['data_type'] for meta in schema.metadata}
+
         if overwrite:
             cognition_processor.delete_all_cognition_data_by_collection(table_name.lower(), bot)
 
         for row in reversed(doc_content):
+            for column, value in row.items():
+                if column in metadata_map:
+                    data_type = metadata_map[column]
+                    try:
+                        if data_type == 'int':
+                            row[column] = int(value) if value else None
+                        elif data_type == 'float':
+                            row[column] = float(value) if value else None
+                    except (ValueError, TypeError):
+                        raise ValueError(
+                            f"Error converting column '{column}' with value '{value}' to type '{data_type}'")
+
             payload = {
                 'collection': table_name,
                 'content_type': CognitionDataType.json.value,
