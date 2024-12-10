@@ -1,4 +1,9 @@
 import os
+
+import pytest
+
+from kairon.exceptions import AppException
+from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -47,3 +52,87 @@ def test_non_list_non_string_values():
     expected_output = [{'age': 22, 'height': 5.7, 'name': 'Tom'}]
     result = MongoProcessor.data_format_correction_cognition_data(data_entries, metadata)
     assert result == expected_output, f"Expected {expected_output}, but got {result}"
+
+def test_validate_metadata_and_payload_valid():
+    schema = {
+        "column_name": "item",
+        "data_type": "str",
+        "enable_search": True,
+        "create_embeddings": True
+    }
+    data = {
+        "id": 1,
+        "item": "Cover",
+        "price": 0.4,
+        "quantity": 20
+    }
+
+    CognitionDataProcessor.validate_column_values(data, schema)
+
+def test_validate_metadata_and_payload_invalid_str():
+    schema = {
+        "column_name": "item",
+        "data_type": "str",
+        "enable_search": True,
+        "create_embeddings": True
+    }
+    data = {
+        "id": 1,
+        "item": 123,
+        "price": 0.4,
+        "quantity": 20
+    }
+
+    with pytest.raises(AppException, match="Invalid data type for 'item': Expected string value"):
+        CognitionDataProcessor.validate_column_values(data, schema)
+
+
+def test_validate_metadata_and_payload_invalid_int():
+    schema = {
+        "column_name": "id",
+        "data_type": "int",
+        "enable_search": True,
+        "create_embeddings": True
+    }
+    data = {
+        "id": "one",
+        "item": "Cover",
+        "price": 0.4,
+        "quantity": 20
+    }
+
+    with pytest.raises(AppException, match="Invalid data type for 'id': Expected integer value"):
+        CognitionDataProcessor.validate_column_values(data, schema)
+
+def test_validate_metadata_and_payload_invalid_float():
+    schema = {
+        "column_name": "price",
+        "data_type": "float",
+        "enable_search": True,
+        "create_embeddings": True
+    }
+    data = {
+        "id": 1,
+        "item": "Cover",
+        "price": "cheap",  # Invalid: should be a float
+        "quantity": 20
+    }
+
+    with pytest.raises(AppException, match="Invalid data type for 'price': Expected float value"):
+        CognitionDataProcessor.validate_column_values(data, schema)
+
+def test_validate_metadata_and_payload_missing_column():
+    schema = {
+        "column_name": "quantity",
+        "data_type": "int",
+        "enable_search": True,
+        "create_embeddings": True
+    }
+    data = {
+        "id": 1,
+        "item": "Cover",
+        "price": 0.4
+    }
+
+    with pytest.raises(AppException, match="Column 'quantity' does not exist or has no value."):
+        CognitionDataProcessor.validate_column_values(data, schema)

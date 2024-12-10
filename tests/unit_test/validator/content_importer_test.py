@@ -151,10 +151,10 @@ class TestContentImporter:
         assert cognition_data.count() == original_row_count
         last_row = cognition_data.order_by('-_id').first()
         assert last_row["data"] == {
-            'order_id': '67',
-            'order_priority': 'Low',
-            'sales': '12.34',
-            'profit': '54.98'
+            'order_id': 67,
+            'order_priority': "Low",
+            'sales': 12.34,
+            'profit': 54.98
         }
 
     def test_import_data_partial_success(self):
@@ -185,18 +185,18 @@ class TestContentImporter:
 
         third_last_row = cognition_data[-3]
         assert third_last_row["data"] == {
-            "order_id": "33",
+            "order_id": 33,
             "order_priority": "Low",
-            "sales": "905.94",
-            "profit": "-4.19"
+            "sales": 905.94,
+            "profit": -4.19
         }
 
         fourth_last_row = cognition_data[-4]
         assert fourth_last_row["data"] == {
-            "order_id": "657",
+            "order_id": 657,
             "order_priority": "Not Specified",
-            "sales": "237.28",
-            "profit": "-2088.68"
+            "sales": 237.28,
+            "profit": -2088.68
         }
 
 

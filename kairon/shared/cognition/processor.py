@@ -383,18 +383,24 @@ class CognitionDataProcessor:
         if schema and isinstance(data, dict):
             data_type = schema['data_type']
             column_name = schema['column_name']
-            if column_name in data and data[column_name] and data_type == CognitionMetadataType.int.value:
-                try:
-                    return int(data[column_name])
-                except ValueError:
-                    raise AppException("Invalid data type!")
-            elif column_name in data and data[column_name] and data_type == CognitionMetadataType.float.value:
-                try:
-                    return float(data[column_name])
-                except ValueError:
-                    raise AppException("Invalid data type!")
+            if column_name in data and data[column_name] is not None:
+                value = data[column_name]
+
+                if data_type == CognitionMetadataType.int.value and not isinstance(value, int):
+                    raise AppException(
+                        f"Invalid data type for '{column_name}': Expected integer value")
+
+                if data_type == CognitionMetadataType.float.value and not isinstance(value, float):
+                    raise AppException(
+                        f"Invalid data type for '{column_name}': Expected float value")
+
+                if data_type == CognitionMetadataType.str.value and not isinstance(value, str):
+                    raise AppException(
+                        f"Invalid data type for '{column_name}': Expected string value")
+
+                return value
             else:
-                return data[column_name]
+                raise AppException(f"Column '{column_name}' does not exist or has no value.")
 
     @staticmethod
     def find_matching_metadata(bot: Text, data: Any, collection: Text = None):
@@ -484,7 +490,7 @@ class CognitionDataProcessor:
                     })
 
             if "document_non_existence" in event_validations:
-                if str(row_key) not in existing_document_map:
+                if row_key not in existing_document_map:
                     row_errors.append({
                         "status": "Document does not exist",
                         "primary_key": row_key,
@@ -550,7 +556,6 @@ class CognitionDataProcessor:
         }
 
         for row in data:
-            row = {str(key): str(value) for key, value in row.items()}
             primary_key_value = row.get(primary_key_col)
 
             existing_document = existing_document_map.get(primary_key_value)
