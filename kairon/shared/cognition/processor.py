@@ -390,9 +390,13 @@ class CognitionDataProcessor:
                     raise AppException(
                         f"Invalid data type for '{column_name}': Expected integer value")
 
-                if data_type == CognitionMetadataType.float.value and not isinstance(value, float):
-                    raise AppException(
-                        f"Invalid data type for '{column_name}': Expected float value")
+                if data_type == CognitionMetadataType.float.value:
+                    try:
+                        return float(value)
+                    except (ValueError, TypeError):
+                        raise AppException(
+                            f"Invalid data type for '{column_name}': Expected float value"
+                        )
 
                 if data_type == CognitionMetadataType.str.value and not isinstance(value, str):
                     raise AppException(
