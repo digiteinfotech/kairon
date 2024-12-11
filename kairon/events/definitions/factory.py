@@ -2,7 +2,7 @@ from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
-from kairon.events.definitions.mail_channel import MailProcessEvent, MailReadEvent
+from kairon.events.definitions.mail_channel import MailReadEvent
 from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
@@ -23,7 +23,6 @@ class EventFactory:
         EventClass.message_broadcast: MessageBroadcastEvent,
         EventClass.content_importer: DocContentImporterEvent,
         EventClass.mail_channel_read_mails: MailReadEvent,
-        EventClass.mail_channel_process_mails: MailProcessEvent
     }
 
     @staticmethod

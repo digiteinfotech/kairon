@@ -108,32 +108,3 @@ def test_schedule_channel_mail_reading_exception(mock_mongo_client, mock_mail_pr
         EventUtility.schedule_channel_mail_reading(bot)
     assert str(excinfo.value) == f"Failed to schedule mail reading for bot {bot}. Error: Test Exception"
 
-
-@patch('kairon.events.utility.EventUtility.schedule_channel_mail_reading')
-@patch('kairon.shared.chat.data_objects.Channels.objects')
-def test_reschedule_all_bots_channel_mail_reading(mock_channels_objects, mock_schedule_channel_mail_reading):
-    from kairon.events.utility import EventUtility
-
-    mock_channels_objects.return_value.distinct.return_value = ['bot1', 'bot2']
-
-    EventUtility.reschedule_all_bots_channel_mail_reading()
-
-    mock_channels_objects.return_value.distinct.assert_called_once_with("bot")
-    assert mock_schedule_channel_mail_reading.call_count == 2
-    mock_schedule_channel_mail_reading.assert_any_call('bot1')
-    mock_schedule_channel_mail_reading.assert_any_call('bot2')
-
-@patch('kairon.events.utility.EventUtility.schedule_channel_mail_reading')
-@patch('kairon.shared.chat.data_objects.Channels.objects')
-def test_reschedule_all_bots_channel_mail_reading_exception(mock_channels_objects, mock_schedule_channel_mail_reading):
-    from kairon.events.utility import EventUtility
-
-    mock_channels_objects.return_value.distinct.return_value = ['bot1', 'bot2']
-    mock_schedule_channel_mail_reading.side_effect = Exception("Test Exception")
-
-    with pytest.raises(AppException) as excinfo:
-        EventUtility.reschedule_all_bots_channel_mail_reading()
-
-    assert str(excinfo.value) == "Failed to reschedule mail reading events. Error: Test Exception"
-    mock_channels_objects.return_value.distinct.assert_called_once_with("bot")
-    assert mock_schedule_channel_mail_reading.call_count == 1

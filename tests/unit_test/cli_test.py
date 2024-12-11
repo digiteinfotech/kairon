@@ -324,32 +324,6 @@ class TestMailChannelCli:
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
-    @mock.patch("kairon.cli.mail_channel_process.MailProcessEvent.execute")
-    def test_start_mail_channel_process(self, mock_execute):
-        from kairon.cli.mail_channel_process import process_channel_mails
-        data = [{"mail": "test_mail"}]
-        data = json.dumps(data)
-        with patch('argparse.ArgumentParser.parse_args',
-                   return_value=argparse.Namespace(func=process_channel_mails,
-                                                   bot="test_bot",
-                                                    user="test_user", mails=data)):
-            cli()
-        mock_execute.assert_called_once()
-
-
-    @mock.patch("kairon.cli.mail_channel_process.MailProcessEvent.execute")
-    def test_start_mail_channel_process_wrong_format(self, mock_execute):
-        from kairon.cli.mail_channel_process import process_channel_mails
-        data = {"mail": "test_mail"}
-        data = json.dumps(data)
-        with patch('argparse.ArgumentParser.parse_args',
-                   return_value=argparse.Namespace(func=process_channel_mails,
-                                                   bot="test_bot",
-                                                    user="test_user", mails=data)):
-            with pytest.raises(ValueError):
-                cli()
-        mock_execute.assert_not_called()
-
     @mock.patch("kairon.cli.mail_channel_read.MailReadEvent.execute")
     def test_start_mail_channel_read(self, mock_execute):
         from kairon.cli.mail_channel_read import read_channel_mails
