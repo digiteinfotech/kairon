@@ -229,7 +229,7 @@ class MailProcessor:
 
 
     @staticmethod
-    def read_mails(bot: str) -> ([dict], str, int):
+    def read_mails(bot: str) -> ([dict], str):
         """
         Read mails from the mailbox
         Parameters:
@@ -247,16 +247,20 @@ class MailProcessor:
         """
         logger.info(f"reading mails for {bot}")
         mp = MailProcessor(bot)
-        time_shift = int(mp.config.get('interval', 20 * 60))
-        last_read_timestamp = datetime.now() - timedelta(seconds=time_shift)
         messages = []
         is_logged_in = False
         last_processed_uid = mp.state.last_email_uid
-        query = f'{int(last_processed_uid) + 1}:*'
         try:
             mp.login_imap()
             is_logged_in = True
-            msgs = mp.mailbox.fetch(AND(date_gte=last_read_timestamp.date(), uid=query), mark_seen=False)
+            msgs = []
+            if last_processed_uid == 0:
+                time_shift = int(mp.config.get('interval', 20 * 60))
+                last_read_timestamp = datetime.now() - timedelta(seconds=time_shift)
+                msgs = mp.mailbox.fetch(AND(date_gte=last_read_timestamp.date()), mark_seen=False)
+            else:
+                query = f'{int(last_processed_uid) + 1}:*'
+                msgs = mp.mailbox.fetch(AND(uid=query), mark_seen=False)
             for msg in msgs:
                 if int(msg.uid) <= last_processed_uid:
                     continue
@@ -267,8 +271,7 @@ class MailProcessor:
                 body = msg.text or msg.html or ""
                 #attachments = msg.attachments
                 mail_log = MailResponseLog(sender_id = sender_id,
-                                            subject = subject,
-                                            body = body,
+                                            uid = last_processed_uid,
                                             bot = bot,
                                             user = mp.bot_settings.user,
                                             status=MailStatus.Processing.value,
@@ -288,11 +291,11 @@ class MailProcessor:
             mp.state.save()
 
             is_logged_in = False
-            return messages, mp.bot_settings.user, time_shift
+            return messages, mp.bot_settings.user
         except Exception as e:
             logger.exception(e)
             if is_logged_in:
                 mp.logout_imap()
-            return [], mp.bot_settings.user, time_shift
+            return [], mp.bot_settings.user
 
 

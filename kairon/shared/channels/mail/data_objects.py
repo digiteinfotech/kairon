@@ -28,8 +28,7 @@ class MailResponseLog(Auditlog):
     Mail response log
     """
     sender_id = StringField(required=True)
-    subject = StringField()
-    body = StringField()
+    uid = IntField(required=True)
     responses = ListField()
     slots = DictField()
     bot = StringField(required=True)
