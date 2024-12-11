@@ -114,12 +114,27 @@ def test_validate_metadata_and_payload_invalid_float():
     data = {
         "id": 1,
         "item": "Cover",
-        "price": "cheap",  # Invalid: should be a float
+        "price": "cheap",
         "quantity": 20
     }
 
     with pytest.raises(AppException, match="Invalid data type for 'price': Expected float value"):
         CognitionDataProcessor.validate_column_values(data, schema)
+
+def test_validate_metadata_and_payload_int_value_in_float_field():
+    schema = {
+        "column_name": "price",
+        "data_type": "float",
+        "enable_search": True,
+        "create_embeddings": True
+    }
+    data = {
+        "id": 1,
+        "item": "Cover",
+        "price": 231,
+        "quantity": 20
+    }
+    CognitionDataProcessor.validate_column_values(data, schema)
 
 def test_validate_metadata_and_payload_missing_column():
     schema = {
