@@ -57,7 +57,7 @@ class LLMProcessor(LLMBase):
         await self.__delete_collections()
         count = 0
         processor = CognitionDataProcessor()
-        batch_size = 100
+        batch_size = 500
 
         collections_data = CognitionData.objects(bot=self.bot)
         collection_groups = {}
