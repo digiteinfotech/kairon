@@ -172,8 +172,7 @@ class TestMailChannel:
         mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
                                             sender_id="recipient@test.com",
                                             user="mail_channel_test_user_acc",
-                                            subject="Test Subject",
-                                            body="Test Body",
+                                            uid=123
                                             )
         mail_response_log.save()
         mail_response_log.save()
@@ -210,8 +209,7 @@ class TestMailChannel:
         mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
                                             sender_id="recipient@test.com",
                                             user="mail_channel_test_user_acc",
-                                            subject="Test Subject",
-                                            body="Test Body",
+                                            uid=123
                                             )
         mail_response_log.save()
 
@@ -253,8 +251,7 @@ class TestMailChannel:
         mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
                                             sender_id="recipient@test.com",
                                             user="mail_channel_test_user_acc",
-                                            subject="Test Subject",
-                                            body="Test Body",
+                                            uid=123
                                             )
         mail_response_log.save()
 
@@ -311,7 +308,7 @@ class TestMailChannel:
         mock_mailbox_instance.login.return_value = mock_mailbox_instance
         mock_mailbox_instance.fetch.return_value = [mock_mail_message]
 
-        mails, user, time_shift = MailProcessor.read_mails(bot_id)
+        mails, user = MailProcessor.read_mails(bot_id)
         print(mails)
         assert len(mails) == 1
         assert mails[0]["subject"] == "Test Subject"
@@ -319,7 +316,6 @@ class TestMailChannel:
         assert mails[0]["date"] == "2023-10-10"
         assert mails[0]["body"] == "Test Body"
         assert user == 'mail_channel_test_user_acc'
-        assert time_shift == 1200
 
 
 
@@ -349,10 +345,9 @@ class TestMailChannel:
         mock_mailbox_instance.login.return_value = mock_mailbox_instance
         mock_mailbox_instance.fetch.return_value = []
 
-        mails, user, time_shift = MailProcessor.read_mails(bot_id)
+        mails, user = MailProcessor.read_mails(bot_id)
         assert len(mails) == 0
         assert user == 'mail_channel_test_user_acc'
-        assert time_shift == 1200
 
         mock_logout_imap.assert_called_once()
 
@@ -369,8 +364,7 @@ class TestMailChannel:
         mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
                                             sender_id="recipient@test.com",
                                             user="mail_channel_test_user_acc",
-                                            subject="Test Subject",
-                                            body="Test Body",
+                                            uid=123
                                             )
         mail_response_log.save()
 
