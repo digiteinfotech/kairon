@@ -24,7 +24,7 @@ class MailReadEvent(EventsBase):
         """
         validate mail channel exists and works properly
         """
-        return MailProcessor.validate_imap_connection(self.bot) and MailProcessor.validate_imap_connection(self.bot)
+        return MailProcessor.validate_imap_connection(self.bot) and MailProcessor.validate_smtp_connection(self.bot)
 
     def enqueue(self, **kwargs):
         """
@@ -43,8 +43,7 @@ class MailReadEvent(EventsBase):
         Execute the event.
         """
         try:
-            vals = MailProcessor.read_mails(self.bot)
-            emails, _ = vals
+            emails, _ = MailProcessor.read_mails(self.bot)
             batch_size = MailConstants.PROCESS_MESSAGE_BATCH_SIZE
             for i in range(0, len(emails), batch_size):
                 batch = emails[i:i + batch_size]
