@@ -60,13 +60,3 @@ class EventUtility:
                                      EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
         except Exception as e:
             raise AppException(f"Failed to schedule mail reading for bot {bot}. Error: {str(e)}")
-
-    @staticmethod
-    def reschedule_all_bots_channel_mail_reading():
-        try:
-            bots = list(Channels.objects(connector_type= ChannelTypes.MAIL.value).distinct("bot"))
-            for bot in bots:
-                logger.info(f"Rescheduling mail reading for bot {bot}")
-                EventUtility.schedule_channel_mail_reading(bot)
-        except Exception as e:
-            raise AppException(f"Failed to reschedule mail reading events. Error: {str(e)}")
