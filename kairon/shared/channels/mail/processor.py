@@ -1,6 +1,5 @@
 import asyncio
 import time
-from typing import List
 
 from loguru import logger
 from pydantic.schema import timedelta
@@ -12,7 +11,6 @@ from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.channels.mail.constants import MailConstants
 from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus, MailChannelStateData
-from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.data_objects import BotSettings
