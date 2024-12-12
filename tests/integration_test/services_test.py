@@ -29685,10 +29685,9 @@ def test_leave_non_existent_bot_1():
     assert not actual["success"]
 
 def test_payload_upload_api_with_float_field(monkeypatch):
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.cognition_collections_limit = 20
-    bot_settings.llm_settings['enable_faq'] = True
-    bot_settings.save()
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True), cognition_collections_limit = 20)
     metadata = {
         "metadata": [{"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
                      {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True}],
@@ -29721,16 +29720,11 @@ def test_payload_upload_api_with_float_field(monkeypatch):
     assert data_dict['data']['item'] == 'Box'
     assert data_dict['data']['price'] == 54.02
     CognitionData.objects(bot=pytest.bot, collection="with_float_field").delete()
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.llm_settings['enable_faq'] = False
-    bot_settings.save()
 
 def test_payload_upload_api_with_float_field_value_integer(monkeypatch):
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.content_importer_limit_per_day = 10
-    bot_settings.cognition_collections_limit = 20
-    bot_settings.llm_settings['enable_faq'] = True
-    bot_settings.save()
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True), cognition_collections_limit = 20)
     metadata = {
         "metadata": [{"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
                      {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True}],
@@ -29765,16 +29759,10 @@ def test_payload_upload_api_with_float_field_value_integer(monkeypatch):
     assert isinstance(data_dict['data']['price'], float)
     assert data_dict['data']['price'] == 54.0
     CognitionData.objects(bot=pytest.bot, collection="with_float_field_value_integer").delete()
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.llm_settings['enable_faq'] = False
-    bot_settings.save()
 
 def test_update_payload_upload_api_with_float_field_value_integer(monkeypatch):
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.content_importer_limit_per_day = 10
-    bot_settings.cognition_collections_limit = 20
-    bot_settings.llm_settings['enable_faq'] = True
-    bot_settings.save()
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True), cognition_collections_limit = 20)
     metadata = {
         "metadata": [{"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
                      {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True}],
@@ -29810,8 +29798,6 @@ def test_update_payload_upload_api_with_float_field_value_integer(monkeypatch):
     assert isinstance(data_dict['data']['price'], float)
     assert data_dict['data']['price'] == 54.08
 
-
-
     update_payload = {
         "data": {"item": "Box", "price": 27},
         "content_type": "json",
@@ -29834,6 +29820,3 @@ def test_update_payload_upload_api_with_float_field_value_integer(monkeypatch):
     assert isinstance(data_dict['data']['price'], float)
     assert data_dict['data']['price'] == 27.0
     CognitionData.objects(bot=pytest.bot, collection="update_with_float_field_value_integer").delete()
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.llm_settings['enable_faq'] = False
-    bot_settings.save()
