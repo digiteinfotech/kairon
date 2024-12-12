@@ -125,8 +125,7 @@ def test_stop_channel_mail_reading(mock_mongo, mock_mail_processor, mock_kschedu
     EventUtility.stop_channel_mail_reading(bot)
     mock_delete_job.assert_called_once()
 
-
-@patch('kairon.shared.channels.mail.processor.MailProcessor.does_mail_channel_exist')
+@patch('kairon.shared.utils.Utility.is_exist')
 @patch('kairon.shared.channels.mail.scheduler.Utility.get_event_server_url')
 @patch('kairon.shared.channels.mail.scheduler.Utility.execute_http_request')
 def test_request_stop_success(mock_execute_http_request, mock_get_event_server_url, mock_imp):
@@ -140,10 +139,10 @@ def test_request_stop_success(mock_execute_http_request, mock_get_event_server_u
         pytest.fail("request_epoch() raised AppException unexpectedly!")
 
 
-@patch('kairon.shared.channels.mail.processor.MailProcessor.does_mail_channel_exist')
+@patch('kairon.shared.utils.Utility.is_exist')
 @patch('kairon.shared.channels.mail.scheduler.Utility.get_event_server_url')
 @patch('kairon.shared.channels.mail.scheduler.Utility.execute_http_request')
-def test_request_stop__response_not_success(mock_execute_http_request, mock_get_event_server_url, mock_imp):
+def test_request_stop_response_not_success(mock_execute_http_request, mock_get_event_server_url, mock_imp):
     mock_get_event_server_url.return_value = "http://localhost"
     mock_execute_http_request.return_value = {'success': False}
     mock_imp.return_value = True
@@ -151,7 +150,7 @@ def test_request_stop__response_not_success(mock_execute_http_request, mock_get_
     with pytest.raises(AppException):
         MailScheduler.request_stop(bot)
 
-@patch('kairon.shared.channels.mail.processor.MailProcessor.does_mail_channel_exist')
+@patch('kairon.shared.utils.Utility.is_exist')
 @patch('kairon.shared.channels.mail.scheduler.Utility.get_event_server_url')
 @patch('kairon.shared.channels.mail.scheduler.Utility.execute_http_request')
 def test_request_stop_no_channel_exist_exception(mock_execute_http_request, mock_get_event_server_url, mock_imp):

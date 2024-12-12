@@ -2,6 +2,8 @@ from urllib.parse import urljoin
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.channels.mail.processor import MailProcessor
+from kairon.shared.chat.data_objects import Channels
+from kairon.shared.constants import ChannelTypes
 
 
 class MailScheduler:
@@ -29,7 +31,7 @@ class MailScheduler:
     @staticmethod
     def request_stop(bot: str):
         event_server_url = Utility.get_event_server_url()
-        if MailProcessor.does_mail_channel_exist(bot):
+        if Utility.is_exist(Channels, raise_error=False, bot=bot, connector_type=ChannelTypes.MAIL.value):
             resp = Utility.execute_http_request(
                 "GET",
                 urljoin(
