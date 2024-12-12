@@ -41,7 +41,7 @@ def train_model_for_bot(bot: str):
 
         index = next((index for (index, d) in enumerate(config['pipeline']) if d["name"] == "kairon.nlu.LLMClassifier"), None)
         if index:
-            config[index]['bot_id']= bot
+            config['pipeline'][index]['bot_id']= bot
 
         rules = processor.get_rules_for_training(bot)
         rules = rules.merge(multiflow_stories[1])
