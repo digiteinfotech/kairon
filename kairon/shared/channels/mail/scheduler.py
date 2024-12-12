@@ -1,9 +1,9 @@
 from urllib.parse import urljoin
-
-
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.channels.mail.processor import MailProcessor
+from kairon.shared.chat.data_objects import Channels
+from kairon.shared.constants import ChannelTypes
 
 
 class MailScheduler:
@@ -27,6 +27,23 @@ class MailScheduler:
         )
         if not resp['success']:
             raise AppException("Failed to request email channel epoch")
+
+    @staticmethod
+    def request_stop(bot: str):
+        event_server_url = Utility.get_event_server_url()
+        if Utility.is_exist(Channels, raise_error=False, bot=bot, connector_type=ChannelTypes.MAIL.value):
+            resp = Utility.execute_http_request(
+                "GET",
+                urljoin(
+                    event_server_url,
+                    f"/api/mail/stop/{bot}",
+                ),
+                err_msg="Failed to request epoch",
+            )
+            if not resp['success']:
+                raise AppException("Failed to stop email channel reading")
+        else:
+            raise AppException("Mail channel does not exist")
 
 
 

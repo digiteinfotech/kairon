@@ -2223,6 +2223,15 @@ class Utility:
             document["user"] = user
             document.delete()
 
+    @staticmethod
+    def string_to_list(comma_sep_string: str, delimilter: str = ",") -> List[str]:
+        """
+        Convert comma separated string to list
+        """
+        if not comma_sep_string:
+            return []
+        return [item.strip() for item in comma_sep_string.split(delimilter) if item.strip()]
+
 
 class StoryValidator:
     @staticmethod
@@ -2756,3 +2765,4 @@ class MailUtility:
         body = body.replace("BOT_NAME", bot_name)
         subject = f"Notification: {user_name} has left the {bot_name} bot"
         return body, subject
+
