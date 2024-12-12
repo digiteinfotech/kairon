@@ -3,7 +3,7 @@ import os
 from unittest.mock import patch, MagicMock
 
 import pytest
-from imap_tools import MailMessage
+from imap_tools import MailMessage, AND
 
 from mongoengine import connect, disconnect
 from uuid6 import uuid7
@@ -276,6 +276,53 @@ class TestMailChannel:
         assert result == "Hello John Doe, How can I help you today?"
 
 
+
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @pytest.mark.asyncio
+    async def test_generate_criteria(self, mock_get_channel_config):
+        bot_id = pytest.mail_test_bot
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'imap_server': "imap.testuser.com",
+            }
+        }
+
+        mp = MailProcessor(bot=bot_id)
+        mp.state.last_email_uid = 123
+        #seen
+        criteria = mp.generate_criteria(read_status="seen")
+        print(criteria)
+        assert criteria == '((SEEN) (UID 124:*))'
+
+        #unseen
+        criteria = mp.generate_criteria(read_status="unseen")
+        assert criteria == '((UNSEEN) (UID 124:*))'
+
+        #default
+        criteria = mp.generate_criteria()
+        assert criteria == '((UID 124:*))'
+
+        #subjects
+        criteria = mp.generate_criteria(subjects=["Test Subject", "another test subject"])
+        assert criteria == '((OR SUBJECT "Test Subject" SUBJECT "another test subject") (UID 124:*))'
+
+        #from
+        criteria = mp.generate_criteria(from_addresses=["info", "important1@gmail.com", "anotherparrtern@gmail.com"])
+        assert criteria == '((OR OR FROM "anotherparrtern@gmail.com" FROM "important1@gmail.com" FROM "info") (UID 124:*))'
+
+        #mix
+        criteria = mp.generate_criteria(read_status="unseen",
+                                        subjects=["Test Subject", "another test subject", "happy"],
+                                        ignore_subjects=['cat'],
+                                        ignore_from=["info", "nomreply"],
+                                        from_addresses=["@digite.com", "@nimblework.com"])
+
+        assert criteria == '((UNSEEN) (OR OR SUBJECT "Test Subject" SUBJECT "another test subject" SUBJECT "happy") NOT ((SUBJECT "cat")) (OR FROM "@digite.com" FROM "@nimblework.com") NOT ((FROM "info")) NOT ((FROM "nomreply")) (UID 124:*))'
+
+
+
     @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
     @patch("kairon.shared.channels.mail.processor.MailBox")
@@ -539,3 +586,41 @@ class TestMailChannel:
         Bot.objects(user="mail_channel_test_user_acc").delete()
         Account.objects(user="mail_channel_test_user_acc").delete()
         Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
+
+
+    def test_comma_sep_string_to_list(self):
+        # Test input with empty elements
+        assert MailProcessor.comma_sep_string_to_list("apple, , banana, , orange") == ["apple", "banana", "orange"]
+
+        # Test input with only commas
+        assert MailProcessor.comma_sep_string_to_list(",,,") == []
+
+        # Test input with no commas (single element)
+        assert MailProcessor.comma_sep_string_to_list("apple") == ["apple"]
+
+        # Test input with empty string
+        assert MailProcessor.comma_sep_string_to_list("") == []
+
+        # Test input with None
+        assert MailProcessor.comma_sep_string_to_list(None) == []
+
+        # Test input with special characters
+        assert MailProcessor.comma_sep_string_to_list("apple,@banana, #orange$") == ["apple", "@banana", "#orange$"]
+
+        # Test input with numeric values
+        assert MailProcessor.comma_sep_string_to_list("1, 2, 3, 4") == ["1", "2", "3", "4"]
+
+        # Test input with spaces
+        assert MailProcessor.comma_sep_string_to_list("apple, banana, orange") == ["apple", "banana", "orange"]
+
+
+    @patch('kairon.shared.channels.mail.processor.Channels')
+    def test_mail_channel_exist(self, mock_channels):
+        mock_channels.objects.return_value.first.return_value = True
+        assert MailProcessor.does_mail_channel_exist("test_bot") is True
+
+    @patch('kairon.shared.channels.mail.processor.Channels')
+    def test_mail_channel_not_exist(self, mock_channels):
+        mock_channels.objects.return_value.first.return_value = False
+        assert MailProcessor.does_mail_channel_exist("test_bot") is False
+
