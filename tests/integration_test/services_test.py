@@ -29683,3 +29683,157 @@ def test_leave_non_existent_bot_1():
     assert actual["message"] == "Access to bot is denied"
     assert actual["error_code"] == 422
     assert not actual["success"]
+
+def test_payload_upload_api_with_float_field(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.cognition_collections_limit = 20
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+    metadata = {
+        "metadata": [{"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                     {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True}],
+        "collection_name": "with_float_field",
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json=metadata,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    payload = {
+        "data": {"item": "Box","price":54.02},
+        "content_type": "json",
+        "collection": "with_float_field"
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    pytest.payload_id = actual["data"]["_id"]
+    assert actual["message"] == "Record saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="with_float_field").first()
+    assert cognition_data is not None
+    data_dict = cognition_data.to_mongo().to_dict()
+    assert data_dict['data']['item'] == 'Box'
+    assert data_dict['data']['price'] == 54.02
+    CognitionData.objects(bot=pytest.bot, collection="with_float_field").delete()
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+def test_payload_upload_api_with_float_field_value_integer(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.content_importer_limit_per_day = 10
+    bot_settings.cognition_collections_limit = 20
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+    metadata = {
+        "metadata": [{"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                     {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True}],
+        "collection_name": "with_float_field_value_integer",
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json=metadata,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    payload = {
+        "data": {"item": "Box","price":54},
+        "content_type": "json",
+        "collection": "with_float_field_value_integer"
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    pytest.payload_id = actual["data"]["_id"]
+    assert actual["message"] == "Record saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="with_float_field_value_integer").first()
+    assert cognition_data is not None
+    data_dict = cognition_data.to_mongo().to_dict()
+    print(data_dict)
+    assert data_dict['data']['item'] == 'Box'
+    assert isinstance(data_dict['data']['price'], float)
+    assert data_dict['data']['price'] == 54.0
+    CognitionData.objects(bot=pytest.bot, collection="with_float_field_value_integer").delete()
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
+
+def test_update_payload_upload_api_with_float_field_value_integer(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.content_importer_limit_per_day = 10
+    bot_settings.cognition_collections_limit = 20
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+    metadata = {
+        "metadata": [{"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                     {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True}],
+        "collection_name": "update_with_float_field_value_integer",
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json=metadata,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    payload = {
+        "data": {"item": "Box","price":54.08},
+        "content_type": "json",
+        "collection": "update_with_float_field_value_integer"
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    pytest.payload_id = actual["data"]["_id"]
+    assert actual["message"] == "Record saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="update_with_float_field_value_integer").first()
+    assert cognition_data is not None
+    data_dict = cognition_data.to_mongo().to_dict()
+    print(data_dict)
+    assert data_dict['data']['item'] == 'Box'
+    assert isinstance(data_dict['data']['price'], float)
+    assert data_dict['data']['price'] == 54.08
+
+
+
+    update_payload = {
+        "data": {"item": "Box", "price": 27},
+        "content_type": "json",
+        "collection": "update_with_float_field_value_integer"
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
+        json=update_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Record updated!"
+    assert actual["error_code"] == 0
+
+    cognition_data = CognitionData.objects(bot=pytest.bot, collection="update_with_float_field_value_integer").first()
+    assert cognition_data is not None
+    data_dict = cognition_data.to_mongo().to_dict()
+    print(data_dict)
+    assert data_dict['data']['item'] == 'Box'
+    assert isinstance(data_dict['data']['price'], float)
+    assert data_dict['data']['price'] == 27.0
+    CognitionData.objects(bot=pytest.bot, collection="update_with_float_field_value_integer").delete()
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.llm_settings['enable_faq'] = False
+    bot_settings.save()
