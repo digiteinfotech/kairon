@@ -108,3 +108,56 @@ def test_schedule_channel_mail_reading_exception(mock_mongo_client, mock_mail_pr
         EventUtility.schedule_channel_mail_reading(bot)
     assert str(excinfo.value) == f"Failed to schedule mail reading for bot {bot}. Error: Test Exception"
 
+@patch('kairon.events.utility.KScheduler.delete_job')
+@patch('kairon.events.utility.KScheduler.__init__', return_value=None)
+@patch('kairon.shared.channels.mail.processor.MailProcessor')
+@patch('pymongo.MongoClient', autospec=True)
+def test_stop_channel_mail_reading(mock_mongo, mock_mail_processor, mock_kscheduler, mock_delete_job):
+    from kairon.events.utility import EventUtility
+
+    bot = "test_bot"
+    mock_mail_processor_instance = mock_mail_processor.return_value
+    mock_mail_processor_instance.config = {"interval": 1}
+    mock_mail_processor_instance.state.event_id = 'existing_event_id'
+    mock_mail_processor_instance.bot_settings.user = "test_user"
+
+#     # Test case when event_id is None
+    EventUtility.stop_channel_mail_reading(bot)
+    mock_delete_job.assert_called_once()
+
+@patch('kairon.shared.utils.Utility.is_exist')
+@patch('kairon.shared.channels.mail.scheduler.Utility.get_event_server_url')
+@patch('kairon.shared.channels.mail.scheduler.Utility.execute_http_request')
+def test_request_stop_success(mock_execute_http_request, mock_get_event_server_url, mock_imp):
+    mock_get_event_server_url.return_value = "http://localhost"
+    mock_execute_http_request.return_value = {'success': True}
+    mock_imp.return_value = True
+    bot = "test_bot"
+    try:
+        MailScheduler.request_stop(bot)
+    except AppException:
+        pytest.fail("request_epoch() raised AppException unexpectedly!")
+
+
+@patch('kairon.shared.utils.Utility.is_exist')
+@patch('kairon.shared.channels.mail.scheduler.Utility.get_event_server_url')
+@patch('kairon.shared.channels.mail.scheduler.Utility.execute_http_request')
+def test_request_stop_response_not_success(mock_execute_http_request, mock_get_event_server_url, mock_imp):
+    mock_get_event_server_url.return_value = "http://localhost"
+    mock_execute_http_request.return_value = {'success': False}
+    mock_imp.return_value = True
+    bot = "test_bot"
+    with pytest.raises(AppException):
+        MailScheduler.request_stop(bot)
+
+@patch('kairon.shared.utils.Utility.is_exist')
+@patch('kairon.shared.channels.mail.scheduler.Utility.get_event_server_url')
+@patch('kairon.shared.channels.mail.scheduler.Utility.execute_http_request')
+def test_request_stop_no_channel_exist_exception(mock_execute_http_request, mock_get_event_server_url, mock_imp):
+    mock_get_event_server_url.return_value = "http://localhost"
+    mock_execute_http_request.return_value = {'success': True}
+    mock_imp.return_value = False
+    bot = "test_bot"
+    with pytest.raises(AppException):
+        MailScheduler.request_stop(bot)
+

@@ -150,3 +150,9 @@ def dispatch_scheduled_event(event_id: Text = Path(description="Event id")):
 def request_epoch(bot: Text = Path(description="Bot id")):
     EventUtility.schedule_channel_mail_reading(bot)
     return {"data": None, "message": "Mail scheduler epoch request!"}
+
+
+@app.get('/api/mail/stop/{bot}', response_model=Response)
+def stop_mail_reading(bot: Text = Path(description="Bot id")):
+    EventUtility.stop_channel_mail_reading(bot)
+    return {"data": None, "message": "Mail scheduler stopped!"}
