@@ -85,6 +85,11 @@ channels:
     optional_fields:
       - interval
       - intent
+      - subjects
+      - ignore_subjects
+      - from_emails
+      - ignore_from_emails
+      - seen_status
 
 actions:
   pipedrive:

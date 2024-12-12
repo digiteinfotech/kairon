@@ -70,6 +70,12 @@ class ChatDataProcessor:
         :return: None
         """
         kwargs.update({"bot": bot})
+        if kwargs.get("connector_type") != ChannelTypes.SLACK.value:
+            try:
+                from kairon.shared.channels.mail.scheduler import MailScheduler
+                MailScheduler.request_stop(bot)
+            except Exception as e:
+                logger.error(f"Error while stopping mail scheduler for bot {bot}. Error: {str(e)}")
         Utility.hard_delete_document([Channels], **kwargs)
 
     @staticmethod

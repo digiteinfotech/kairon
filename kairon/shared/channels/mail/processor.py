@@ -1,14 +1,16 @@
 import asyncio
 import time
+from typing import List
 
 from loguru import logger
 from pydantic.schema import timedelta
 from pydantic.validators import datetime
-from imap_tools import MailBox, AND
+from imap_tools import MailBox, AND, OR, NOT
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.channels.mail.constants import MailConstants
 from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus, MailChannelStateData
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.data_objects import BotSettings
@@ -35,8 +37,18 @@ class MailProcessor:
         self.state.event_id = event_id
         self.state.save()
 
+
     @staticmethod
-    def get_mail_channel_state_data(bot):
+    def does_mail_channel_exist(bot:str):
+        """
+        Check if mail channel exists
+        """
+        if Channels.objects(bot=bot, connector_type=ChannelTypes.MAIL.value).first():
+            return True
+        return False
+
+    @staticmethod
+    def get_mail_channel_state_data(bot:str):
         """
         Get mail channel state data
         """
@@ -227,6 +239,65 @@ class MailProcessor:
         """
         asyncio.run(MailProcessor.process_messages(bot, message_batch))
 
+    def generate_criteria(self, subjects=None, ignore_subjects=None, from_addresses=None, ignore_from=None,
+                          read_status="all"):
+        """
+        Generate IMAP criteria for fetching emails.
+
+        Args:
+            subjects (list[str], optional): List of subjects to include.
+            ignore_subjects (list[str], optional): List of subjects to exclude.
+            from_addresses (list[str], optional): List of senders to include.
+            ignore_from (list[str], optional): List of senders to exclude.
+            read_status (str): Read status filter ('all', 'seen', 'unseen').
+
+        Returns:
+            imap_tools.query.AND: IMAP criteria object.
+        """
+        criteria = []
+
+        if read_status.lower() == "seen":
+            criteria.append(AND(seen=True))
+        elif read_status.lower() == "unseen":
+            criteria.append(AND(seen=False))
+
+        if subjects:
+            criteria.append(OR(subject=subjects))
+
+        if ignore_subjects:
+            for subject in ignore_subjects:
+                criteria.append(NOT(AND(subject=subject)))
+
+        if from_addresses:
+            criteria.append(OR(from_=from_addresses))
+
+        if ignore_from:
+            for sender in ignore_from:
+                criteria.append(NOT(AND(from_=sender)))
+
+        last_processed_uid = self.state.last_email_uid
+        base_read_criteria = None
+        if last_processed_uid == 0:
+            time_shift = int(self.config.get('interval', 20 * 60))
+            last_read_timestamp = datetime.now() - timedelta(seconds=time_shift)
+            base_read_criteria = AND(date_gte=last_read_timestamp.date())
+        else:
+            query = f'{int(last_processed_uid) + 1}:*'
+            base_read_criteria = AND(uid=query)
+
+        criteria.append(base_read_criteria)
+
+        # Combine all criteria with AND
+        return AND(*criteria)
+
+    @staticmethod
+    def comma_sep_string_to_list(comma_sep_string: str) -> List[str]:
+        """
+        Convert comma separated string to list
+        """
+        if not comma_sep_string:
+            return []
+        return [item.strip() for item in comma_sep_string.split(",") if item.strip()]
 
     @staticmethod
     def read_mails(bot: str) -> ([dict], str):
@@ -253,15 +324,17 @@ class MailProcessor:
         try:
             mp.login_imap()
             is_logged_in = True
-            msgs = []
-            if last_processed_uid == 0:
-                time_shift = int(mp.config.get('interval', 20 * 60))
-                last_read_timestamp = datetime.now() - timedelta(seconds=time_shift)
-                msgs = mp.mailbox.fetch(AND(date_gte=last_read_timestamp.date()), mark_seen=False)
-            else:
-                query = f'{int(last_processed_uid) + 1}:*'
-                msgs = mp.mailbox.fetch(AND(uid=query), mark_seen=False)
-            for msg in msgs:
+            subject = mp.config.get('subjects', "")
+            subject = MailProcessor.comma_sep_string_to_list(subject)
+            ignore_subject = mp.config.get('ignore_subjects', "")
+            ignore_subject = MailProcessor.comma_sep_string_to_list(ignore_subject)
+            from_addresses = mp.config.get('from_emails', "")
+            from_addresses = MailProcessor.comma_sep_string_to_list(from_addresses)
+            ignore_from = mp.config.get('ignore_from_emails', "")
+            ignore_from = MailProcessor.comma_sep_string_to_list(ignore_from)
+            read_status = mp.config.get('seen_status', 'all')
+            criteria = mp.generate_criteria(subject, ignore_subject, from_addresses, ignore_from, read_status)
+            for msg in mp.mailbox.fetch(criteria, mark_seen=False):
                 if int(msg.uid) <= last_processed_uid:
                     continue
                 last_processed_uid = int(msg.uid)
