@@ -71,4 +71,4 @@ class EventUtility:
                 mail_processor.update_event_id(None)
                 KScheduler().delete_job(event_id)
         except Exception as e:
-            raise logger.error(f"Failed to stop mail reading for bot {bot}. Error: {str(e)}")
+            raise AppException(f"Failed to stop mail reading for bot {bot}. Error: {str(e)}")
