@@ -82,9 +82,9 @@ class LLMClassifier(IntentClassifier, GraphComponent, EntityExtractorMixin, ABC)
         if bot_id:
             from kairon.shared.admin.processor import Sysadmin
             llm_secret = Sysadmin.get_llm_secret("openai", bot_id)
-            self.api_key = llm_secret.get('api_key')
+            self.secret = llm_secret.get('api_key')
         elif os.environ.get("LLM_API_KEY"):
-            self.api_key = os.environ.get("LLM_API_KEY")
+            self.secret = {'api_key': os.environ.get("LLM_API_KEY")}
         else:
             raise KeyError(
                 f"either set bot_id'in LLMClassifier config or set LLM_API_KEY in environment variables"
@@ -92,7 +92,7 @@ class LLMClassifier(IntentClassifier, GraphComponent, EntityExtractorMixin, ABC)
 
     def get_embeddings(self, text):
         embeddings = litellm.embedding(
-            model="text-embedding-3-small", input=text, api_key=self.api_key, max_retries=3
+            model="text-embedding-3-small", input=text, max_retries=3, **self.secret
         )
         return [ embedding['embedding'] for embedding in embeddings['data']]
 
@@ -188,8 +188,8 @@ Please provide your answer in the specified JSON format."""
                 top_p=1,
                 frequency_penalty=0,
                 presence_penalty=0,
-                api_key=self.api_key,
-                max_retries=3
+                max_retries=3,
+                **self.secret
             )
             logger.debug(response)
             responses = json.loads(response.choices[0]["message"]["content"])
