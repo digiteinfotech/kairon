@@ -268,7 +268,10 @@ class CognitionDataProcessor:
         collection = payload.get('collection', None)
         matched_metadata = CognitionDataProcessor.find_matching_metadata(bot, data, collection)
         for metadata_dict in matched_metadata['metadata']:
-            CognitionDataProcessor.validate_column_values(data, metadata_dict)
+            column_name = metadata_dict['column_name']
+            if column_name in data:
+                data[column_name] = CognitionDataProcessor.validate_column_values(data, metadata_dict)
+        return data
 
     def save_cognition_data(self, payload: Dict, user: Text, bot: Text):
         from kairon import Utility
@@ -289,7 +292,7 @@ class CognitionDataProcessor:
                                          collection_name__iexact=payload.get('collection'), raise_error=False):
                 raise AppException('Text content type does not have schema!')
         if payload.get('content_type') == CognitionDataType.json.value:
-            CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
+            payload['data'] = CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
 
         payload_obj = CognitionData()
         payload_obj.data = payload.get('data')
@@ -316,7 +319,7 @@ class CognitionDataProcessor:
         try:
             payload_obj = CognitionData.objects(bot=bot, id=row_id).get()
             if content_type == CognitionDataType.json.value:
-                CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
+                payload['data'] = CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
             payload_obj.data = data
             payload_obj.content_type = content_type
             payload_obj.collection = payload.get('collection', None)
