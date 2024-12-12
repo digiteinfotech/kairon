@@ -5,8 +5,7 @@ from uuid6 import uuid7
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.scheduler.kscheduler import KScheduler
 from kairon.exceptions import AppException
-from kairon.shared.chat.data_objects import Channels
-from kairon.shared.constants import EventClass, ChannelTypes
+from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE
 from loguru import logger
 
@@ -60,3 +59,16 @@ class EventUtility:
                                      EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
         except Exception as e:
             raise AppException(f"Failed to schedule mail reading for bot {bot}. Error: {str(e)}")
+
+    @staticmethod
+    def stop_channel_mail_reading(bot: str):
+        from kairon.shared.channels.mail.processor import MailProcessor
+
+        try:
+            mail_processor = MailProcessor(bot)
+            event_id = mail_processor.state.event_id
+            if event_id:
+                mail_processor.update_event_id(None)
+                KScheduler().delete_job(event_id)
+        except Exception as e:
+            raise logger.error(f"Failed to stop mail reading for bot {bot}. Error: {str(e)}")
