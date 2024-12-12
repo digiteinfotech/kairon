@@ -226,7 +226,7 @@ class LLMProcessor(LLMBase):
         ]
         if previous_bot_responses:
             messages.extend(previous_bot_responses)
-            query = self.modify_user_message_for_perplexity(query, llm_type, hyperparameters)
+        query = self.modify_user_message_for_perplexity(query, llm_type, hyperparameters)
         messages.append({"role": "user", "content": f"{context} \n{instructions} \nQ: {query} \nA:"}) if instructions \
             else messages.append({"role": "user", "content": f"{context} \nQ: {query} \nA:"})
         completion, raw_response = await self.__get_completion(messages=messages,
