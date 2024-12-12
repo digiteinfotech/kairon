@@ -139,18 +139,6 @@ def test_request_stop_success(mock_execute_http_request, mock_get_event_server_u
     except AppException:
         pytest.fail("request_epoch() raised AppException unexpectedly!")
 
-@patch('kairon.shared.channels.mail.processor.MailProcessor.does_mail_channel_exist')
-@patch('kairon.shared.channels.mail.scheduler.Utility.get_event_server_url')
-@patch('kairon.shared.channels.mail.scheduler.Utility.execute_http_request')
-def test_request_stop_success(mock_execute_http_request, mock_get_event_server_url, mock_imp):
-    mock_get_event_server_url.return_value = "http://localhost"
-    mock_execute_http_request.return_value = {'success': True}
-    mock_imp.return_value = True
-    bot = "test_bot"
-    try:
-        MailScheduler.request_stop(bot)
-    except AppException:
-        pytest.fail("request_epoch() raised AppException unexpectedly!")
 
 @patch('kairon.shared.channels.mail.processor.MailProcessor.does_mail_channel_exist')
 @patch('kairon.shared.channels.mail.scheduler.Utility.get_event_server_url')
