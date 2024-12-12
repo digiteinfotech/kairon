@@ -588,39 +588,4 @@ class TestMailChannel:
         Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
 
 
-    def test_comma_sep_string_to_list(self):
-        # Test input with empty elements
-        assert MailProcessor.comma_sep_string_to_list("apple, , banana, , orange") == ["apple", "banana", "orange"]
-
-        # Test input with only commas
-        assert MailProcessor.comma_sep_string_to_list(",,,") == []
-
-        # Test input with no commas (single element)
-        assert MailProcessor.comma_sep_string_to_list("apple") == ["apple"]
-
-        # Test input with empty string
-        assert MailProcessor.comma_sep_string_to_list("") == []
-
-        # Test input with None
-        assert MailProcessor.comma_sep_string_to_list(None) == []
-
-        # Test input with special characters
-        assert MailProcessor.comma_sep_string_to_list("apple,@banana, #orange$") == ["apple", "@banana", "#orange$"]
-
-        # Test input with numeric values
-        assert MailProcessor.comma_sep_string_to_list("1, 2, 3, 4") == ["1", "2", "3", "4"]
-
-        # Test input with spaces
-        assert MailProcessor.comma_sep_string_to_list("apple, banana, orange") == ["apple", "banana", "orange"]
-
-
-    @patch('kairon.shared.channels.mail.processor.Channels')
-    def test_mail_channel_exist(self, mock_channels):
-        mock_channels.objects.return_value.first.return_value = True
-        assert MailProcessor.does_mail_channel_exist("test_bot") is True
-
-    @patch('kairon.shared.channels.mail.processor.Channels')
-    def test_mail_channel_not_exist(self, mock_channels):
-        mock_channels.objects.return_value.first.return_value = False
-        assert MailProcessor.does_mail_channel_exist("test_bot") is False
 

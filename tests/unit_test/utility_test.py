@@ -3306,3 +3306,30 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(
             email, expected_subject, expected_body
         )
+
+
+    def test_comma_sep_string_to_list(self):
+        # Test input with empty elements
+        assert Utility.string_to_list("apple, , banana, , orange") == ["apple", "banana", "orange"]
+
+        # Test input with only commas
+        assert Utility.string_to_list(",,,") == []
+
+        # Test input with no commas (single element)
+        assert Utility.string_to_list("apple") == ["apple"]
+
+        # Test input with empty string
+        assert Utility.string_to_list("") == []
+
+        # Test input with None
+        assert Utility.string_to_list(None) == []
+
+        # Test input with special characters
+        assert Utility.string_to_list("apple,@banana, #orange$") == ["apple", "@banana", "#orange$"]
+
+        # Test input with numeric values
+        assert Utility.string_to_list("1, 2, 3, 4") == ["1", "2", "3", "4"]
+
+        # Test input with spaces
+        assert Utility.string_to_list("apple, banana, orange") == ["apple", "banana", "orange"]
+

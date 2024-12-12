@@ -6,6 +6,8 @@ from loguru import logger
 from pydantic.schema import timedelta
 from pydantic.validators import datetime
 from imap_tools import MailBox, AND, OR, NOT
+
+from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.channels.mail.constants import MailConstants
@@ -37,15 +39,6 @@ class MailProcessor:
         self.state.event_id = event_id
         self.state.save()
 
-
-    @staticmethod
-    def does_mail_channel_exist(bot:str):
-        """
-        Check if mail channel exists
-        """
-        if Channels.objects(bot=bot, connector_type=ChannelTypes.MAIL.value).first():
-            return True
-        return False
 
     @staticmethod
     def get_mail_channel_state_data(bot:str):
@@ -290,14 +283,6 @@ class MailProcessor:
         # Combine all criteria with AND
         return AND(*criteria)
 
-    @staticmethod
-    def comma_sep_string_to_list(comma_sep_string: str) -> List[str]:
-        """
-        Convert comma separated string to list
-        """
-        if not comma_sep_string:
-            return []
-        return [item.strip() for item in comma_sep_string.split(",") if item.strip()]
 
     @staticmethod
     def read_mails(bot: str) -> ([dict], str):
@@ -325,13 +310,13 @@ class MailProcessor:
             mp.login_imap()
             is_logged_in = True
             subject = mp.config.get('subjects', "")
-            subject = MailProcessor.comma_sep_string_to_list(subject)
+            subject = Utility.string_to_list(subject)
             ignore_subject = mp.config.get('ignore_subjects', "")
-            ignore_subject = MailProcessor.comma_sep_string_to_list(ignore_subject)
+            ignore_subject = Utility.string_to_list(ignore_subject)
             from_addresses = mp.config.get('from_emails', "")
-            from_addresses = MailProcessor.comma_sep_string_to_list(from_addresses)
+            from_addresses = Utility.string_to_list(from_addresses)
             ignore_from = mp.config.get('ignore_from_emails', "")
-            ignore_from = MailProcessor.comma_sep_string_to_list(ignore_from)
+            ignore_from = Utility.string_to_list(ignore_from)
             read_status = mp.config.get('seen_status', 'all')
             criteria = mp.generate_criteria(subject, ignore_subject, from_addresses, ignore_from, read_status)
             for msg in mp.mailbox.fetch(criteria, mark_seen=False):
