@@ -48,6 +48,7 @@ class LLMClassifier(IntentClassifier, GraphComponent, EntityExtractorMixin, ABC)
         data: Optional[Dict[Text, Any]] = None,
     ) -> None:
         """Construct a new intent classifiers using the OpenAI Completion framework."""
+        self.secret = {}
         self.component_config = config
         self._model_storage = model_storage
         self._resource = resource
@@ -82,7 +83,7 @@ class LLMClassifier(IntentClassifier, GraphComponent, EntityExtractorMixin, ABC)
         if bot_id:
             from kairon.shared.admin.processor import Sysadmin
             llm_secret = Sysadmin.get_llm_secret("openai", bot_id)
-            self.secret = llm_secret.get('api_key')
+            self.secret = llm_secret
         elif os.environ.get("LLM_API_KEY"):
             self.secret = {'api_key': os.environ.get("LLM_API_KEY")}
         else:
