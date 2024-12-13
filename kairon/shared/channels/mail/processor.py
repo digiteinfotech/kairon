@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 
 from loguru import logger
@@ -185,8 +186,8 @@ class MailProcessor:
                         'date': mail['date'],
                         'body': mail['body']
                     }
-                    entities_str = ', '.join([f'"{key}": "{value}"' for key, value in entities.items() if value and value != 'null'])
-                    user_msg = f'/{mp.intent}{{{entities_str}}}'
+                    entities_str = json.dumps(entities)
+                    user_msg = f'/{mp.intent}{entities_str}'
                     user_messages.append(user_msg)
                     subject = mail.get('subject', 'Reply')
                     if not subject.startswith('Re:'):
