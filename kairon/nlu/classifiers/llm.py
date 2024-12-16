@@ -213,7 +213,7 @@ Please provide your answer in the specified JSON format."""
             else:
                 label, reason, entities = self.predict(message.get(TEXT))
                 intent = {"name": label, "confidence": 1, "reason": reason}
-                intent_ranking = []
+                intent_ranking = [intent.copy()]
                 entities = self.add_extractor_name(entities)
 
             message.set("intent", intent, add_to_output=True)
