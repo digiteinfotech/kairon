@@ -26,6 +26,7 @@ COPY requirements requirements
 RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
     python -m spacy download en_core_web_md && \
     python -m nltk.downloader averaged_perceptron_tagger && \
+    python -m nltk.downloader averaged_perceptron_tagger_eng && \
     python -m nltk.downloader punkt && \
     python -m nltk.downloader stopwords && \
     python -m nltk.downloader omw-1.4 && \
