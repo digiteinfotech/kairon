@@ -43,19 +43,20 @@ class EventUtility:
 
         try:
             mail_processor = MailProcessor(bot)
-            interval = mail_processor.config.get("interval", 60)
+            interval = max(1, int(mail_processor.config.get("interval", 2)) % 24)
+
             event_id = mail_processor.state.event_id
             if event_id:
                 KScheduler().update_job(event_id,
                                         TASK_TYPE.EVENT,
-                                        f"*/{interval} * * * *",
+                                        f"0 */{interval} * * *",
                                         EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
             else:
                 event_id = uuid7().hex
                 mail_processor.update_event_id(event_id)
                 KScheduler().add_job(event_id,
                                      TASK_TYPE.EVENT,
-                                     f"*/{interval} * * * *",
+                                     f"0 */{interval} * * *",
                                      EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
         except Exception as e:
             raise AppException(f"Failed to schedule mail reading for bot {bot}. Error: {str(e)}")
