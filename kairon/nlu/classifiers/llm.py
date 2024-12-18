@@ -31,7 +31,11 @@ if typing.TYPE_CHECKING:
     pass
 
 @DefaultV1Recipe.register(
-    DefaultV1Recipe.ComponentType.INTENT_CLASSIFIER, is_trainable=True
+    [
+        DefaultV1Recipe.ComponentType.INTENT_CLASSIFIER,
+        DefaultV1Recipe.ComponentType.ENTITY_EXTRACTOR,
+     ],
+    is_trainable=True
 )
 class LLMClassifier(IntentClassifier, GraphComponent, EntityExtractorMixin, ABC):
     """Intent and Entity classifiers using the OpenAI Completion framework"""

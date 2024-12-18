@@ -58,6 +58,6 @@ class ModelTestingEvent(EventsBase):
                                                      nlu_result=nlu_results,
                                                      event_status=EVENT_STATUS.COMPLETED.value)
         except Exception as e:
-            logger.error(str(e))
+            logger.exception(str(e))
             ModelTestingLogProcessor.log_test_result(self.bot, self.user, exception=str(e),
                                                      event_status=EVENT_STATUS.FAIL.value)
