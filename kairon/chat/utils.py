@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Text, Dict
+from typing import Text, Dict, List
 
 from loguru import logger
 from pymongo.collection import Collection
@@ -45,10 +45,10 @@ class ChatUtils:
 
     @staticmethod
     async  def process_messages_via_bot(
-            messages: [str],
+            messages: List[str],
             account: int,
             bot: str,
-            user: str,
+            users: List[str],
             is_integration_user: bool = False,
             metadata: Dict = None,
     ):
@@ -57,7 +57,7 @@ class ChatUtils:
              messages: List of messages to process
              account: Account ID
              bot: Bot ID
-             user: User ID
+             users: List of User IDs
              is_integration_user: Flag indicating if user is integration user
              metadata: Additional metadata
 
@@ -67,8 +67,8 @@ class ChatUtils:
         responses = []
         uncached_model = AgentProcessor.get_agent_without_cache(bot, False)
         metadata = ChatUtils.get_metadata(account, bot, is_integration_user, metadata)
-        for message in messages:
-            msg = UserMessage(message, sender_id=user, metadata=metadata)
+        for index, message, in enumerate(messages):
+            msg = UserMessage(message, sender_id=users[index], metadata=metadata)
             chat_response = await uncached_model.handle_message(msg)
             responses.append(chat_response)
         return responses

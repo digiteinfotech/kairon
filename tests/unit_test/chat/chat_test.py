@@ -946,7 +946,7 @@ async def test_process_messages_via_bot(mock_get_metadata, mock_get_agent_withou
     messages = ["/greet", "/bye"]
     account = 1
     bot = "test_bot"
-    user = "test_user"
+    users = ["test_user", "test_user2"]
     is_integration_user = False
     metadata = {"key": "value"}
 
@@ -956,7 +956,7 @@ async def test_process_messages_via_bot(mock_get_metadata, mock_get_agent_withou
     mock_model.handle_message = AsyncMock(side_effect=[{"text": "Hello"}, {"text": "Goodbye"}])
     from kairon.chat.utils import ChatUtils
 
-    responses = await ChatUtils.process_messages_via_bot(messages, account, bot, user, is_integration_user, metadata)
+    responses = await ChatUtils.process_messages_via_bot(messages, account, bot, users, is_integration_user, metadata)
 
     assert len(responses) == 2
     assert responses[0] == {"text": "Hello"}

@@ -177,6 +177,7 @@ class MailProcessor:
             from kairon.chat.utils import ChatUtils
             mp = MailProcessor(bot)
             user_messages: [str] = []
+            users: [str] = []
             responses = []
             for mail in batch:
                 try:
@@ -189,6 +190,7 @@ class MailProcessor:
                     entities_str = json.dumps(entities)
                     user_msg = f'/{mp.intent}{entities_str}'
                     user_messages.append(user_msg)
+                    users.append(mail['mail_id'])
                     subject = mail.get('subject', 'Reply')
                     if not subject.startswith('Re:'):
                         subject = f"Re: {subject}"
@@ -205,7 +207,7 @@ class MailProcessor:
             chat_responses = await ChatUtils.process_messages_via_bot(user_messages,
                                                                 mp.account,
                                                                 bot,
-                                                                mp.bot_settings.user,
+                                                                users,
                                                                 False,
                                                                 {
                                                                     'channel': ChannelTypes.MAIL.value
