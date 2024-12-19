@@ -26,7 +26,9 @@ class MailProcessor:
         self.bot = bot
         self.config = ChatDataProcessor.get_channel_config(ChannelTypes.MAIL, bot, False)['config']
         self.intent = self.config.get('intent')
-        self.mail_template = self.config.get('mail_template', MailConstants.DEFAULT_TEMPLATE)
+        self.mail_template = self.config.get('mail_template')
+        if not self.mail_template or len(self.mail_template) == 0:
+            self.mail_template = MailConstants.DEFAULT_TEMPLATE
         self.bot_settings = BotSettings.objects(bot=self.bot).get()
         self.state = MailProcessor.get_mail_channel_state_data(bot)
         bot_info = Bot.objects.get(id=bot)
@@ -177,6 +179,7 @@ class MailProcessor:
             from kairon.chat.utils import ChatUtils
             mp = MailProcessor(bot)
             user_messages: [str] = []
+            users: [str] = []
             responses = []
             for mail in batch:
                 try:
@@ -189,6 +192,7 @@ class MailProcessor:
                     entities_str = json.dumps(entities)
                     user_msg = f'/{mp.intent}{entities_str}'
                     user_messages.append(user_msg)
+                    users.append(mail['mail_id'])
                     subject = mail.get('subject', 'Reply')
                     if not subject.startswith('Re:'):
                         subject = f"Re: {subject}"
@@ -205,7 +209,7 @@ class MailProcessor:
             chat_responses = await ChatUtils.process_messages_via_bot(user_messages,
                                                                 mp.account,
                                                                 bot,
-                                                                mp.bot_settings.user,
+                                                                users,
                                                                 False,
                                                                 {
                                                                     'channel': ChannelTypes.MAIL.value
