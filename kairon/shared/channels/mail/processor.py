@@ -26,7 +26,9 @@ class MailProcessor:
         self.bot = bot
         self.config = ChatDataProcessor.get_channel_config(ChannelTypes.MAIL, bot, False)['config']
         self.intent = self.config.get('intent')
-        self.mail_template = self.config.get('mail_template', MailConstants.DEFAULT_TEMPLATE)
+        self.mail_template = self.config.get('mail_template')
+        if not self.mail_template or len(self.mail_template) == 0:
+            self.mail_template = MailConstants.DEFAULT_TEMPLATE
         self.bot_settings = BotSettings.objects(bot=self.bot).get()
         self.state = MailProcessor.get_mail_channel_state_data(bot)
         bot_info = Bot.objects.get(id=bot)
