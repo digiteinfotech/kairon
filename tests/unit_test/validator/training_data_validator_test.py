@@ -1,5 +1,6 @@
+from unittest.mock import patch
+
 import ujson as json
-import re
 import pytest
 import yaml
 from mongoengine import connect
@@ -910,3 +911,15 @@ class TestTrainingDataValidator:
         errors = TrainingDataValidator.validate_content("your_bot_name", "integration@demo.ai", bot_content)
 
         assert errors
+
+    @patch('kairon.shared.cognition.processor.CognitionDataProcessor.is_collection_limit_exceeded_for_mass_uploading')
+    def test_validate_content_collection_limit_exceeded(self, mock_is_collection_limit_exceeded):
+        bot = 'test_bot'
+        user = 'test_user'
+        bot_content = [{'collection': 'collection1'}, {'collection': 'collection2'}]
+        mock_is_collection_limit_exceeded.return_value = True
+
+        errors = TrainingDataValidator.validate_content(bot, user, bot_content)
+
+        assert 'Collection limit exceeded!' in errors
+        mock_is_collection_limit_exceeded.assert_called_once_with(bot, user, ['collection1', 'collection2'], True)

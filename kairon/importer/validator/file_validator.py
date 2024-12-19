@@ -1058,6 +1058,12 @@ class TrainingDataValidator(Validator):
         current_dir = os.path.dirname(os.path.realpath(__file__))
         bot_content_schema_file_path = os.path.join(current_dir, "bot_content_schema.yaml")
         schema_validator = Core(source_data=bot_content, schema_files=[bot_content_schema_file_path])
+
+        from kairon.shared.cognition.processor import CognitionDataProcessor
+        new_collection_names = [data_item.get('collection') for data_item in bot_content]
+        if CognitionDataProcessor.is_collection_limit_exceeded_for_mass_uploading(bot, user, new_collection_names, overwrite):
+            bot_content_errors.append('Collection limit exceeded!')
+
         try:
             schema_validator.validate(raise_exception=True)
             logger.info("Validation successful!")
