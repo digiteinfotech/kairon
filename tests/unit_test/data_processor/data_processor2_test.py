@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -151,3 +152,151 @@ def test_validate_metadata_and_payload_missing_column():
 
     with pytest.raises(AppException, match="Column 'quantity' does not exist or has no value."):
         CognitionDataProcessor.validate_column_values(data, schema)
+
+
+
+@patch('kairon.shared.cognition.processor.MongoProcessor')
+@patch('kairon.shared.cognition.processor.CognitionSchema')
+def test_is_collection_limit_exceeded_for_mass_uploading_exceeded(mock_cognition_schema, mock_mongo_processor):
+    bot = "test_bot"
+    user = "test_user"
+    collection_names = ["collection1", "collection2", "collection3"]
+
+    mock_mongo_processor.get_bot_settings.return_value.to_mongo.return_value.to_dict.return_value = {
+        "cognition_collections_limit": 5
+    }
+    mock_cognition_schema.objects.return_value.distinct.return_value = ["collection_a", "collection_b", "collection_c"]
+
+    result = CognitionDataProcessor.is_collection_limit_exceeded_for_mass_uploading(bot, user, collection_names)
+    assert result is True
+
+@patch('kairon.shared.cognition.processor.MongoProcessor')
+@patch('kairon.shared.cognition.processor.CognitionSchema')
+def test_is_collection_limit_exceeded_for_mass_uploading_exceeded_overwrite(mock_cognition_schema, mock_mongo_processor):
+    bot = "test_bot"
+    user = "test_user"
+    collection_names = ["collection1", "collection2", "collection3", "collection_4", "collection_5", "collection_6"]
+
+    mock_mongo_processor.get_bot_settings.return_value.to_mongo.return_value.to_dict.return_value = {
+        "cognition_collections_limit": 5
+    }
+    mock_cognition_schema.objects.return_value.distinct.return_value = ["collection_a", "collection_b", "collection_c"]
+
+    result = CognitionDataProcessor.is_collection_limit_exceeded_for_mass_uploading(bot, user, collection_names, True)
+    assert result is True
+
+@patch('kairon.shared.cognition.processor.MongoProcessor')
+@patch('kairon.shared.cognition.processor.CognitionSchema')
+def test_is_collection_limit_exceeded_for_mass_uploading_not_exceeded_overwrite(mock_cognition_schema, mock_mongo_processor):
+    bot = "test_bot"
+    user = "test_user"
+    collection_names = ["collection1", "collection2", "collection3", "collection_4"]
+
+    mock_mongo_processor.get_bot_settings.return_value.to_mongo.return_value.to_dict.return_value = {
+        "cognition_collections_limit": 5
+    }
+    mock_cognition_schema.objects.return_value.distinct.return_value = ["collection_a", "collection_b", "collection_c"]
+
+    result = CognitionDataProcessor.is_collection_limit_exceeded_for_mass_uploading(bot, user, collection_names, True)
+    assert result is False
+
+@patch('kairon.shared.cognition.processor.MongoProcessor')
+@patch('kairon.shared.cognition.processor.CognitionSchema')
+def test_is_collection_limit_exceeded_for_mass_uploading_not_exceeded(mock_cognition_schema, mock_mongo_processor):
+    bot = "test_bot"
+    user = "test_user"
+    collection_names = ["collection1", "collection2"]
+
+    mock_mongo_processor.get_bot_settings.return_value.to_mongo.return_value.to_dict.return_value = {
+        "cognition_collections_limit": 5
+    }
+    mock_cognition_schema.objects.return_value.distinct.return_value = ["collection1"]
+
+    result = CognitionDataProcessor.is_collection_limit_exceeded_for_mass_uploading(bot, user, collection_names)
+    assert result is False
+
+
+@patch.object(MongoProcessor, '_MongoProcessor__save_cognition_schema')
+@patch.object(MongoProcessor, '_MongoProcessor__save_cognition_data')
+def test_save_bot_content(mock_save_cognition_data, mock_save_cognition_schema):
+    bot_content = [
+        {
+            'collection': 'collection1',
+            'type': 'json',
+            'metadata': [
+                {'column_name': 'column1', 'data_type': 'str', 'enable_search': True, 'create_embeddings': False}
+            ],
+            'data': [
+                {'column1': 'value1'}
+            ]
+        }
+    ]
+    bot = 'test_bot'
+    user = 'test_user'
+    processor = MongoProcessor()
+
+    processor.save_bot_content(bot_content, bot, user)
+
+    mock_save_cognition_schema.assert_called_once_with(bot_content, bot, user)
+    mock_save_cognition_data.assert_called_once_with(bot_content, bot, user)
+
+@patch.object(MongoProcessor, '_MongoProcessor__save_cognition_schema')
+@patch.object(MongoProcessor, '_MongoProcessor__save_cognition_data')
+def test_save_bot_content_empty(mock_save_cognition_data, mock_save_cognition_schema):
+    bot_content = []
+    bot = 'test_bot'
+    user = 'test_user'
+    processor = MongoProcessor()
+
+    processor.save_bot_content(bot_content, bot, user)
+
+    mock_save_cognition_schema.assert_not_called()
+    mock_save_cognition_data.assert_not_called()
+
+
+
+
+@patch.object(MongoProcessor, 'data_format_correction_cognition_data')
+@patch('kairon.shared.data.processor.CognitionSchema.objects')
+@patch('kairon.shared.data.processor.CognitionData.objects')
+def test_prepare_cognition_data_for_bot_json(mock_cognition_data_objects, mock_cognition_schema_objects, mock_data_format_correction):
+    bot = 'test_bot'
+    schema_result = MagicMock()
+    schema_result.collection_name = 'collection1'
+    schema_result.metadata = [
+        MagicMock(column_name='column1', data_type='str', enable_search=True, create_embeddings=False)
+    ]
+    mock_cognition_schema_objects.return_value.only.return_value = [schema_result]
+
+    data_result = MagicMock()
+    data_result.data = {'column1': 'value1'}
+    mock_cognition_data_objects.return_value.only.return_value = [data_result]
+
+    mock_data_format_correction.return_value = [{'column1': 'value1'}]
+
+    processor = MongoProcessor()
+
+    processor._MongoProcessor__prepare_cognition_data_for_bot(bot)
+
+    mock_data_format_correction.assert_called_once()
+
+
+@patch.object(MongoProcessor, 'data_format_correction_cognition_data')
+@patch('kairon.shared.data.processor.CognitionSchema.objects')
+@patch('kairon.shared.data.processor.CognitionData.objects')
+def test_prepare_cognition_data_for_bot_text_format_not_called(mock_cognition_data_objects, mock_cognition_schema_objects, mock_data_format_correction):
+    bot = 'test_bot'
+    schema_result = MagicMock()
+    schema_result.collection_name = 'collection1'
+    schema_result.metadata = []
+    mock_cognition_schema_objects.return_value.only.return_value = [schema_result]
+
+    data_result = MagicMock()
+    data_result.data = 'text data'
+    mock_cognition_data_objects.return_value.only.return_value = [data_result]
+
+    processor = MongoProcessor()
+
+    processor._MongoProcessor__prepare_cognition_data_for_bot(bot)
+
+    mock_data_format_correction.assert_not_called()
