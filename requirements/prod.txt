@@ -8,7 +8,7 @@ fastapi-keycloak==1.0.11
 pykka==3.1.1
 zenpy==2.0.50
 validators==0.33.0
-secure==0.3.0
+secure==1.0.1
 password-strength==0.0.3.post2
 beautifulsoup4==4.13.0b2
 uuid6==2024.7.10
