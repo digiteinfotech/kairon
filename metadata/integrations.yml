@@ -90,7 +90,7 @@ channels:
       - from_emails
       - ignore_from_emails
       - seen_status
-
+      - mail_template
 actions:
   pipedrive:
     required_fields:
