@@ -91,9 +91,7 @@ class DataValidation:
         llm_prompts_errors = DataValidation.validate_llm_prompts(data['llm_prompts'])
         data_error.extend(llm_prompts_errors)
         if hyperparameters := data.get('hyperparameters'):
-            llm_type = data.get("llm_type")
-            if not llm_type:
-
+            if not data.get("llm_type"):
                 if model := hyperparameters.get("model"):
                     data["llm_type"] = DataValidation.get_model_llm_type_map().get(model)
                 else:
