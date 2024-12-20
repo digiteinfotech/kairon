@@ -40,6 +40,29 @@ class CognitionDataProcessor:
             return False
 
     @staticmethod
+    def is_collection_limit_exceeded_for_mass_uploading(bot:str, user:str, collection_names:List[str], overwrite:bool = False):
+        """
+        checks if collection limit is exhausted
+
+        :param bot: bot id
+        :param user: user
+        :param collection_names: List of names of collection
+        :return: boolean
+        :raises: AppException
+        """
+
+        bot_settings = MongoProcessor.get_bot_settings(bot, user)
+        bot_settings = bot_settings.to_mongo().to_dict()
+        if overwrite:
+            return len(collection_names) > bot_settings["cognition_collections_limit"]
+        else:
+            collections = list(CognitionSchema.objects(bot=bot).distinct(field='collection_name'))
+            new_to_add = [collection for collection in collection_names if collection not in collections]
+            return  len(new_to_add) + len(collections) > bot_settings["cognition_collections_limit"]
+
+
+
+    @staticmethod
     def is_column_collection_limit_exceeded(bot, user, metadata):
         """
         checks if columns in collection limit is exhausted

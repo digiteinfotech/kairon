@@ -54,7 +54,6 @@ from rasa.shared.nlu.constants import TEXT
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
-from uuid6 import uuid7
 from werkzeug.utils import secure_filename
 
 from kairon.api import models
@@ -237,7 +236,6 @@ class MongoProcessor:
             stories = stories.merge(multiflow_stories[0])
             rules = rules.merge(multiflow_stories[1])
         multiflow_stories = self.load_multiflow_stories_yaml(bot)
-        #actions = self.load_action_configurations(bot)
         bot_content = self.load_bot_content(bot)
         actions, other_collections = ActionSerializer.serialize(bot)
         return Utility.create_zip_file(
@@ -692,7 +690,8 @@ class MongoProcessor:
 
             data_results = CognitionData.objects(bot=bot, collection=collection_name).only("content_type", "data")
             entries = [d.data for d in data_results]
-            entries = MongoProcessor.data_format_correction_cognition_data(entries, metadata)
+            if type_value == "json":
+                entries = MongoProcessor.data_format_correction_cognition_data(entries, metadata)
             collection_data["data"] = entries
 
             formatted_result.append(collection_data)
