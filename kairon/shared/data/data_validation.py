@@ -9,6 +9,22 @@ from kairon.shared.callback.data_objects import encrypt_secret
 
 
 class DataValidation:
+    model_llm_type_map = None
+    @staticmethod
+    def get_model_llm_type_map() -> dict[str, str]:
+        if DataValidation.model_llm_type_map:
+            return DataValidation.model_llm_type_map
+        else:
+            metadata = Utility.load_yaml(Utility.llm_metadata_file_path)
+            DataValidation.model_llm_type_map = {}
+            for llm_type in metadata:
+                models = metadata[llm_type]['properties']['model']['enum']
+                for model in models:
+                    DataValidation.model_llm_type_map[model] = llm_type
+
+            return DataValidation.model_llm_type_map
+
+
     @staticmethod
     def validate_http_action(bot: str, data: dict):
         action_param_types = {param.value for param in ActionParameterType}
@@ -73,12 +89,18 @@ class DataValidation:
             data_error.append(
                 f'num_bot_responses should not be greater than 5 and of type int: {data.get("name")}')
         llm_prompts_errors = DataValidation.validate_llm_prompts(data['llm_prompts'])
-        if data.get('hyperparameters'):
-            llm_hyperparameters_errors = DataValidation.validate_llm_prompts_hyperparameters(
-                data.get('hyperparameters'), data.get("llm_type", "openai"), bot)
-            data_error.extend(llm_hyperparameters_errors)
         data_error.extend(llm_prompts_errors)
+        if hyperparameters := data.get('hyperparameters'):
+            llm_type = data.get("llm_type")
+            if not llm_type:
 
+                if model := hyperparameters.get("model"):
+                    data["llm_type"] = DataValidation.get_model_llm_type_map().get(model)
+                else:
+                    data_error.append("model is required in hyperparameters!")
+            llm_hyperparameters_errors = DataValidation.validate_llm_prompts_hyperparameters(
+                hyperparameters, data.get("llm_type", "openai"), bot)
+            data_error.extend(llm_hyperparameters_errors)
         return data_error
 
     @staticmethod
