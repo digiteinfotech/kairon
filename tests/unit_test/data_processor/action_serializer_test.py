@@ -1,5 +1,7 @@
 import os
+from unittest.mock import patch
 
+from deepdiff import DeepDiff
 from mongoengine import connect
 
 from kairon import Utility
@@ -417,7 +419,8 @@ def test_validate_prompt_action():
         ],
         "hyperparameters": {
             "similarity_threshold": 0.5,
-            "top_results": 5
+            "top_results": 5,
+            "model": "gpt-3.5-turbo",
         },
         "llm_type": "openai"
     }
@@ -716,3 +719,81 @@ def test_action_save_collection_data_list_unknown_data():
         ActionSerializer.save_collection_data_list('unknown1', bot, user,  [{'data1': 'value1'}])
 
 
+def test_prompt_action_validation_missing_model():
+    bot = "my_test_bot"
+    data = {
+        "num_bot_responses": 3,
+        "llm_prompts": [
+            {
+                "type": "system",
+                "source": "static",
+                "data": "Hello, World!",
+                "name": "Prompt1",
+                "hyperparameters": {
+                    "similarity_threshold": 0.5,
+                    "top_results": 5
+                }
+            }
+        ],
+        "hyperparameters": {
+            "similarity_threshold": 0.5,
+            "top_results": 5,
+        },
+    }
+    errors =  DataValidation.validate_prompt_action(bot, data)
+    assert errors == ['model is required in hyperparameters!']
+
+
+
+
+def test_get_model_llm_type_map():
+    result = DataValidation.get_model_llm_type_map()
+    print(result)
+    expected = {'gpt-3.5-turbo': 'openai',
+                'gpt-4o-mini': 'openai',
+                'claude-3-opus-20240229': 'anthropic',
+                'claude-3-5-sonnet-20240620': 'anthropic',
+                'claude-3-sonnet-20240229': 'anthropic',
+                'claude-3-haiku-20240307': 'anthropic',
+                'gemini/gemini-1.5-flash': 'gemini',
+                'gemini/gemini-pro': 'gemini',
+                'perplexity/llama-3.1-sonar-small-128k-online': 'perplexity',
+                'perplexity/llama-3.1-sonar-large-128k-online': 'perplexity',
+                'perplexity/llama-3.1-sonar-huge-128k-online': 'perplexity'}
+
+    assert not DeepDiff(result, expected, ignore_order=True)
+
+    with patch('kairon.shared.utils.Utility.load_yaml') as yml_load:
+        DataValidation.get_model_llm_type_map()
+        yml_load.assert_not_called()
+        DataValidation.model_llm_type_map = None
+        DataValidation.get_model_llm_type_map()
+        yml_load.assert_called_once_with(Utility.llm_metadata_file_path)
+
+
+
+
+def test_add_llm_type_based_on_model():
+    bot = "my_test_bot"
+    data = {
+        "num_bot_responses": 3,
+        "llm_prompts": [
+            {
+                "type": "system",
+                "source": "static",
+                "data": "Hello, World!",
+                "name": "Prompt1",
+                "hyperparameters": {
+                    "similarity_threshold": 0.5,
+                    "top_results": 5
+                }
+            }
+        ],
+        "hyperparameters": {
+            "similarity_threshold": 0.5,
+            "top_results": 5,
+            "model": "gpt-4o-mini",
+        },
+    }
+    assert not DataValidation.validate_prompt_action(bot, data)
+    assert data['llm_type'] == 'openai'
