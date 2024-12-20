@@ -1,23 +1,23 @@
 FROM amazonlinux:latest
 
-ENV KAIRON_HOME=/app PYTHON_VERSION=3.10.13 TEMPLATE_DIR_DEFAULT=./template/use-cases/Hi-Hello-GPT RASA_TELEMETRY_ENABLED=false
+ENV KAIRON_HOME=/app PYTHON_VERSION=3.10.16 TEMPLATE_DIR_DEFAULT=./template/use-cases/Hi-Hello-GPT RASA_TELEMETRY_ENABLED=false
+ENV PYENV_ROOT=/root/.pyenv
+ENV PATH=$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
 
 WORKDIR ${KAIRON_HOME}
 
 RUN yum update -y
-RUN dnf update -y rpm --releasever 2023.4.20240319
-RUN dnf update -y curl expat --releasever 2023.4.20240401
+RUN yum install -y wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel sqlite-devel libffi-devel openblas-devel ca-certificates git
 
-RUN yum update -y && yum -y install wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel sqlite-devel libffi-devel openblas-devel ca-certificates
-RUN wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz && \
-    tar -xf Python-${PYTHON_VERSION}.tgz && \
-    rm ./Python-${PYTHON_VERSION}.tgz && \
-    cd Python-${PYTHON_VERSION}/ && \
-    ./configure --enable-optimizations && \
-    make altinstall && \
-    rm -rf Python-${PYTHON_VERSION} && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python2 50 && \
-    update-alternatives --install /usr/bin/python python /usr/local/bin/python3.10 60 && \
+RUN curl https://pyenv.run | bash
+RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc && \
+    echo '[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc && \
+    echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+
+RUN source ~/.zshrc && \
+    pyenv install ${PYTHON_VERSION} && \
+    pyenv global ${PYTHON_VERSION} &&  \
+    pyenv rehash &&  \
     python -m pip install --upgrade pip && \
     mkdir data_generator training_data testing_data models /home/cache .rasa
 
@@ -37,10 +37,10 @@ RUN python -m pip install pyston_lite_autoload
 COPY . .
 
 RUN rm -rf ${TEMPLATE_DIR_DEFAULT}/models/* && \
-    rasa train --data ${TEMPLATE_DIR_DEFAULT}/data --config ${TEMPLATE_DIR_DEFAULT}/config.yml --domain ${TEMPLATE_DIR_DEFAULT}/domain.yml --out ${TEMPLATE_DIR_DEFAULT}/models
+    python -m rasa train --data ${TEMPLATE_DIR_DEFAULT}/data --config ${TEMPLATE_DIR_DEFAULT}/config.yml --domain ${TEMPLATE_DIR_DEFAULT}/domain.yml --out ${TEMPLATE_DIR_DEFAULT}/models
 
-RUN cp kairon/shared/rule_policy.py /usr/local/lib/python3.10/site-packages/rasa/core/policies/rule_policy.py
-RUN cp kairon/shared/schemas/domain.yml /usr/local/lib/python3.10/site-packages/rasa/shared/utils/schemas/domain.yml
+RUN cp kairon/shared/rule_policy.py /root/.pyenv/versions/${PYTHON_VERSION}/lib/python3.10/site-packages/rasa/core/policies/rule_policy.py
+RUN cp kairon/shared/schemas/domain.yml /root/.pyenv/versions/${PYTHON_VERSION}/lib/python3.10/site-packages/rasa/shared/utils/schemas/domain.yml
 
 ENV HF_HOME="/home/cache" SENTENCE_TRANSFORMERS_HOME="/home/cache"
 
