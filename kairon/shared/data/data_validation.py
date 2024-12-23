@@ -6,6 +6,7 @@ from kairon.shared.actions.models import ActionParameterType, DbActionOperationT
 import ast
 
 from kairon.shared.callback.data_objects import encrypt_secret
+from kairon.shared.data.constant import DEFAULT_LLM
 
 
 class DataValidation:
@@ -97,7 +98,7 @@ class DataValidation:
                 else:
                     data_error.append("model is required in hyperparameters!")
             llm_hyperparameters_errors = DataValidation.validate_llm_prompts_hyperparameters(
-                hyperparameters, data.get("llm_type", "openai"), bot)
+                hyperparameters, data.get("llm_type", DEFAULT_LLM), bot)
             data_error.extend(llm_hyperparameters_errors)
         return data_error
 
