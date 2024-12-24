@@ -16,7 +16,7 @@ from rasa.engine.storage.resource import Resource
 from rasa.engine.storage.storage import ModelStorage
 from rasa.nlu.classifiers.classifier import IntentClassifier
 from rasa.nlu.extractors.extractor import EntityExtractorMixin
-from rasa.shared.nlu.constants import TEXT, INTENT, ENTITIES, ENTITY_ATTRIBUTE_TYPE
+from rasa.shared.nlu.constants import TEXT, INTENT, ENTITIES, ENTITY_ATTRIBUTE_TYPE, EXTRACTOR
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import create_directory_for_file
@@ -282,3 +282,21 @@ Please provide your answer in the specified JSON format."""
                 io_utils.json_pickle(
                     os.path.join(model_path, data_file_name), self.data
                 )
+
+    def add_extractor_name(
+        self, entities: List[Dict[Text, Any]]
+    ) -> List[Dict[Text, Any]]:
+        """Adds this extractor's name to a list of entities.
+
+        Args:
+            entities: the extracted entities.
+
+        Returns:
+            the modified entities.
+        """
+        entities_new = []
+        for entity in entities:
+            if isinstance(entity, dict):
+                entity[EXTRACTOR] = self.name
+                entities_new.append(entity.copy())
+        return entities_new
