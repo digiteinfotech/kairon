@@ -67,6 +67,6 @@ mongoengine-jsonschema==0.1.3
 fernet==1.0.1
 google-generativeai
 huggingface-hub==0.25.2
-imap-tools==1.7.4
+imap-tools==1.8.0
 more-itertools
 python-multipart>=0.0.18
