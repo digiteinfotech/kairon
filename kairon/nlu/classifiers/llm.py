@@ -282,3 +282,21 @@ Please provide your answer in the specified JSON format."""
                 io_utils.json_pickle(
                     os.path.join(model_path, data_file_name), self.data
                 )
+
+    def add_extractor_name(
+        self, entities: List[Dict[Text, Any]]
+    ) -> List[Dict[Text, Any]]:
+        """Adds this extractor's name to a list of entities.
+
+        Args:
+            entities: the extracted entities.
+
+        Returns:
+            the modified entities.
+        """
+        entities_new = []
+        for entity in entities:
+            if isinstance(entity, dict):
+                entity[EXTRACTOR] = self.name
+                entities_new.append(entity.copy())
+        return entities_new
