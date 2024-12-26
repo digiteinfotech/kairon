@@ -28678,6 +28678,7 @@ def test_get_llm_logs():
     assert actual["data"]["logs"][0]['start_time']
     assert actual["data"]["logs"][0]['end_time']
     assert actual["data"]["logs"][0]['cost']
+    assert actual["data"]["logs"][0]['response']
     assert actual["data"]["logs"][0]['llm_call_id']
     assert actual["data"]["logs"][0]["llm_provider"] == "openai"
     assert not actual["data"]["logs"][0].get("model")
