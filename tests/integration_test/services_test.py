@@ -28671,6 +28671,7 @@ def test_get_llm_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 1
@@ -28684,7 +28685,7 @@ def test_get_llm_logs():
     assert actual["data"]["logs"][0]["model_params"] == {}
     assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
     assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
-
+    assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
 
 def test_add_custom_widget_invalid_config():
     response = client.post(
