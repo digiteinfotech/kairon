@@ -233,7 +233,7 @@ class WhatsappBot(OutputChannel):
         message = json_message.get("data")
         messagetype = json_message.get("type")
         content_type = {"link": "text", "video": "video", "image": "image", "button": "interactive",
-                        "dropdown": "interactive", "audio": "audio"}
+                        "dropdown": "interactive", "audio": "audio", "formatText": "text"}
         if messagetype is not None and messagetype in type_list:
             messaging_type = content_type.get(messagetype)
             from kairon.chat.converters.channels.response_factory import ConverterFactory

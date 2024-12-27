@@ -1,4 +1,4 @@
-type_list: ["image","link","video","button","quick_reply","dropdown","audio"]
+type_list: ["image","link","video","button","quick_reply","dropdown","audio", "formatText"]
 slack:
   image: '{
 	"blocks": [
@@ -88,6 +88,7 @@ messenger:
   video: '{"text":"<data>"}'
   button: '{"text":"<data>"}'
   body_message: "Please select from quick buttons:"
+  formatText: '{"text":"<data>"}'
 
 whatsapp:
   image: '{
@@ -112,6 +113,10 @@ whatsapp:
   "action":"<action>"
   }'
   body_message: "Please select from quick buttons:"
+  formatText: '{
+    "preview_url": true,
+    "body":"<data>"
+  }'
 
   dropdown: '{
       "type": "list",
@@ -128,6 +133,13 @@ telegram:
   "reply_to_message_id":0}'
   video: '{"text":"<data>"}'
   body_message: 'Please select from quick buttons:'
+  formatText: '{
+    "text":"<data>",
+    "parse_mode":"HTML",
+    "disable_web_page_preview":false,
+    "disable_notification":false,
+    "reply_to_message_id":0
+  }'
 
 msteams:
   body_message: "Please select from quick buttons:"

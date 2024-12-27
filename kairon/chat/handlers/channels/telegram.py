@@ -156,7 +156,7 @@ class TelegramOutput(TeleBot, OutputChannel):
                     del response["photo"]
                     api_call = getattr(self, send_functions[("photo",)])
                     api_call(recipient_id, *response_list, **response)
-                elif ops_type in ["link", "video"]:
+                elif ops_type in ["link", "video", "formatText"]:
                     response_list.append(response.get("text"))
                     del response["text"]
                     api_call = getattr(self, send_functions[("text",)])

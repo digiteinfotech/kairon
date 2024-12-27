@@ -1,6 +1,6 @@
+
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 import ujson as json
-
 from kairon.shared.constants import ElementTypes
 
 
@@ -33,6 +33,34 @@ class WhatsappResponseConverter(ElementTransformerOps):
                 return response
         except Exception as ex:
             raise Exception(f"Error in WhatsappResponseConverter::link_transformer {str(ex)}")
+
+    def paragraph_transformer(self, message):
+        try:
+            message_template = ElementTransformerOps.getChannelConfig(self.channel, self.message_type)
+            paragraph_template = json.loads(message_template)
+            jsoniterator = ElementTransformerOps.json_generator(message)
+            final_text = ""
+            for item in jsoniterator:
+                if item.get("type") == "paragraph":
+                    children = ElementTransformerOps.json_generator(item.get("children", []))
+                    for child in children:
+                        text = child.get("text", "")
+                        leading_spaces = len(text) - len(text.lstrip())
+                        trailing_spaces = len(text) - len(text.rstrip())
+                        text = text.strip()
+                        if child.get("bold"):
+                            text = f"*{text}*"
+                        if child.get("italic"):
+                            text = f"_{text}_"
+                        if child.get("strikethrough"):
+                            text = f"~{text}~"
+                        final_text += f"{' ' * leading_spaces}{text}{' ' * trailing_spaces}"
+                    final_text += "\n"
+
+            paragraph_template["body"] = final_text
+            return paragraph_template
+        except Exception as ex:
+            raise Exception(f"Error in WhatsappResponseConverter::paragraph_transformer {str(ex)}")
 
     def button_transformer(self, message):
         try:
@@ -121,5 +149,7 @@ class WhatsappResponseConverter(ElementTransformerOps):
                 return self.button_transformer(message)
             elif self.message_type == ElementTypes.DROPDOWN.value:
                 return self.dropdown_transformer(message)
+            elif self.message_type == ElementTypes.FORMAT_TEXT.value:
+                return self.paragraph_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in WhatsappResponseConverter::messageConverter {str(ex)}")
