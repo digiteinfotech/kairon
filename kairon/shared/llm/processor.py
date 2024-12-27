@@ -363,7 +363,7 @@ class LLMProcessor(LLMBase):
         @param page_size: page size
         @return: list of logs.
         """
-        for log in LLMLogs.objects(metadata__bot=bot).order_by("-start_time").skip(start_idx).limit(page_size):
+        for log in LLMLogs.objects(metadata__bot=bot).order_by("-start_time").skip(start_idx).limit(page_size).exclude('response.data'):
             llm_log = log.to_mongo().to_dict()
             llm_log.pop('_id')
             yield llm_log
