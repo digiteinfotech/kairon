@@ -8,6 +8,9 @@ from email.mime.text import MIMEText
 from io import BytesIO
 from unittest.mock import patch, MagicMock
 from urllib.parse import urlencode
+
+from kairon.chat.converters.channels.messenger import MessengerResponseConverter
+from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
 from kairon.shared.utils import Utility, MailUtility
 
 Utility.load_system_metadata()
@@ -32,11 +35,11 @@ from kairon.chat.converters.channels.responseconverter import ElementTransformer
 from kairon.chat.converters.channels.telegram import TelegramResponseConverter
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
-from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
+from kairon.shared.constants import ElementTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
-from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, STORY_EVENT
-from kairon.shared.data.data_objects import EventConfig, Slots, LLMSettings, DemoRequestLogs
+from kairon.shared.data.constant import STORY_EVENT
+from kairon.shared.data.data_objects import EventConfig, Slots, DemoRequestLogs
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import TemplateType
@@ -3333,3 +3336,202 @@ class TestUtility:
         # Test input with spaces
         assert Utility.string_to_list("apple, banana, orange") == ["apple", "banana", "orange"]
 
+
+
+    def test_whatsapp_paragraph_transformer_basic(self):
+        whatsapp_response_converter = WhatsappResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value,
+                                                                channel_type="whatsapp")
+        message = [
+            {
+                "type": "paragraph",
+                "children": [
+                    {"text": "This is a test paragraph."}
+                ]
+            }
+        ]
+        expected_output = {"body": "This is a test paragraph.\n"}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig',
+                   return_value='{"body": ""}'):
+            response = whatsapp_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_whatsapp_paragraph_transformer_with_formatting(self):
+        whatsapp_response_converter = WhatsappResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value,
+                                                                channel_type="whatsapp")
+        message = [
+            {
+                "type": "paragraph",
+                "children": [
+                    {"text": "Bold text", "bold": True},
+                    {"text": " and normal text."}
+                ]
+            }
+        ]
+        expected_output = {"body": "*Bold text* and normal text.\n"}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig',
+                   return_value='{"body": ""}'):
+            response = whatsapp_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_whatsapp_paragraph_transformer_with_spaces(self):
+        whatsapp_response_converter = WhatsappResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value,
+                                                                channel_type="whatsapp")
+        message = [
+            {
+                "type": "paragraph",
+                "children": [
+                    {"text": "  Text with leading and trailing spaces  "}
+                ]
+            }
+        ]
+        expected_output = {"body": "  Text with leading and trailing spaces  \n"}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig',
+                   return_value='{"body": ""}'):
+            response = whatsapp_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_whatsapp_paragraph_transformer_empty_message(self):
+        whatsapp_response_converter = WhatsappResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value,
+                                                                channel_type="whatsapp")
+        message = []
+        expected_output = {"body": ""}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig',
+                   return_value='{"body": ""}'):
+            response = whatsapp_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_whatsapp_paragraph_transformer_exception_handling(self):
+        whatsapp_response_converter = WhatsappResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value,
+                                                                channel_type="whatsapp")
+        message = None
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig',
+                   side_effect=Exception("Test Exception")):
+            with pytest.raises(Exception) as excinfo:
+                whatsapp_response_converter.paragraph_transformer(message)
+            assert "Error in WhatsappResponseConverter::paragraph_transformer" in str(excinfo.value)
+
+
+    def test_telegram_paragraph_transformer_basic(self):
+        telegram_response_converter = TelegramResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="telegram")
+        message = [
+            {
+                "type": "paragraph",
+                "children": [
+                    {"text": "This is a test paragraph."}
+                ]
+            }
+        ]
+        expected_output = {"text": "This is a test paragraph.\n"}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', return_value='{"text": ""}'):
+            response = telegram_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_telegram_paragraph_transformer_with_formatting(self):
+        telegram_response_converter = TelegramResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="telegram")
+        message = [
+            {
+                "type": "paragraph",
+                "children": [
+                    {"text": "Bold text", "bold": True},
+                    {"text": " and normal text."}
+                ]
+            }
+        ]
+        expected_output = {"text": "<b>Bold text</b> and normal text.\n"}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', return_value='{"text": ""}'):
+            response = telegram_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_telegram_paragraph_transformer_with_spaces(self):
+        telegram_response_converter = TelegramResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="telegram")
+        message = [
+            {
+                "type": "paragraph",
+                "children": [
+                    {"text": "  Text with leading and trailing spaces  "}
+                ]
+            }
+        ]
+        expected_output = {"text": "  Text with leading and trailing spaces  \n"}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', return_value='{"text": ""}'):
+            response = telegram_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_telegram_paragraph_transformer_empty_message(self):
+        telegram_response_converter = TelegramResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="telegram")
+        message = []
+        expected_output = {"text": ""}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', return_value='{"text": ""}'):
+            response = telegram_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_telegram_paragraph_transformer_exception_handling(self):
+        telegram_response_converter = TelegramResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="telegram")
+        message = None
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', side_effect=Exception("Test Exception")):
+            with pytest.raises(Exception) as excinfo:
+                telegram_response_converter.paragraph_transformer(message)
+            assert "Error in TelegramResponseConverter::paragraph_transformer" in str(excinfo.value)
+
+
+    def test_messenger_client_paragraph_transformer_basic(self):
+        messenger_response_converter = MessengerResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="messenger")
+        message = [
+            {
+                "type": "paragraph",
+                "children": [
+                    {"text": "This is a test paragraph."}
+                ]
+            }
+        ]
+        expected_output = {"text": "This is a test paragraph.\n"}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', return_value='{"text": ""}'):
+            response = messenger_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_messenger_client_paragraph_transformer_with_formatting(self):
+        messenger_response_converter = MessengerResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="messenger")
+        message = [
+            {
+                "type": "paragraph",
+                "children": [
+                    {"text": "Bold text", "bold": True},
+                    {"text": " and normal text."}
+                ]
+            }
+        ]
+        expected_output = {"text": "Bold text and normal text.\n"}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', return_value='{"text": ""}'):
+            response = messenger_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_messenger_client_paragraph_transformer_with_spaces(self):
+        messenger_response_converter = MessengerResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="messenger")
+        message = [
+            {
+                "type": "paragraph",
+                "children": [
+                    {"text": "  Text with leading and trailing spaces  "}
+                ]
+            }
+        ]
+        expected_output = {"text": "  Text with leading and trailing spaces  \n"}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', return_value='{"text": ""}'):
+            response = messenger_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_messenger_client_paragraph_transformer_empty_message(self):
+        messenger_response_converter = MessengerResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="messenger")
+        message = []
+        expected_output = {"text": ""}
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', return_value='{"text": ""}'):
+            response = messenger_response_converter.paragraph_transformer(message)
+            assert response == expected_output
+
+    def test_messenger_client_paragraph_transformer_exception_handling(self):
+        messenger_response_converter = MessengerResponseConverter(message_type=ElementTypes.FORMAT_TEXT.value, channel_type="messenger")
+        message = None
+        with patch('kairon.chat.converters.channels.responseconverter.ElementTransformerOps.getChannelConfig', side_effect=Exception("Test Exception")):
+            with pytest.raises(Exception) as excinfo:
+                messenger_response_converter.paragraph_transformer(message)
+            assert "Error in MessengerResponseConverter::paragraph_transformer" in str(excinfo.value)

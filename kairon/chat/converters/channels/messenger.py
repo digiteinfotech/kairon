@@ -1,3 +1,5 @@
+import json
+
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.shared.constants import ElementTypes
 
@@ -33,6 +35,25 @@ class MessengerResponseConverter(ElementTransformerOps):
                 return response
         except Exception as ex:
             raise Exception(f" Error in MessengerResponseConverter::link_transformer {str(ex)}")
+
+    def paragraph_transformer(self, message):
+        try:
+            message_template = ElementTransformerOps.getChannelConfig(self.channel, self.message_type)
+            paragraph_template = json.loads(message_template)
+            jsoniterator = ElementTransformerOps.json_generator(message)
+            final_text = ""
+            for item in jsoniterator:
+                if item.get("type") == "paragraph":
+                    children = ElementTransformerOps.json_generator(item.get("children", []))
+                    for child in children:
+                        text = child.get("text", "")
+                        final_text += text
+                    final_text += "\n"
+
+            paragraph_template["text"] = final_text
+            return paragraph_template
+        except Exception as ex:
+            raise Exception(f"Error in MessengerResponseConverter::paragraph_transformer {str(ex)}")
 
     def button_transformer(self, message):
         try:
@@ -89,5 +110,7 @@ class MessengerResponseConverter(ElementTransformerOps):
                 return self.button_transformer(message)
             elif self.message_type == ElementTypes.QUICK_REPLY.value:
                 return self.quick_reply_transformer(message)
+            elif self.message_type == ElementTypes.FORMAT_TEXT.value:
+                return self.paragraph_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in MessengerResponseConverter::messageConverter {str(ex)}")
