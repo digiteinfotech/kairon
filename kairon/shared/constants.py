@@ -126,6 +126,7 @@ class ElementTypes(str, Enum):
     BUTTON = "button"
     DROPDOWN = "dropdown"
     QUICK_REPLY = "quick_reply"
+    FORMAT_TEXT = "formatText"
 
 
 class WhatsappBSPTypes(str, Enum):
