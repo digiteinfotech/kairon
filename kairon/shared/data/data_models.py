@@ -166,6 +166,8 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     confirm_password: SecretStr
     account: str
     fingerprint: str = None
+    accepted_privacy_policy: bool
+    accepted_terms: bool
 
     @validator("email")
     def validate_email(cls, v, values, **kwargs):

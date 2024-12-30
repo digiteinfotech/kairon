@@ -18402,6 +18402,8 @@ class TestModelProcessor:
             "first_name": "test_first",
             "last_name": "test_last",
             "password": SecretStr("Quailink@46"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
 
         loop = asyncio.new_event_loop()
@@ -18434,6 +18436,8 @@ class TestModelProcessor:
             "first_name": "test_first_1",
             "last_name": "test_last_1",
             "password": SecretStr("Quailink@46"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
 
         loop = asyncio.new_event_loop()
@@ -18467,6 +18471,8 @@ class TestModelProcessor:
             "first_name": "test_first_2",
             "last_name": "test_last_2",
             "password": SecretStr("abcdefg@123"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
 
         loop = asyncio.new_event_loop()

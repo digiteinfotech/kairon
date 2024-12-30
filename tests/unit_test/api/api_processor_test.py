@@ -478,6 +478,8 @@ class TestAccountProcessor:
             "first_name": "Test_Delete_First",
             "last_name": "Test_Delete_Last",
             "password": SecretStr("Welcome@1"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
 
         loop = asyncio.new_event_loop()
@@ -502,6 +504,8 @@ class TestAccountProcessor:
             "first_name": "Test_Delete_First",
             "last_name": "Test_Delete_Last",
             "password": SecretStr("Welcome@1"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
 
         loop = asyncio.new_event_loop()
@@ -530,7 +534,9 @@ class TestAccountProcessor:
             "email": "ritika@digite.com",
             "first_name": "Test_Delete_First",
             "last_name": "Test_Delete_Last",
-            "password": SecretStr("Welcome@1")
+            "password": SecretStr("Welcome@1"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
 
         loop = asyncio.new_event_loop()
@@ -551,7 +557,9 @@ class TestAccountProcessor:
             "email": "ritika@digite.com",
             "first_name": "Test_Delete_First",
             "last_name": "Test_Delete_Last",
-            "password": SecretStr("Welcome@1")
+            "password": SecretStr("Welcome@1"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
 
         loop = asyncio.new_event_loop()
@@ -585,6 +593,8 @@ class TestAccountProcessor:
             "first_name": "Test_Delete_First",
             "last_name": "Test_Delete_Last",
             "password": SecretStr("Welcome@1"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
 
         loop = asyncio.new_event_loop()
@@ -932,7 +942,7 @@ class TestAccountProcessor:
             )
 
     def test_account_setup_empty_values(self):
-        account = {}
+        account = {"email": "demo@ac.in"}
         with pytest.raises(AppException):
             loop = asyncio.new_event_loop()
             loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
@@ -957,9 +967,11 @@ class TestAccountProcessor:
         account = {
             "account": "Test_Account",
             "bot": "Test",
+            "email": "test@demo.in",
             "first_name": "Test_First",
             "last_name": "Test_Last",
             "password": SecretStr("Welcome@1"),
+            "accepted_terms": True
         }
         with pytest.raises(AppException):
             loop = asyncio.new_event_loop()
@@ -972,6 +984,8 @@ class TestAccountProcessor:
             "first_name": "Test_First",
             "last_name": "Test_Last",
             "password": SecretStr("Welcome@1"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
         loop = asyncio.new_event_loop()
         actual, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
@@ -2577,6 +2591,8 @@ class TestAccountProcessor:
             "first_name": "delete_First",
             "last_name": "delete_Last",
             "password": SecretStr("Qwerty@4"),
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
         monkeypatch.setattr(AccountProcessor, "add_user", add_user_mock)
         bots_before_delete = list(AccountProcessor.list_bots(account["account"]))

@@ -425,6 +425,8 @@ class Authentication:
         if existing_user:
             AccountProcessor.get_user_details(user_details['email'])
         else:
+            user_details["accepted_privacy_policy"] = True
+            user_details["accepted_terms"] = True
             await AccountProcessor.account_setup(user_details)
             tmp_token = Utility.generate_token(user_details['email'])
             await AccountProcessor.confirm_email(tmp_token)
