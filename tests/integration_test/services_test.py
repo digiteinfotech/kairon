@@ -27,6 +27,7 @@ from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
+from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
@@ -324,17 +325,17 @@ def test_account_registration_without_privacy_policy_and_terms_consent(monkeypat
     assert not actual["success"]
     assert not actual["data"]
     assert actual["error_code"] == 422
-    values = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='user_consent').order_by(
+    values = list(UserActivityLog.objects(user="integration@demo.ai", type='user_consent').order_by(
         "-timestamp"))
-    audit_log_data = values[0].to_mongo().to_dict()
-    print(audit_log_data)
-    assert audit_log_data["action"] == 'activity'
-    assert audit_log_data['entity'] == 'user_consent'
-    assert audit_log_data['user'] == 'integration@demo.ai'
-    assert audit_log_data['data']['username'] == 'integration@demo.ai'
-    assert audit_log_data['data']['message'] == ['Privacy Policy, Terms and Conditions consent']
-    assert audit_log_data['data']['accepted_privacy_policy'] is False
-    assert audit_log_data['data']['accepted_terms'] is False
+    user_activity_log = values[0].to_mongo().to_dict()
+    print(user_activity_log)
+    assert user_activity_log['type'] == 'user_consent'
+    assert user_activity_log['user'] == 'integration@demo.ai'
+    assert user_activity_log['timestamp']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['data']['username'] == 'integration@demo.ai'
+    assert user_activity_log['data']['accepted_privacy_policy'] is False
+    assert user_activity_log['data']['accepted_terms'] is False
 
 
 def test_account_registration_without_privacy_policy(monkeypatch):
@@ -358,17 +359,17 @@ def test_account_registration_without_privacy_policy(monkeypatch):
     assert not actual["success"]
     assert not actual["data"]
     assert actual["error_code"] == 422
-    values = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='user_consent').order_by(
+    values = list(UserActivityLog.objects(user="integration@demo.ai", type='user_consent').order_by(
         "-timestamp"))
-    audit_log_data = values[0].to_mongo().to_dict()
-    print(audit_log_data)
-    assert audit_log_data["action"] == 'activity'
-    assert audit_log_data['entity'] == 'user_consent'
-    assert audit_log_data['user'] == 'integration@demo.ai'
-    assert audit_log_data['data']['username'] == 'integration@demo.ai'
-    assert audit_log_data['data']['message'] ==  ['Privacy Policy, Terms and Conditions consent']
-    assert audit_log_data['data']['accepted_privacy_policy'] is False
-    assert audit_log_data['data']['accepted_terms'] is True
+    user_activity_log = values[0].to_mongo().to_dict()
+    print(user_activity_log)
+    assert user_activity_log['type'] == 'user_consent'
+    assert user_activity_log['user'] == 'integration@demo.ai'
+    assert user_activity_log['timestamp']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['data']['username'] == 'integration@demo.ai'
+    assert user_activity_log['data']['accepted_privacy_policy'] is False
+    assert user_activity_log['data']['accepted_terms'] is True
 
 
 def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
@@ -392,17 +393,17 @@ def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
     assert not actual["success"]
     assert not actual["data"]
     assert actual["error_code"] == 422
-    values = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='user_consent').order_by(
+    values = list(UserActivityLog.objects(user="integration@demo.ai", type='user_consent').order_by(
         "-timestamp"))
-    audit_log_data = values[0].to_mongo().to_dict()
-    print(audit_log_data)
-    assert audit_log_data["action"] == 'activity'
-    assert audit_log_data['entity'] == 'user_consent'
-    assert audit_log_data['user'] == 'integration@demo.ai'
-    assert audit_log_data['data']['username'] == 'integration@demo.ai'
-    assert audit_log_data['data']['message'] == ['Privacy Policy, Terms and Conditions consent']
-    assert audit_log_data['data']['accepted_privacy_policy'] is True
-    assert audit_log_data['data']['accepted_terms'] is False
+    user_activity_log = values[0].to_mongo().to_dict()
+    print(user_activity_log)
+    assert user_activity_log['type'] == 'user_consent'
+    assert user_activity_log['user'] == 'integration@demo.ai'
+    assert user_activity_log['timestamp']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['data']['username'] == 'integration@demo.ai'
+    assert user_activity_log['data']['accepted_privacy_policy'] is True
+    assert user_activity_log['data']['accepted_terms'] is False
 
 
 def test_account_registration_error():

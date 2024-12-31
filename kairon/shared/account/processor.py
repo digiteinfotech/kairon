@@ -822,8 +822,9 @@ class AccountProcessor:
         user = account_setup.get("email")
         accepted_privacy_policy = account_setup.get("accepted_privacy_policy")
         accepted_terms = account_setup.get("accepted_terms")
-        UserActivityLogger.add_log(
+        UserActivityLogger.add_user_activity_log(
             a_type=UserActivityType.user_consent.value,
+            account=account_setup.get("account"),
             email=user,
             message=["Privacy Policy, Terms and Conditions consent"],
             data={
