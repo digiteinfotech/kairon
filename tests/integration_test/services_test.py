@@ -29757,6 +29757,8 @@ def test_idp_callback(monkeypatch):
             "email": "new_idp_user@demo.in",
             "given_name": "test",
             "family_name": "user",
+            "accepted_privacy_policy": True,
+            "accepted_terms": True
         }
 
     monkeypatch.setattr(IDPProcessor, "get_idp_token", _get_idp_token)

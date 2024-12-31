@@ -552,6 +552,8 @@ class TestIDP:
                 "email": "test_sso_user@demo.in",
                 "given_name": "test",
                 "family_name": "user",
+                "accepted_privacy_policy": True,
+                "accepted_terms": True
             }
 
         def _validate_org_settings(*args, **kwargs):
@@ -581,6 +583,8 @@ class TestIDP:
                 "email": "test_sso_user@demo.in",
                 "given_name": "test",
                 "family_name": "user",
+                "accepted_privacy_policy": True,
+                "accepted_terms": True
             }
 
         def _validate_org_settings(*args, **kwargs):
