@@ -1,5 +1,5 @@
 rasa[full]==3.6.20
-mongoengine==0.29.0
+mongoengine==0.29.1
 fastapi==0.115.6
 uvicorn[standard]==0.32.0
 smart-config==0.1.3
