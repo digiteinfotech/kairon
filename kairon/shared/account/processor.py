@@ -807,18 +807,7 @@ class AccountProcessor:
         return user_details
 
     @staticmethod
-    async def account_setup(account_setup: Dict):
-        """
-        create new account
-
-        :param account_setup: dict of account details
-        :return: dict user details, user email id, confirmation mail subject, mail body
-        """
-
-        account = None
-        mail_to = None
-        email_enabled = Utility.email_conf["email"]["enable"]
-        link = None
+    def verify_and_log_user_consent(account_setup: dict):
         user = account_setup.get("email")
         accepted_privacy_policy = account_setup.get("accepted_privacy_policy")
         accepted_terms = account_setup.get("accepted_terms")
@@ -834,6 +823,21 @@ class AccountProcessor:
             }
         )
         Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+
+    @staticmethod
+    async def account_setup(account_setup: Dict):
+        """
+        create new account
+
+        :param account_setup: dict of account details
+        :return: dict user details, user email id, confirmation mail subject, mail body
+        """
+
+        account = None
+        mail_to = None
+        email_enabled = Utility.email_conf["email"]["enable"]
+        link = None
+        user = account_setup.get("email")
         try:
             account = AccountProcessor.add_account(account_setup.get("account"), user)
             user_details = AccountProcessor.add_user(
@@ -870,9 +874,7 @@ class AccountProcessor:
             "email": "test@demo.in",
             "first_name": "Test_First",
             "last_name": "Test_Last",
-            "password": SecretStr("Changeit@123"),
-            "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "password": SecretStr("Changeit@123")
         }
         try:
             user, mail, link = await AccountProcessor.account_setup(account)

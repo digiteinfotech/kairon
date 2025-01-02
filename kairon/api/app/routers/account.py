@@ -20,6 +20,7 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
     Registers a new account
     """
     Utility.validate_enable_sso_only()
+    AccountProcessor.verify_and_log_user_consent(register_account.dict())
     user, mail, url = await AccountProcessor.account_setup(register_account.dict())
     AccountProcessor.get_location_and_add_trusted_device(user['email'], register_account.fingerprint, request, False)
     if Utility.email_conf["email"]["enable"]:

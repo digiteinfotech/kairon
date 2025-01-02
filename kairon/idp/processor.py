@@ -126,8 +126,6 @@ class IDPProcessor:
             idp_token['account'] = idp_token['email']
             idp_token['first_name'] = idp_token['given_name']
             idp_token['last_name'] = idp_token['family_name']
-            idp_token['accepted_privacy_policy'] = True
-            idp_token['accepted_terms'] = True
         if existing_user:
             AccountProcessor.get_user_details(idp_token['email'])
         else:
