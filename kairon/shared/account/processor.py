@@ -807,6 +807,23 @@ class AccountProcessor:
         return user_details
 
     @staticmethod
+    def verify_and_log_user_consent(account_setup: dict):
+        user = account_setup.get("email")
+        accepted_privacy_policy = account_setup.get("accepted_privacy_policy")
+        accepted_terms = account_setup.get("accepted_terms")
+        UserActivityLogger.add_user_activity_log(
+            a_type=UserActivityType.user_consent.value,
+            email=user,
+            message=["Privacy Policy, Terms and Conditions consent"],
+            data={
+                "username": user,
+                "accepted_privacy_policy": accepted_privacy_policy,
+                "accepted_terms": accepted_terms
+            }
+        )
+        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+
+    @staticmethod
     async def account_setup(account_setup: Dict):
         """
         create new account
@@ -814,7 +831,6 @@ class AccountProcessor:
         :param account_setup: dict of account details
         :return: dict user details, user email id, confirmation mail subject, mail body
         """
-        from kairon.shared.data.processor import MongoProcessor
 
         account = None
         mail_to = None
@@ -857,7 +873,7 @@ class AccountProcessor:
             "email": "test@demo.in",
             "first_name": "Test_First",
             "last_name": "Test_Last",
-            "password": SecretStr("Changeit@123"),
+            "password": SecretStr("Changeit@123")
         }
         try:
             user, mail, link = await AccountProcessor.account_setup(account)

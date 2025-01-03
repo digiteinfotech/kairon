@@ -167,7 +167,7 @@ class UserActivityLog(Document):
     )
     user = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
-    account = LongField(required=True)
+    account = LongField(required=True, default=-1)
     bot = StringField()
     message = ListField(StringField(), default=None)
     data = DynamicField()

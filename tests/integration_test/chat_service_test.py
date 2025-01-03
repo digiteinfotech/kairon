@@ -65,6 +65,8 @@ loop.run_until_complete(
                 "password": "testChat@12",
                 "confirm_password": "testChat@12",
                 "account": "ChatTesting",
+                "accepted_privacy_policy": True,
+                "accepted_terms": True
             }
         ).dict()
     )
@@ -79,6 +81,8 @@ loop.run_until_complete(
                 "password": "testChat@12",
                 "confirm_password": "testChat@12",
                 "account": "ChatTesting1",
+                "accepted_privacy_policy": True,
+                "accepted_terms": True
             }
         ).dict()
     )
@@ -93,6 +97,8 @@ loop.run_until_complete(
                 "password": "resetPswrd@12",
                 "confirm_password": "resetPswrd@12",
                 "account": "ResetPassword",
+                "accepted_privacy_policy": True,
+                "accepted_terms": True
             }
         ).dict()
     )
