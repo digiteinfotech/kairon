@@ -1642,6 +1642,17 @@ class Utility:
                 return {"account_owned": [], "shared": [bot_details]}
 
     @staticmethod
+    def verify_privacy_policy_and_terms_consent(accepted_privacy_policy: bool, accepted_terms: bool):
+        missing_consents = []
+        if not accepted_privacy_policy:
+            missing_consents.append("privacy policy")
+        if not accepted_terms:
+            missing_consents.append("terms and conditions")
+
+        if missing_consents:
+            raise AppException(f"Should be agreed to: {', '.join(missing_consents)}")
+
+    @staticmethod
     def upload_bot_assets_to_s3(bot, asset_type, file_path):
         from kairon.shared.cloud.utils import CloudUtility
 

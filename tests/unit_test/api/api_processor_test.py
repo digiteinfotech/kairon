@@ -477,7 +477,7 @@ class TestAccountProcessor:
             "email": "ritika@digite.com",
             "first_name": "Test_Delete_First",
             "last_name": "Test_Delete_Last",
-            "password": SecretStr("Welcome@1"),
+            "password": SecretStr("Welcome@1")
         }
 
         loop = asyncio.new_event_loop()
@@ -501,7 +501,7 @@ class TestAccountProcessor:
             "email": "ritika@digite.com",
             "first_name": "Test_Delete_First",
             "last_name": "Test_Delete_Last",
-            "password": SecretStr("Welcome@1"),
+            "password": SecretStr("Welcome@1")
         }
 
         loop = asyncio.new_event_loop()
@@ -584,7 +584,7 @@ class TestAccountProcessor:
             "email": "ritika@digite.com",
             "first_name": "Test_Delete_First",
             "last_name": "Test_Delete_Last",
-            "password": SecretStr("Welcome@1"),
+            "password": SecretStr("Welcome@1")
         }
 
         loop = asyncio.new_event_loop()
@@ -959,7 +959,7 @@ class TestAccountProcessor:
             "bot": "Test",
             "first_name": "Test_First",
             "last_name": "Test_Last",
-            "password": SecretStr("Welcome@1"),
+            "password": SecretStr("Welcome@1")
         }
         with pytest.raises(AppException):
             loop = asyncio.new_event_loop()
@@ -971,7 +971,7 @@ class TestAccountProcessor:
             "email": "demo@ac.in",
             "first_name": "Test_First",
             "last_name": "Test_Last",
-            "password": SecretStr("Welcome@1"),
+            "password": SecretStr("Welcome@1")
         }
         loop = asyncio.new_event_loop()
         actual, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
@@ -2576,7 +2576,7 @@ class TestAccountProcessor:
             "email": "vdivya4690@gmail.com",
             "first_name": "delete_First",
             "last_name": "delete_Last",
-            "password": SecretStr("Qwerty@4"),
+            "password": SecretStr("Qwerty@4")
         }
         monkeypatch.setattr(AccountProcessor, "add_user", add_user_mock)
         bots_before_delete = list(AccountProcessor.list_bots(account["account"]))
