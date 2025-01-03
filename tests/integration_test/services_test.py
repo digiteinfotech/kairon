@@ -332,6 +332,7 @@ def test_account_registration_without_privacy_policy_and_terms_consent(monkeypat
     assert user_activity_log['type'] == 'user_consent'
     assert user_activity_log['user'] == 'integration@demo.ai'
     assert user_activity_log['timestamp']
+    assert user_activity_log['account'] == -1
     assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is False
@@ -365,6 +366,7 @@ def test_account_registration_without_privacy_policy(monkeypatch):
     print(user_activity_log)
     assert user_activity_log['type'] == 'user_consent'
     assert user_activity_log['user'] == 'integration@demo.ai'
+    assert user_activity_log['account'] == -1
     assert user_activity_log['timestamp']
     assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
@@ -399,6 +401,7 @@ def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
     print(user_activity_log)
     assert user_activity_log['type'] == 'user_consent'
     assert user_activity_log['user'] == 'integration@demo.ai'
+    assert user_activity_log['account'] == -1
     assert user_activity_log['timestamp']
     assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'

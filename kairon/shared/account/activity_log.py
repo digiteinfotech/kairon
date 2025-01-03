@@ -48,7 +48,6 @@ class UserActivityLogger:
         try:
             user_activity_log = UserActivityLog(
                 type=a_type,
-                account=account,
                 user=email,
                 message=message,
                 data=data

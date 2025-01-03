@@ -813,7 +813,6 @@ class AccountProcessor:
         accepted_terms = account_setup.get("accepted_terms")
         UserActivityLogger.add_user_activity_log(
             a_type=UserActivityType.user_consent.value,
-            account=account_setup.get("account"),
             email=user,
             message=["Privacy Policy, Terms and Conditions consent"],
             data={
