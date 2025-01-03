@@ -27,8 +27,10 @@ class LiveAgentHandler:
             return False
 
     @staticmethod
-    def get_channel(userdata: UserMessage):
+    def get_channel(userdata: UserMessage) -> str:
         channel = userdata.output_channel.name()
+        if channel == 'facebook':
+            channel = userdata.input_channel
         # output channel not set -> web
         if channel == 'collector':
             channel = 'web'

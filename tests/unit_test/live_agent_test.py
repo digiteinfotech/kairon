@@ -135,3 +135,8 @@ def test_get_channel():
     user_message.output_channel.name.return_value = 'other'
     ch = LiveAgentHandler.get_channel(user_message)
     assert ch == 'other'
+
+    user_message = UserMessage('test', output_channel=MagicMock(), input_channel='instagram')
+    user_message.output_channel.name.return_value = 'facebook'
+    ch = LiveAgentHandler.get_channel(user_message)
+    assert ch == 'instagram'
