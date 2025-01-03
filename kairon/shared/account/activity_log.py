@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from starlette import status
 
 from kairon.exceptions import AppException
+from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
@@ -31,6 +32,29 @@ class UserActivityLogger:
         audit_data.update(data) if data else None
         kwargs = {'action': AuditlogActions.ACTIVITY.value}
         AuditDataProcessor.log(a_type, account, bot,  email, audit_data, **kwargs)
+
+    @staticmethod
+    def add_user_activity_log(a_type: UserActivityType, account: int = None,  email: Text = None,
+                              message: list = None, data: dict = None):
+        """
+        Adds log for various UserActivity
+
+        :param account: account id
+        :param a_type: UserActivityType
+        :param email: email
+        :param message: list of messages
+        :param data: dictionary containing data
+        """
+        try:
+            user_activity_log = UserActivityLog(
+                type=a_type,
+                user=email,
+                message=message,
+                data=data
+            )
+            user_activity_log.save()
+        except Exception as e:
+            raise AppException(str(e))
 
     @staticmethod
     def is_password_reset_request_limit_exceeded(email: Text):

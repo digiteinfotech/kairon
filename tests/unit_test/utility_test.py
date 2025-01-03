@@ -495,6 +495,29 @@ class TestUtility:
             DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
         assert not os.path.exists(pytest.bot_data_home_dir)
 
+    def test_verify_privacy_policy_and_terms_consent_without_both_consents(self):
+        accepted_privacy_policy = False
+        accepted_terms = False
+        with pytest.raises(AppException, match="Should be agreed to: privacy policy, terms and conditions"):
+            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+
+    def test_verify_privacy_policy_and_terms_consent_without_privacy_policy(self):
+        accepted_privacy_policy = False
+        accepted_terms = True
+        with pytest.raises(AppException, match="Should be agreed to: privacy policy"):
+            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+
+    def test_verify_privacy_policy_and_terms_consent_without_terms(self):
+        accepted_privacy_policy = True
+        accepted_terms = False
+        with pytest.raises(AppException, match="Should be agreed to: terms and conditions"):
+            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+
+    def test_verify_privacy_policy_and_terms_consent(self):
+        accepted_privacy_policy = True
+        accepted_terms = True
+        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+
     def test_validate_only_stories_and_nlu(
         self, resource_validate_only_stories_and_nlu
     ):
