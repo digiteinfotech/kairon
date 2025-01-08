@@ -51,6 +51,8 @@ class Translator:
 
             non_empty_indices = [i for i, s in enumerate(text) if s]
             non_empty_strings = [text[i] for i in non_empty_indices]
+            if len(non_empty_strings) == 0:
+                return text
 
             response = client.translate_text(
                 request={
