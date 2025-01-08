@@ -337,6 +337,7 @@ def test_account_registration_without_privacy_policy_and_terms_consent(monkeypat
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is False
     assert user_activity_log['data']['accepted_terms'] is False
+    assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
 def test_account_registration_without_privacy_policy(monkeypatch):
@@ -372,6 +373,7 @@ def test_account_registration_without_privacy_policy(monkeypatch):
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is False
     assert user_activity_log['data']['accepted_terms'] is True
+    assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
 def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
@@ -407,6 +409,7 @@ def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is True
     assert user_activity_log['data']['accepted_terms'] is False
+    assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
 def test_account_registration_error():
@@ -966,6 +969,10 @@ def test_api_login(monkeypatch):
     assert response["data"]["user"]["account_name"] == "integration"
     assert response["data"]["user"]["first_name"] == "Demo"
     assert response["data"]["user"]["last_name"] == "User"
+    assert response["data"]["user"]["accepted_privacy_policy"] is True
+    assert response["data"]["user"]["accepted_terms"] is True
+    assert response["data"]["user"]["accepted_datetime"]
+    assert response["data"]["user"]["show_updated_terms_and_policy"] is False
 
     email = "integrationtest@demo.ai"
     response = client.post(
@@ -1042,6 +1049,120 @@ def test_api_login(monkeypatch):
                "It is your responsibility to keep the token secret. "
                "If leaked, others may have access to your system."
     )
+
+
+def test_get_user_details_with_latest_version(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "terms_and_policy_version", 2.0)
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = response.json()
+    print(response)
+    assert response["success"]
+    assert response["error_code"] == 0
+    assert response["data"]["user"]["_id"]
+    assert response["data"]["user"]["email"] == "integration@demo.ai"
+    assert (
+            response["data"]["user"]["bots"]["account_owned"][0]["user"]
+            == "integration@demo.ai"
+    )
+    assert response["data"]["user"]["bots"]["account_owned"][0]["timestamp"]
+    assert response["data"]["user"]["bots"]["account_owned"][0]["name"]
+    assert response["data"]["user"]["bots"]["account_owned"][0]["_id"]
+    assert not response["data"]["user"]["bots"]["shared"]
+    assert response["data"]["user"]["timestamp"]
+    assert response["data"]["user"]["status"]
+    assert response["data"]["user"]["account_name"] == "integration"
+    assert response["data"]["user"]["first_name"] == "Demo"
+    assert response["data"]["user"]["last_name"] == "User"
+    assert response["data"]["user"]["accepted_privacy_policy"] is False
+    assert response["data"]["user"]["accepted_terms"] is False
+    assert response["data"]["user"]["accepted_datetime"]
+    assert response["data"]["user"]["show_updated_terms_and_policy"] is True
+
+
+def test_add_user_consent_details():
+    response = client.post(
+        "/api/user/consent/details",
+        json={
+            "accepted_privacy_policy": True,
+            "accepted_terms": True,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == "Consent Details added!"
+
+    values = list(UserActivityLog.objects(user="integration@demo.ai", type='user_consent').order_by(
+        "-timestamp"))
+    user_activity_log = values[0].to_mongo().to_dict()
+    print(user_activity_log)
+    assert user_activity_log['type'] == 'user_consent'
+    assert user_activity_log['user'] == 'integration@demo.ai'
+    assert user_activity_log['account'] == -1
+    assert user_activity_log['timestamp']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['data']['username'] == 'integration@demo.ai'
+    assert user_activity_log['data']['accepted_privacy_policy'] is True
+    assert user_activity_log['data']['accepted_terms'] is True
+    assert user_activity_log['data']['terms_and_policy_version'] == 1.0
+
+
+def test_add_user_consent_details_without_terms():
+    response = client.post(
+        "/api/user/consent/details",
+        json={
+            "accepted_privacy_policy": True,
+            "accepted_terms": False,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Should be agreed to: terms and conditions"
+
+
+def test_add_user_consent_details_without_privacy_policy():
+    response = client.post(
+        "/api/user/consent/details",
+        json={
+            "accepted_privacy_policy": False,
+            "accepted_terms": True,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Should be agreed to: privacy policy"
+
+
+def test_add_user_consent_details_without_both_privacy_policy_and_terms():
+    response = client.post(
+        "/api/user/consent/details",
+        json={
+            "accepted_privacy_policy": False,
+            "accepted_terms": False,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Should be agreed to: privacy policy, terms and conditions"
 
 
 @responses.activate

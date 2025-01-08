@@ -57,6 +57,18 @@ class UserActivityLogger:
             raise AppException(str(e))
 
     @staticmethod
+    def get_user_activity_log(email: str):
+        try:
+            user_activity_log = UserActivityLog.objects(
+                user=email, type=UserActivityType.user_consent.value
+            ).order_by("-timestamp").first()
+            user_activity_log = user_activity_log.to_mongo().to_dict()
+
+        except Exception as e:
+            raise AppException(str(e))
+        return user_activity_log
+
+    @staticmethod
     def is_password_reset_request_limit_exceeded(email: Text):
         """
         Checks if the password reset limit is exceeded or not

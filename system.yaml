@@ -7,6 +7,7 @@ app:
   server_url: ${APP_SERVER_URL:"http://localhost:8000"}
   frontend_url: ${FRONTEND_URL:"http://localhost:3000"}
   enable_sso_only: ${ENABLE_SSO_ONLY:false}
+  terms_and_policy_version: ${TERMS_AND_POLICY_VERSION:1.0}
 
 user:
   reset_password_request_limit: ${RESET_PASSWORD_REQUEST_LIMIT:3}
