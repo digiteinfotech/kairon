@@ -12,7 +12,7 @@ from mongoengine import connect
 from kairon.shared.account.data_objects import Bot
 from google.cloud.translate_v3 import TranslationServiceClient
 from google.oauth2 import service_account
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 
 class TestMultilingualProcessor:
@@ -118,9 +118,9 @@ class TestMultilingualProcessor:
             assert 'TRANSLATED_' + action['failure_response'] == new_actions[ActionType.google_search_action][i]['failure_response']
         # form_validation_action
         for i, action in enumerate(base_actions[ActionType.form_validation_action]):
-            assert 'TRANSLATED_' + action['valid_response'] == new_actions[ActionType.form_validation_action][i]['valid_response']
+            assert action['valid_response'] == new_actions[ActionType.form_validation_action][i]['valid_response']
         for i, action in enumerate(base_actions[ActionType.form_validation_action]):
-            assert 'TRANSLATED_' + action['invalid_response'] == new_actions[ActionType.form_validation_action][i]['invalid_response']
+            assert  action['invalid_response'] == new_actions[ActionType.form_validation_action][i]['invalid_response']
 
         assert mp.load_config(bot=destination_bot)
         assert mp.load_stories(bot=destination_bot)
@@ -329,9 +329,9 @@ class TestMultilingualProcessor:
             assert 'TRANSLATED_' + action['failure_response'] == new_actions[ActionType.google_search_action][i]['failure_response']
         # form_validation_action
         for i, action in enumerate(base_actions[ActionType.form_validation_action]):
-            assert 'TRANSLATED_' + action['valid_response'] == new_actions[ActionType.form_validation_action][i]['valid_response']
+            assert action['valid_response'] == new_actions[ActionType.form_validation_action][i]['valid_response']
         for i, action in enumerate(base_actions[ActionType.form_validation_action]):
-            assert 'TRANSLATED_' + action['invalid_response'] == new_actions[ActionType.form_validation_action][i]['invalid_response']
+            assert action['invalid_response'] == new_actions[ActionType.form_validation_action][i]['invalid_response']
 
         assert mp.load_config(bot=destination_bot)
         assert mp.load_stories(bot=destination_bot)
@@ -682,3 +682,39 @@ class TestMultilingualProcessor:
         with pytest.raises(Exception):
             result = MultilingualTranslator._MultilingualTranslator__translate_actions(action_config, s_lang, d_lang)
 
+
+    def test_translate_text_bulk(self):
+        text = ["", "Hello", "World"]
+        s_lang = "en"
+        d_lang = "es"
+        mime_type = "text/plain"
+        translated_texts = [ "Hola", "Mundo"]
+        expectation = ["", "Hola", "Mundo"]
+        mock_response = MagicMock()
+        mock_response.translations = [MagicMock(translated_text=t) for t in translated_texts]
+        Utility.environment['multilingual'] = {
+            'project_id': 'test_project',
+        }
+        Utility.environment['multilingual']['service_account_creds'] = {
+            "type": "service_account",
+            "project_id": "test_project",
+            "private_key_id": "test_key_id",
+            "private_key": "test_private",
+            "client_email": "test_email",
+            "client_id": "test_client_id",
+            "auth_uri": "test_auth_uri",
+            "token_uri": "test_token_uri",
+            "auth_provider_x509_cert_url": "test_auth_provider",
+            "client_x509_cert_url": "test_client_cert"
+        }
+        with patch("google.oauth2.service_account.Credentials", autospec=True):
+            with patch("google.cloud.translate_v3.TranslationServiceClient.__new__") as mock_client:
+                mock_instance = mock_client.return_value
+                mock_instance.translate_text.return_value = mock_response
+
+                result = Translator.translate_text_bulk(text, s_lang, d_lang, mime_type)
+                assert result == expectation
+                print(result)
+
+                mock_client.assert_called_once()
+                mock_instance.translate_text.assert_called_once()
