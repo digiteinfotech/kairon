@@ -158,6 +158,11 @@ class ListData(BaseModel):
     data: List[str]
 
 
+class ConsentRequest(BaseModel):
+    accepted_privacy_policy: bool
+    accepted_terms: bool
+
+
 class RegisterAccount(RecaptchaVerifiedRequest):
     email: constr(to_lower=True, strip_whitespace=True)
     first_name: str
