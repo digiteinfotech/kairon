@@ -807,7 +807,16 @@ class ActionUtility:
         if data.get('type') == "image":
             reply = f'<span><img src="{data.get("src")}" alt="{data.get("alt")}" width="150" height="150"/><br/><p>{data.get("alt")}</p></span>'
         elif data.get('type') == "paragraph":
-            reply = f'<p>{reply}</p>'
+            reply = ""
+            for child in data['children']:
+                text = child.get('text', '')
+                if child.get("bold"):
+                    text = f"<b>{text}</b>"
+                if child.get("italic"):
+                    text = f"<i>{text}</i>"
+                if child.get("strikethrough"):
+                    text =  f"<s>{text}</s>"
+                reply += text
         elif data.get('type') == "link":
             reply = f'<a target="_blank" href="{data.get("href")}">{reply}</a>'
         elif data.get('type') == "video":
