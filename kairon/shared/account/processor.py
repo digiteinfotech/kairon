@@ -796,6 +796,24 @@ class AccountProcessor:
             raise AppException("User does not exists!")
 
     @staticmethod
+    def add_user_consent_details(email: str, consent_details: dict):
+        terms_and_policy_version = Utility.environment["app"]["terms_and_policy_version"]
+        accepted_privacy_policy = consent_details.get("accepted_privacy_policy")
+        accepted_terms = consent_details.get("accepted_terms")
+        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+        UserActivityLogger.add_user_activity_log(
+            a_type=UserActivityType.user_consent.value,
+            email=email,
+            message=["Privacy Policy, Terms and Conditions consent"],
+            data={
+                "username": email,
+                "accepted_privacy_policy": accepted_privacy_policy,
+                "accepted_terms": accepted_terms,
+                "terms_and_policy_version": terms_and_policy_version
+            }
+        )
+
+    @staticmethod
     def get_user_details_and_filter_bot_info_for_integration_user(
         email: Text, is_integration_user: bool, bot: Text = None
     ):
@@ -804,10 +822,17 @@ class AccountProcessor:
             user_details["bots"] = Utility.filter_bot_details_for_integration_user(
                 bot, user_details["bots"]
             )
+        user_activity_log = UserActivityLogger.get_user_activity_log(email=email)
+        user_activity_log, show_updated_terms_and_policy = Utility.compare_terms_and_policy_version(user_activity_log)
+        user_details["accepted_privacy_policy"] = user_activity_log["data"]["accepted_privacy_policy"]
+        user_details["accepted_terms"] = user_activity_log["data"]["accepted_terms"]
+        user_details["accepted_datetime"] = user_activity_log["timestamp"]
+        user_details["show_updated_terms_and_policy"] = show_updated_terms_and_policy
         return user_details
 
     @staticmethod
     def verify_and_log_user_consent(account_setup: dict):
+        terms_and_policy_version = Utility.environment["app"]["terms_and_policy_version"]
         user = account_setup.get("email")
         accepted_privacy_policy = account_setup.get("accepted_privacy_policy")
         accepted_terms = account_setup.get("accepted_terms")
@@ -818,7 +843,8 @@ class AccountProcessor:
             data={
                 "username": user,
                 "accepted_privacy_policy": accepted_privacy_policy,
-                "accepted_terms": accepted_terms
+                "accepted_terms": accepted_terms,
+                "terms_and_policy_version": terms_and_policy_version
             }
         )
         Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)

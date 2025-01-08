@@ -3,6 +3,7 @@ from starlette.requests import Request
 
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, AGENT_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
+from kairon.shared.data.data_models import ConsentRequest
 from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.auth import Authentication
@@ -24,6 +25,17 @@ async def get_users_details(current_user: User = Depends(Authentication.get_curr
         current_user.email, current_user.is_integration_user, current_user.get_bot()
     )
     return {"data": {"user": user_details}}
+
+
+@router.post("/consent/details", response_model=Response)
+async def add_user_consent_details(
+        request: ConsentRequest,
+        current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Adds the consent details of the current logged-in user.
+    """
+    AccountProcessor.add_user_consent_details(current_user.email, request.dict())
+    return {"message": "Consent Details added!"}
 
 
 @router.post("/details/{status}", response_model=Response)
