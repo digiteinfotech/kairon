@@ -809,12 +809,14 @@ class ActionUtility:
         elif data.get('type') == "paragraph":
             reply = ""
             for child in data['children']:
+                text = child.get('text', '')
                 if child.get("bold"):
-                    reply += f"<b>{child.get('text', '')}</b>"
+                    text = f"<b>{text}</b>"
                 if child.get("italic"):
-                    reply += f"<i>{child.get('text', '')}</i>"
+                    text = f"<i>{text}</i>"
                 if child.get("strikethrough"):
-                    reply += f"<s>{child.get('text', '')}</s>"
+                    text =  f"<s>{text}</s>"
+                reply += text
         elif data.get('type') == "link":
             reply = f'<a target="_blank" href="{data.get("href")}">{reply}</a>'
         elif data.get('type') == "video":
