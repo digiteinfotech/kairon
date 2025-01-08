@@ -21,6 +21,7 @@ class Translator:
         :param mime_type: type of document for translation
         :return: translations: translated text
         """
+        translations = []
         try:
             service_account_info_json = {
                 "type": Utility.environment['multilingual']['service_account_creds'].get('type', "service_account"),
@@ -45,21 +46,26 @@ class Translator:
 
             logger.info('Fetching translations...')
 
+            if isinstance(text, str):
+                text = [text]
+
+            non_empty_indices = [i for i, s in enumerate(text) if s]
+            non_empty_strings = [text[i] for i in non_empty_indices]
+
             response = client.translate_text(
                 request={
                     "parent": parent,
-                    "contents": text,
+                    "contents": non_empty_strings,
                     "mime_type": mime_type,
                     "source_language_code": s_lang,
                     "target_language_code": d_lang,
                 }
             )
 
-            # Display the translation for each input text provided
-            translations = []
-            for translation in response.translations:
-                trans = translation.translated_text
-                translations.append(trans)
+            translated_texts =[t.translated_text for t in response.translations]
+            translations = text[:]
+            for index, value in zip(non_empty_indices, translated_texts):
+                translations[index] = value
         except Exception as e:
             logger.exception(e)
             raise AppException(f'Cloud Translation failed with exception: {str(e)}')
