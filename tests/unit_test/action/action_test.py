@@ -4060,3 +4060,43 @@ class TestActions:
                                              'feedback, analyzing customer data, and much more.'},
             {'role': 'user', 'content': 'I am interested in Kairon and want to know what features it offers'}
         ]
+
+
+
+def test_format_custom_bot_reply_indirect():
+    # Test text
+    data = {"text": "This is a test message."}
+    result = ActionUtility._ActionUtility__format_custom_bot_reply(data)
+    assert result == "This is a test message."
+
+    # Test image
+    data = {"type": "image", "src": "image_url", "alt": "image_alt", "children": []}
+    result = ActionUtility._ActionUtility__format_custom_bot_reply(data)
+    expected = '<span><img src="image_url" alt="image_alt" width="150" height="150"/><br/><p>image_alt</p></span>'
+    assert result == expected
+
+    # Test paragraph with formatting
+    data = {
+        "type": "paragraph",
+        "children": [
+            {"text": "Bold text", "bold": True},
+            {"text": "Italic text ", "italic": True},
+            {"text": "Strike text ", "strikethrough": True},
+            {"text": " and normal text."}
+        ]
+    }
+    result = ActionUtility._ActionUtility__format_custom_bot_reply(data)
+    expected = "<b>Bold text</b><i>Italic text </i><s>Strike text </s> and normal text."
+    assert result == expected
+
+    # Test link
+    data = {"type": "link", "href": "http://example.com", "children": [{"text": "Example"}]}
+    result = ActionUtility._ActionUtility__format_custom_bot_reply(data)
+    expected = '<a target="_blank" href="http://example.com">Example</a>'
+    assert result == expected
+
+    # Test video
+    data = {"type": "video", "url": "http://example.com/video", "children": []}
+    result = ActionUtility._ActionUtility__format_custom_bot_reply(data)
+    expected = '<a target="_blank" href="http://example.com/video">http://example.com/video</a>'
+    assert result == expected
