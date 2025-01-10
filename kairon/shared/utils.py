@@ -1876,9 +1876,12 @@ class Utility:
             latest_terms_and_policy_version = float(Utility.environment["app"]["terms_and_policy_version"])
             show_updated_terms_and_policy = True if latest_terms_and_policy_version > terms_and_policy_version else False
         else:
-            user_activity_log = {}
-            user_activity_log["data"]["accepted_terms"] = False
-            user_activity_log["data"]["accepted_privacy_policy"] = False
+            user_activity_log = {
+                "data": {
+                    "accepted_terms": False,
+                    "accepted_privacy_policy": False,
+                }
+            }
             show_updated_terms_and_policy = True
         return user_activity_log, show_updated_terms_and_policy
 
