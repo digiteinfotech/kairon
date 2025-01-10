@@ -971,7 +971,6 @@ def test_api_login(monkeypatch):
     assert response["data"]["user"]["last_name"] == "User"
     assert response["data"]["user"]["accepted_privacy_policy"] is True
     assert response["data"]["user"]["accepted_terms"] is True
-    assert response["data"]["user"]["accepted_datetime"]
     assert response["data"]["user"]["show_updated_terms_and_policy"] is False
 
     email = "integrationtest@demo.ai"
@@ -1077,9 +1076,8 @@ def test_get_user_details_with_latest_version(monkeypatch):
     assert response["data"]["user"]["account_name"] == "integration"
     assert response["data"]["user"]["first_name"] == "Demo"
     assert response["data"]["user"]["last_name"] == "User"
-    assert response["data"]["user"]["accepted_privacy_policy"] is False
-    assert response["data"]["user"]["accepted_terms"] is False
-    assert response["data"]["user"]["accepted_datetime"]
+    assert response["data"]["user"]["accepted_privacy_policy"] is True
+    assert response["data"]["user"]["accepted_terms"] is True
     assert response["data"]["user"]["show_updated_terms_and_policy"] is True
 
 

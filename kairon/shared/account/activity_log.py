@@ -62,7 +62,7 @@ class UserActivityLogger:
             user_activity_log = UserActivityLog.objects(
                 user=email, type=UserActivityType.user_consent.value
             ).order_by("-timestamp").first()
-            user_activity_log = user_activity_log.to_mongo().to_dict()
+            user_activity_log = user_activity_log.to_mongo().to_dict() if user_activity_log else None
 
         except Exception as e:
             raise AppException(str(e))

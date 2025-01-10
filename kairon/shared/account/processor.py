@@ -826,7 +826,6 @@ class AccountProcessor:
         user_activity_log, show_updated_terms_and_policy = Utility.compare_terms_and_policy_version(user_activity_log)
         user_details["accepted_privacy_policy"] = user_activity_log["data"]["accepted_privacy_policy"]
         user_details["accepted_terms"] = user_activity_log["data"]["accepted_terms"]
-        user_details["accepted_datetime"] = user_activity_log["timestamp"]
         user_details["show_updated_terms_and_policy"] = show_updated_terms_and_policy
         return user_details
 
