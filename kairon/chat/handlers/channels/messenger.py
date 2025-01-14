@@ -479,9 +479,16 @@ class InstagramHandler(MessengerHandler):
 
         fb_verify = messenger_conf["config"]["verify_token"]
 
-        if self.request.query_params.get("hub.verify_token") == fb_verify:
-            hub_challenge = self.request.query_params.get("hub.challenge")
-            return int(hub_challenge)
+        hub_verify_token = self.request.query_params.get("hub.verify_token")
+        logger.debug(f"config verify_token: {fb_verify} and hub verify_token: {hub_verify_token}")
+        if hub_verify_token == fb_verify:
+            result = None
+            try:
+                hub_challenge = self.request.query_params.get("hub.challenge")
+                result = int(hub_challenge)
+            except Exception as e:
+                logger.error(str(e))
+            return result
         else:
             logger.warning(
                 "Invalid verify token! Make sure this matches "
