@@ -7,7 +7,6 @@ from kairon.api.models import (
 )
 from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.shared.auth import Authentication
-from kairon.shared.channels.mail.processor import MailProcessor
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.models import ChannelRequest, MessageBroadcastRequest
@@ -32,16 +31,6 @@ async def add_channel_config(
         request_data.dict(), current_user.get_bot(), current_user.get_user()
     )
     return Response(message='Channel added', data=channel_endpoint)
-
-@router.post('/mail/exists', response_model=Response)
-async def check_mail_exists(
-        request_data: ChannelRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Check if email exists in the system
-    """
-    return Response(data=MailProcessor.check_email_config_exists(request_data.dict()['config']))
 
 @router.get("/params", response_model=Response)
 async def channels_params(

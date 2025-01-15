@@ -27,6 +27,10 @@ class ChatDataProcessor:
         private_key = configuration['config'].get('private_key', None)
         if configuration['connector_type'] == ChannelTypes.BUSINESS_MESSAGES.value and private_key:
             configuration['config']['private_key'] = private_key.replace("\\n", "\n")
+        if configuration['connector_type'] == ChannelTypes.MAIL.value:
+            from kairon.shared.channels.mail.processor import MailProcessor
+            if MailProcessor.check_email_config_exists(configuration['config']):
+                raise AppException("Email configuration already exists for same email address and subject")
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()

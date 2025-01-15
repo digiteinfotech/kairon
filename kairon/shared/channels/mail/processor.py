@@ -56,21 +56,19 @@ class MailProcessor:
             raise AppException(str(e))
 
     @staticmethod
-    def check_email_config_exists(config_dict: dict):
+    def check_email_config_exists(config_dict: dict) -> bool:
         configs = ChatDataProcessor.get_all_channel_configs(ChannelTypes.MAIL, False)
         email_account = config_dict['email_account']
         for config in configs:
             if config['config']['email_account'] == email_account:
-                is_same = True
-                for key in config_dict:
-                    if key != 'mail_template' and config['config'].get(key) != config_dict[key]:
-                        is_same = False
-                        break
-                if is_same:
-                    return {'can_create': False, 'email_exists': True}
-                else:
-                    return {'can_create': True, 'email_exists': True}
-        return {'can_create': True, 'email_exists': False}
+                subjects1 = Utility.string_to_list(config['config'].get('subjects', ''))
+                subjects2 = Utility.string_to_list(config_dict.get('subjects', ''))
+                if (not subjects1) and (not subjects2):
+                    return True
+                if len(set(subjects1).intersection(set(subjects2))) > 0:
+                    return True
+
+        return False
 
     def login_imap(self):
         if self.mailbox:
