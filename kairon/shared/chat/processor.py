@@ -115,7 +115,7 @@ class ChatDataProcessor:
     @staticmethod
     def get_all_channel_configs(connector_type: str, mask_characters: bool = True, **kwargs):
         """
-        fetch all channel configs for bot
+        fetch all channel configs for connector type
         :param connector_type: channel name
         :param mask_characters: whether to mask the security keys default is True
         :return: List
