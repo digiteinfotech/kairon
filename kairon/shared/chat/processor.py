@@ -109,6 +109,21 @@ class ChatDataProcessor:
         return config
 
     @staticmethod
+    def get_all_channel_configs(connector_type: str, mask_characters: bool = True, **kwargs):
+        """
+        fetch all channel configs for bot
+        :param connector_type: channel name
+        :param mask_characters: whether to mask the security keys default is True
+        :return: List
+        """
+        for channel in Channels.objects(connector_type=connector_type).exclude("user", "timestamp"):
+            data = channel.to_mongo().to_dict()
+            data['_id'] = data['_id'].__str__()
+            data.pop("timestamp")
+            ChatDataProcessor.__prepare_config(data, mask_characters)
+            yield data
+
+    @staticmethod
     def __prepare_config(config: dict, mask_characters: bool):
         connector_type = config['connector_type']
         if connector_type == ChannelTypes.WHATSAPP.value and config['config'].get('bsp_type'):

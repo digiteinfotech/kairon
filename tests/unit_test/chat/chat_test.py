@@ -937,6 +937,17 @@ class TestChat:
         assert data[0]['type'] == 'flattened'
 
 
+    def test_get_all_channel_configs(self):
+        configs = list(ChatDataProcessor.get_all_channel_configs('telegram'))
+        assert len(configs) == 1
+        assert configs[0].get("connector_type") == "telegram"
+        assert str(configs[0]["config"].get("access_token")).__contains__("***")
+
+        configs = list(ChatDataProcessor.get_all_channel_configs('telegram', mask_characters=False))
+        assert len(configs) == 1
+        assert configs[0].get("connector_type") == "telegram"
+        assert not str(configs[0]["config"].get("access_token")).__contains__("***")
+
 
 
 @pytest.mark.asyncio

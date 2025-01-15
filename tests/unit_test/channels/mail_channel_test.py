@@ -588,4 +588,40 @@ class TestMailChannel:
         Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
 
 
+    @pytest.fixture
+    def config_dict(self):
+        return {
+            'email_account': 'test@example.com',
+            'imap_server': 'imap.example.com',
+            'smtp_server': 'smtp.example.com',
+            'smtp_port': 587,
+            'email_password': 'password',
+            'subject': 'email channel test',
+        }
+
+    @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
+    def test_check_email_config_exists_no_existing_config(self, mock_get_all_channel_configs, config_dict):
+        mock_get_all_channel_configs.return_value = []
+        result = MailProcessor.check_email_config_exists(config_dict)
+        assert result == {'can_create': True, 'email_exists': False}
+
+    @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
+    def test_check_email_config_exists_same_config_exists(self, mock_get_all_channel_configs, config_dict):
+        mock_get_all_channel_configs.return_value = [{
+            'config': config_dict
+        }]
+        result = MailProcessor.check_email_config_exists(config_dict)
+        assert result == {'can_create': False, 'email_exists': True}
+
+    @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
+    def test_check_email_config_exists_different_config_exists(self, mock_get_all_channel_configs, config_dict):
+        existing_config = config_dict.copy()
+        existing_config['subject'] = 'other subject'
+        mock_get_all_channel_configs.return_value = [{
+            'config': existing_config
+        }]
+        result = MailProcessor.check_email_config_exists(config_dict)
+        assert result == {'can_create': True, 'email_exists': True}
+
+
 
