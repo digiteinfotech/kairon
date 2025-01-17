@@ -29520,6 +29520,7 @@ def test_delete_account(mock_password_reset):
         data={"username": "integration@demo.ai", "password": "Welcome@10"},
     )
     actual = response_log.json()
+    UserEmailConfirmation(email="integration@demo.ai").save()
 
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -29531,10 +29532,10 @@ def test_delete_account(mock_password_reset):
             "Authorization": pytest.token_type_delete + " " + pytest.access_token_delete
         },
     ).json()
-    UserEmailConfirmation(email="integration@demo.ai").save()
     assert response["success"]
     assert response["message"] == "Account deleted"
     assert response["error_code"] == 0
+    assert UserEmailConfirmation.objects(email="integration@demo.ai").count() == 0
 
 
 def test_delete_account_already_deleted():
