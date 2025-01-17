@@ -28,6 +28,7 @@ from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.shared.account.data_objects import UserActivityLog
+from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
@@ -29530,7 +29531,7 @@ def test_delete_account(mock_password_reset):
             "Authorization": pytest.token_type_delete + " " + pytest.access_token_delete
         },
     ).json()
-
+    UserEmailConfirmation(email="integration@demo.ai").save()
     assert response["success"]
     assert response["message"] == "Account deleted"
     assert response["error_code"] == 0

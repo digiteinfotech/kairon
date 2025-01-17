@@ -1269,6 +1269,7 @@ class AccountProcessor:
         UserActivityLogger.add_log(
              a_type=UserActivityType.delete_account.value
         , account=account_id)
+        UserEmailConfirmation.objects().get(email=email).delete()
 
     @staticmethod
     def get_location_and_add_trusted_device(
