@@ -27,6 +27,10 @@ class ChatDataProcessor:
         private_key = configuration['config'].get('private_key', None)
         if configuration['connector_type'] == ChannelTypes.BUSINESS_MESSAGES.value and private_key:
             configuration['config']['private_key'] = private_key.replace("\\n", "\n")
+        if configuration['connector_type'] == ChannelTypes.MAIL.value:
+            from kairon.shared.channels.mail.processor import MailProcessor
+            if MailProcessor.check_email_config_exists(configuration['config']):
+                raise AppException("Email configuration already exists for same email address and subject")
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
@@ -107,6 +111,21 @@ class ChatDataProcessor:
         config.pop("timestamp")
         ChatDataProcessor.__prepare_config(config, mask_characters)
         return config
+
+    @staticmethod
+    def get_all_channel_configs(connector_type: str, mask_characters: bool = True, **kwargs):
+        """
+        fetch all channel configs for connector type
+        :param connector_type: channel name
+        :param mask_characters: whether to mask the security keys default is True
+        :return: List
+        """
+        for channel in Channels.objects(connector_type=connector_type).exclude("user", "timestamp"):
+            data = channel.to_mongo().to_dict()
+            data['_id'] = data['_id'].__str__()
+            data.pop("timestamp")
+            ChatDataProcessor.__prepare_config(data, mask_characters)
+            yield data
 
     @staticmethod
     def __prepare_config(config: dict, mask_characters: bool):

@@ -55,6 +55,26 @@ class MailProcessor:
         except Exception as e:
             raise AppException(str(e))
 
+    @staticmethod
+    def check_email_config_exists(config_dict: dict) -> bool:
+        """
+        Check if email configuration already exists
+        :param config_dict: dict - email configuration
+        :return status: bool True if configuration exists, False otherwise
+        """
+        configs = ChatDataProcessor.get_all_channel_configs(ChannelTypes.MAIL, False)
+        email_account = config_dict['email_account']
+        for config in configs:
+            if config['config']['email_account'] == email_account:
+                subjects1 = Utility.string_to_list(config['config'].get('subjects', ''))
+                subjects2 = Utility.string_to_list(config_dict.get('subjects', ''))
+                if (not subjects1) and (not subjects2):
+                    return True
+                if len(set(subjects1).intersection(set(subjects2))) > 0:
+                    return True
+
+        return False
+
     def login_imap(self):
         if self.mailbox:
             return
@@ -109,6 +129,13 @@ class MailProcessor:
             return False
 
     async def send_mail(self, to: str, subject: str, body: str, log_id: str):
+        """
+        Send mail to a user
+        :param to: str - email address
+        :param subject: str - email subject
+        :param body: str - email body
+        :param log_id: str - log id
+        """
         exception = None
         try:
             if body and len(body) > 0:
@@ -129,7 +156,13 @@ class MailProcessor:
                 mail_log.responses.append(exception)
             mail_log.save()
 
-    def process_mail(self, rasa_chat_response: dict, log_id: str):
+    def process_mail(self, rasa_chat_response: dict, log_id: str) -> str:
+        """
+        Process mail response from Rasa and return formatted mail
+        :param rasa_chat_response: dict - Rasa chat response
+        :param log_id: str - log id
+        :return: str - formatted mail
+        """
         slots = rasa_chat_response.get('slots', [])
         slots = {key.strip(): value.strip() for slot_str in slots
                     for split_result in [slot_str.split(":", 1)]
@@ -152,6 +185,10 @@ class MailProcessor:
     def get_log(bot_id: str, offset: int, limit: int) -> dict:
         """
         Get logs for a bot
+        :param bot_id: str - bot id
+        :param offset: int - offset
+        :param limit: int - limit
+        :return: dict - logs and count
         """
         try:
             count = MailResponseLog.objects(bot=bot_id).count()

@@ -937,6 +937,105 @@ class TestChat:
         assert data[0]['type'] == 'flattened'
 
 
+    def test_get_all_channel_configs(self):
+        configs = list(ChatDataProcessor.get_all_channel_configs('telegram'))
+        assert len(configs) == 1
+        assert configs[0].get("connector_type") == "telegram"
+        assert str(configs[0]["config"].get("access_token")).__contains__("***")
+
+        configs = list(ChatDataProcessor.get_all_channel_configs('telegram', mask_characters=False))
+        assert len(configs) == 1
+        assert configs[0].get("connector_type") == "telegram"
+        assert not str(configs[0]["config"].get("access_token")).__contains__("***")
+
+    @patch('kairon.shared.channels.mail.scheduler.MailScheduler.request_epoch')
+    @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
+    def test_mail_channel_save_duplicate_error(self, mock_get_all_channels, mock_request_epock, monkeypatch):
+        def __get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __get_bot)
+
+        mock_get_all_channels.return_value = [{
+            'connector_type': 'mail',
+            'config': {
+                'email_account': 'test@example.com',
+                'subjects': 'subject1,subject2'
+            }
+        }]
+
+        #error case
+        #same email and subject
+        with pytest.raises(AppException, match='Email configuration already exists for same email address and subject'):
+            ChatDataProcessor.save_channel_config({
+                'connector_type': 'mail',
+                'config': {
+                    'email_account': 'test@example.com',
+                    'subjects': 'subject1,subject2',
+                    'email_password': 'test',
+                    'imap_server': 'imap.gmail.com',
+                    'smtp_server': 'smtp.gmail.com',
+                    'smtp_port': '587'
+                }
+            }, 'test', 'test')
+
+        #same email partical subject overlap
+        with pytest.raises(AppException, match='Email configuration already exists for same email address and subject'):
+            ChatDataProcessor.save_channel_config({
+                'connector_type': 'mail',
+                'config': {
+                    'email_account': 'test@example.com',
+                    'subjects': 'subject1',
+                    'email_password': 'test',
+                    'imap_server': 'imap.gmail.com',
+                    'smtp_server': 'smtp.gmail.com',
+                    'smtp_port': '587'
+                }
+            }, 'test', 'test')
+
+
+        #non error case
+        #different email and subject
+        ChatDataProcessor.save_channel_config({
+            'connector_type': 'mail',
+            'config': {
+                'email_account': 'test2@example.com',
+                'subjects': '',
+                'email_password': 'test',
+                'imap_server': 'imap.gmail.com',
+                'smtp_server': 'smtp.gmail.com',
+                'smtp_port': '587'
+            }
+        }, 'test', 'test')
+
+        #different email same subject
+        ChatDataProcessor.save_channel_config({
+            'connector_type': 'mail',
+            'config': {
+                'email_account': 'test3@example.com',
+                'subjects': '',
+                'email_password': 'subject1,subject2',
+                'imap_server': 'imap.gmail.com',
+                'smtp_server': 'smtp.gmail.com',
+                'smtp_port': '587'
+            }
+        }, 'test', 'test')
+
+        #same email different subject
+        ChatDataProcessor.save_channel_config({
+            'connector_type': 'mail',
+            'config': {
+                    'email_account': 'test@example.com',
+                    'subjects': 'apple',
+                    'email_password': 'test',
+                    'imap_server': 'imap.gmail.com',
+                    'smtp_server': 'smtp.gmail.com',
+                    'smtp_port': '587'
+                }
+        }, 'test', 'test')
+        assert mock_request_epock.call_count == 3
+
+        Channels.objects(connector_type='mail').delete()
 
 
 @pytest.mark.asyncio

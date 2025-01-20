@@ -24280,9 +24280,6 @@ def test_add_channel_config_error():
     )
 
 
-
-
-
 def test_add_bot_with_template_name(monkeypatch):
     from kairon.shared.admin.data_objects import BotSecrets
 
