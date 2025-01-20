@@ -32,7 +32,6 @@ async def add_channel_config(
     )
     return Response(message='Channel added', data=channel_endpoint)
 
-
 @router.get("/params", response_model=Response)
 async def channels_params(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)

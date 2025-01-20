@@ -28,7 +28,7 @@ from kairon.api.models import RegisterAccount, EventConfig, IDPConfig, StoryRequ
 from kairon.exceptions import AppException
 from kairon.idp.data_objects import IdpConfig
 from kairon.idp.processor import IDPProcessor
-from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
+from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice, UserEmailConfirmation
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.auth import Authentication, LoginSSOFactory
@@ -479,6 +479,8 @@ class TestAccountProcessor:
             "last_name": "Test_Delete_Last",
             "password": SecretStr("Welcome@1")
         }
+        email=account.get('email')
+        UserEmailConfirmation(email=email).save()
 
         loop = asyncio.new_event_loop()
         user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
@@ -489,11 +491,13 @@ class TestAccountProcessor:
         account_bots_before_delete = list(AccountProcessor.list_bots(pytest.deleted_account))
 
         assert len(account_bots_before_delete) == 2
-        AccountProcessor.delete_account(pytest.deleted_account)
+        AccountProcessor.delete_account(pytest.deleted_account, email)
 
         for bot in account_bots_before_delete:
             with pytest.raises(DoesNotExist):
                 Bot.objects(id=bot['_id'], account=pytest.deleted_account, status=True).get()
+            with pytest.raises(DoesNotExist):
+                UserEmailConfirmation.objects(email=email).get()
 
     def test_delete_account_for_shared_bot(self):
         account = {
@@ -508,6 +512,9 @@ class TestAccountProcessor:
         user_detail, mail, link = loop.run_until_complete(
             AccountProcessor.account_setup(account_setup=account))
 
+        email=account.get('email')
+        UserEmailConfirmation(email=email).save()
+
         # Add shared bot
         bot_response = AccountProcessor.add_bot("delete_account_shared_bot", user_detail['account'], "udit.pandey@digite.com", False)
         bot_id = bot_response['_id'].__str__()
@@ -519,10 +526,12 @@ class TestAccountProcessor:
         assert len(accessors_before_delete) == 2
         assert accessors_before_delete[0]['accessor_email'] == 'udit.pandey@digite.com'
         assert accessors_before_delete[1]['accessor_email'] == 'ritika@digite.com'
-        AccountProcessor.delete_account(pytest.deleted_account)
+        AccountProcessor.delete_account(pytest.deleted_account, email)
         accessors_after_delete = list(AccountProcessor.list_bot_accessors(bot_id))
         assert len(accessors_after_delete) == 0
         assert len(list(Bot.objects(id=bot_id, account=user_detail['account'], status=True))) == 0
+        with pytest.raises(DoesNotExist):
+            UserEmailConfirmation.objects(email=email).get()
 
     def test_delete_account_for_account(self):
         account = {
@@ -532,18 +541,23 @@ class TestAccountProcessor:
             "last_name": "Test_Delete_Last",
             "password": SecretStr("Welcome@1")
         }
+        email=account.get('email')
+        UserEmailConfirmation(email=email).save()
 
         loop = asyncio.new_event_loop()
         user_detail, mail, link = loop.run_until_complete(
             AccountProcessor.account_setup(account_setup=account))
         pytest.deleted_account = user_detail['account'].__str__()
 
-        AccountProcessor.delete_account(pytest.deleted_account)
+        AccountProcessor.delete_account(pytest.deleted_account, email)
         assert AccountProcessor.get_account(pytest.deleted_account)
         assert not AccountProcessor.get_account(pytest.deleted_account).get('status')
 
         with pytest.raises(AppException, match="Account does not exist!"):
-            AccountProcessor.delete_account(pytest.deleted_account)
+            AccountProcessor.delete_account(pytest.deleted_account, email)
+
+        with pytest.raises(DoesNotExist):
+            UserEmailConfirmation.objects(email=email).get()
 
     def test_delete_account_for_user(self):
         account = {
@@ -553,7 +567,8 @@ class TestAccountProcessor:
             "last_name": "Test_Delete_Last",
             "password": SecretStr("Welcome@1")
         }
-
+        email=account.get('email')
+        UserEmailConfirmation(email=email).save()
         loop = asyncio.new_event_loop()
         user_detail, mail, link = loop.run_until_complete(
             AccountProcessor.account_setup(account_setup=account))
@@ -573,10 +588,13 @@ class TestAccountProcessor:
         assert User.objects(email__iexact="ritika@digite.com", status=True).get()
         assert User.objects(email__iexact="ritika.G@digite.com", status=True).get()
 
-        AccountProcessor.delete_account(pytest.deleted_account)
+        AccountProcessor.delete_account(pytest.deleted_account, email)
 
         assert User.objects(email__iexact="ritika@digite.com", status=False)
         assert User.objects(email__iexact="ritika.G@digite.com", status=False)
+
+        with pytest.raises(DoesNotExist):
+            UserEmailConfirmation.objects(email=email).get()
 
     def test_delete_account_again_add(self):
         account = {
@@ -586,19 +604,22 @@ class TestAccountProcessor:
             "last_name": "Test_Delete_Last",
             "password": SecretStr("Welcome@1")
         }
-
+        email=account.get('email')
+        UserEmailConfirmation(email=email).save()
         loop = asyncio.new_event_loop()
         user_detail, mail, link = loop.run_until_complete(
             AccountProcessor.account_setup(account_setup=account))
         pytest.deleted_account = user_detail['account'].__str__()
 
-        AccountProcessor.delete_account(pytest.deleted_account)
+        AccountProcessor.delete_account(pytest.deleted_account, email)
 
         loop = asyncio.new_event_loop()
         user_detail, mail, link = loop.run_until_complete(
             AccountProcessor.account_setup(account_setup=account))
         new_account_id = user_detail['account'].__str__()
 
+        with pytest.raises(DoesNotExist):
+            UserEmailConfirmation.objects(email=email).get()
         assert new_account_id
         assert AccountProcessor.get_account(new_account_id).get('status')
         assert len(list(AccountProcessor.list_bots(new_account_id))) == 0
