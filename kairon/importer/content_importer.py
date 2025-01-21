@@ -36,7 +36,7 @@ class ContentImporter:
                 csv_reader = csv.DictReader(csv_file)
                 data = []
                 for row in csv_reader:
-                    row = {key.lower(): value for key, value in row.items()}
+                    row = {key.lower(): value.strip() for key, value in row.items()}
                     row.pop('kairon_error_description', None)
                     data.append(row)
                 return data
