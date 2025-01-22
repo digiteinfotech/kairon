@@ -1038,7 +1038,6 @@ class TestChat:
 
         Channels.objects(connector_type='mail').delete()
 
-
 @pytest.mark.asyncio
 @patch("kairon.chat.utils.AgentProcessor.get_agent_without_cache")
 @patch("kairon.chat.utils.ChatUtils.get_metadata")
