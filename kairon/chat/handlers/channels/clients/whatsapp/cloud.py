@@ -208,7 +208,7 @@ class WhatsappCloud(object):
         return self.send(payload, to_phone_number, messaging_type="template")
 
     async def send_template_message_async(self, name: str, to_phone_number: str, language_code: str = "en",
-                                          components: dict = None, namespace: dict = None) -> (bool, int, any):
+                                          components: dict = None, namespace: str = None) -> (bool, int, any):
         payload = {
             "language": {
                 "code": language_code
