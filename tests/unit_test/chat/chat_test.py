@@ -958,6 +958,7 @@ class TestChat:
 
         mock_get_all_channels.return_value = [{
             'connector_type': 'mail',
+            'bot': 'testbot3242',
             'config': {
                 'email_account': 'test@example.com',
                 'subjects': 'subject1,subject2'
