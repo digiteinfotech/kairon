@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Text
 import faiss
 import litellm
 import numpy as np
-import rasa.utils.io as io_utils
 import ujson as json
 from more_itertools import chunked
 from rasa.engine.graph import GraphComponent, ExecutionContext
@@ -251,11 +250,11 @@ Please provide your answer in the specified JSON format."""
                 file_name = cls.__name__
 
                 vector_file = os.path.join(model_path, file_name + "_vector.db")
-                data_file = os.path.join(model_path, file_name + "_data.pkl")
+                data_file = os.path.join(model_path, file_name + "_data.json")
 
                 if os.path.exists(vector_file):
                     vector = faiss.read_index(vector_file)
-                    data = io_utils.json_unpickle(data_file)
+                    data = json.load(open(data_file, "r"))
                     return cls(
                         config, model_storage, resource, execution_context, vector, data
                     )
@@ -272,15 +271,16 @@ Please provide your answer in the specified JSON format."""
         """Persist this model into the passed directory."""
         with self._model_storage.write_to(self._resource) as model_path:
             file_name = self.__class__.__name__
-            vector_file_name = file_name + "_vector.db"
-            data_file_name = file_name + "_data.pkl"
+            vector_file = os.path.join(model_path, file_name + "_vector.db")
+            data_file = os.path.join(model_path, file_name + "_data.json")
+
             if self.vector and self.data:
                 create_directory_for_file(model_path)
                 faiss.write_index(
-                    self.vector, os.path.join(model_path, vector_file_name)
+                    self.vector, vector_file
                 )
-                io_utils.json_pickle(
-                    os.path.join(model_path, data_file_name), self.data
+                json.dump(
+                    self.data, open(data_file, "w"), escape_forward_slashes=True
                 )
 
     def add_extractor_name(
