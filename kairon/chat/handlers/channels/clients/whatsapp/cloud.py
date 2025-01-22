@@ -2,8 +2,11 @@ import hashlib
 import hmac
 import logging
 from typing import Text, Dict
+from urllib.parse import urlencode
 
 import requests
+from aiohttp import ClientResponseError, ClientConnectionError, ClientError
+from aiohttp_retry import ExponentialRetry, RetryClient
 
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -12,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_API_VERSION = 19.0
+INVALID_STATUS_CODES = set(range(400, 600))
 
 
 class WhatsappCloud(object):
@@ -27,6 +31,8 @@ class WhatsappCloud(object):
         'interactive',
         'template'
     }
+
+    WHATSAPP_REQUEST_TIMEOUT = 120.0  # seconds
 
     def __init__(self, access_token, **kwargs):
         """
@@ -91,6 +97,36 @@ class WhatsappCloud(object):
             body['tag'] = tag
 
         return self.send_action(body)
+
+    async def send_async(self, payload: dict, to_phone_number: str, messaging_type: str,
+                         recipient_type: str = 'individual',
+                         timeout: float = WHATSAPP_REQUEST_TIMEOUT, tag=None) -> (bool, int, any):
+        """
+            @required:
+                payload: message request payload
+                to_phone_number: receiver's phone number
+                messaging_type: text/document, etc
+            @optional:
+                recipient_type: recipient type
+                timeout: request timeout
+                tag
+            @outputs: response json
+        """
+        if messaging_type not in self.MESSAGING_TYPES:
+            raise ValueError('`{}` is not a valid `messaging_type`'.format(messaging_type))
+
+        body = {
+            'messaging_product': "whatsapp",
+            'recipient_type': recipient_type,
+            "to": to_phone_number,
+            "type": messaging_type,
+            messaging_type: payload
+        }
+
+        if tag:
+            body['tag'] = tag
+
+        return await self.send_action_async(body, timeout=timeout)
 
     def send_json(self, payload: dict, to_phone_number, recipient_type='individual', timeout=None):
         """
@@ -170,3 +206,56 @@ class WhatsappCloud(object):
         if components:
             payload.update({"components": components})
         return self.send(payload, to_phone_number, messaging_type="template")
+
+    async def send_template_message_async(self, name: str, to_phone_number: str, language_code: str = "en",
+                                          components: dict = None, namespace: dict = None) -> (bool, int, any):
+        payload = {
+            "language": {
+                "code": language_code
+            },
+            "name": name
+        }
+        if components:
+            payload.update({"components": components})
+        return await self.send_async(payload, to_phone_number, messaging_type="template")
+
+    async def send_action_async(self, payload: dict, timeout: float = WHATSAPP_REQUEST_TIMEOUT, attempts: int = 3,
+                                **kwargs) -> (bool, int, dict):
+        """
+            @required:
+                payload: message request payload
+            @optional:
+                timeout: request timeout in seconds
+                attempts: number of retry attempts if not succeeded
+            @outputs:
+                success: True if request is successful, False otherwise
+                status_code: response status code
+                response: response json
+        """
+        last_status_code = 500
+        last_response = None
+        try:
+            retry_options = ExponentialRetry(attempts=attempts, statuses=INVALID_STATUS_CODES, max_timeout=timeout)
+            url = f'{self.app}/{self.from_phone_number_id}/messages?{urlencode(self.auth_args)}'
+
+            async with RetryClient(raise_for_status=False, retry_options=retry_options) as client:
+                async with client.post(url, json=payload) as response:
+                    last_status_code = response.status
+                    if response.status == 200:
+                        resp = await response.json()
+                        return True, response.status, resp
+                    else:
+                        try:
+                            last_response = response.json()
+                        except Exception as e:
+                            last_response = response.text
+
+                return False, last_status_code, last_response
+        except ClientResponseError as cre:
+            return False, last_status_code, {"error": str(cre), "response": last_response}
+        except ClientConnectionError as cce:
+            return False, last_status_code, {"error": str(cce), "response": last_response}
+        except ClientError as ce:
+            return False, last_status_code, {"error": str(ce), "response": last_response}
+        except Exception as e:
+            return False, last_status_code, {"error": str(e), "response": last_response}

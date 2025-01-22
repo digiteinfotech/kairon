@@ -262,3 +262,6 @@ async_callback_action:
   pyscript:
     trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
 
+broadcast:
+  whatsapp_broadcast_rate_per_second: ${WHATSAPP_BROADCAST_RATE_PER_SECOND:20}
+  whatsapp_broadcast_batch_size: ${WHATSAPP_BROADCAST_BATCH_SIZE:10}
