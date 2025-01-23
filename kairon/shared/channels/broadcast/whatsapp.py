@@ -254,7 +254,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                     message_list.append((template_id, recipient, lang, t_params, namespace))
 
 
-            sent_count, non_sent_recipients = self.initiate_broadcast(message_list)
+            _, non_sent_recipients = self.initiate_broadcast(message_list)
             failure_cnt = len(non_sent_recipients)
 
 
@@ -300,7 +300,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             message_list.append((template_id, recipient, retry_count, template, language_code, components, namespace))
 
 
-        sent_count, non_sent_recipients = self.initiate_broadcast(message_list, is_resend=True)
+        _, non_sent_recipients = self.initiate_broadcast(message_list, is_resend=True)
         failure_cnt = len(non_sent_recipients)
 
         kwargs = {
