@@ -599,15 +599,16 @@ class TestMailChannel:
     @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
     def test_check_email_config_exists_no_existing_config(self,mock_get_all_channel_configs, config_dict):
         mock_get_all_channel_configs.return_value = []
-        result = MailProcessor.check_email_config_exists(config_dict)
+        result = MailProcessor.check_email_config_exists('test', config_dict)
         assert result == False
 
     @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
     def test_check_email_config_exists_same_config_exists(self, mock_get_all_channel_configs, config_dict):
         mock_get_all_channel_configs.return_value = [{
+            'bot': 'test',
             'config': config_dict
         }]
-        result = MailProcessor.check_email_config_exists(config_dict)
+        result = MailProcessor.check_email_config_exists('test_bot', config_dict)
         assert result == True
 
     @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
@@ -615,9 +616,20 @@ class TestMailChannel:
         existing_config = config_dict.copy()
         existing_config['subjects'] = 'subject3'
         mock_get_all_channel_configs.return_value = [{
+            "bot": 'test_bot',
             'config': existing_config
         }]
-        result = MailProcessor.check_email_config_exists(config_dict)
+        result = MailProcessor.check_email_config_exists('test', config_dict)
+        assert result == False
+
+    @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
+    def test_check_email_config_exists_ignore_same_bot(self, mock_get_all_channel_configs, config_dict):
+        existing_config = config_dict.copy()
+        mock_get_all_channel_configs.return_value = [{
+            "bot": 'test_bot',
+            'config': existing_config
+        }]
+        result = MailProcessor.check_email_config_exists('test_bot', config_dict)
         assert result == False
 
     @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
@@ -625,7 +637,8 @@ class TestMailChannel:
         existing_config = config_dict.copy()
         existing_config['subjects'] = 'subject1,subject3'
         mock_get_all_channel_configs.return_value = [{
+            'bot': 'test_bot',
             'config': existing_config
         }]
-        result = MailProcessor.check_email_config_exists(config_dict)
+        result = MailProcessor.check_email_config_exists('test', config_dict)
         assert result == True
