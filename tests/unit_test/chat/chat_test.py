@@ -958,6 +958,7 @@ class TestChat:
 
         mock_get_all_channels.return_value = [{
             'connector_type': 'mail',
+            'bot': 'testbot3242',
             'config': {
                 'email_account': 'test@example.com',
                 'subjects': 'subject1,subject2'
@@ -1036,7 +1037,6 @@ class TestChat:
         assert mock_request_epock.call_count == 3
 
         Channels.objects(connector_type='mail').delete()
-
 
 @pytest.mark.asyncio
 @patch("kairon.chat.utils.AgentProcessor.get_agent_without_cache")

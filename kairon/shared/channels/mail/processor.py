@@ -56,16 +56,17 @@ class MailProcessor:
             raise AppException(str(e))
 
     @staticmethod
-    def check_email_config_exists(config_dict: dict) -> bool:
+    def check_email_config_exists(bot: str, config_dict: dict) -> bool:
         """
         Check if email configuration already exists
+        :param bot: str - bot id
         :param config_dict: dict - email configuration
         :return status: bool True if configuration exists, False otherwise
         """
         configs = ChatDataProcessor.get_all_channel_configs(ChannelTypes.MAIL, False)
         email_account = config_dict['email_account']
         for config in configs:
-            if config['config']['email_account'] == email_account:
+            if config['bot'] != bot and config['config']['email_account'] == email_account:
                 subjects1 = Utility.string_to_list(config['config'].get('subjects', ''))
                 subjects2 = Utility.string_to_list(config_dict.get('subjects', ''))
                 if (not subjects1) and (not subjects2):
