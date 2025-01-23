@@ -67,9 +67,9 @@ class BSP360Dialog(WhatsappCloud):
                         return True, response.status, resp
                     else:
                         try:
-                            last_response = response.json()
+                            last_response = await response.json()
                         except Exception:
-                            last_response = response.text
+                            last_response = await response.text()
 
                 return False, last_status_code, last_response
         except ClientResponseError as cre:
