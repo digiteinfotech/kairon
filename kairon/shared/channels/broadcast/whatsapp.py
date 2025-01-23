@@ -114,6 +114,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                                                    'title': "Message undeliverable",
                                                    'message':error_msg}]
             )
+
     def initiate_broadcast(self, message_list: list, is_resend: bool=False):
         batch_size = Utility.environment["broadcast"]["whatsapp_broadcast_batch_size"]
         rate_per_second = Utility.environment["broadcast"]["whatsapp_broadcast_rate_per_second"]
