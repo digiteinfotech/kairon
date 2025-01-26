@@ -195,10 +195,6 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         self.messages_list = script_variables.get("messages_list", [])
         self.recipients_list = script_variables.get("recipients_list", [])
 
-        MessageBroadcastProcessor.add_event_log(
-            self.bot, MessageBroadcastLogType.begin_send.value, self.reference_id, event_id=self.event_id,
-            recipients = self.recipients_list, total_recipients=len(self.recipients_list))
-
         logger.info(f"Messages to be sent: {len(self.messages_list)}")
         self.has_error = False
         self.sent_count = 0
