@@ -116,6 +116,40 @@ async def test_send_action_async_success_d360():
         assert response == {"success": True}
 
 @pytest.mark.asyncio
+async def test_send_action_async_error_d360():
+    payload = {"key": "value"}
+    whatsapp_cloud = BSP360Dialog(access_token="dummy_access_token", from_phone_number_id="dummy_phone_number_id")
+    url = f'{whatsapp_cloud.app}/messages'
+    with aioresponses() as mock:
+        mock.post(url, payload={"success": False}, status=301)
+        mock.post(url, payload={"success": False}, status=301)
+        mock.post(url, payload={"success": False}, status=301)
+
+
+        success, status_code, response = await whatsapp_cloud.send_action_async(payload)
+        assert not success
+        assert status_code == 301
+        assert response == {"success": False}
+
+@pytest.mark.asyncio
+async def test_send_action_async_error_2_d360():
+    payload = {"key": "value"}
+    whatsapp_cloud = BSP360Dialog(access_token="dummy_access_token", from_phone_number_id="dummy_phone_number_id")
+    url = f'{whatsapp_cloud.app}/messages'
+    with aioresponses() as mock:
+        mock.post(url, payload="I love apple", status=301)
+        mock.post(url, payload="I love apple", status=301)
+        mock.post(url, payload="I love apple", status=301)
+
+
+        success, status_code, response = await whatsapp_cloud.send_action_async(payload)
+        assert not success
+        assert status_code == 301
+        assert response == "I love apple"
+
+
+
+@pytest.mark.asyncio
 async def test_send_action_async_client_response_error_d360():
     payload = {"key": "value"}
     whatsapp_cloud = BSP360Dialog(access_token="dummy_access_token", from_phone_number_id="dummy_phone_number_id")
