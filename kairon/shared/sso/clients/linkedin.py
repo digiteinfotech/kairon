@@ -44,7 +44,8 @@ class LinkedinSSO(KaironSSO):
                     display_name=response.get("name"),
                     picture=response.get("picture"),
                 )
-
+        else:
+            logging.error(f"Missing user details: {response}")
         raise AppException("User was not verified with linkedin")
 
     @classmethod
