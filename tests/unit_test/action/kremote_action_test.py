@@ -1,7 +1,5 @@
 import pytest
 from aioresponses import aioresponses
-from yarl import URL
-
 from kairon.chat.actions import KRemoteAction
 from rasa.utils.endpoints import EndpointConfig
 from rasa.utils.endpoints import ClientResponseError

@@ -259,3 +259,7 @@ async_callback_action:
     trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
 
 llm_metadata_file: "./tests/testing_data/llm_metadata.yml"
+
+broadcast:
+  whatsapp_broadcast_rate_per_second: ${WHATSAPP_BROADCAST_RATE_PER_SECOND:20}
+  whatsapp_broadcast_batch_size: ${WHATSAPP_BROADCAST_BATCH_SIZE:10}

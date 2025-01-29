@@ -1,12 +1,10 @@
-import asyncio
 import os
 from unittest.mock import patch, MagicMock
 
 import pytest
-from imap_tools import MailMessage, AND
-
+from imap_tools import MailMessage
 from mongoengine import connect, disconnect
-from uuid6 import uuid7
+
 
 from kairon import Utility
 from kairon.shared.channels.mail.data_objects import MailResponseLog, MailChannelStateData, MailStatus

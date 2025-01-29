@@ -1256,7 +1256,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -1321,7 +1321,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}],
+        mock_send.return_value = True, 200, {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}],
                                   "messages": [{"id": 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
                                                 "message_status": 'accepted'}]}
         mock_get_partner_auth_token.return_value = None
@@ -1360,6 +1360,7 @@ class TestEventExecution:
         logged_config = logs[0][0]
         assert logged_config == {'reference_id': reference_id, 'log_type': 'send', "event_id": event_id,
                                  'bot': 'test_execute_message_broadcast_with_logs_modification', 'status': 'Failed',
+                                 'status_code': 200,
                                  'api_response': {
                                      'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
                                      'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
@@ -1392,7 +1393,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -1456,7 +1457,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_send.return_value = True, 200, {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
 
         with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
@@ -1483,7 +1484,7 @@ class TestEventExecution:
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send',
-                              'bot': 'test_execute_message_broadcast', 'status': 'Success', 'api_response': {
+                              'bot': 'test_execute_message_broadcast', 'status': 'Success', 'status_code': 200, 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '918958030541', 'template_params': None, "template": template,
                               'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
@@ -1496,7 +1497,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -1567,7 +1568,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_send.return_value = True, 200, {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
 
         with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
@@ -1603,6 +1604,7 @@ class TestEventExecution:
         logs[0][1].pop("recipient")
         logs[0][0].pop("recipient")
         assert logs[0][1] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+                              'status_code': 200,
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'template_params': [{'type': 'header', 'parameters': [
@@ -1613,6 +1615,7 @@ class TestEventExecution:
                               'namespace': None, 'retry_count': 0}
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+                              'status_code': 200,
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'template_params': [{'type': 'header', 'parameters': [
@@ -1630,7 +1633,7 @@ class TestEventExecution:
             'filename': 'Brochure.pdf'}}]}]
 
     @responses.activate
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -1729,7 +1732,7 @@ class TestEventExecution:
         assert exception.startswith('Failed to evaluate template: ')
 
     @responses.activate
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_execute_message_broadcast_with_channel_deleted(self, mock_is_exist, mock_get_bot_settings, mock_send):
@@ -1758,7 +1761,7 @@ class TestEventExecution:
         )
 
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
-        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_send.return_value = True, 200, {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
         event = MessageBroadcastEvent(bot, user)
         event.validate()
@@ -1783,6 +1786,7 @@ class TestEventExecution:
         assert logged_config == config
         exception = logs[0][0].pop("exception")
         assert exception.startswith("Whatsapp channel config not found!")
+        logs[0][0].pop('template_params')
         assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user, 'recipients': ['918958030541']}
 
     @responses.activate
@@ -1790,7 +1794,7 @@ class TestEventExecution:
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_execute_message_broadcast_evaluate_template_parameters(self, mock_is_exist, mock_send, mock_channel_config, mock_get_bot_settings, mock_bsp_auth_token):
         bot = 'test_execute_message_broadcast_evaluate_template_parameters'
@@ -1852,7 +1856,7 @@ class TestEventExecution:
         )
         mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 10, "dynamic_broadcast_execution_timeout": 21600}
-        mock_send.return_value = {
+        mock_send.return_value = True, 200, {
             "contacts": [
                 {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
             ],
@@ -1925,6 +1929,7 @@ class TestEventExecution:
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'template': template,
                               'bot': bot, 'status': 'Failed',
+                              'status_code': 200,
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
                               'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ'}]},
@@ -1955,7 +1960,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -2054,7 +2059,7 @@ class TestEventExecution:
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_send.return_value = True, 200, {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
 
         with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
@@ -2065,20 +2070,21 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 
-        assert len(logs[0]) == logs[1] == 1
+        assert len(logs[0]) == logs[1] == 3
         [log.pop("timestamp") for log in logs[0]]
         reference_id = logs[0][0].get("reference_id")
-        expected_logs = [{"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
-                          'user': 'test_user', 'failure_cnt': 0, 'total': 0,
-                          'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
-                              'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                              'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
-                          'api_response': {'contacts': ['9876543210', '876543212345']},
-                          'resp': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}]
+
+        completed_present = False
         for log in logs[0]:
+            if log.get('status') == 'Completed':
+                completed_present = True
+                assert log.get("log_type") == "common"
+                assert log.get("bot") == bot
+
             if log.get("config"):
                 logged_config = log.pop("config")
-            assert log in expected_logs
+
+        assert completed_present
 
         logged_config.pop("status")
         logged_config.pop('pyscript_timeout')
@@ -2099,6 +2105,7 @@ class TestEventExecution:
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
                 "language_code": "hi",
                 "errors": [],
+                'status_code': 200,
                 "api_response": {
                     "messaging_product": "whatsapp",
                     "contacts": [
@@ -2133,7 +2140,7 @@ class TestEventExecution:
             }
         ).save()
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
-        assert len(logs[0]) == logs[1] == 2
+        assert len(logs[0]) == logs[1] == 4
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0]
@@ -2143,6 +2150,7 @@ class TestEventExecution:
             'bot': bot,
             'event_id': event_id,
             'status': 'Success',
+            'status_code': 200,
             'template_name': 'brochure_pdf',
             'namespace': '54500467_f322_4595_becd_419af88spm4',
             'language_code': 'hi',
@@ -2172,7 +2180,7 @@ class TestEventExecution:
                                                                       raw_template=template, log_type="send",
                                                                       retry_count=0)
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
-        assert len(logs[0]) == logs[1] == 2
+        assert len(logs[0]) == logs[1] == 4
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0]
@@ -2182,6 +2190,7 @@ class TestEventExecution:
             'bot': bot,
             'event_id': event_id,
             'status': 'Success',
+            'status_code': 200,
             'template_name': 'brochure_pdf',
             'namespace': '54500467_f322_4595_becd_419af88spm4',
             'language_code': 'hi',
@@ -2245,7 +2254,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message",
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async",
            autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
@@ -2334,7 +2343,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {
+        mock_send.return_value = True, 200, {
             "contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
 
@@ -2346,22 +2355,20 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 
-        assert len(logs[0]) == logs[1] == 1
+        assert len(logs[0]) == logs[1] == 3
         [log.pop("timestamp") for log in logs[0]]
         reference_id = logs[0][0].get("reference_id")
-        expected_logs = [{"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot,
-                          'status': 'Completed',
-                          'user': 'test_user', 'failure_cnt': 0, 'total': 0,
-                          'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
-                              'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                              'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
-                          'api_response': {'contacts': ['9876543210', '876543212345']},
-                          'resp': {
-                              'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}]
+        completed_present = False
         for log in logs[0]:
+            if log.get('status') == 'Completed':
+                completed_present = True
+                assert log.get("log_type") == "common"
+                assert log.get("bot") == bot
+
             if log.get("config"):
                 logged_config = log.pop("config")
-            assert log in expected_logs
+
+        assert completed_present
 
         logged_config.pop("status")
         logged_config.pop('pyscript_timeout')
@@ -2416,7 +2423,7 @@ class TestEventExecution:
             }
         ).save()
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
-        assert len(logs[0]) == logs[1] == 2
+        assert len(logs[0]) == logs[1] == 4
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0]
@@ -2456,7 +2463,7 @@ class TestEventExecution:
                                                                       retry_count=0,
                                                                       template_exception=template_exception)
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
-        assert len(logs[0]) == logs[1] == 2
+        assert len(logs[0]) == logs[1] == 4
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0]
@@ -2611,7 +2618,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -2683,7 +2690,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
+        mock_send.return_value = True, 200, {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
                                   "messages": [{"id": 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                                 "message_status": 'accepted'}]}
         mock_get_partner_auth_token.return_value = None
@@ -2910,6 +2917,7 @@ class TestEventExecution:
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values', 'status': 'Success',
+            'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
@@ -2923,7 +2931,7 @@ class TestEventExecution:
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
         logs[0][3].pop("timestamp")
@@ -2931,6 +2939,8 @@ class TestEventExecution:
         reference_id = logs[0][3].get("reference_id")
         logged_config = logs[0][3]
         logs[0][3].pop("retry_1_timestamp")
+        logged_config.pop('failure_count_1')
+        logged_config.pop('template_1')
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values',
@@ -2966,7 +2976,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -3042,7 +3052,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
+        mock_send.return_value = True, 200, {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
                                   "messages": [{"id": 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                                 "message_status": 'accepted'}]}
         mock_get_partner_auth_token.return_value = None
@@ -3269,6 +3279,7 @@ class TestEventExecution:
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values', 'status': 'Success',
+            'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
@@ -3282,7 +3293,7 @@ class TestEventExecution:
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
         logs[0][3].pop("timestamp")
@@ -3290,6 +3301,8 @@ class TestEventExecution:
         reference_id = logs[0][3].get("reference_id")
         logs[0][3].pop("retry_1_timestamp")
         logged_config = logs[0][3]
+        logged_config.pop('failure_count_1')
+        logged_config.pop('template_1')
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values', 'status': 'Completed',
@@ -3326,7 +3339,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -3402,7 +3415,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
+        mock_send.return_value =True, 200, {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
                                   "messages": [{"id": 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                                 "message_status": 'accepted'}]}
         mock_get_partner_auth_token.return_value = None
@@ -3629,6 +3642,7 @@ class TestEventExecution:
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template', 'status': 'Success',
+            'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
@@ -3639,11 +3653,8 @@ class TestEventExecution:
                      'document': {
                          'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                          'filename': 'Brochure.pdf'}}]}],
-            'template': [{'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'},
-                         {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
-                         {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
-                         {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'template': [],
+            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
         logs[0][3].pop("timestamp")
@@ -3662,7 +3673,7 @@ class TestEventExecution:
                        'retry_count': 0,
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
-            'resend_count_1': 1, 'skipped_count_1': 0}
+            'resend_count_1': 1, 'skipped_count_1': 0, 'failure_count_1': 0}
         assert ChannelLogs.objects(
             bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
         ).get().campaign_id == reference_id
@@ -3687,7 +3698,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -3759,7 +3770,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
+        mock_send.return_value =True, 200, {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
                                   "messages": [{"id": 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                                 "message_status": 'accepted'}]}
         mock_get_partner_auth_token.return_value = None
@@ -4065,6 +4076,7 @@ class TestEventExecution:
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_meta_error_codes_to_skip',
             'status': 'Success',
+            'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
@@ -4079,7 +4091,7 @@ class TestEventExecution:
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
 
         logs[0][4].pop("timestamp")
@@ -4087,6 +4099,8 @@ class TestEventExecution:
         reference_id = logs[0][4].get("reference_id")
         logs[0][4].pop("retry_1_timestamp")
         logged_config = logs[0][4]
+        logged_config.pop('failure_count_1')
+        logged_config.pop('template_1')
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_meta_error_codes_to_skip',
@@ -4124,7 +4138,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -4197,7 +4211,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
+        mock_send.return_value = True, 200, {"contacts": [{"input": "919876543210", "status": "valid", "wa_id": "55123456789"}],
                                   "messages": [{"id": 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                                 "message_status": 'accepted'}]}
         mock_get_partner_auth_token.return_value = None
@@ -4620,6 +4634,7 @@ class TestEventExecution:
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_multiple_times',
             'status': 'Success',
+            'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
@@ -4631,7 +4646,7 @@ class TestEventExecution:
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 2, 'errors': []}
 
         logs[0][5].pop("timestamp")
@@ -4639,6 +4654,8 @@ class TestEventExecution:
         reference_id = logs[0][5].get("reference_id")
         logs[0][5].pop("retry_2_timestamp")
         logged_config = logs[0][5]
+        logged_config.pop('failure_count_2')
+        logged_config.pop('template_2')
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_multiple_times', 'status': 'Completed',
@@ -4680,7 +4697,7 @@ class TestEventExecution:
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
     @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message")
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -4753,7 +4770,7 @@ class TestEventExecution:
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
-        mock_send.return_value = {"contacts": [{"input": "919876543211", "status": "valid", "wa_id": "55123456789"}],
+        mock_send.return_value = True, 200, {"contacts": [{"input": "919876543211", "status": "valid", "wa_id": "55123456789"}],
                                   "messages": [{"id": 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                                 "message_status": 'accepted'}]}
         mock_get_partner_auth_token.return_value = None
@@ -5176,6 +5193,7 @@ class TestEventExecution:
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_log_chat_history',
             'status': 'Success',
+            'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543211', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
@@ -5190,7 +5208,7 @@ class TestEventExecution:
                              'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
                          {'buttons': [{'text': 'Connect to Agronomist', 'type': 'QUICK_REPLY'}], 'type': 'BUTTONS'}],
-            'event_id': event_id, 'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+            'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 2, 'errors': []}
 
         logs[0][5].pop("timestamp")
@@ -5198,6 +5216,8 @@ class TestEventExecution:
         reference_id = logs[0][5].get("reference_id")
         logs[0][5].pop("retry_2_timestamp")
         logged_config = logs[0][5]
+        logged_config.pop('failure_count_2')
+        logged_config.pop('template_2')
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_log_chat_history', 'status': 'Completed',

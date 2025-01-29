@@ -22,6 +22,7 @@ class MessageBroadcastFromConfig(MessageBroadcastBase, ABC):
         self.config = config
         self.event_id = event_id
         self.reference_id = reference_id
+        self.channel_client = None
 
     @classmethod
     def from_config(cls, config: Dict, event_id: Text, reference_id: Text):
