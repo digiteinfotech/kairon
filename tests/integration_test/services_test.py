@@ -29523,7 +29523,7 @@ def test_delete_account(mock_password_reset):
         user="integration@demo.ai",
         message=['Privacy Policy, Terms and Conditions consent'],
         data={
-            "username": email,
+            "username": "integration@demo.ai",
             "accepted_privacy_policy": True,
             "accepted_terms": True,
             "terms_and_policy_version": 1.0
