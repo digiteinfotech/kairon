@@ -394,7 +394,10 @@ class ActionUtility:
             if not ActionUtility.is_empty(previous_user_msg):
                 user_msg = previous_user_msg
         http_url = http_url.replace("$SENDER_ID", tracker_data.get(ActionParameterType.sender_id.value, ""))
-        http_url = http_url.replace("$INTENT", tracker_data.get(ActionParameterType.intent.value, ""))
+        if  intent := tracker_data.get(ActionParameterType.intent.value):
+            http_url = http_url.replace("$INTENT", intent)
+        else:
+            http_url = http_url.replace("$INTENT", "")
         http_url = http_url.replace("$USER_MESSAGE", user_msg)
 
         pattern_keyvault = r'\$\$\w+'

@@ -9,7 +9,8 @@ from kairon.api.models import Response, TextData
 from kairon.chat.utils import ChatUtils
 from kairon.live_agent.live_agent import LiveAgent
 from kairon.shared.auth import Authentication
-from kairon.shared.chat.models import ChatRequest
+from kairon.shared.chat.agent.agent_flow import AgenticFlow
+from kairon.shared.chat.models import ChatRequest, AgenticFlowRequest
 from kairon.shared.constants import CHAT_ACCESS
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
@@ -91,3 +92,22 @@ async def verity_auth(current_user: User = Security(Authentication.get_current_u
         "bot_id": current_user.get_bot()
     }}
 
+@router.post('/exec/flow', response_model=Response)
+async def execute_flow(
+        request: AgenticFlowRequest,
+        bot: Text = Path(description="Bot id"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
+):
+    """
+    Retrieves chat client config of a bot.
+    """
+    flow = AgenticFlow(bot, request.slot_vals, request.sender_id)
+    responses, errors, slots = await flow.execute_rule(request.name)
+    return {
+        "data": {
+            "responses": responses,
+            "errors": errors,
+            "slots": slots
+        },
+        "message": "Rule executed successfully!"
+    }
