@@ -11,14 +11,10 @@ from uuid6 import uuid7
 from kairon import Utility
 from kairon.chat.actions import KRemoteAction
 from kairon.exceptions import AppException
-from kairon.history.processor import HistoryProcessor
-from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.data.data_objects import Slots, Rules, MultiflowStories, Responses, BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from loguru import logger
 import random
-
-from tests.unit_test.live_agent_test import bot_id
 
 
 class AgenticFlow:
@@ -77,6 +73,11 @@ class AgenticFlow:
 
 
     def load_slots(self, slot_vals: dict[str,any] = None) -> list:
+        """
+        Load slots for the bot from the database
+        :param slot_vals: dictionary of slot values
+        :return: list of slots
+        """
         try:
             if not slot_vals:
                 slot_vals = {}
@@ -119,6 +120,11 @@ class AgenticFlow:
 
     @staticmethod
     def sanitize_multiflow_events(events):
+        """
+        convert database multiflow events into usable graph format
+        :param events: list of events
+        :return: graph representing dictionary of events, start node id
+        """
         start = events[0]["connections"][0]["node_id"]
         def sanitize_event(ev:dict)-> dict:
             node_id = ev['step']['node_id']
@@ -169,7 +175,7 @@ class AgenticFlow:
         Execute a rule for the bot
 
         :param rule_name: name of the rule to be executed
-        :return: list of responses
+        :return: list of responses, list of errors
         """
         self.responses = []
         self.errors = []

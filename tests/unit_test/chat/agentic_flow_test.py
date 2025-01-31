@@ -282,13 +282,6 @@ class TestAgenticFlow:
         disconnect()
 
 
-    # @pytest.fixture
-    # def mock_slots(self):
-    #     slot1 = MagicMock(name="slot1", type="text", initial_value=None)
-    #     slot2 = MagicMock(name="slot2", type="boolean", initial_value=None)
-    #     with patch.object(Slots, 'objects', return_value=[slot1, slot2]):
-    #         yield
-
     @pytest.mark.asyncio
     @patch('kairon.shared.chat.agent.agent_flow.AgenticFlow.log_chat_history')
     async def test_simple_utter(self, patch_log_chat_history):
@@ -421,7 +414,15 @@ class TestAgenticFlow:
         multiflow = MultiflowStories.objects(bot=pytest.af_test_bot, block_name='py_multiflow').first()
         events = multiflow.events
         event_map, start = AgenticFlow.sanitize_multiflow_events(events)
-        expected = {'5691320b-6007-4609-8386-bee3afdd9490': {'node_id': '5691320b-6007-4609-8386-bee3afdd9490', 'type': 'INTENT', 'name': 'i_multiflow', 'connections': {'type': 'jump', 'node_id': '715f57e6-90df-42b1-b0de-daa14b22d72f'}}, '715f57e6-90df-42b1-b0de-daa14b22d72f': {'node_id': '715f57e6-90df-42b1-b0de-daa14b22d72f', 'type': 'action', 'name': 'py_multi', 'connections': {'type': 'branch', 'criteria': 'SLOT', 'name': 'trigger_conditional', '1': 'fe210aa4-4885-4454-9acf-607621228ffd', '2': '589cebb9-7a93-4e76-98f8-342b123f32b8'}}, 'fe210aa4-4885-4454-9acf-607621228ffd': {'node_id': 'fe210aa4-4885-4454-9acf-607621228ffd', 'type': 'SLOT', 'name': 'trigger_conditional', 'connections': {'type': 'jump', 'node_id': '61d7459c-5a34-464a-b9e5-25e7808f1f24'}}, '61d7459c-5a34-464a-b9e5-25e7808f1f24': {'node_id': '61d7459c-5a34-464a-b9e5-25e7808f1f24', 'type': 'action', 'name': 'py_ans_a', 'connections': None}, '589cebb9-7a93-4e76-98f8-342b123f32b8': {'node_id': '589cebb9-7a93-4e76-98f8-342b123f32b8', 'type': 'SLOT', 'name': 'trigger_conditional', 'connections': {'type': 'jump', 'node_id': '4f331af0-870e-40f3-883e-51c2a86f98eb'}}, '4f331af0-870e-40f3-883e-51c2a86f98eb': {'node_id': '4f331af0-870e-40f3-883e-51c2a86f98eb', 'type': 'action', 'name': 'fetch_poke_details', 'connections': {'type': 'jump', 'node_id': '1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef'}}, '1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef': {'node_id': '1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef', 'type': 'action', 'name': 'py_ans_b', 'connections': None}}
+        expected = {'5691320b-6007-4609-8386-bee3afdd9490': {
+            'node_id': '5691320b-6007-4609-8386-bee3afdd9490', 'type': 'INTENT', 'name': 'i_multiflow', 'connections': {
+                'type': 'jump', 'node_id': '715f57e6-90df-42b1-b0de-daa14b22d72f'}},
+            '715f57e6-90df-42b1-b0de-daa14b22d72f': { 'node_id': '715f57e6-90df-42b1-b0de-daa14b22d72f', 'type': 'action', 'name': 'py_multi', 'connections': {'type': 'branch', 'criteria': 'SLOT', 'name': 'trigger_conditional', '1': 'fe210aa4-4885-4454-9acf-607621228ffd', '2': '589cebb9-7a93-4e76-98f8-342b123f32b8'}}
+            , 'fe210aa4-4885-4454-9acf-607621228ffd': {'node_id': 'fe210aa4-4885-4454-9acf-607621228ffd', 'type': 'SLOT', 'name': 'trigger_conditional', 'connections': {'type': 'jump', 'node_id': '61d7459c-5a34-464a-b9e5-25e7808f1f24'}},
+            '61d7459c-5a34-464a-b9e5-25e7808f1f24': {'node_id': '61d7459c-5a34-464a-b9e5-25e7808f1f24', 'type': 'action', 'name': 'py_ans_a', 'connections': None},
+            '589cebb9-7a93-4e76-98f8-342b123f32b8': {'node_id': '589cebb9-7a93-4e76-98f8-342b123f32b8', 'type': 'SLOT', 'name': 'trigger_conditional', 'connections': {'type': 'jump', 'node_id': '4f331af0-870e-40f3-883e-51c2a86f98eb'}},
+            '4f331af0-870e-40f3-883e-51c2a86f98eb': {'node_id': '4f331af0-870e-40f3-883e-51c2a86f98eb', 'type': 'action', 'name': 'fetch_poke_details', 'connections': {'type': 'jump', 'node_id': '1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef'}},
+            '1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef': {'node_id': '1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef', 'type': 'action', 'name': 'py_ans_b', 'connections': None}}
 
         assert event_map == expected
         assert  start == '715f57e6-90df-42b1-b0de-daa14b22d72f'
