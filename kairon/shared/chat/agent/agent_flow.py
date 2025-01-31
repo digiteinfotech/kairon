@@ -1,6 +1,7 @@
 import time
 
 from mongoengine import DoesNotExist
+from pymongo import MongoClient
 from rasa.core.nlg import TemplatedNaturalLanguageGenerator
 from rasa.shared.core.events import UserUttered
 from rasa.shared.core.slots import TextSlot, BooleanSlot, CategoricalSlot, FloatSlot, ListSlot, AnySlot
@@ -22,6 +23,7 @@ from tests.unit_test.live_agent_test import bot_id
 
 class AgenticFlow:
     mongo_processor = MongoProcessor()
+    chat_history_client = None
 
     SLOT_TYPE_MAP = {
         "text": {
@@ -70,6 +72,7 @@ class AgenticFlow:
         self.action_endpoint = Utility.get_action_url(endpoint)
         self.domain = AgenticFlow.mongo_processor.load_domain(bot)
         self.nlg = TemplatedNaturalLanguageGenerator(self.domain.responses)
+        self.executed_actions = []
 
 
 
@@ -155,7 +158,7 @@ class AgenticFlow:
         if criteria == 'SLOT':
             slot_name = connections['name']
             slot_value = self.fake_tracker.get_slot(slot_name)
-            if slot_value:
+            if slot_value and connections.get(slot_value):
                 return connections.get(slot_value)
             else:
                 self.errors.append(f"Slot [{slot_name}] not set!")
@@ -168,6 +171,9 @@ class AgenticFlow:
         :param rule_name: name of the rule to be executed
         :return: list of responses
         """
+        self.responses = []
+        self.errors = []
+        self.executed_actions = []
         events, node_id = self.load_rule_events(rule_name)
         if not node_id:
             for event in events:
@@ -186,7 +192,7 @@ class AgenticFlow:
                 else:
                     node_id = None
         self.log_chat_history(rule_name)
-        return self.responses, self.errors, self.get_non_empty_slots()
+        return self.responses, self.errors
 
     async def execute_event(self, event: dict):
         if event['type'] == 'action':
@@ -194,6 +200,7 @@ class AgenticFlow:
                 return
             elif event['name'].startswith("utter_"):
                 self.responses.append(self.get_utterance_response(event['name']))
+                self.executed_actions.append(event['name'])
                 return
             try:
                 action = KRemoteAction(
@@ -206,6 +213,7 @@ class AgenticFlow:
                                  domain=self.domain)
                 self.process_tracker_events(new_events_for_tracker)
                 self.fake_tracker.events.extend(new_events_for_tracker)
+                self.executed_actions.append(event['name'])
             except Exception as e:
                 logger.error(f"Error in executing action [{event['name']}]: {e}")
                 raise AppException(f"Error in executing action [{event['name']}]")
@@ -251,19 +259,21 @@ class AgenticFlow:
         return random_response
 
     def log_chat_history(self, rule_name: str):
-        client = HistoryProcessor.get_mongo_connection()
-        db = client.get_database()
+        if not AgenticFlow.chat_history_client:
+            AgenticFlow.chat_history_client = MongoClient(host=Utility.environment["tracker"]["url"])
+        db = AgenticFlow.chat_history_client.get_database()
         conversations = db.get_collection(self.bot)
         data = {
           "type": "flattened",
           "sender_id": self.sender_id,
           "conversation_id": str(uuid7().hex),
           "data": {
-                "flow_name": rule_name,
+                "user_input": rule_name,
                 "bot_response": self.responses,
                 "slots": self.get_non_empty_slots(),
                 "errors": self.errors,
                 "input_slot_vals": self.input_slot_vals,
+                "action": self.executed_actions
           },
           "timestamp": time.time(),
           "tag": "agentic_flow"

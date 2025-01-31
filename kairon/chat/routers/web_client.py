@@ -102,12 +102,11 @@ async def execute_flow(
     Retrieves chat client config of a bot.
     """
     flow = AgenticFlow(bot, request.slot_vals, request.sender_id)
-    responses, errors, slots = await flow.execute_rule(request.name)
+    responses, errors = await flow.execute_rule(request.name)
     return {
         "data": {
             "responses": responses,
             "errors": errors,
-            "slots": slots
         },
         "message": "Rule executed successfully!"
     }
