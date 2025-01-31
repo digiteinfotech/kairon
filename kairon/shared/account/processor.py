@@ -24,9 +24,9 @@ from kairon.shared.account.data_objects import (
     MailTemplates,
     SystemProperties,
     BotAccess,
-    
+
     BotMetaData,
-    TrustedDevice,
+    TrustedDevice, UserActivityLog,
 )
 from kairon.shared.actions.data_objects import (
     FormValidationAction,
@@ -1270,6 +1270,11 @@ class AccountProcessor:
              a_type=UserActivityType.delete_account.value
         , account=account_id)
         UserEmailConfirmation.objects().get(email=email).delete()
+        user_activity_log = UserActivityLog.objects(
+            user=email, type=UserActivityType.user_consent.value
+        )
+        if user_activity_log:
+            user_activity_log.delete()
 
     @staticmethod
     def get_location_and_add_trusted_device(

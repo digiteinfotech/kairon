@@ -28,7 +28,8 @@ from kairon.api.models import RegisterAccount, EventConfig, IDPConfig, StoryRequ
 from kairon.exceptions import AppException
 from kairon.idp.data_objects import IdpConfig
 from kairon.idp.processor import IDPProcessor
-from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice, UserEmailConfirmation
+from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice, \
+    UserEmailConfirmation, UserActivityLog
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.auth import Authentication, LoginSSOFactory
@@ -481,7 +482,39 @@ class TestAccountProcessor:
         }
         email=account.get('email')
         UserEmailConfirmation(email=email).save()
-
+        UserActivityLog(
+            type="user_consent",
+            user=email,
+            message=['Privacy Policy, Terms and Conditions consent'],
+            data = {
+            "username": email,
+            "accepted_privacy_policy": True,
+            "accepted_terms": True,
+            "terms_and_policy_version": 1.0
+        }
+        ).save()
+        UserActivityLog(
+            type="user_consent",
+            user=email,
+            message=['Privacy Policy, Terms and Conditions consent'],
+            data = {
+            "username": email,
+            "accepted_privacy_policy": True,
+            "accepted_terms": True,
+            "terms_and_policy_version": 2.0
+        }
+        ).save()
+        UserActivityLog(
+            type="user_consent",
+            user=email,
+            message=['Privacy Policy, Terms and Conditions consent'],
+            data = {
+            "username": email,
+            "accepted_privacy_policy": True,
+            "accepted_terms": True,
+            "terms_and_policy_version": 3.0
+        }
+        ).save()
         loop = asyncio.new_event_loop()
         user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
 
@@ -498,6 +531,8 @@ class TestAccountProcessor:
                 Bot.objects(id=bot['_id'], account=pytest.deleted_account, status=True).get()
             with pytest.raises(DoesNotExist):
                 UserEmailConfirmation.objects(email=email).get()
+            with pytest.raises(DoesNotExist):
+                UserActivityLog.objects(user=email, type='user_consent').get()
 
     def test_delete_account_for_shared_bot(self):
         account = {
@@ -514,6 +549,17 @@ class TestAccountProcessor:
 
         email=account.get('email')
         UserEmailConfirmation(email=email).save()
+        UserActivityLog(
+            type="user_consent",
+            user=email,
+            message=['Privacy Policy, Terms and Conditions consent'],
+            data = {
+            "username": email,
+            "accepted_privacy_policy": True,
+            "accepted_terms": True,
+            "terms_and_policy_version": 1.0
+        }
+        ).save()
 
         # Add shared bot
         bot_response = AccountProcessor.add_bot("delete_account_shared_bot", user_detail['account'], "udit.pandey@digite.com", False)
@@ -532,6 +578,8 @@ class TestAccountProcessor:
         assert len(list(Bot.objects(id=bot_id, account=user_detail['account'], status=True))) == 0
         with pytest.raises(DoesNotExist):
             UserEmailConfirmation.objects(email=email).get()
+        with pytest.raises(DoesNotExist):
+            UserActivityLog.objects(user=email, type='user_consent').get()
 
     def test_delete_account_for_account(self):
         account = {
@@ -543,6 +591,17 @@ class TestAccountProcessor:
         }
         email=account.get('email')
         UserEmailConfirmation(email=email).save()
+        UserActivityLog(
+            type="user_consent",
+            user=email,
+            message=['Privacy Policy, Terms and Conditions consent'],
+            data = {
+            "username": email,
+            "accepted_privacy_policy": True,
+            "accepted_terms": True,
+            "terms_and_policy_version": 1.0
+        }
+        ).save()
 
         loop = asyncio.new_event_loop()
         user_detail, mail, link = loop.run_until_complete(
@@ -559,6 +618,9 @@ class TestAccountProcessor:
         with pytest.raises(DoesNotExist):
             UserEmailConfirmation.objects(email=email).get()
 
+        with pytest.raises(DoesNotExist):
+            UserActivityLog.objects(user=email, type='user_consent').get()
+
     def test_delete_account_for_user(self):
         account = {
             "account": "Test_Delete_Account",
@@ -569,6 +631,17 @@ class TestAccountProcessor:
         }
         email=account.get('email')
         UserEmailConfirmation(email=email).save()
+        UserActivityLog(
+            type="user_consent",
+            user=email,
+            message=['Privacy Policy, Terms and Conditions consent'],
+            data = {
+            "username": email,
+            "accepted_privacy_policy": True,
+            "accepted_terms": True,
+            "terms_and_policy_version": 1.0
+        }
+        ).save()
         loop = asyncio.new_event_loop()
         user_detail, mail, link = loop.run_until_complete(
             AccountProcessor.account_setup(account_setup=account))
@@ -596,6 +669,9 @@ class TestAccountProcessor:
         with pytest.raises(DoesNotExist):
             UserEmailConfirmation.objects(email=email).get()
 
+        with pytest.raises(DoesNotExist):
+            UserActivityLog.objects(user=email, type='user_consent').get()
+
     def test_delete_account_again_add(self):
         account = {
             "account": "Test_Delete_Account",
@@ -606,6 +682,17 @@ class TestAccountProcessor:
         }
         email=account.get('email')
         UserEmailConfirmation(email=email).save()
+        UserActivityLog(
+            type="user_consent",
+            user=email,
+            message=['Privacy Policy, Terms and Conditions consent'],
+            data = {
+            "username": email,
+            "accepted_privacy_policy": True,
+            "accepted_terms": True,
+            "terms_and_policy_version": 1.0
+        }
+        ).save()
         loop = asyncio.new_event_loop()
         user_detail, mail, link = loop.run_until_complete(
             AccountProcessor.account_setup(account_setup=account))
@@ -620,6 +707,9 @@ class TestAccountProcessor:
 
         with pytest.raises(DoesNotExist):
             UserEmailConfirmation.objects(email=email).get()
+
+        with pytest.raises(DoesNotExist):
+            UserActivityLog.objects(user=email, type='user_consent').get()
         assert new_account_id
         assert AccountProcessor.get_account(new_account_id).get('status')
         assert len(list(AccountProcessor.list_bots(new_account_id))) == 0
