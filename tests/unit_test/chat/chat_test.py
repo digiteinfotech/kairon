@@ -36,6 +36,7 @@ class TestChat:
         pytest.db_url = db_url
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
+
     def test_save_channel_config_invalid(self):
         with pytest.raises(ValidationError, match="Invalid channel type custom"):
             ChatDataProcessor.save_channel_config({

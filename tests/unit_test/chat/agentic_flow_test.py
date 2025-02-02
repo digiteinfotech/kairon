@@ -9,18 +9,13 @@ from rasa.shared.core.events import (
 )
 
 import pytest
-from imap_tools import MailMessage
 from joblib.testing import fixture
 from mongoengine import connect, disconnect
-
-import kairon.shared.chat.agent.agent_flow
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 
-os.environ["system_file"] = "./tests/testing_data/system.yaml"
-Utility.load_environment()
-Utility.load_system_metadata()
+
 
 from kairon.shared.account.data_objects import Bot, Account
 
@@ -32,7 +27,18 @@ class TestAgenticFlow:
 
     @pytest.fixture(autouse=True, scope='class')
     def setup(self):
-        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        Utility.load_system_metadata()
+        connect(**Utility.mongoengine_connection())
+        BotSettings.objects(user="af_channel_test_user_acc").delete()
+        Bot.objects(user="af_channel_test_user_acc").delete()
+        Account.objects(user="af_channel_test_user_acc").delete()
+        Rules.objects(user="af_channel_test_user_acc").delete()
+        Responses.objects(user="af_channel_test_user_acc").delete()
+        Slots.objects(user="af_channel_test_user_acc").delete()
+        MultiflowStories.objects(user="af_channel_test_user_acc").delete()
+
         a = Account.objects.create(name="af_channel_test_user_acc", user="af_channel_test_user_acc")
         bot = Bot.objects.create(name="af_channel_test_bot", user="af_channel_test_user_acc", status=True,
                                  account=a.id)
