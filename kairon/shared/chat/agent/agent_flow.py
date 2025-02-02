@@ -1,3 +1,4 @@
+import secrets
 import time
 
 from mongoengine import DoesNotExist
@@ -14,7 +15,6 @@ from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import Slots, Rules, MultiflowStories, Responses, BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from loguru import logger
-import random
 
 
 class AgenticFlow:
@@ -257,7 +257,7 @@ class AgenticFlow:
             elif response.custom:
                 responses_list.append({'custom': response.custom.custom})
 
-        random_response = random.choice(responses_list)
+        random_response = secrets.choice(responses_list)
         if random_response.get('text'):
             slot_vals = self.get_non_empty_slots(True)
             random_response['text'] = random_response['text'].format(**slot_vals)

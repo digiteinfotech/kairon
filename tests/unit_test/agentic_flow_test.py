@@ -23,21 +23,25 @@ from kairon.shared.data.data_objects import BotSettings, Slots, Rules, Responses
 
 
 class TestAgenticFlow:
+    @classmethod
+    def setup_class(cls):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        Utility.load_system_metadata()
+        connect(**Utility.mongoengine_connection())
+        BotSettings.objects(user="test_user").delete()
 
+        a = Account.objects.create(name="test_account", user="test_user")
+        bot = Bot.objects.create(name="test_bot", user="test_user", status=True, account=a.id)
+        pytest.test_bot = str(bot.id)
+        pytest.test_user = 'test_user'
+        BotSettings(bot=pytest.test_bot, user="test_user").save()
 
-    @pytest.fixture(autouse=True, scope='function')
-    def setup(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         Utility.load_system_metadata()
         connect(**Utility.mongoengine_connection())
         BotSettings.objects(user="af_channel_test_user_acc").delete()
-        Bot.objects(user="af_channel_test_user_acc").delete()
-        Account.objects(user="af_channel_test_user_acc").delete()
-        Rules.objects(user="af_channel_test_user_acc").delete()
-        Responses.objects(user="af_channel_test_user_acc").delete()
-        Slots.objects(user="af_channel_test_user_acc").delete()
-        MultiflowStories.objects(user="af_channel_test_user_acc").delete()
 
         a = Account.objects.create(name="af_channel_test_user_acc", user="af_channel_test_user_acc")
         bot = Bot.objects.create(name="af_channel_test_bot", user="af_channel_test_user_acc", status=True,
@@ -82,208 +86,206 @@ class TestAgenticFlow:
         Rules(**action_rule).save()
 
         utter_greet = {
-          "name": "utter_greet",
-          "text": {
-            "text": "Let me be your AI Assistant and provide you with service"
-          },
-          "bot": pytest.af_test_bot,
-          "user": pytest.af_test_user,
-          "timestamp": {
-            "$date": "2024-12-13T09:26:19.675Z"
-          },
-          "status": True
+            "name": "utter_greet",
+            "text": {
+                "text": "Let me be your AI Assistant and provide you with service"
+            },
+            "bot": pytest.af_test_bot,
+            "user": pytest.af_test_user,
+            "timestamp": {
+                "$date": "2024-12-13T09:26:19.675Z"
+            },
+            "status": True
         }
 
         Responses(**utter_greet).save()
 
         slot_data_1 = {
 
-          "name": "trigger_conditional",
-          "type": "categorical",
-          "initial_value": "1",
-          "values": [
-            "1",
-            "2"
-          ],
-          "bot": pytest.af_test_bot,
-          "user": pytest.af_test_user,
-          "status": True,
-          "influence_conversation": True,
-          "_has_been_set": False,
-          "is_default": False
+            "name": "trigger_conditional",
+            "type": "categorical",
+            "initial_value": "1",
+            "values": [
+                "1",
+                "2"
+            ],
+            "bot": pytest.af_test_bot,
+            "user": pytest.af_test_user,
+            "status": True,
+            "influence_conversation": True,
+            "_has_been_set": False,
+            "is_default": False
         }
 
         slot_data_2 = {
-          "name": "subject",
-          "type": "text",
-          "bot": pytest.af_test_bot,
-          "user": pytest.af_test_user,
-          "status": True,
-          "influence_conversation": True,
-          "_has_been_set": False,
-          "is_default": True
+            "name": "subject",
+            "type": "text",
+            "bot": pytest.af_test_bot,
+            "user": pytest.af_test_user,
+            "status": True,
+            "influence_conversation": True,
+            "_has_been_set": False,
+            "is_default": True
         }
-        
+
         slot_data_3 = {
-          "name": "order",
-          "type": "any",
-          "bot": pytest.af_test_bot,
-          "user": pytest.af_test_user,
-          "status": True,
-          "influence_conversation": False,
-          "_has_been_set": False,
-          "is_default": True
+            "name": "order",
+            "type": "any",
+            "bot": pytest.af_test_bot,
+            "user": pytest.af_test_user,
+            "status": True,
+            "influence_conversation": False,
+            "_has_been_set": False,
+            "is_default": True
         }
-        
+
         Slots(**slot_data_1).save()
         Slots(**slot_data_2).save()
         Slots(**slot_data_3).save()
 
         multiflow_data = {
-          "block_name": "py_multiflow",
-          "start_checkpoints": [
-            "STORY_START"
-          ],
-          "end_checkpoints": [],
-          "events": [
-            {
-              "step": {
-                "name": "i_multiflow",
-                "type": "INTENT",
-                "node_id": "5691320b-6007-4609-8386-bee3afdd9490",
-                "component_id": "676a9c57097f6a9872bc49d5"
-              },
-              "connections": [
+            "block_name": "py_multiflow",
+            "start_checkpoints": [
+                "STORY_START"
+            ],
+            "end_checkpoints": [],
+            "events": [
                 {
-                  "name": "py_multi",
-                  "type": "PYSCRIPT_ACTION",
-                  "node_id": "715f57e6-90df-42b1-b0de-daa14b22d72f",
-                  "component_id": "676a9cbc097f6a9872bc49d7"
-                }
-              ]
-            },
-            {
-              "step": {
-                "name": "py_multi",
-                "type": "PYSCRIPT_ACTION",
-                "node_id": "715f57e6-90df-42b1-b0de-daa14b22d72f",
-                "component_id": "676a9cbc097f6a9872bc49d7"
-              },
-              "connections": [
-                {
-                  "name": "trigger_conditional",
-                  "type": "SLOT",
-                  "value": "1",
-                  "node_id": "fe210aa4-4885-4454-9acf-607621228ffd",
-                  "component_id": "fe210aa4-4885-4454-9acf-607621228ffd"
+                    "step": {
+                        "name": "i_multiflow",
+                        "type": "INTENT",
+                        "node_id": "5691320b-6007-4609-8386-bee3afdd9490",
+                        "component_id": "676a9c57097f6a9872bc49d5"
+                    },
+                    "connections": [
+                        {
+                            "name": "py_multi",
+                            "type": "PYSCRIPT_ACTION",
+                            "node_id": "715f57e6-90df-42b1-b0de-daa14b22d72f",
+                            "component_id": "676a9cbc097f6a9872bc49d7"
+                        }
+                    ]
                 },
                 {
-                  "name": "trigger_conditional",
-                  "type": "SLOT",
-                  "value": "2",
-                  "node_id": "589cebb9-7a93-4e76-98f8-342b123f32b8",
-                  "component_id": "589cebb9-7a93-4e76-98f8-342b123f32b8"
-                }
-              ]
-            },
-            {
-              "step": {
-                "name": "trigger_conditional",
-                "type": "SLOT",
-                "value": "1",
-                "node_id": "fe210aa4-4885-4454-9acf-607621228ffd",
-                "component_id": ""
-              },
-              "connections": [
+                    "step": {
+                        "name": "py_multi",
+                        "type": "PYSCRIPT_ACTION",
+                        "node_id": "715f57e6-90df-42b1-b0de-daa14b22d72f",
+                        "component_id": "676a9cbc097f6a9872bc49d7"
+                    },
+                    "connections": [
+                        {
+                            "name": "trigger_conditional",
+                            "type": "SLOT",
+                            "value": "1",
+                            "node_id": "fe210aa4-4885-4454-9acf-607621228ffd",
+                            "component_id": "fe210aa4-4885-4454-9acf-607621228ffd"
+                        },
+                        {
+                            "name": "trigger_conditional",
+                            "type": "SLOT",
+                            "value": "2",
+                            "node_id": "589cebb9-7a93-4e76-98f8-342b123f32b8",
+                            "component_id": "589cebb9-7a93-4e76-98f8-342b123f32b8"
+                        }
+                    ]
+                },
                 {
-                  "name": "py_ans_a",
-                  "type": "PYSCRIPT_ACTION",
-                  "node_id": "61d7459c-5a34-464a-b9e5-25e7808f1f24",
-                  "component_id": "676a9ceb097f6a9872bc49db"
-                }
-              ]
-            },
-            {
-              "step": {
-                "name": "py_ans_a",
-                "type": "PYSCRIPT_ACTION",
-                "node_id": "61d7459c-5a34-464a-b9e5-25e7808f1f24",
-                "component_id": "676a9ceb097f6a9872bc49db"
-              },
-              "connections": []
-            },
-            {
-              "step": {
-                "name": "trigger_conditional",
-                "type": "SLOT",
-                "value": "2",
-                "node_id": "589cebb9-7a93-4e76-98f8-342b123f32b8",
-                "component_id": ""
-              },
-              "connections": [
+                    "step": {
+                        "name": "trigger_conditional",
+                        "type": "SLOT",
+                        "value": "1",
+                        "node_id": "fe210aa4-4885-4454-9acf-607621228ffd",
+                        "component_id": ""
+                    },
+                    "connections": [
+                        {
+                            "name": "py_ans_a",
+                            "type": "PYSCRIPT_ACTION",
+                            "node_id": "61d7459c-5a34-464a-b9e5-25e7808f1f24",
+                            "component_id": "676a9ceb097f6a9872bc49db"
+                        }
+                    ]
+                },
                 {
-                  "name": "fetch_poke_details",
-                  "type": "HTTP_ACTION",
-                  "node_id": "4f331af0-870e-40f3-883e-51c2a86f98eb",
-                  "component_id": "676bfe0390a2c983e628f108"
-                }
-              ]
-            },
-            {
-              "step": {
-                "name": "fetch_poke_details",
-                "type": "HTTP_ACTION",
-                "node_id": "4f331af0-870e-40f3-883e-51c2a86f98eb",
-                "component_id": "676bfe0390a2c983e628f108"
-              },
-              "connections": [
+                    "step": {
+                        "name": "py_ans_a",
+                        "type": "PYSCRIPT_ACTION",
+                        "node_id": "61d7459c-5a34-464a-b9e5-25e7808f1f24",
+                        "component_id": "676a9ceb097f6a9872bc49db"
+                    },
+                    "connections": []
+                },
                 {
-                  "name": "py_ans_b",
-                  "type": "PYSCRIPT_ACTION",
-                  "node_id": "1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef",
-                  "component_id": "676a9d3c097f6a9872bc49df"
+                    "step": {
+                        "name": "trigger_conditional",
+                        "type": "SLOT",
+                        "value": "2",
+                        "node_id": "589cebb9-7a93-4e76-98f8-342b123f32b8",
+                        "component_id": ""
+                    },
+                    "connections": [
+                        {
+                            "name": "fetch_poke_details",
+                            "type": "HTTP_ACTION",
+                            "node_id": "4f331af0-870e-40f3-883e-51c2a86f98eb",
+                            "component_id": "676bfe0390a2c983e628f108"
+                        }
+                    ]
+                },
+                {
+                    "step": {
+                        "name": "fetch_poke_details",
+                        "type": "HTTP_ACTION",
+                        "node_id": "4f331af0-870e-40f3-883e-51c2a86f98eb",
+                        "component_id": "676bfe0390a2c983e628f108"
+                    },
+                    "connections": [
+                        {
+                            "name": "py_ans_b",
+                            "type": "PYSCRIPT_ACTION",
+                            "node_id": "1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef",
+                            "component_id": "676a9d3c097f6a9872bc49df"
+                        }
+                    ]
+                },
+                {
+                    "step": {
+                        "name": "py_ans_b",
+                        "type": "PYSCRIPT_ACTION",
+                        "node_id": "1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef",
+                        "component_id": "676a9d3c097f6a9872bc49df"
+                    },
+                    "connections": []
                 }
-              ]
-            },
-            {
-              "step": {
-                "name": "py_ans_b",
-                "type": "PYSCRIPT_ACTION",
-                "node_id": "1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef",
-                "component_id": "676a9d3c097f6a9872bc49df"
-              },
-              "connections": []
-            }
-          ],
-          "metadata": [
-            {
-              "node_id": "61d7459c-5a34-464a-b9e5-25e7808f1f24",
-              "flow_type": "RULE"
-            },
-            {
-              "node_id": "1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef",
-              "flow_type": "RULE"
-            }
-          ],
-          "bot": pytest.af_test_bot,
-          "user": pytest.af_test_user,
-          "status": True,
-          "template_type": "CUSTOM"
+            ],
+            "metadata": [
+                {
+                    "node_id": "61d7459c-5a34-464a-b9e5-25e7808f1f24",
+                    "flow_type": "RULE"
+                },
+                {
+                    "node_id": "1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef",
+                    "flow_type": "RULE"
+                }
+            ],
+            "bot": pytest.af_test_bot,
+            "user": pytest.af_test_user,
+            "status": True,
+            "template_type": "CUSTOM"
         }
 
         MultiflowStories(**multiflow_data).save()
-        
-        
-        yield
 
-        BotSettings.objects(user="af_channel_test_user_acc").delete()
-        Bot.objects(user="af_channel_test_user_acc").delete()
-        Account.objects(user="af_channel_test_user_acc").delete()
-        Rules.objects(user="af_channel_test_user_acc").delete()
-        Responses.objects(user="af_channel_test_user_acc").delete()
-        Slots.objects(user="af_channel_test_user_acc").delete()
-        MultiflowStories.objects(user="af_channel_test_user_acc").delete()
-
+    @classmethod
+    def teardown_class(cls):
+        Bot.objects().delete()
+        Account.objects().delete()
+        BotSettings.objects().delete()
+        Slots.objects().delete()
+        Rules.objects().delete()
+        Responses.objects().delete()
+        MultiflowStories.objects().delete()
 
         disconnect()
 
@@ -449,10 +451,14 @@ class TestAgenticFlow:
         collection = pymongo_mock_client.get_database().get_collection(pytest.af_test_bot)
         data =  collection.find({"tag": "agentic_flow"})
         data_entries = list(data)
+
+
         assert len(data_entries) == 1
         assert data_entries[0]['data']
         assert data_entries[0]['data']['action'] == ['simple_action']
         assert data_entries[0]['data']['bot_response'] == [{'text': 'Action Executed'}]
         assert data_entries[0]['data']['user_input'] == 'action_rule'
+
+
 
 
