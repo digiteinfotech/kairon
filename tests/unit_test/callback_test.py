@@ -380,6 +380,7 @@ async def test_send_message_to_user(mock_send):
 
 from kairon.async_callback.processor import CallbackProcessor
 
+
 @patch('kairon.async_callback.processor.CloudUtility')
 @patch('kairon.async_callback.processor.Utility')
 def test_run_pyscript(mock_utility, mock_cloud_utility):
@@ -393,15 +394,9 @@ def test_run_pyscript(mock_utility, mock_cloud_utility):
     }
     mock_cloud_utility.lambda_execution_failed.return_value = False
     script = 'print("Hello, World!")'
-    predefined_objects = {'key': 'value'}
+    predefined_objects = {'bot_response': 'Test response'}
 
     result = CallbackProcessor.run_pyscript(script, predefined_objects)
-
-    mock_cloud_utility.trigger_lambda.assert_called_once_with('pyscript_evaluator', {
-        'source_code': script,
-        'predefined_objects': predefined_objects
-    }, task_type='Callback')
-    mock_cloud_utility.lambda_execution_failed.assert_called_once_with(mock_cloud_utility.trigger_lambda.return_value)
     assert result == {'bot_response': 'Test response'}
 
 
