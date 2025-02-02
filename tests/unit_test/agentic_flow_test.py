@@ -25,7 +25,7 @@ from kairon.shared.data.data_objects import BotSettings, Slots, Rules, Responses
 class TestAgenticFlow:
 
 
-    @pytest.fixture(autouse=True, scope='class')
+    @pytest.fixture(autouse=True, scope='function')
     def setup(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
