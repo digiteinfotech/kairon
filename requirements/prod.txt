@@ -70,3 +70,4 @@ huggingface-hub==0.25.2
 imap-tools==1.7.4
 more-itertools
 python-multipart>=0.0.18
+blacksheep==2.0.7
