@@ -58,10 +58,6 @@ class TestAccountProcessor:
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         AccountProcessor.load_system_properties()
 
-    @pytest.fixture(autouse=True, scope='class')
-    def disconnect_connection(self):
-        disconnect()
-
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
         account = AccountProcessor.get_account(account_response["_id"])
