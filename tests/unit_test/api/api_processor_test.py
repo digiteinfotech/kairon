@@ -1191,14 +1191,14 @@ class TestAccountProcessor:
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.send_confirmation_link('integ3@gmail.com'))
         Utility.email_conf["email"]["enable"] = False
-        assert True
 
-    def test_send_confirmation_link_with_confirmed_id(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_send_confirmation_link_with_confirmed_id(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
+        UserEmailConfirmation(email='integ1@gmail.com').save()
         monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
-        loop = asyncio.new_event_loop()
-        with pytest.raises(Exception):
-            loop.run_until_complete(AccountProcessor.send_confirmation_link('integ1@gmail.com'))
+        with pytest.raises(AppException):
+            res =await AccountProcessor.send_confirmation_link('integ1@gmail.com')
         Utility.email_conf["email"]["enable"] = False
 
     def test_send_confirmation_link_with_invalid_id(self, monkeypatch):

@@ -25,17 +25,6 @@ from kairon.shared.data.data_objects import BotSettings, Slots, Rules, Responses
 class TestAgenticFlow:
     @classmethod
     def setup_class(cls):
-        os.environ["system_file"] = "./tests/testing_data/system.yaml"
-        Utility.load_environment()
-        Utility.load_system_metadata()
-        connect(**Utility.mongoengine_connection())
-        BotSettings.objects(user="test_user").delete()
-
-        a = Account.objects.create(name="test_account", user="test_user")
-        bot = Bot.objects.create(name="test_bot", user="test_user", status=True, account=a.id)
-        pytest.test_bot = str(bot.id)
-        pytest.test_user = 'test_user'
-        BotSettings(bot=pytest.test_bot, user="test_user").save()
 
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -279,9 +268,9 @@ class TestAgenticFlow:
 
     @classmethod
     def teardown_class(cls):
+        BotSettings.objects().delete()
         Bot.objects().delete()
         Account.objects().delete()
-        BotSettings.objects().delete()
         Slots.objects().delete()
         Rules.objects().delete()
         Responses.objects().delete()
@@ -452,6 +441,7 @@ class TestAgenticFlow:
         data =  collection.find({"tag": "agentic_flow"})
         data_entries = list(data)
 
+        pymongo_mock_client.close()
 
         assert len(data_entries) == 1
         assert data_entries[0]['data']
