@@ -14,23 +14,7 @@ from loguru import logger
 
 from kairon import Utility
 
-# ssm = boto3.client('ssm')
-# client = MongoClient(
-#     ssm.get_parameter(Name=os.getenv('DATABASE_URL'), WithDecryption=True).get('Parameter', {}).get('Value'))
-#
-# platform_db = client.get_database()
-# events_db = client.get_database(
-#     ssm.get_parameter(Name=os.getenv('EVENTS_DB_NAME'), WithDecryption=True).get('Parameter', {}).get('Value'))
-
-# os.environ['EVENTS_EXECUTOR_TYPE'] = 'aws_lambda'
-# os.environ['DATABASE_URL'] = 'uat_DATABASE_URL'
-# os.environ['EVENTS_DB_NAME'] = 'uat_EVENTS_DB_NAME'
-# os.environ['VECTOR_DB_URL'] = 'uat_VECTOR_DB_URL'
-# print(os.getenv('EVENTS_EXECUTOR_TYPE'))
-# print(os.getenv('DATABASE_URL'))
-
 database_url = Utility.environment["database"]["url"]
-# database_url = "mongodb://localhost:27017/conversations"
 client = MongoClient(database_url)
 platform_db = client.get_database()
 events_db_name = Utility.environment["events"]["queue"]["name"]
@@ -41,18 +25,6 @@ job_store_name = events_db.get_collection(scheduler_collection)
 callback = platform_db.get_collection("callback_config")
 event_server = Utility.environment["events"]["server_url"]
 
-
-
-
-# client = MongoClient("mongodb://localhost:27017/")
-# platform_db = client.get_database("conversations")
-# print(platform_db)
-# events_db = client.get_database("kairon_events")
-# print(events_db)
-#
-# job_store_name = events_db.get_collection(os.getenv('EVENT_SCHEDULER_COLLECTION', 'kscheduler'))
-# callback = platform_db.get_collection(os.getenv("CALLBACK_CONFIG", "callback_config"))
-# event_server = os.getenv('EVENT_SERVER_ENDPOINT')
 
 __executors = {
     "aws_lambda": "kairon.events.executors.lamda:LambdaExecutor.execute_task",
