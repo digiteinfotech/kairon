@@ -1,3 +1,5 @@
+from functools import partial
+
 from types import ModuleType
 from typing import Text, Dict, Callable
 
