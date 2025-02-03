@@ -1,9 +1,8 @@
 import os
-import textwrap
 
 import pytest
 from unittest.mock import patch, AsyncMock
-from mongoengine import connect, disconnect
+from mongoengine import connect
 from blacksheep.contents import JSONContent
 
 from kairon import Utility
@@ -11,10 +10,14 @@ from fastapi.testclient import TestClient
 from blacksheep.testing import TestClient
 from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, encrypt_secret
 
+from kairon.async_callback.main import app
+
+from kairon.async_callback.router.pyscript_callback import process_router_message
+from kairon.exceptions import AppException
+
 
 @pytest.fixture(autouse=True, scope='class')
 def setup():
-    disconnect(alias="default")
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_environment()
     connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
@@ -177,23 +180,8 @@ def setup():
     CallbackConfig.objects.insert(CallbackConfig(**callback_config_6))
 
 
-from kairon.async_callback.main import app
-
-from kairon.async_callback.router.pyscript_callback import process_router_message
-from kairon.exceptions import AppException
-import pytest_asyncio
-
-
-@pytest_asyncio.fixture(scope="session")
-async def client():
-    await app.start()
-    test_client = TestClient(app)
-    yield test_client
-    await app.stop()
-
-
 @pytest.mark.asyncio
-async def test_index(client):
+async def test_index():
     await app.start()
     client = TestClient(app)
     response = await client.get("/")
@@ -206,7 +194,9 @@ async def test_index(client):
 
 
 @pytest.mark.asyncio
-async def test_healthcheck(client):
+async def test_healthcheck():
+    await app.start()
+    client = TestClient(app)
     response = await client.get("/healthcheck")
 
     json_response = await response.json()
@@ -219,7 +209,9 @@ async def test_healthcheck(client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_get_callback(mock_dispatch_message, client):
+async def test_get_callback(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     response = await client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
     assert response.status == 200
     json_response = await response.json()
@@ -234,7 +226,9 @@ async def test_get_callback(mock_dispatch_message, client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_post_callback(mock_dispatch_message, client):
+async def test_post_callback(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'key_1' : 'value_1'
     }
@@ -255,7 +249,9 @@ async def test_post_callback(mock_dispatch_message, client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_post_callback_req_body_non_json(mock_dispatch_message, client):
+async def test_post_callback_req_body_non_json(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = "key_1=value_1"
     response = await client.post('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==',
                                  content=JSONContent(req_body))
@@ -273,7 +269,9 @@ async def test_post_callback_req_body_non_json(mock_dispatch_message, client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_put_callback(mock_dispatch_message, client):
+async def test_put_callback(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     response = await client.put('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
 
     json_response = await response.json()
@@ -288,7 +286,9 @@ async def test_put_callback(mock_dispatch_message, client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_patch_callback(mock_dispatch_message, client):
+async def test_patch_callback(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     response = await client.patch('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
 
     json_response = await response.json()
@@ -303,7 +303,9 @@ async def test_patch_callback(mock_dispatch_message, client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_delete_callback(mock_dispatch_message, client):
+async def test_delete_callback(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     response = await client.delete('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
 
     json_response = await response.json()
@@ -325,7 +327,9 @@ async def test_invalid_request():
 @pytest.mark.asyncio
 @patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript_async", new_callable=AsyncMock)
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async, client):
+async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async):
+    await app.start()
+    client = TestClient(app)
     response = await client.get('/callback/d/01916fefd1897634ad82274af4a7ecde/gAAAAABmxJeByymLTcvGh3ZcnUVSeh6hZrEV2EAVfBmMm1X5lDgjaSSp4E6h9LiqBE34uRgriOLU2ZRkBoKkg7w_pbq6cQ6OC_afnHagr99xNyBfnvzfXMujGCVNnNSGnPnlVYlN_TBK66QoaDVt1o6Mp4b1kJYyBE1I-Avq69Mj-5IRA2D0KP2r80kTWGWIGzbGVwPlWtsqTQtGj-gLl_O9eKJ0s5i-XlZC5Ge0B2P-EUsXqAA_G2tlDMOjpk0g9ppUiRXt4KYiW2ZQ6MdrJTJDY2ohydYnLw==')
 
     json_response = await response.json()
@@ -342,7 +346,9 @@ async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async, cl
 @pytest.mark.asyncio
 @patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript")
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript, client):
+async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
+    await app.start()
+    client = TestClient(app)
     mock_run_pyscript.side_effect = AppException("Error")
     response = await client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
 
@@ -360,7 +366,9 @@ async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript, client
 @pytest.mark.asyncio
 @patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript")
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_dispatch_message_failure(mock_dispatch_message, mock_run_pyscript, client):
+async def test_dispatch_message_failure(mock_dispatch_message, mock_run_pyscript):
+    await app.start()
+    client = TestClient(app)
     mock_dispatch_message.side_effect = AppException("Error")
     response = await client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
 
@@ -373,7 +381,9 @@ async def test_dispatch_message_failure(mock_dispatch_message, mock_run_pyscript
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_get_callback_url_shorten(mock_dispatch_message, client):
+async def test_get_callback_url_shorten(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     response = await client.get('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg')
 
     json_response = await response.json()
@@ -387,7 +397,9 @@ async def test_get_callback_url_shorten(mock_dispatch_message, client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_post_callback_url_shorten(mock_dispatch_message, client):
+async def test_post_callback_url_shorten(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'key_1': 'value_1'
     }
@@ -405,7 +417,9 @@ async def test_post_callback_url_shorten(mock_dispatch_message, client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_put_callback_url_shorten(mock_dispatch_message, client):
+async def test_put_callback_url_shorten(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'key_1': 'value_1'
     }
@@ -425,7 +439,9 @@ async def test_put_callback_url_shorten(mock_dispatch_message, client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_post_callback_standalone(mock_dispatch_message, client):
+async def test_post_callback_standalone(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '0191702183ca7ac6b75be9cd645c6437'
@@ -447,7 +463,9 @@ async def test_post_callback_standalone(mock_dispatch_message, client):
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_post_callback_standalone_identifier_path_not_present(mock_dispatch_message, client):
+async def test_post_callback_standalone_identifier_path_not_present(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'idea': '0191702183ca7ac6b75be9cd645c6437'
@@ -468,7 +486,9 @@ async def test_post_callback_standalone_identifier_path_not_present(mock_dispatc
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_post_callback_standalone_wrong_identifier(mock_dispatch_message, client):
+async def test_post_callback_standalone_wrong_identifier(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '0191702183ca7ac6b75be9cd645c6438'
@@ -488,7 +508,9 @@ async def test_post_callback_standalone_wrong_identifier(mock_dispatch_message, 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_post_callback_standalone_url_shorten(mock_dispatch_message, client):
+async def test_post_callback_standalone_url_shorten(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '01917036016877eb8ffb3930e40f6162'
@@ -507,7 +529,9 @@ async def test_post_callback_standalone_url_shorten(mock_dispatch_message, clien
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_post_callback_standalone_url_shorten_wrong_url(mock_dispatch_message, client):
+async def test_post_callback_standalone_url_shorten_wrong_url(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '01917036016877eb8ffb3930e40f6162'
@@ -527,7 +551,9 @@ async def test_post_callback_standalone_url_shorten_wrong_url(mock_dispatch_mess
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
-async def test_post_callback_statechange(mock_dispatch_message, client):
+async def test_post_callback_statechange(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '01917036016877eb8ffb3930e40f6162'
