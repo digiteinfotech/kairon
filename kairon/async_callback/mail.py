@@ -3,14 +3,12 @@ from email.mime.multipart import MIMEMultipart
 
 from email.mime.text import MIMEText
 from typing import Text, List
-import boto3
 from pymongo import MongoClient
-import os
 from smtplib import SMTP
 
 from kairon import Utility
 
-ssm = boto3.client('ssm')
+# ssm = boto3.client('ssm')
 # client = MongoClient(
 #     ssm.get_parameter(Name=os.getenv('DATABASE_URL'), WithDecryption=True).get('Parameter', {}).get('Value'))
 # platform_db = client.get_database()
