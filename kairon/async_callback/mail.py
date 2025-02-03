@@ -8,20 +8,12 @@ from smtplib import SMTP
 
 from kairon import Utility
 
-# ssm = boto3.client('ssm')
-# client = MongoClient(
-#     ssm.get_parameter(Name=os.getenv('DATABASE_URL'), WithDecryption=True).get('Parameter', {}).get('Value'))
-# platform_db = client.get_database()
-
 database_url = Utility.environment["database"]["url"]
-# database_url = "mongodb://localhost:27017/conversations"
 client = MongoClient(database_url)
 platform_db = client.get_database()
 
-# client = MongoClient("mongodb://localhost:27017/")
-# platform_db = client.get_database("conversations")
-
 email_config = platform_db.get_collection("email_action_config")
+
 
 def send_email(email_action: Text,
                from_email: Text,
@@ -47,6 +39,7 @@ def send_email(email_action: Text,
                   smtp_userid=smtp_userid,
                   tls=action_config['tls']
                   )
+
 
 def trigger_email(
         email: List[str],

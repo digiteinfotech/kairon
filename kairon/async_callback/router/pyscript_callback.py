@@ -48,7 +48,6 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         data, message, error_code = await CallbackProcessor.process_async_callback_request(
             token, identifier, data, request_source
         )
-        # return Response(message=message, data=data, error_code=error_code, success=error_code == 0)
 
         return BSResponse(
             status=200,
@@ -61,7 +60,6 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         )
     except AppException as ae:
         logger.error(f"AppException: {ae}")
-        # return Response(message=str(ae), error_code=400, success=False)
         return BSResponse(
             status=400,
             content=JSONContent({
@@ -73,7 +71,6 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         )
     except Exception as e:
         logger.exception(e)
-        # return Response(message=str(e), error_code=400, success=False)
         return BSResponse(
             status=500,
             content=JSONContent({
