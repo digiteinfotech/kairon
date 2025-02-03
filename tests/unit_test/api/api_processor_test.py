@@ -15,7 +15,7 @@ import pytest
 import responses
 from fastapi import HTTPException
 from fastapi_sso.sso.base import OpenID
-from mongoengine import connect
+from mongoengine import connect, disconnect
 from mongoengine.errors import ValidationError, DoesNotExist
 from mongomock.object_id import ObjectId
 from pydantic import SecretStr
@@ -57,6 +57,10 @@ class TestAccountProcessor:
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         AccountProcessor.load_system_properties()
+
+    @pytest.fixture(autouse=True, scope='class')
+    def disconnect_connection(self):
+        disconnect()
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
