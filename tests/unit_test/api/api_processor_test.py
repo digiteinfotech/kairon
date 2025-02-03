@@ -58,6 +58,11 @@ class TestAccountProcessor:
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         AccountProcessor.load_system_properties()
 
+    @pytest.fixture(scope='function')
+    def delete_default_account(self):
+        User.objects(email="test@demo.in").delete()
+        Account.objects(name="DemoAccount", user="test@demo.in").delete()
+
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
         account = AccountProcessor.get_account(account_response["_id"])
@@ -1001,7 +1006,7 @@ class TestAccountProcessor:
         assert actual["first_name"]
         assert len(list(AccountProcessor.list_bots(actual['account']))) == 0
 
-    def test_default_account_setup(self):
+    def test_default_account_setup(self, delete_default_account):
         loop = asyncio.new_event_loop()
         actual, mail, link = loop.run_until_complete(AccountProcessor.default_account_setup())
         assert actual
