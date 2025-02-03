@@ -5,7 +5,7 @@ import os
 from typing import Dict, Text
 from datetime import datetime
 from uuid6 import uuid7
-from pickle import dumps, HIGHEST_PROTOCOL
+import pickle
 from calendar import timegm
 from bson import Binary
 from tzlocal import get_localzone
@@ -104,7 +104,7 @@ def add_schedule_job(schedule_action: Text, date_time: datetime, data: Dict, tim
     job_store_name.insert_one({
         '_id': _id,
         'next_run_time': datetime_to_utc_timestamp(next_run_time),
-        'job_state': Binary(dumps(job_kwargs, HIGHEST_PROTOCOL))
+        'job_state': Binary(pickle.dumps(job_kwargs, pickle.HIGHEST_PROTOCOL))
     })
 
     response = requests.get(f"{event_server}/api/events/dispatch/{_id}")
