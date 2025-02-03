@@ -128,3 +128,4 @@ def delete_schedule_job(event_id: Text, bot: Text):
         raise Exception(response.text)
     else:
         logger.info(response.json())
+
