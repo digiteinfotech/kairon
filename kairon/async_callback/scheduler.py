@@ -2,7 +2,6 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import astimezone
 from pymongo import MongoClient
 import os
-import boto3
 from typing import Dict, Text
 from datetime import datetime
 from uuid6 import uuid7
@@ -15,7 +14,7 @@ from loguru import logger
 
 from kairon import Utility
 
-ssm = boto3.client('ssm')
+# ssm = boto3.client('ssm')
 # client = MongoClient(
 #     ssm.get_parameter(Name=os.getenv('DATABASE_URL'), WithDecryption=True).get('Parameter', {}).get('Value'))
 #
@@ -27,8 +26,8 @@ ssm = boto3.client('ssm')
 # os.environ['DATABASE_URL'] = 'uat_DATABASE_URL'
 # os.environ['EVENTS_DB_NAME'] = 'uat_EVENTS_DB_NAME'
 # os.environ['VECTOR_DB_URL'] = 'uat_VECTOR_DB_URL'
-print(os.getenv('EVENTS_EXECUTOR_TYPE'))
-print(os.getenv('DATABASE_URL'))
+# print(os.getenv('EVENTS_EXECUTOR_TYPE'))
+# print(os.getenv('DATABASE_URL'))
 
 database_url = Utility.environment["database"]["url"]
 # database_url = "mongodb://localhost:27017/conversations"
