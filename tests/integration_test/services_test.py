@@ -29518,7 +29518,17 @@ def test_delete_account(mock_password_reset):
     )
     actual = response_log.json()
     UserEmailConfirmation(email="integration@demo.ai").save()
-
+    UserActivityLog(
+        type="user_consent",
+        user="integration@demo.ai",
+        message=['Privacy Policy, Terms and Conditions consent'],
+        data={
+            "username": "integration@demo.ai",
+            "accepted_privacy_policy": True,
+            "accepted_terms": True,
+            "terms_and_policy_version": 1.0
+        }
+    ).save()
     assert actual["success"]
     assert actual["error_code"] == 0
     pytest.access_token_delete = actual["data"]["access_token"]
@@ -29533,6 +29543,7 @@ def test_delete_account(mock_password_reset):
     assert response["message"] == "Account deleted"
     assert response["error_code"] == 0
     assert UserEmailConfirmation.objects(email="integration@demo.ai").count() == 0
+    assert UserActivityLog.objects(user="integration@demo.ai", type='user_consent').count() == 0
 
 
 def test_delete_account_already_deleted():
