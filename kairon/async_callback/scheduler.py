@@ -13,6 +13,8 @@ import requests
 from loguru import logger
 
 from kairon import Utility
+from kairon.shared.callback.data_objects import CallbackConfig
+
 
 database_url = Utility.environment["database"]["url"]
 client = MongoClient(database_url)
