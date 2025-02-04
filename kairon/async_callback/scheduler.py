@@ -51,6 +51,7 @@ def datetime_to_utc_timestamp(timeval):
 
 def add_schedule_job(schedule_action: Text, date_time: datetime, data: Dict, timezone: Text, _id: Text = None,
                      bot: Text = None, kwargs=None):
+
     if not bot:
         raise Exception("Missing bot id")
 
@@ -65,7 +66,8 @@ def add_schedule_job(schedule_action: Text, date_time: datetime, data: Dict, tim
     data['bot'] = bot
     data['event'] = _id
 
-    callback_config = callback.find_one({"bot": bot, 'name': schedule_action})
+    callback_action_config = CallbackConfig.objects(bot=bot, name=schedule_action).first()
+    callback_config = callback_action_config.to_mongo().to_dict()
 
     script = callback_config['pyscript_code']
 
