@@ -15,60 +15,6 @@ connect(**Utility.mongoengine_connection(Utility.environment['database']["url"])
 from kairon.async_callback.lambda_function import lambda_handler
 
 
-@pytest.fixture(scope="function")
-def email_config():
-    from pymongo import MongoClient
-
-    client = MongoClient("mongodb://localhost/test")
-    platform_db = client.get_database()
-
-    email_config = platform_db.get_collection("email_action_config")
-
-    email_config.insert_one({
-        "action_name": "email_action",
-        "smtp_url": "smtp.gmail.com",
-        "smtp_port": 293,
-        "smtp_password": {"value": "test"},
-        "smtp_userid": {"value": "abcsdsldksl"},
-        "from_email": {"value": "testadmin@test.com", "parameter_type": "value"},
-        "subject": "test",
-        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
-        "response": "Email Triggered",
-        "tls": True,
-        "bot": "test_bot",
-        "user": "test_user"
-    })
-    return email_config
-
-
-@pytest.fixture(scope="function")
-def callback_config():
-    from pymongo import MongoClient
-    from kairon.shared.callback.data_objects import encrypt_secret
-
-    client = MongoClient("mongodb://localhost/test")
-    platform_db = client.get_database()
-
-    callback_config = platform_db.get_collection("callback_config")
-
-    callback_action_config = {
-        "name": "mng2",
-        "pyscript_code": "state += 1\nbot_response = f'state -> {state}'",
-        "validation_secret": encrypt_secret("0191703078f779199d90c1a91fe9839f"),
-        "execution_mode": "sync",
-        "expire_in": 0,
-        "shorten_token": True,
-        "token_hash": "0191703078f87a039906afc0a219dd5c",
-        "standalone": True,
-        "standalone_id_path": "data.id",
-        "bot": "test_bot",
-        "token_value": "gAAAAABmxKl5tT0UKwkqYi2n9yV1lFAAJKsZEM0G9w7kmN8NIYR9JKF1F9ecZoUY6P9kClUC_QnLXXGLa3T4Xugdry84ioaDtGF9laXcQl_82Fvs9KmKX8xfa4-rJs1cto1Jd6fqeGIT7mR3kn56_EliP83aGoCl_sk9B0-2gPDgt-EJZQ20l-3OaT-rhFoFanjKvRiE8e4xp9sdxxjgDWLbCF3kCtTqTtg6Wovw3mXZoVzxzNEUmd2OGZiO6IsIJJaU202w3CZ2rPnmK8I2aRGg8tMi_-ObOg=="
-    }
-    callback_config.insert_one(callback_action_config)
-    return callback_config
-
-
-
 def test_lambda_handler_with_simple_pyscript():
     source_code = '''
     from datetime import datetime, timedelta
@@ -314,7 +260,23 @@ def test_lambda_handler_with_response_in_event_data():
 
 
 @patch("kairon.async_callback.mail.SMTP", autospec=True)
-def test_lambda_handler_for_send_email(mock_smtp, email_config):
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_lambda_handler_for_send_email(mock_utils_smtp, mock_smtp):
+    from kairon.shared.actions.data_objects import EmailActionConfig
+    EmailActionConfig(
+        action_name="email_action",
+        smtp_url="smtp.gmail.com",
+        smtp_port=293,
+        smtp_password={"value": "test"},
+        smtp_userid={"value": "abcsdsldksl"},
+        from_email={"value": "testadmin@test.com", "parameter_type": "value"},
+        subject="test",
+        to_email={"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+        response="Email Triggered",
+        tls=True,
+        bot="test_bot",
+        user="test_user"
+    ).save()
     source_code = '''
     send_email("email_action",    #email action name should be same as email action
            "hghuge@digite.com",          # from email
@@ -349,11 +311,10 @@ def test_lambda_handler_for_send_email(mock_smtp, email_config):
             'bot_response': 'Email sent successfully!'
         }
     }
-    email_config.delete_many({"bot": "test_bot", "action_name": "email_action"})
 
 
 @patch("kairon.async_callback.mail.SMTP", autospec=True)
-def test_lambda_handler_for_send_email_without_bot(mock_smtp, email_config):
+def test_lambda_handler_for_send_email_without_bot(mock_smtp):
     source_code = '''
     send_email("email_action",    #email action name should be same as email action
            "hghuge@digite.com",          # from email
@@ -381,13 +342,28 @@ def test_lambda_handler_for_send_email_without_bot(mock_smtp, email_config):
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
         'body': 'Missing bot id'
     }
-    email_config.delete_many({"bot": "test_bot", "action_name": "email_action"})
 
 
 @responses.activate
 @patch("kairon.async_callback.scheduler.uuid7")
-def test_lambda_handler_with_add_schedule_job(mock_uuid7, callback_config):
+def test_lambda_handler_with_add_schedule_job(mock_uuid7):
+    from kairon.shared.callback.data_objects import CallbackConfig
+    from kairon.shared.callback.data_objects import encrypt_secret
     from uuid6 import uuid7
+
+    CallbackConfig(
+        name="mng2",
+        pyscript_code="state += 1\nbot_response = f'state -> {state}'",
+        validation_secret=encrypt_secret("0191703078f779199d90c1a91fe9839f"),
+        execution_mode="sync",
+        expire_in=0,
+        shorten_token=True,
+        token_hash="0191703078f87a039906afc0a219dd5c",
+        standalone=True,
+        standalone_id_path="data.id",
+        bot="test_bot",
+        token_value="gAAAAABmxKl5tT0UKwkqYi2n9yV1lFAAJKsZEM0G9w7kmN8NIYR9JKF1F9ecZoUY6P9kClUC_QnLXXGLa3T4Xugdry84ioaDtGF9laXcQl_82Fvs9KmKX8xfa4-rJs1cto1Jd6fqeGIT7mR3kn56_EliP83aGoCl_sk9B0-2gPDgt-EJZQ20l-3OaT-rhFoFanjKvRiE8e4xp9sdxxjgDWLbCF3kCtTqTtg6Wovw3mXZoVzxzNEUmd2OGZiO6IsIJJaU202w3CZ2rPnmK8I2aRGg8tMi_-ObOg=="
+    ).save()
 
     test_generate_id = uuid7()
     mock_uuid7.return_value = test_generate_id
@@ -457,12 +433,11 @@ def test_lambda_handler_with_add_schedule_job(mock_uuid7, callback_config):
             'id': pytest.test_generate_id
         }
     }
-    callback_config.delete_many({"bot": "test_bot", "name": "mng2"})
 
 
 @responses.activate
 @patch("kairon.async_callback.scheduler.uuid7")
-def test_lambda_handler_with_add_schedule_job_without_bot(mock_uuid7, callback_config):
+def test_lambda_handler_with_add_schedule_job_without_bot(mock_uuid7):
     from uuid6 import uuid7
 
     test_generate_id = uuid7()
