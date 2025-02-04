@@ -24,7 +24,8 @@ def send_email(email_action: Text,
     if not bot:
         raise Exception("Missing bot id")
 
-    action_config = email_config.find_one({"bot": bot, 'action_name': email_action})
+    email_action_config = EmailActionConfig.objects(bot=bot, action_name=email_action).first()
+    action_config = email_action_config.to_mongo().to_dict()
 
     smtp_password = action_config.get('smtp_password').get("value")
     smtp_userid = action_config.get('smtp_userid').get("value")
