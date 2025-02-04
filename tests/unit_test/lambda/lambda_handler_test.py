@@ -19,8 +19,7 @@ from kairon.async_callback.lambda_function import lambda_handler
 def email_config():
     from pymongo import MongoClient
 
-    database_url = Utility.environment["database"]["url"]
-    client = MongoClient(database_url)
+    client = MongoClient("mongodb://localhost/test")
     platform_db = client.get_database()
 
     email_config = platform_db.get_collection("email_action_config")
@@ -47,8 +46,7 @@ def callback_config():
     from pymongo import MongoClient
     from kairon.shared.callback.data_objects import encrypt_secret
 
-    database_url = Utility.environment["database"]["url"]
-    client = MongoClient(database_url)
+    client = MongoClient("mongodb://localhost/test")
     platform_db = client.get_database()
 
     callback_config = platform_db.get_collection("callback_config")
