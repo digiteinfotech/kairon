@@ -7,6 +7,8 @@ from pymongo import MongoClient
 from smtplib import SMTP
 
 from kairon import Utility
+from kairon.shared.actions.data_objects import EmailActionConfig
+
 
 database_url = Utility.environment["database"]["url"]
 client = MongoClient(database_url)
