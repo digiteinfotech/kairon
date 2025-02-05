@@ -6,7 +6,7 @@ from pydantic import BaseModel, root_validator, validator
 from kairon.shared.chat.broadcast.constants import MessageBroadcastType
 from kairon.shared.utils import Utility
 
-from typing import List, Text, Dict
+from typing import List, Text, Dict, Any
 from kairon.exceptions import AppException
 
 
@@ -117,3 +117,15 @@ class ChatRequest(BaseModel):
         if Utility.check_empty_string(v):
             raise ValueError("data cannot be empty!")
         return v
+
+class AgenticFlowRequest(BaseModel):
+    name: str
+    slot_vals: Dict[str, Any] = None
+    sender_id: str = None
+
+    @validator("name")
+    def validate_name(cls, v, values, **kwargs):
+        if Utility.check_empty_string(v):
+            raise ValueError("name cannot be empty!")
+        return v
+
