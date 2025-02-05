@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 import responses
+from deepdiff import DeepDiff
 from mongoengine import connect
 
 from kairon import Utility
@@ -345,8 +346,9 @@ def test_lambda_handler_for_send_email_without_bot(mock_smtp):
 
 
 @responses.activate
+@patch("pymongo.collection.Collection.insert_one", autospec=True)
 @patch("kairon.async_callback.scheduler.uuid7")
-def test_lambda_handler_with_add_schedule_job(mock_uuid7):
+def test_lambda_handler_with_add_schedule_job(mock_uuid7, mock_add_job):
     from kairon.shared.callback.data_objects import CallbackConfig
     from kairon.shared.callback.data_objects import encrypt_secret
     from uuid6 import uuid7
@@ -402,7 +404,7 @@ def test_lambda_handler_with_add_schedule_job(mock_uuid7):
     id = generate_id()
 
     # Function to add the scheduled job (with the adjusted trigger time)
-    add_schedule_job('mng2', trigger_time1, {'user_rajan': 'test rajan sep 12'}, 'UTC', id)
+    add_schedule_job('mng2', trigger_time1, {'user': 'test user sep 12'}, 'UTC', id)
     bot_response = "scheduled successfully!"
     '''
     source_code = textwrap.dedent(source_code)
@@ -433,6 +435,20 @@ def test_lambda_handler_with_add_schedule_job(mock_uuid7):
             'id': pytest.test_generate_id
         }
     }
+    args, kwargs = mock_add_job.call_args
+    print(args, kwargs)
+    assert args[1]['_id']
+    assert args[1]['next_run_time']
+    assert args[1]['job_state']
+    import pickle
+    job_state = pickle.loads(args[1]['job_state'])
+    print(job_state)
+    assert job_state['args'][1] == 'scheduler_evaluator'
+    assert not DeepDiff(list(job_state['args'][2]['predefined_objects'].keys()), ['user', 'bot', 'event'],
+                        ignore_order=True)
+    assert job_state['args'][2]['predefined_objects']['bot'] == 'test_bot'
+    assert job_state['args'][2]['predefined_objects']['user'] == 'test user sep 12'
+    assert 'event' in job_state['args'][2]['predefined_objects']
 
 
 @responses.activate
