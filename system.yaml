@@ -174,7 +174,7 @@ multilingual:
 
 tracker:
   type: ${TRACKER_TYPE:"static"}
-  url: ${TRACKER_URL:"mongodb://localhost:27017/rasa"}
+  url: ${TRACKER_URL:"mongodb://localhost:27017/test_conversations"}
   collection: ${TRACKER_COLLECTION:"conversations"}
   authentication:
     token: ${AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}

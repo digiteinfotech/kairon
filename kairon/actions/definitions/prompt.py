@@ -73,7 +73,7 @@ class ActionPrompt(ActionsBase):
             model_to_check = llm_params['hyperparameters'].get('model')
             Sysadmin.check_llm_model_exists(model_to_check, llm_type, self.bot)
             llm_response, time_taken_llm_response = await llm_processor.predict(user_msg,
-                                                                                user=tracker.sender_id,
+                                                                                user= tracker.sender_id,
                                                                                 invocation='prompt_action',
                                                                                 llm_type=llm_type,
                                                                                 **llm_params)

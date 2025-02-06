@@ -10,6 +10,7 @@ from urllib.parse import urlencode, quote_plus
 
 from rasa.utils.endpoints import EndpointConfig
 
+import kairon.shared.chat.agent.agent_flow
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -22,7 +23,7 @@ from kairon.shared.live_agent.live_agent import LiveAgentHandler
 
 import pytest
 import responses
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, AsyncMock
 from mongoengine import connect
 from slack_sdk.web.slack_response import SlackResponse
 from starlette.exceptions import HTTPException
@@ -4054,3 +4055,21 @@ async def test_chat_with_action(mock_action):
             assert event['text'] == response_text
             assert event['metadata']['utter_action'] == 'google_search_action'
             break
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.__init__", return_value=None)
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule", new_callable=AsyncMock)
+async def test_agentic_flow_api_call(mock_exec_rule, mock_init):
+    mock_exec_rule.return_value = [{'text': 'Hi'}], []
+    response = client.post(
+        f"/api/bot/{bot}/exec/flow",
+        headers={"Authorization": token_type + " " + token},
+        json={"name": "test_flow"},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["message"] == "Rule executed successfully!"
+    assert actual["data"]["responses"] == [{'text': 'Hi'}]
