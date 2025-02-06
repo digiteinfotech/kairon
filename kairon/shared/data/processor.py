@@ -2528,7 +2528,7 @@ class MongoProcessor:
         if Utility.check_empty_string(text):
             raise AppException("Intent Name cannot be empty or blank spaces")
 
-        if Utility.special_match(text):
+        if text and Utility.special_match(text):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_exist(
@@ -4190,7 +4190,7 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
-        if Utility.special_match(http_action_config.get("action_name")):
+        if http_action_config.get("action_name") and Utility.special_match(http_action_config.get("action_name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(
@@ -4292,7 +4292,7 @@ class MongoProcessor:
         :param bot: bot id
         :return: Pyscript configuration id for saved Pyscript action config
         """
-        if Utility.special_match(pyscript_config.get("name")):
+        if pyscript_config.get("name") and Utility.special_match(pyscript_config.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(
@@ -4418,7 +4418,7 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
-        if Utility.special_match(vector_db_action_config.get("name")):
+        if vector_db_action_config.get("name") and Utility.special_match(vector_db_action_config.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         self.__validate_payload(vector_db_action_config.get("payload"), bot)
@@ -4567,7 +4567,7 @@ class MongoProcessor:
         :param user: user id
         :return: doc id
         """
-        if Utility.special_match(action_config.get("name")):
+        if action_config.get("name") and Utility.special_match(action_config.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(action_config.get("name"), bot, GoogleSearchAction)
@@ -4759,7 +4759,7 @@ class MongoProcessor:
         if Utility.check_empty_string(slot_value.get("name")):
             raise AppException("Slot Name cannot be empty or blank spaces")
 
-        if Utility.special_match(slot_value.get("name")):
+        if slot_value.get("name") and Utility.special_match(slot_value.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         if slot_value.get("type") not in [item for item in SLOT_TYPE]:
@@ -5612,7 +5612,7 @@ class MongoProcessor:
         :param bot: bot Id
         :param user: user Id
         """
-        if Utility.special_match(synonym_name):
+        if not Utility.check_empty_string(synonym_name) and Utility.special_match(synonym_name):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_exist(
@@ -5799,7 +5799,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Name cannot be empty")
 
-        if Utility.special_match(name):
+        if name and Utility.special_match(name):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         try:
@@ -6135,7 +6135,7 @@ class MongoProcessor:
         ) or Utility.check_empty_string(regex_dict.get("pattern")):
             raise AppException("Regex name and pattern cannot be empty or blank spaces")
 
-        if Utility.special_match(regex_dict.get("name")):
+        if regex_dict.get("name") and Utility.special_match(regex_dict.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         try:
@@ -6192,7 +6192,7 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user id
         """
-        if Utility.special_match(lookup_name):
+        if not Utility.check_empty_string(lookup_name) and Utility.special_match(lookup_name):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_exist(
@@ -6218,6 +6218,9 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user id
         """
+        if not Utility.check_empty_string(lookup_name) and Utility.special_match(lookup_name):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+
         lookup_exist = Utility.is_exist(
             Lookup, raise_error=False, name__iexact=lookup_name, bot=bot, status=True
         )
@@ -6775,7 +6778,7 @@ class MongoProcessor:
         set_slots = []
         if Utility.check_empty_string(action.get("name")):
             raise AppException("name cannot be empty or spaces")
-        if Utility.special_match(action.get("name")):
+        if action.get("name") and Utility.special_match(action.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(action.get("name"), bot, SlotSetAction)
@@ -6957,7 +6960,7 @@ class MongoProcessor:
         """
         action["bot"] = bot
         action["user"] = user
-        if Utility.special_match(action.get("action_name")):
+        if action.get("action_name") and Utility.special_match(action.get("action_name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(action.get("action_name"), bot, EmailActionConfig)
@@ -7044,7 +7047,7 @@ class MongoProcessor:
         """
         action["bot"] = bot
         action["user"] = user
-        if Utility.special_match(action.get("name")):
+        if action.get("name") and Utility.special_match(action.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(action.get("name"), bot, JiraAction)
@@ -7123,7 +7126,7 @@ class MongoProcessor:
         """
         action["bot"] = bot
         action["user"] = user
-        if Utility.special_match(action.get("name")):
+        if action.get("name") and Utility.special_match(action.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(action.get("name"), bot, ZendeskAction)
@@ -7193,7 +7196,7 @@ class MongoProcessor:
         """
         action["bot"] = bot
         action["user"] = user
-        if Utility.special_match(action.get("name")):
+        if action.get("name") and Utility.special_match(action.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(action.get("name"), bot, PipedriveLeadsAction)
@@ -7265,7 +7268,7 @@ class MongoProcessor:
         """
         action["bot"] = bot
         action["user"] = user
-        if Utility.special_match(action.get("name")):
+        if action.get("name") and Utility.special_match(action.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(action.get("name"), bot, HubspotFormsAction)
@@ -7701,14 +7704,14 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user
         """
-        if Utility.special_match(request_data.get("name")):
-            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
-
         bot_settings = self.get_bot_settings(bot=bot, user=user)
         if not bot_settings["llm_settings"]["enable_faq"]:
             raise AppException(
                 "Faq feature is disabled for the bot! Please contact support."
             )
+
+        if request_data.get("name") and Utility.special_match(request_data.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         self.__validate_llm_prompts(request_data.get("llm_prompts", []), bot)
         Utility.is_valid_action_name(request_data.get("name"), bot, PromptAction)
@@ -8008,6 +8011,7 @@ class MongoProcessor:
             yield qna
 
     def save_faq(self, bot: Text, user: Text, df: DataFrame):
+        import re
         from kairon.shared.augmentation.utils import AugmentationUtils
 
         error_summary = {"intents": [], "utterances": [], "training_examples": []}
@@ -8030,6 +8034,7 @@ class MongoProcessor:
             else:
                 key_tokens = row["questions"].split("\n")[0]
             intent = key_tokens.replace(" ", "_") + "_" + str(index)
+            intent = re.sub(r"[^a-zA-Z0-9_]", "_", intent) if Utility.special_match(intent) else intent
             examples = row["questions"].split("\n")
             component_count["training_examples"] = component_count[
                                                        "training_examples"
@@ -8143,7 +8148,7 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user
         """
-        if Utility.special_match(request_data.get("name")):
+        if request_data.get("name") and Utility.special_match(request_data.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_exist(
@@ -8384,7 +8389,7 @@ class MongoProcessor:
         request_data["metadata_list"] = metadata_list
         request_data['status'] = True
 
-        if Utility.special_match(request_data.get("name")):
+        if request_data.get("name") and Utility.special_match(request_data.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_exist(
@@ -8499,7 +8504,7 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user
         """
-        if Utility.special_match(request_data.get("name")):
+        if request_data.get("name") and Utility.special_match(request_data.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_exist(

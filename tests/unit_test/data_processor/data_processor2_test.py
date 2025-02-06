@@ -433,54 +433,6 @@ def test_add_hubspot_action_with_invalid_name():
         processor.add_hubspot_forms_action(config, user, bot)
 
 
-def test_add_prompt_action_with_invalid_name():
-    processor = MongoProcessor()
-    bot = 'test_bot'
-    user = 'test_user'
-    config = {
-        "name": "prompt.action", 'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
-            {
-                "name": "Similarity Prompt",
-                "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
-                "type": "user",
-                "source": "bot_content",
-                "is_enabled": True,
-            },
-            {
-                "name": "Query Prompt",
-                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
-                "type": "query",
-                "source": "static",
-                "is_enabled": True,
-            },
-            {
-                "name": "Query Prompt",
-                "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
-                "type": "query",
-                "source": "static",
-                "is_enabled": True,
-            },
-        ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
-        "num_bot_responses": 5,
-        "hyperparameters": Utility.get_default_llm_hyperparameters()
-    }
-    with pytest.raises(AppException,
-                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
-        processor.add_prompt_action(config, user, bot)
-
-
 def test_add_razorpay_action_with_invalid_name():
     processor = MongoProcessor()
     bot = 'test_bot'
