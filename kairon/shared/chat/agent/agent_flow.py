@@ -26,9 +26,9 @@ class AgenticFlow:
             'constructor': TextSlot,
             'args': ['name', 'initial_value', 'value_reset_delay', 'influence_conversation', 'mappings']
         },
-        "boolean": {
+        "bool": {
             'constructor': BooleanSlot,
-            'args': ['name', 'initial_value', 'value_reset_delay', 'influence_conversation']
+            'args': ['name', 'initial_value', 'value_reset_delay', 'influence_conversation', 'mappings']
         },
         "categorical": {
             'constructor': CategoricalSlot,
@@ -36,11 +36,11 @@ class AgenticFlow:
         },
         "float": {
             'constructor': FloatSlot,
-            'args': ['name', 'initial_value', 'value_reset_delay', 'influence_conversation', 'max_value', 'min_value']
+            'args': ['name', 'initial_value', 'value_reset_delay', 'influence_conversation', 'max_value', 'min_value', 'mappings']
         },
         "list": {
             'constructor': ListSlot,
-            'args': ['name', 'initial_value', 'value_reset_delay', 'influence_conversation']
+            'args': ['name', 'initial_value', 'value_reset_delay', 'influence_conversation', 'mappings']
         },
         "any": {
             'constructor': AnySlot,
@@ -223,6 +223,9 @@ class AgenticFlow:
             except Exception as e:
                 logger.error(f"Error in executing action [{event['name']}]: {e}")
                 raise AppException(f"Error in executing action [{event['name']}]")
+        elif event['type'] == 'BOT' and event['name'].startswith("utter_"):
+            self.responses.append(self.get_utterance_response(event['name']))
+            self.executed_actions.append(event['name'])
 
     def process_tracker_events(self, events:list):
         for event in events:
