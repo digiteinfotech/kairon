@@ -1,4 +1,5 @@
 import os
+import re
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -45,6 +46,489 @@ def test_empty_entries():
     data_entries = []
     result = MongoProcessor.data_format_correction_cognition_data(data_entries, metadata)
     assert result == [], f"Expected [], but got {result}"
+
+
+def test_add_intent_with_invalid_name():
+    processor = MongoProcessor()
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting-message", "tests", "testUser", is_integration=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting.message", "tests", "testUser", is_integration=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting@message", "tests", "testUser", is_integration=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting#message", "tests", "testUser", is_integration=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting/message", "tests", "testUser", is_integration=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting>message", "tests", "testUser", is_integration=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting message", "tests", "testUser", is_integration=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting:message", "tests", "testUser", is_integration=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting=message", "tests", "testUser", is_integration=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_intent("greeting~message", "tests", "testUser", is_integration=False)
+
+
+def test_add_utterance_with_invalid_name():
+    processor = MongoProcessor()
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test-add', 'test', 'testUser')
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test]add', 'test', 'testUser')
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test+add', 'test', 'testUser')
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test\add', 'test', 'testUser')
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test?add', 'test', 'testUser')
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test&add', 'test', 'testUser')
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test>add', 'test', 'testUser')
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test"add', 'test', 'testUser')
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test^add', 'test', 'testUser')
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_utterance_name('test@add', 'test', 'testUser')
+
+
+def test_add_slot_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_add_slot'
+    user = 'test_user'
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot-name", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot,name", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot(name)", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot;name", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot:name", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot[name]", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot!name", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot{name}", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot@name", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot({"name": "slot<name>", "type": "text", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+
+
+def test_add_lookup_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_add_lookup_value'
+    user = 'test_user'
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_lookup("lookup-name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_lookup("lookup^name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_lookup("lookup`name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_lookup("lookup/name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_lookup("lookup'name", bot, user)
+
+
+def test_add_synonym_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'add_synonym'
+    user = 'test_user'
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym*name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym%name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym#name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym|name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym-name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym+name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym,name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym?name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym_>name", bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_synonym("synonym\name", bot, user)
+
+
+def test_add_regex_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_add_regex'
+    user = 'test_user'
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_regex({"name": "regex  name", "pattern": "exp"}, bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_regex({"name": "regex.name", "pattern": "exp"}, bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_regex({"name": " regex-name", "pattern": "exp"}, bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_regex({"name": "regex*name", "pattern": "exp"}, bot, user)
+
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_regex({"name": "regex name", "pattern": "exp"}, bot, user)
+
+
+def test_add_http_action_config_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "action_name": "http-action",
+        "response": {"value": "string"},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "http_params_list": [
+            {"key": "testParam1", "parameter_type": "value", "value": "testValue1"}
+        ],
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_http_action_config(config, user, bot)
+
+
+def test_add_slot_set_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "name": "action-set-name-slot",
+        "set_slots": [
+            {"name": "name", "type": "from_value", "value": 5},
+            {"name": "age", "type": "reset_slot"},
+        ],
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_slot_set_action(config, user, bot)
+
+
+def test_add_email_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "action_name": "email~config",
+        "smtp_url": "test.test.com",
+        "smtp_port": 25,
+        "smtp_userid": None,
+        "smtp_password": {"value": "test"},
+        "from_email": {"value": "from_email", "parameter_type": "slot"},
+        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+        "subject": "Test Subject",
+        "response": "Test Response",
+        "tls": False,
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_email_action(config, user, bot)
+
+
+def test_add_google_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "name": "google>custom<search",
+        "api_key": {"value": "12345678"},
+        "search_engine_id": "asdfg:123456",
+        "failure_response": "I have failed to process your request",
+        "website": "https://www.google.com",
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_google_search_action(config, user, bot)
+
+
+def test_add_jira_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    url = "https://test_add_jira_action_invalid_config.net"
+    config = {
+        "name": "jira'action'new",
+        "url": url,
+        "user_name": "test@digite.com",
+        "api_token": {"value": "ASDFGHJKL"},
+        "project_key": "HEL",
+        "issue_type": "Bug",
+        "summary": "new user",
+        "response": "We have logged a ticket",
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_jira_action(config, user, bot)
+
+
+def test_add_zendesk_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "name": "zendesk@action",
+        "subdomain": "digite751",
+        "api_token": {"value": "123456789"},
+        "subject": "new ticket",
+        "user_name": "udit.pandey@digite.com",
+        "response": "ticket filed",
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_zendesk_action(config, user, bot)
+
+
+def test_add_pipedrive_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "name": "pipedrive#leads",
+        "domain": "https://digite751.pipedrive.com/",
+        "api_token": {"value": "12345678"},
+        "title": "new lead",
+        "response": "I have failed to create lead for you",
+        "metadata": {
+            "name": "name",
+            "org_name": "organization",
+            "email": "email",
+            "phone": "phone",
+        },
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_pipedrive_action(config, user, bot)
+
+
+def test_add_hubspot_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "name": "action(hubspot)forms",
+        "portal_id": "12345678",
+        "form_guid": "asdfg:123456",
+        "fields": [
+            {"key": "email", "value": "email_slot", "parameter_type": "slot"},
+            {"key": "firstname", "value": "firstname_slot", "parameter_type": "slot"},
+        ],
+        "response": "Form submitted",
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_hubspot_forms_action(config, user, bot)
+
+
+def test_add_razorpay_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    action_name = "razorpay`action"
+    config = {
+        "name": action_name,
+        "api_key": {"value": "API_KEY", "parameter_type": "key_vault"},
+        "api_secret": {"value": "API_SECRET", "parameter_type": "key_vault"},
+        "amount": {"value": "amount", "parameter_type": "slot"},
+        "currency": {"value": "INR", "parameter_type": "value"},
+        "username": {"parameter_type": "sender_id"},
+        "email": {"parameter_type": "sender_id"},
+        "contact": {"value": "contact", "parameter_type": "slot"},
+        "notes": [
+            {"key": "order_id", "parameter_type": "slot", "value": "order_id"},
+            {"key": "phone_number", "parameter_type": "value", "value": "9876543210"}
+        ]
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_razorpay_action(config, user, bot)
+
+
+def test_add_pyscript_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    script = "bot_response='hello world'"
+    config = {
+        "name": "pyscript-action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_pyscript_action(config, user, bot)
+
+
+def test_add_database_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "name": "add-vectordb-action",
+        "collection": 'test_add_vectordb_action_empty_name',
+        "payload": [{
+            "type": "from_value",
+            "value": {"ids": [0], "with_payload": True, "with_vector": True},
+            "query_type": "embedding_search",
+        }],
+        "response": {"value": "0"},
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_db_action(config, user, bot)
+
+
+def test_add_callback_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "name": "callback@1",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "async"
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_callback_action(config, user, bot)
+
+
+def test_add_schedule_action_with_invalid_name():
+    processor = MongoProcessor()
+    bot = 'test_bot'
+    user = 'test_user'
+    config = {
+        "name": " test schedule action",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "test_pyscript",
+        "response_text": "action scheduled",
+        "params_list": [
+            {
+                "key": "param_key",
+                "value": "param_1",
+                "parameter_type": "value",
+                "count": 0
+            }
+        ],
+        "dispatch_bot_response": True
+    }
+    with pytest.raises(AppException,
+                       match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        processor.add_schedule_action(config, user, bot)
 
 
 def test_non_list_non_string_values():

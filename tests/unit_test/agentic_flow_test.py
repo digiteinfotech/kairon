@@ -203,6 +203,20 @@ class TestAgenticFlow:
                         "node_id": "61d7459c-5a34-464a-b9e5-25e7808f1f24",
                         "component_id": "676a9ceb097f6a9872bc49db"
                     },
+                    "connections": [{
+                            "name": "utter_greet",
+                            "type": "BOT",
+                            "node_id": "7c58bd84-48ab-45e3-aa50-bef52c50c4b6",
+                            "component_id": "67a5a302956678b8f9106ee6"
+                        }]
+                },
+                {
+                    "step": {
+                        "name": "utter_greet",
+                        "type": "BOT",
+                        "node_id": "7c58bd84-48ab-45e3-aa50-bef52c50c4b6",
+                        "component_id": "67a5a302956678b8f9106ee6"
+                    },
                     "connections": []
                 },
                 {
@@ -329,10 +343,10 @@ class TestAgenticFlow:
         with patch('kairon.chat.actions.KRemoteAction.run') as mock_action:
             mock_action.return_value = [BotUttered("Action Executed")]
             res, err = await flow.execute_rule("py_multiflow")
-            assert len(res) == 2
+            assert len(res) == 3
             assert res[0] == {'text': 'Action Executed'}
             assert not err
-            assert flow.executed_actions == ['py_multi', 'py_ans_a']
+            assert flow.executed_actions == ['py_multi', 'py_ans_a', 'utter_greet']
             mock_action.assert_called()
             patch_log_chat_history.assert_called_once()
 
@@ -370,10 +384,10 @@ class TestAgenticFlow:
         with patch('kairon.chat.actions.KRemoteAction.run') as mock_action:
             mock_action.return_value = [BotUttered("Action Executed")]
             res, err = await flow.execute_rule("py_multiflow")
-            assert len(res) == 2
+            assert len(res) == 3
             mock_action.assert_called()
             print(flow.executed_actions)
-            assert flow.executed_actions == ['py_multi', 'py_ans_a']
+            assert flow.executed_actions == ['py_multi', 'py_ans_a', 'utter_greet']
 
         patch_log_chat_history.assert_called()
 
@@ -411,16 +425,17 @@ class TestAgenticFlow:
         multiflow = MultiflowStories.objects(bot=pytest.af_test_bot, block_name='py_multiflow').first()
         events = multiflow.events
         event_map, start = AgenticFlow.sanitize_multiflow_events(events)
-        expected = {'5691320b-6007-4609-8386-bee3afdd9490': {
-            'node_id': '5691320b-6007-4609-8386-bee3afdd9490', 'type': 'INTENT', 'name': 'i_multiflow', 'connections': {
-                'type': 'jump', 'node_id': '715f57e6-90df-42b1-b0de-daa14b22d72f'}},
-            '715f57e6-90df-42b1-b0de-daa14b22d72f': { 'node_id': '715f57e6-90df-42b1-b0de-daa14b22d72f', 'type': 'action', 'name': 'py_multi', 'connections': {'type': 'branch', 'criteria': 'SLOT', 'name': 'trigger_conditional', '1': 'fe210aa4-4885-4454-9acf-607621228ffd', '2': '589cebb9-7a93-4e76-98f8-342b123f32b8'}}
-            , 'fe210aa4-4885-4454-9acf-607621228ffd': {'node_id': 'fe210aa4-4885-4454-9acf-607621228ffd', 'type': 'SLOT', 'name': 'trigger_conditional', 'connections': {'type': 'jump', 'node_id': '61d7459c-5a34-464a-b9e5-25e7808f1f24'}},
-            '61d7459c-5a34-464a-b9e5-25e7808f1f24': {'node_id': '61d7459c-5a34-464a-b9e5-25e7808f1f24', 'type': 'action', 'name': 'py_ans_a', 'connections': None},
+        expected = {
+            '5691320b-6007-4609-8386-bee3afdd9490': {'node_id': '5691320b-6007-4609-8386-bee3afdd9490', 'type': 'INTENT', 'name': 'i_multiflow', 'connections': {'type': 'jump', 'node_id': '715f57e6-90df-42b1-b0de-daa14b22d72f'}},
+            '715f57e6-90df-42b1-b0de-daa14b22d72f': {'node_id': '715f57e6-90df-42b1-b0de-daa14b22d72f', 'type': 'action', 'name': 'py_multi', 'connections': {'type': 'branch', 'criteria': 'SLOT', 'name': 'trigger_conditional', '1': 'fe210aa4-4885-4454-9acf-607621228ffd', '2': '589cebb9-7a93-4e76-98f8-342b123f32b8'}},
+            'fe210aa4-4885-4454-9acf-607621228ffd': {'node_id': 'fe210aa4-4885-4454-9acf-607621228ffd', 'type': 'SLOT', 'name': 'trigger_conditional', 'connections': {'type': 'jump', 'node_id': '61d7459c-5a34-464a-b9e5-25e7808f1f24'}},
+            '61d7459c-5a34-464a-b9e5-25e7808f1f24': {'node_id': '61d7459c-5a34-464a-b9e5-25e7808f1f24', 'type': 'action', 'name': 'py_ans_a', 'connections': {'type': 'jump', 'node_id': '7c58bd84-48ab-45e3-aa50-bef52c50c4b6'}},
+            '7c58bd84-48ab-45e3-aa50-bef52c50c4b6': {'node_id': '7c58bd84-48ab-45e3-aa50-bef52c50c4b6', 'type': 'BOT', 'name': 'utter_greet', 'connections': None},
             '589cebb9-7a93-4e76-98f8-342b123f32b8': {'node_id': '589cebb9-7a93-4e76-98f8-342b123f32b8', 'type': 'SLOT', 'name': 'trigger_conditional', 'connections': {'type': 'jump', 'node_id': '4f331af0-870e-40f3-883e-51c2a86f98eb'}},
             '4f331af0-870e-40f3-883e-51c2a86f98eb': {'node_id': '4f331af0-870e-40f3-883e-51c2a86f98eb', 'type': 'action', 'name': 'fetch_poke_details', 'connections': {'type': 'jump', 'node_id': '1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef'}},
             '1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef': {'node_id': '1019cbaa-68fe-40c6-bcb9-c3e08e58e7ef', 'type': 'action', 'name': 'py_ans_b', 'connections': None}}
 
+        print(event_map)
         assert event_map == expected
         assert  start == '715f57e6-90df-42b1-b0de-daa14b22d72f'
 
