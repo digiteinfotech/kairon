@@ -6,13 +6,10 @@ from typing import Optional, Any, Text
 from loguru import logger
 from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
-from kairon.async_callback.lambda_function import lambda_handler
+from kairon.async_callback.utils import CallbackUtility
 from kairon.evaluator.processor import EvaluatorProcessor
 from kairon.exceptions import AppException
-from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, CallbackLog, CallbackExecutionMode
-from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import TASK_TYPE
+from kairon.shared.callback.data_objects import CallbackData, CallbackLog, CallbackExecutionMode
 
 async_task_executor = ThreadPoolExecutor(max_workers=64)
 
@@ -27,7 +24,7 @@ class CallbackProcessor:
         try:
             if trigger_task:
                 logger.info("Triggering lambda for pyscript evaluation")
-                response = lambda_handler({
+                response = CallbackUtility.pyscript_handler({
                     'source_code': script,
                     'predefined_objects': predefined_objects
                 }, None)
