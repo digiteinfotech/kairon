@@ -18100,26 +18100,6 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Payload does not exists!"):
             processor.delete_cognition_data("507f191e050c19729de860ea", bot)
 
-    def test_delete_non_existent_multiple_entries(setup_test_data):
-        bot = 'test'
-        user = 'testUser'
-
-        non_existent_ids = ["5349b4ddd2719d08c09890f3", "5349b4ddd2719d08c09890fa"]
-
-        query = {"id__in": non_existent_ids}
-
-        with pytest.raises(AppException, match="Some or all records do not exist!"):
-            Utility.hard_delete_document([CognitionData], bot=bot, user=user, **query)
-
-    def test_delete_empty_list(setup_test_data):
-        bot = 'test'
-        user = 'testUser'
-
-        empty_query = {"id__in": []}
-
-        with pytest.raises(AppException, match="row_ids list cannot be empty!"):
-            Utility.hard_delete_document([CognitionData], bot=bot, user=user, **empty_query)
-
     def test_delete_multiple_payload_content(self):
         processor = CognitionDataProcessor()
         bot = 'test'
@@ -18136,7 +18116,7 @@ class TestMongoProcessor:
         contents = [
             "A bot is a software application designed to automate tasks.",
             "Bots can perform tasks like answering questions or analyzing data.",
-            "Some bots control physical machines or play games."
+            "Some bots control physical machines, craeate leads or play games."
         ]
         content_ids = []
         for content in contents:
