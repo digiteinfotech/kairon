@@ -759,7 +759,10 @@ def test_get_model_llm_type_map():
                 'gemini/gemini-pro': 'gemini',
                 'perplexity/llama-3.1-sonar-small-128k-online': 'perplexity',
                 'perplexity/llama-3.1-sonar-large-128k-online': 'perplexity',
-                'perplexity/llama-3.1-sonar-huge-128k-online': 'perplexity'}
+                'perplexity/llama-3.1-sonar-huge-128k-online': 'perplexity',
+                'bedrock/converse/us.amazon.nova-micro-v1:0': 'aws-nova',
+                'bedrock/converse/us.amazon.nova-lite-v1:0': 'aws-nova',
+                'bedrock/converse/us.amazon.nova-pro-v1:0': 'aws-nova'}
 
     assert not DeepDiff(result, expected, ignore_order=True)
 
