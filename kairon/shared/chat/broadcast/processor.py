@@ -122,6 +122,21 @@ class MessageBroadcastProcessor:
         return log.reference_id
 
     @staticmethod
+    def upsert_broadcast_progress_log(bot: str, reference_id: str, event_id: str, progress: int, total: int):
+        try:
+            log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, event_id=event_id,
+                                               log_type=MessageBroadcastLogType.progress.value).get()
+            setattr(log, 'progress', progress)
+            setattr(log, 'total', total)
+            log.save()
+
+        except DoesNotExist:
+            log = MessageBroadcastLogs(bot=bot, reference_id=reference_id, event_id=event_id,
+                                       log_type=MessageBroadcastLogType.progress.value, progress=progress, total=total)
+            log.save()
+
+
+    @staticmethod
     def update_broadcast_logs_with_template(reference_id: Text, event_id: Text, raw_template: List[Dict],
                                             log_type: MessageBroadcastLogType,
                                             retry_count: int = 0, **kwargs):

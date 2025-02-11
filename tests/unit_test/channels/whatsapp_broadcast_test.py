@@ -11,6 +11,8 @@ from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 from kairon.chat.handlers.channels.clients.whatsapp.dialog360 import BSP360Dialog
 from kairon.shared.channels.broadcast.whatsapp import WhatsappBroadcast
+from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
+from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 
 
@@ -341,12 +343,11 @@ async def test_send_template_message_async_generic_exception():
 
 def test_initiate_broadcast():
     # Mocking dependencies
-    Utility.environment = {
-        "broadcast": {
+    Utility.environment["broadcast"] = {
             "whatsapp_broadcast_batch_size": 2,
             "whatsapp_broadcast_rate_per_second": 4
-        }
     }
+
 
     message_list = [
         ("template_id_1", "recipient_1", "en", {"param": "value"}, "namespace_1"),
@@ -380,11 +381,9 @@ def test_initiate_broadcast():
 
 def test_initiate_broadcast_resend():
     # Mocking dependencies
-    Utility.environment = {
-        "broadcast": {
-            "whatsapp_broadcast_batch_size": 2,
-            "whatsapp_broadcast_rate_per_second": 4
-        }
+    Utility.environment["broadcast"] = {
+        "whatsapp_broadcast_batch_size": 2,
+        "whatsapp_broadcast_rate_per_second": 4
     }
 
     message_list = [
@@ -502,6 +501,41 @@ async def test_send_template_message_retry():
 
     del Utility.environment['notifications']
 
+
+
+
+def test_upsert_broadcast_progress_log_insert():
+    Utility.environment["notifications"] = {"enable": False}
+
+    bot = "test_bot_xxx"
+    reference_id = "test_reference_id"
+    event_id = "test_event_id"
+    progress = 50
+    total = 100
+
+    MessageBroadcastProcessor.upsert_broadcast_progress_log(bot, reference_id, event_id, progress, total)
+
+    log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, event_id=event_id,
+                                       log_type=MessageBroadcastLogType.progress.value).first()
+    assert log is not None
+    assert log.progress == progress
+    assert log.total == total
+
+def test_upsert_broadcast_progress_log_update():
+    Utility.environment["notifications"] = {"enable": False}
+    bot = "test_bot_xxx"
+    reference_id = "test_reference_id"
+    event_id = "test_event_id"
+    progress = 75
+    total = 150
+
+    MessageBroadcastProcessor.upsert_broadcast_progress_log(bot, reference_id, event_id, progress, total)
+
+    log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, event_id=event_id,
+                                       log_type=MessageBroadcastLogType.progress.value).first()
+    assert log is not None
+    assert log.progress == progress
+    assert log.total == total
 
 
 def test_log_failed_messages():
