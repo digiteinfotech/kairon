@@ -30,6 +30,8 @@ litellm.callbacks = [LiteLLMLogger()]
 
 
 class LLMProcessor(LLMBase):
+    _sparse_embedding = None
+    _rerank_embedding = None
     __embedding__ = 1536
 
     def __init__(self, bot: Text, llm_type: str):
@@ -40,7 +42,24 @@ class LLMProcessor(LLMBase):
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
         self.llm_type = llm_type
-        self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
+        self.vectors_config = {
+            "text-embedding-3-small": {
+                "size": self.__embedding__,
+                "distance": "Cosine"
+            },
+            "colbertv2.0": {
+                "size": 128,
+                "distance": "Cosine",
+                "multivector_config": {
+                    "comparator": "max_sim"
+                }
+            }
+        }
+
+        self.sparse_vectors_config = {
+            "bm25":{ }
+        }
+        # self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
         self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
 
         if llm_type != DEFAULT_LLM:
@@ -54,6 +73,8 @@ class LLMProcessor(LLMBase):
 
     async def train(self, user, *args, **kwargs) -> Dict:
         invocation = kwargs.pop('invocation', None)
+        self.load_sparse_embedding_model()
+        self.load_rerank_embedding_model()
         await self.__delete_collections()
         count = 0
         processor = CognitionDataProcessor()
@@ -94,8 +115,21 @@ class LLMProcessor(LLMBase):
 
                 embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation)
 
-                points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
-                          for idx in range(len(vector_ids))]
+                # points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
+                #           for idx in range(len(vector_ids))]
+
+                points = []
+                for idx in range(len(vector_ids)):
+                    vector_data = {}
+                    for model_name, model_embeddings in embeddings.items():
+                        vector_data[model_name] = model_embeddings[idx]
+                    point = {
+                        "id": vector_ids[idx],
+                        "payload": search_payloads[idx],
+                        "vector": vector_data
+                    }
+                    points.append(point)
+
                 await self.__collection_upsert__(collection, {'points': points},
                                                  err_msg="Unable to train FAQ! Contact support")
                 count += len(batch_contents)
@@ -142,15 +176,40 @@ class LLMProcessor(LLMBase):
 
         return truncated_texts
 
+    # async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
+    #     """
+    #     Get embeddings for a batch of texts.
+    #     """
+    #     is_single_text = isinstance(texts, str)
+    #     if is_single_text:
+    #         texts = [texts]
+    #
+    #     truncated_texts = self.truncate_text(texts)
+    #
+    #     result = await litellm.aembedding(
+    #         model="text-embedding-3-small",
+    #         input=truncated_texts,
+    #         metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
+    #         api_key=self.llm_secret_embedding.get('api_key'),
+    #         num_retries=3
+    #     )
+    #
+    #     embeddings = [embedding["embedding"] for embedding in result["data"]]
+    #
+    #     if is_single_text:
+    #         return embeddings[0]
+    #
+    #     return embeddings
+
     async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
         """
-        Get embeddings for a batch of texts.
+        Get embeddings for a batch of texts using multiple models.
         """
         is_single_text = isinstance(texts, str)
         if is_single_text:
             texts = [texts]
-
         truncated_texts = self.truncate_text(texts)
+        embeddings = {}
 
         result = await litellm.aembedding(
             model="text-embedding-3-small",
@@ -159,11 +218,20 @@ class LLMProcessor(LLMBase):
             api_key=self.llm_secret_embedding.get('api_key'),
             num_retries=3
         )
+        embeddings["text-embedding-3-small"] = [embedding["embedding"] for embedding in result["data"]]
 
-        embeddings = [embedding["embedding"] for embedding in result["data"]]
+        embeddings["bm25"] = [
+            self.get_sparse_embedding(sentence, as_object=False)
+            for sentence in truncated_texts
+        ]
+
+        embeddings["colbertv2.0"] = [
+            self.get_rerank_embedding(sentence)
+            for sentence in truncated_texts
+        ]
 
         if is_single_text:
-            return embeddings[0]
+            return {model: embedding[0] for model, embedding in embeddings.items()}
 
         return embeddings
 
@@ -274,7 +342,9 @@ class LLMProcessor(LLMBase):
         await AioRestClient().request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                       request_method="PUT",
                                       headers=self.headers,
-                                      request_body={'name': collection_name, 'vectors': self.vector_config},
+                                      request_body={'name': collection_name, 'vectors': self.vectors_config,
+                                                    'sparse_vectors': self.sparse_vectors_config
+                                                    },
                                       return_json=False,
                                       timeout=5)
 
@@ -291,6 +361,35 @@ class LLMProcessor(LLMBase):
                 logging.exception(response['status'].get('error'))
                 if raise_err:
                     raise AppException(err_msg)
+
+    # async def __collection_upsert__(self, collection_name: Text, data: Dict, err_msg: Text, raise_err=True):
+    #     client = AioRestClient()
+    #     url = urljoin(self.db_url, f"/collections/{collection_name}/points")
+    #     try:
+    #         # Log the request payload
+    #         logging.info(f"Upserting data to collection: {collection_name} with payload: {data}")
+    #
+    #         response = await client.request(
+    #             http_url=url,
+    #             request_method="PUT",
+    #             headers=self.headers,
+    #             request_body=data,
+    #             return_json=True,
+    #             timeout=5
+    #         )
+    #
+    #         # Log the response
+    #         logging.info(f"Response: {response}")
+    #
+    #         if not response.get('result'):
+    #             if "status" in response:
+    #                 logging.exception(response['status'].get('error'))
+    #                 if raise_err:
+    #                     raise AppException(err_msg)
+    #     except Exception as e:
+    #         logging.exception(f"Failed to upsert data to collection {collection_name}: {str(e)}")
+    #         if raise_err:
+    #             raise
 
     async def __collection_exists__(self, collection_name: Text) -> bool:
         """Check if a collection exists."""
@@ -417,3 +516,66 @@ class LLMProcessor(LLMBase):
                 )
                 user_msg = f"{user_msg} inurl:{search_domain_filter_str}"
         return user_msg
+
+    @classmethod
+    def load_sparse_embedding_model(cls):
+        from fastembed import SparseTextEmbedding
+        if cls._sparse_embedding is None:
+            cls._sparse_embedding = SparseTextEmbedding("Qdrant/bm25",
+                                                        cache_dir="./kairon/pre-trained-models/")
+            print("SPARSE MODEL LOADED")
+
+    @classmethod
+    def load_rerank_embedding_model(cls):
+        from fastembed import LateInteractionTextEmbedding
+        if cls._rerank_embedding is None:
+            cls._rerank_embedding = LateInteractionTextEmbedding("colbert-ir/colbertv2.0",
+                                                                 cache_dir="./kairon/pre-trained-models/")
+            print("RERANK MODEL LOADED")
+
+    def get_sparse_embedding(self, sentence, as_object: bool = True):
+        """
+        Generate a sparse embedding for a given sentence using a sparse embedding model.
+
+        Args:
+            sentence (str): The input sentence to be encoded into a sparse representation.
+            as_object (bool): weather return embedding as object or not
+
+        Returns:
+            list: A list containing the sparse embedding vector of the input sentence.
+        """
+        if not self.check_empty_string(sentence):
+            sentence = sentence.replace("\n", " ")
+            embedding = list(self._sparse_embedding.passage_embed(sentence))
+            print(embedding)
+            if as_object:
+                return embedding[0].as_object()
+            return {
+                "values": embedding[0].values.tolist(),
+                "indices": embedding[0].indices.tolist()
+            }
+
+
+    def get_rerank_embedding(self, sentence):
+        """
+        Generate a sparse embedding for a given sentence using a sparse embedding model.
+
+        Args:
+            sentence (str): The input sentence to be encoded into a sparse representation.
+
+        Returns:
+            list: A list containing the sparse embedding vector of the input sentence.
+        """
+        if not self.check_empty_string(sentence):
+            sentence = sentence.replace("\n", " ")
+            embedding = list(self._rerank_embedding.passage_embed(sentence))
+            return embedding[0].tolist()
+
+    @staticmethod
+    def check_empty_string(value: str):
+        if not value:
+            return True
+        if not value.strip():
+            return True
+        else:
+            return False
