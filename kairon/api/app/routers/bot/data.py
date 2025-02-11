@@ -179,12 +179,11 @@ async def delete_multiple_cognition_data(
     """
     Deletes multiple cognition content entries of the bot in bulk
     """
-    try:
-        query = {"id__in": row_ids}
-        Utility.hard_delete_document([CognitionData], bot=current_user.get_bot(), **query, user=current_user.get_user())
-    except DoesNotExist:
+    query = {"id__in": row_ids}
+    fetched_documents = CognitionData.objects(**query)
+    if not fetched_documents:
         raise AppException("Some or all records do not exist!")
-
+    Utility.hard_delete_document([CognitionData], bot=current_user.get_bot(), **query, user=current_user.get_user())
     return {
         "message": "Records deleted!"
     }
