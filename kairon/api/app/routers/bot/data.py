@@ -2,6 +2,7 @@ import os
 from typing import List
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException
+from mongoengine import DoesNotExist
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
@@ -10,7 +11,7 @@ from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
-from kairon.shared.cognition.data_objects import CognitionSchema
+from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ActorType
@@ -167,6 +168,25 @@ async def delete_cognition_data(
     cognition_processor.delete_cognition_data(row_id, current_user.get_bot(), user=current_user.get_user())
     return {
         "message": "Record deleted!"
+    }
+
+
+@router.delete("/cognition", response_model=Response)
+async def delete_multiple_cognition_data(
+        row_ids: list[str] = Query(...),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Deletes multiple cognition content entries of the bot in bulk
+    """
+    try:
+        query = {"id__in": row_ids}
+        Utility.hard_delete_document([CognitionData], bot=current_user.get_bot(), **query, user=current_user.get_user())
+    except DoesNotExist:
+        raise AppException("Some or all records do not exist!")
+
+    return {
+        "message": "Records deleted!"
     }
 
 
