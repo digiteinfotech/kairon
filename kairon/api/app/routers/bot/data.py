@@ -179,15 +179,21 @@ async def delete_multiple_cognition_data(
     """
     Deletes multiple cognition content entries of the bot in bulk
     """
-    query = {"id__in": row_ids}
-    fetched_documents = CognitionData.objects(**query)
-    if not fetched_documents:
+    if not row_ids:
+        raise AppException("row_ids list cannot be empty!")  # ✅ Handling empty list case
+
+    try:
+        query = {"id__in": row_ids}
+        fetched_documents = CognitionData.objects(**query)
+        if not fetched_documents:
+            raise AppException("Some or all records do not exist!")
+        Utility.hard_delete_document([CognitionData], bot=current_user.get_bot(), **query, user=current_user.get_user())
+    except DoesNotExist:
         raise AppException("Some or all records do not exist!")
-    Utility.hard_delete_document([CognitionData], bot=current_user.get_bot(), **query, user=current_user.get_user())
+
     return {
         "message": "Records deleted!"
     }
-
 
 @router.get("/cognition", response_model=Response)
 async def list_cognition_data(

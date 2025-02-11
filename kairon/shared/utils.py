@@ -563,8 +563,6 @@ class Utility:
             kwargs["bot"] = bot
             user = kwargs.pop("user", "System")
             fetched_documents = document.objects(**kwargs)
-            if not fetched_documents:
-                raise AppException("No matching records found for deletion!")
             for doc in fetched_documents:
                 doc["user"] = user
                 doc.delete()

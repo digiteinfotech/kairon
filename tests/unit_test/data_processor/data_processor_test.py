@@ -18117,7 +18117,7 @@ class TestMongoProcessor:
 
         empty_query = {"id__in": []}
 
-        with pytest.raises(AppException, match="No matching records found for deletion!"):
+        with pytest.raises(AppException, match="row_ids list cannot be empty!"):
             Utility.hard_delete_document([CognitionData], bot=bot, user=user, **empty_query)
 
     def test_delete_multiple_payload_content(self):
