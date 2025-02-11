@@ -381,18 +381,20 @@ async def test_send_message_to_user(mock_send):
 from kairon.async_callback.processor import CallbackProcessor
 
 
-@patch('kairon.async_callback.processor.CloudUtility')
+@patch('kairon.async_callback.processor.CallbackUtility')
 @patch('kairon.async_callback.processor.Utility')
-def test_run_pyscript(mock_utility, mock_cloud_utility):
+def test_run_pyscript(mock_utility, mock_callback_utility):
     mock_utility.environment = {'async_callback_action': {'pyscript': {'trigger_task': True}}}
-    mock_cloud_utility.trigger_lambda.return_value = {
-        'Payload': {
-            'body': {
-                'bot_response': 'Test response'
-            }
-        }
+    resp = {
+        "statusCode": 200,
+        "statusDescription": "200 OK",
+        "isBase64Encoded": False,
+        "headers": {
+            "Content-Type": "text/html; charset=utf-8"
+        },
+        "body": {'bot_response': 'Test response'}
     }
-    mock_cloud_utility.lambda_execution_failed.return_value = False
+    mock_callback_utility.pyscript_handler.return_value = resp
     script = 'print("Hello, World!")'
     predefined_objects = {'bot_response': 'Test response'}
 
