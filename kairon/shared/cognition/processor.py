@@ -363,6 +363,19 @@ class CognitionDataProcessor:
         except DoesNotExist:
             raise AppException("Payload does not exists!")
 
+    def delete_multiple_cognition_data(self, row_ids: List[str], bot: Text, user: str = None):
+        """
+        Deletes multiple cognition entries in bulk.
+        """
+        if not row_ids:
+            raise AppException("row_ids list cannot be empty!")
+        query = {"id__in": row_ids}
+        fetched_documents = CognitionData.objects(**query)
+        if not fetched_documents:
+            raise AppException("Some or all records do not exist!")
+
+        Utility.hard_delete_document([CognitionData], bot=bot, **query, user=user)
+
     def delete_all_cognition_data_by_collection(self, collection_name: Text, bot: Text):
         """
         Deletes all documents from the specified collection for a given bot.

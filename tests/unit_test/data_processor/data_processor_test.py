@@ -18128,8 +18128,8 @@ class TestMongoProcessor:
 
             content_id = processor.save_cognition_data(payload, user, bot)
             content_ids.append(content_id)
-        query = {"id__in": content_ids}
-        Utility.hard_delete_document([CognitionData], bot=bot, user=user, **query)
+
+        processor.delete_multiple_cognition_data(content_ids, bot, user)
         remaining_docs = CognitionData.objects(id__in=content_ids)
         assert remaining_docs.count() == 0
 
