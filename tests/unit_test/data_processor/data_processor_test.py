@@ -10817,7 +10817,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': ' ', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+        action = {'name': '_', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
                                               'value': 'name'}]}
         with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
             processor.edit_slot_set_action(action, bot, user)
