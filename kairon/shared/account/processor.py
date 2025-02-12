@@ -169,8 +169,8 @@ class AccountProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Bot Name cannot be empty or blank spaces")
 
-        if name and Utility.special_match(name):
-            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        if name and Utility.contains_special_characters(name):
+            raise AppException("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")
 
         if not Utility.check_character_limit(name):
             raise AppException("Bot Name cannot be more than 60 characters.")
@@ -225,8 +225,8 @@ class AccountProcessor:
         if Utility.check_empty_string(name):
             raise AppException('Name cannot be empty')
 
-        if name and Utility.special_match(name):
-            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        if name and Utility.contains_special_characters(name):
+            raise AppException("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")
 
         if not Utility.check_character_limit(name):
             raise AppException("Bot Name cannot be more than 60 characters.")

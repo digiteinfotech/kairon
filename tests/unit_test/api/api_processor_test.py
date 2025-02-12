@@ -107,19 +107,22 @@ class TestAccountProcessor:
         account = pytest.account
         user = "fshaikh@digite.com"
         is_new_account = True
-        with pytest.raises(AppException,
-                           match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        with pytest.raises(
+                AppException,
+                match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
             name = "test#21"
             AccountProcessor.add_bot(name=name, account=account, user=user, is_new_account=is_new_account)
 
-        with pytest.raises(AppException,
-                           match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        with pytest.raises(
+                AppException,
+                match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
             name = "test@3"
             AccountProcessor.add_bot(name=name, account=account, user=user, is_new_account=is_new_account)
 
-        with pytest.raises(AppException,
-                           match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
-            name = " test 5"
+        with pytest.raises(
+                AppException,
+                match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
+            name = "test&5"
             AccountProcessor.add_bot(name=name, account=account, user=user, is_new_account=is_new_account)
 
     def test_update_bot_with_invalid_name(self):
@@ -129,18 +132,21 @@ class TestAccountProcessor:
         user = "fshaikh@digite.com"
         is_new_account = True
         bot = "test_bot"
-        with pytest.raises(AppException,
-                           match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        with pytest.raises(
+                AppException,
+                match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
             name = "test?17"
             AccountProcessor.update_bot(name=name, bot=bot)
 
-        with pytest.raises(AppException,
-                           match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
-            name = "test-7"
+        with pytest.raises(
+                AppException,
+                match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
+            name = "test(7)"
             AccountProcessor.update_bot(name=name, bot=bot)
 
-        with pytest.raises(AppException,
-                           match=re.escape("Invalid name! Only letters, numbers, and underscores (_) are allowed.")):
+        with pytest.raises(
+                AppException,
+                match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
             name = "<test>18"
             AccountProcessor.update_bot(name=name, bot=bot)
 
