@@ -125,6 +125,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         non_sent_recipients = []
         sent_count = 0
         done_till = 0
+        total_count = len(message_list)
 
         for chunk in chunked(message_list, batch_size):
             tasks = []
@@ -149,6 +150,11 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 break
             non_sent_recipients.extend(failed_recipients)
             sent_count += len(tasks) - len(failed_recipients)
+            MessageBroadcastProcessor.upsert_broadcast_progress_log(self.bot,
+                                                                    self.reference_id,
+                                                                    self.event_id,
+                                                                    done_till,
+                                                                    total_count)
 
             batches_sent_in_current_second += 1
 

@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta
 import os
 from fastapi.testclient import TestClient
@@ -1133,3 +1134,60 @@ def test_total_session_with_valid_from_date_and_to_date(mock_mongo):
     assert actual["data"] == {}
     assert actual["message"] is None
     assert actual["success"]
+
+def history_conversations_agent(*args, **kwargs):
+    json_data = json.load(open("tests/testing_data/history/conversation_history_agent.json"))
+    return json_data, None
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_empty_conversations_agentic_flow(mock_mongo):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/agentic_flow",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["conversation_data"] == []
+    assert actual["message"] is None
+    assert actual["success"]
+
+@mock.patch('kairon.history.processor.HistoryProcessor.flatten_conversations', autospec=True)
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_agentic_conversations(mock_mongo, mock_flatten_conversations):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    cdata = {"conversation_data": history_conversations_agent()[0]}
+    mock_flatten_conversations.return_value = cdata, None
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/agentic_flow",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["conversation_data"]) == 2
+    assert actual["message"] is None
+    assert actual["success"]
+
+@mock.patch('kairon.history.processor.HistoryProcessor.fetch_chat_history', autospec=True)
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_agentic_conversations_for_user(mock_mongo, mock_fetch_chat_history):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    mock_fetch_chat_history.return_value = [history_conversations_agent()[0][1]], None
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/agentic_flow/user/0194f89624587b65bac38d53a25b92cc",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["history"]) == 1
+    assert actual['data']['history'][0]['sender_id'] == '0194f89624587b65bac38d53a25b92cc'
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+
+
+

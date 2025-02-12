@@ -19,6 +19,7 @@ from rasa.shared.importers.rasa import RasaFileImporter
 from responses import matchers
 
 from kairon.shared.actions.data_objects import Actions
+from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.utils import Utility
 
 Utility.load_system_metadata()
@@ -1353,7 +1354,7 @@ class TestEventExecution:
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
             event.execute(event_id, is_resend="False")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 2
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
@@ -1466,7 +1467,7 @@ class TestEventExecution:
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
             event.execute(event_id, is_resend="False")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 2
         logs[0][1].pop("timestamp")
         reference_id = logs[0][1].pop("reference_id")
@@ -1577,7 +1578,7 @@ class TestEventExecution:
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
             event.execute(event_id, is_resend="False")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         print(logs)
         assert len(logs[0]) == logs[1] == 3
         logs[0][2].pop("timestamp")
@@ -1895,7 +1896,7 @@ class TestEventExecution:
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
             event.execute(event_id, is_resend="False")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
 
         coll = MessageBroadcastProcessor.get_db_client(bot)
         history = list(coll.find({}))
@@ -2068,7 +2069,7 @@ class TestEventExecution:
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
             event.execute(event_id, is_resend="False")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
 
         assert len(logs[0]) == logs[1] == 3
         [log.pop("timestamp") for log in logs[0]]
@@ -2139,7 +2140,7 @@ class TestEventExecution:
                 "retry_count": 0
             }
         ).save()
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 4
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
@@ -2179,7 +2180,7 @@ class TestEventExecution:
         MessageBroadcastProcessor.update_broadcast_logs_with_template(reference_id=reference_id, event_id=event_id,
                                                                       raw_template=template, log_type="send",
                                                                       retry_count=0)
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 4
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
@@ -2353,7 +2354,7 @@ class TestEventExecution:
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
             event.execute(event_id, is_resend="False")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
 
         assert len(logs[0]) == logs[1] == 3
         [log.pop("timestamp") for log in logs[0]]
@@ -2422,7 +2423,7 @@ class TestEventExecution:
                 "retry_count": 0
             }
         ).save()
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 4
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
@@ -2462,7 +2463,7 @@ class TestEventExecution:
                                                                       raw_template=[], log_type="send",
                                                                       retry_count=0,
                                                                       template_exception=template_exception)
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 4
         logs[0][0].pop("timestamp")
         reference_id = logs[0][0].get("reference_id")
@@ -2909,7 +2910,7 @@ class TestEventExecution:
                                      msg_broadcast_id=msg_broadcast_id)
             event.execute(event_id, is_resend="True")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 4
         logs[0][2].pop("timestamp")
         reference_id = logs[0][2].get("reference_id")
@@ -3271,7 +3272,7 @@ class TestEventExecution:
                                      msg_broadcast_id=msg_broadcast_id)
             event.execute(event_id, is_resend="True")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 4
         logs[0][2].pop("timestamp")
         reference_id = logs[0][2].get("reference_id")
@@ -3634,7 +3635,7 @@ class TestEventExecution:
                                      msg_broadcast_id=msg_broadcast_id)
             event.execute(event_id, is_resend="True")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 4
         logs[0][2].pop("timestamp")
         reference_id = logs[0][2].get("reference_id")
@@ -4067,7 +4068,7 @@ class TestEventExecution:
                                      msg_broadcast_id=msg_broadcast_id)
             event.execute(event_id, is_resend="True")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 5
         logs[0][3].pop("timestamp")
         reference_id = logs[0][3].get("reference_id")
@@ -4625,7 +4626,7 @@ class TestEventExecution:
                                      msg_broadcast_id=msg_broadcast_id)
             event.execute(event_id, is_resend="True")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 6
         logs[0][4].pop("timestamp")
         reference_id = logs[0][4].get("reference_id")
@@ -5184,7 +5185,7 @@ class TestEventExecution:
                                      msg_broadcast_id=msg_broadcast_id)
             event.execute(event_id, is_resend="True")
 
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 6
         logs[0][4].pop("timestamp")
         reference_id = logs[0][4].get("reference_id")

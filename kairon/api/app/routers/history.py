@@ -290,6 +290,39 @@ async def flat_conversations(
         f'/api/history/{current_user.get_bot()}/conversations/?from_date={from_date}&to_date={to_date}'
     )
 
+@router.get("/conversations/agentic_flow", response_model=Response)
+async def fetch_agentic_flow_conversations(
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Fetches the flattened conversation data of the bot for previous months
+    """
+    Utility.validate_from_date_and_to_date(from_date, to_date)
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/conversations/agentic_flow?from_date={from_date}&to_date={to_date}'
+    )
+
+@router.get("/conversations/agentic_flow/user/{sender:path}", response_model=Response)
+async def fetch_agentic_flow_user_conversations(
+        sender: Text,
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Fetches the list of conversation with the agent by particular user
+    """
+    Utility.validate_from_date_and_to_date(from_date, to_date)
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/conversations/agentic_flow/user/{sender}?from_date={from_date}&to_date={to_date}'
+    )
+
+
+
 
 @router.get("/conversations/download")
 async def download_conversations(

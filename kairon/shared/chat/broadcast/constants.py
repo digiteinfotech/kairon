@@ -7,6 +7,7 @@ class MessageBroadcastLogType(str, Enum):
     resend = "resend"
     self = "self"
     script_variables = "script_variables"
+    progress = "progress"
 
 
 class MessageBroadcastType(str, Enum):
