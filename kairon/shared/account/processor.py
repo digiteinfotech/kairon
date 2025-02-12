@@ -169,6 +169,9 @@ class AccountProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Bot Name cannot be empty or blank spaces")
 
+        if name and Utility.special_match(name):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+
         if not Utility.check_character_limit(name):
             raise AppException("Bot Name cannot be more than 60 characters.")
 
@@ -221,6 +224,10 @@ class AccountProcessor:
     def update_bot(name: Text, bot: Text):
         if Utility.check_empty_string(name):
             raise AppException('Name cannot be empty')
+
+        if name and Utility.special_match(name):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+
         if not Utility.check_character_limit(name):
             raise AppException("Bot Name cannot be more than 60 characters.")
         try:
