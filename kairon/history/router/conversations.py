@@ -26,6 +26,30 @@ async def flat_conversations(
     )
     return {"data": flat_data, "message": message}
 
+@router.get("/agentic_flow", response_model=Response)
+async def agentic_flow_conversations(
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
+        collection: str = Depends(Authentication.authenticate_and_get_collection)
+):
+    """Fetches the flattened conversation data of the bot for previous months."""
+    flat_data, message = HistoryProcessor.flatten_conversations(
+        f"{collection}_agent", from_date, to_date
+    )
+    return {"data": flat_data, "message": message}
+
+@router.get("/agentic_flow/user/{sender:path}", response_model=Response)
+async def agentic_flow_user_history(
+        sender: Text,
+        from_date: date = Depends(Utility.get_back_date_1month),
+        to_date: date = Depends(Utility.get_to_date),
+        collection: str = Depends(Authentication.authenticate_and_get_collection)
+):
+    """Fetches the list of conversation with the agent by particular user."""
+    history, message = HistoryProcessor.fetch_chat_history(f"{collection}_agent", sender, from_date, to_date)
+    return {"data": {"history": list(history)}, "message": message}
+
+
 
 @router.get("/download")
 async def download_conversations(

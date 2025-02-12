@@ -132,6 +132,10 @@ def history_conversations(*args, **kwargs):
     json_data = json.load(open("tests/testing_data/history/conversations_history.json"))
     return json_data, None
 
+def history_conversations_agent(*args, **kwargs):
+    json_data = json.load(open("tests/testing_data/history/conversation_history_agent.json"))
+    return json_data, None
+
 
 @pytest.fixture
 def mock_chat_history(monkeypatch):
@@ -1547,3 +1551,52 @@ def test_get_delete_history_logs(mock_auth_admin, mock_mongo_processor_endpoint_
     assert actual['data']["logs"][1]['status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][1]['bot'] == pytest.bot
     assert actual['data']["logs"][1]['user'] == 'integration@demo.com'
+
+
+@responses.activate
+def test_agent_conversations_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/agentic_flow?from_date={from_date}&to_date={to_date}",
+        status=200,
+        match=[responses.matchers.json_params_matcher({})],
+        json={"data": {'conversation_data': history_conversations_agent()[0]}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/agentic_flow",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["conversation_data"]) == 2
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_agent_conversations_with_user_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/agentic_flow/user/0194f89980837d1195018941d50fefdd?from_date={from_date}&to_date={to_date}",
+        status=200,
+        match=[responses.matchers.json_params_matcher({})],
+        json={"data": {'conversation_data': [history_conversations_agent()[0][0]]}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/agentic_flow/user/0194f89980837d1195018941d50fefdd",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["conversation_data"]) == 1
+    assert actual["data"]["conversation_data"][0]['sender_id'] == '0194f89980837d1195018941d50fefdd'
+    assert actual["message"] is None
+    assert actual["success"]
