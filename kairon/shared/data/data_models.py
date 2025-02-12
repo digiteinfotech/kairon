@@ -1228,6 +1228,16 @@ class CognitiveDataRequest(BaseModel):
             raise ValueError("data cannot be empty")
         return values
 
+class DeleteCognitionRequest(BaseModel):
+    row_ids: List[str]
+
+    @root_validator
+    def check(cls, values):
+        row_ids = values.get("row_ids")
+        if not row_ids or not isinstance(row_ids, list) or any(not row_id.strip() for row_id in row_ids):
+            raise ValueError("row_ids must be a non-empty list of valid strings")
+
+        return values
 
 class RazorpayActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
