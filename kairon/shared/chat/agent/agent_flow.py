@@ -271,7 +271,7 @@ class AgenticFlow:
         if not AgenticFlow.chat_history_client:
             AgenticFlow.chat_history_client = MongoClient(host=Utility.environment["tracker"]["url"])
         db = AgenticFlow.chat_history_client.get_database()
-        conversations = db.get_collection(self.bot)
+        conversations = db.get_collection(f"{self.bot}_agent")
         data = {
           "type": "flattened",
           "sender_id": self.sender_id,

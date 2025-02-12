@@ -452,8 +452,8 @@ class TestAgenticFlow:
             assert not err
             mock_action.assert_called_once()
 
-        collection = pymongo_mock_client.get_database().get_collection(pytest.af_test_bot)
-        data =  collection.find({"tag": "agentic_flow"})
+        collection = pymongo_mock_client.get_database().get_collection(f"{pytest.af_test_bot}_agent")
+        data =  collection.find()
         data_entries = list(data)
 
         pymongo_mock_client.close()
