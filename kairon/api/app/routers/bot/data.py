@@ -2,7 +2,6 @@ import os
 from typing import List
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException
-from mongoengine import DoesNotExist
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
@@ -11,7 +10,7 @@ from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
-from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData
+from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ActorType
