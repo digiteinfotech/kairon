@@ -684,6 +684,17 @@ class Utility:
         return bool(search(strg))
 
     @staticmethod
+    def contains_special_characters(strg, search=re.compile(r"[^a-zA-Z0-9 _-]").search):
+        """
+        Check if the string contains special characters other than allowed ones (space, _ and -).
+
+        :param strg: text value
+        :param search: search pattern
+        :return: boolean
+        """
+        return bool(search(strg))
+
+    @staticmethod
     def list_directories(path: Text):
         """
         list all the directories in given path

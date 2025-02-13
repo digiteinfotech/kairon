@@ -10813,11 +10813,11 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f'Slot with name "slot_non_existant" not found'):
             processor.edit_slot_set_action(action, bot, user)
 
-    def test_edit_slot_set_action_name_empty(self):
+    def test_edit_slot_set_action_name_not_exists(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': ' ', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+        action = {'name': 'not_exists', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
                                               'value': 'name'}]}
         with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
             processor.edit_slot_set_action(action, bot, user)

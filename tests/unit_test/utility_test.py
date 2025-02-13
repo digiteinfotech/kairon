@@ -2806,6 +2806,22 @@ class TestUtility:
     def test_special_match_without_special_character(self):
         assert Utility.special_match(strg="Testing123") is False
 
+    def test_contains_special_characters(self):
+        assert Utility.contains_special_characters(strg="Testing@123") is True
+
+    def test_contains_special_characters_with_space(self):
+        assert Utility.contains_special_characters(strg="Testing 123") is False
+
+    def test_contains_special_characters_with_hyphens(self):
+        assert Utility.contains_special_characters(strg="Testing-123") is False
+
+    def test_contains_special_characters_with_underscores(self):
+        assert Utility.contains_special_characters(strg="Testing_123") is False
+
+    def test_contains_special_characters_with_ampersand(self):
+        assert Utility.contains_special_characters(strg="Tom & Jerry") is True
+
+
     def test_load_json_file(self):
         testing_path = "./template/chat-client/default-config.json"
         expected_output = {
