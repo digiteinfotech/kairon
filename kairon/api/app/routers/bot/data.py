@@ -15,7 +15,7 @@ from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ActorType
 from kairon.shared.constants import DESIGNER_ACCESS
-from kairon.shared.data.data_models import DeleteCognitionRequest
+from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
@@ -172,7 +172,7 @@ async def delete_cognition_data(
 
 @router.post("/cognition/delete_multiple", response_model=Response)
 async def delete_multiple_cognition_data(
-    request: DeleteCognitionRequest,
+    request: BulkDeleteRequest,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """

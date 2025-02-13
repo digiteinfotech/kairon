@@ -1228,7 +1228,7 @@ class CognitiveDataRequest(BaseModel):
             raise ValueError("data cannot be empty")
         return values
 
-class DeleteCognitionRequest(BaseModel):
+class BulkDeleteRequest(BaseModel):
     row_ids: List[str]
 
     @root_validator
