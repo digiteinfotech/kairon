@@ -231,6 +231,46 @@ aws-nova:
       maximum: 1.0
       description: "The top_p hyperparameter is a value that controls the diversity of the generated responses."
     stop:
+      anyOf:
+        - type: "array"
+          maxItems: 4
+          items:
+            type: "string"
+        - type: "null"
+      type:
+        - "array"
+        - "null"
+      default: null
+      description: "The stop hyperparameter is used to specify a list of tokens that should be used to indicate the end of a generated response."
+aws-nova:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: "object"
+  description: "AWS Nova AI Models for Prompt"
+  properties:
+    temperature:
+      type: "number"
+      default: 0.0
+      minimum: 0.0
+      maximum: 2.0
+      description: "The temperature hyperparameter controls the creativity or randomness of the generated responses."
+    max_tokens:
+      type: "integer"
+      default: 300
+      minimum: 5
+      maximum: 5120
+      description: "The max_tokens hyperparameter limits the length of generated responses in chat completion."
+    model:
+      type: "string"
+      default: "bedrock/converse/us.amazon.nova-lite-v1:0"
+      enum: ["bedrock/converse/us.amazon.nova-micro-v1:0", "bedrock/converse/us.amazon.nova-lite-v1:0", "bedrock/converse/us.amazon.nova-pro-v1:0"]
+      description: "The model hyperparameter is the ID of the model to use such as gpt-2, gpt-3, or a custom model that you have trained or fine-tuned."
+    top_p:
+      type: "number"
+      default: 0.0
+      minimum: 0.0
+      maximum: 1.0
+      description: "The top_p hyperparameter is a value that controls the diversity of the generated responses."
+    stop:
       type: "array"
       maxItems: 4
       items:
