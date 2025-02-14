@@ -18105,6 +18105,38 @@ class TestMongoProcessor:
         bot = 'testing'
         assert list(processor.list_cognition_data(bot)) == []
 
+    def test_delete_multiple_payload_content(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        collection = "multiple_delete_clear"
+
+        metadata = {
+            "metadata": None,
+            "collection_name": collection,
+            "bot": bot,
+            "user": user
+        }
+        processor.save_cognition_schema(metadata, user, bot)
+        contents = [
+            "A bot is a software application designed to automate tasks.",
+            "Bots can perform tasks like answering questions or analyzing data.",
+            "Some bots control physical machines, craeate leads or play games."
+        ]
+        content_ids = []
+        for content in contents:
+            payload = {
+                "data": content,
+                "content_type": "text",
+                "collection": collection
+            }
+
+            content_id = processor.save_cognition_data(payload, user, bot)
+            content_ids.append(content_id)
+
+        processor.delete_multiple_cognition_data(content_ids, bot, user)
+        remaining_docs = CognitionData.objects(id__in=content_ids)
+        assert remaining_docs.count() == 0
 
 class TestAgentProcessor:
 

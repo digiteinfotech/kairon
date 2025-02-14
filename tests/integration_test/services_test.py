@@ -1443,6 +1443,107 @@ def test_list_bots():
     assert response["data"]["shared"] == []
 
 
+def test_delete_multiple_payload_content_with_empty_list():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.cognition_collections_limit = 20
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+    metadata = {
+        "metadata": None,
+        "collection_name": "multiple_delete_test",
+        "bot": pytest.bot,
+        "user": pytest.username
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json=metadata,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    contents = [
+        "A bot is a software application designed to automate tasks.",
+        "Bots can perform tasks like answering questions or analyzing data.",
+        "Some bots control physical machines, craeate leads or play games."
+    ]
+    content_ids = []
+    for content in contents:
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": "multiple_delete_test"
+        }
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/data/cognition",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["message"] == "Record saved!"
+        assert actual["data"]["_id"]
+        assert actual["error_code"] == 0
+        content_ids.append(actual["data"]["_id"])
+    data=json.dumps(content_ids)
+    data={
+        "row_ids":[]
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/delete_multiple",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["message"][0]["msg"] == 'row_ids must be a non-empty list of valid strings'
+
+def test_delete_multiple_payload_content():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.cognition_collections_limit = 20
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+    metadata = {
+        "metadata": None,
+        "collection_name": "multiple_delete_test1",
+        "bot": pytest.bot,
+        "user": pytest.username
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json=metadata,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    contents = [
+        "A bot is a software application designed to automate tasks.",
+        "Bots can perform tasks like answering questions or analyzing data.",
+        "Some bots control physical machines, craeate leads or play games."
+    ]
+    content_ids = []
+    for content in contents:
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": "multiple_delete_test1"
+        }
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/data/cognition",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["message"] == "Record saved!"
+        assert actual["data"]["_id"]
+        assert actual["error_code"] == 0
+        content_ids.append(actual["data"]["_id"])
+    data={
+        "row_ids":content_ids
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/delete_multiple",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["message"] == "Records deleted!"
+
 def test_get_client_config_with_nudge_server_url():
     expected_app_server_url = Utility.environment['app']['server_url']
     expected_nudge_server_url = Utility.environment['nudge']['server_url']

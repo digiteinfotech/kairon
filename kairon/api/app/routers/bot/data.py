@@ -15,6 +15,7 @@ from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ActorType
 from kairon.shared.constants import DESIGNER_ACCESS
+from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
@@ -169,6 +170,16 @@ async def delete_cognition_data(
         "message": "Record deleted!"
     }
 
+@router.post("/cognition/delete_multiple", response_model=Response)
+async def delete_multiple_cognition_data(
+    request: BulkDeleteRequest,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Deletes multiple cognition content entries of the bot in bulk
+    """
+    cognition_processor.delete_multiple_cognition_data(request.row_ids, current_user.get_bot(), current_user.get_user())
+    return {"message": "Records deleted!"}
 
 @router.get("/cognition", response_model=Response)
 async def list_cognition_data(
