@@ -19,7 +19,7 @@ jira==3.8.0
 pipedrive-python-lib==1.2.3
 google-cloud-translate==3.16.0
 blinker==1.8.2
-pymupdf==1.24.9
+pymupdf==1.25.3
 python-docx==1.1.2
 pandas==2.2.2
 openpyxl==3.2.0b1
