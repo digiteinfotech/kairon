@@ -42,26 +42,45 @@ class LLMProcessor(LLMBase):
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
         self.llm_type = llm_type
-        self.vectors_config = {
-            "text-embedding-3-small": {
-                "size": self.__embedding__,
-                "distance": "Cosine"
-            },
-            "colbertv2.0": {
-                "size": 128,
-                "distance": "Cosine",
-                "multivector_config": {
-                    "comparator": "max_sim"
-                }
-            }
-        }
+        # self.vectors_config = {
+        #     "text-embedding-3-small": {
+        #         "size": self.__embedding__,
+        #         "distance": "Cosine"
+        #     },
+        #     "colbertv2.0": {
+        #         "size": 128,
+        #         "distance": "Cosine",
+        #         "multivector_config": {
+        #             "comparator": "max_sim"
+        #         }
+        #     }
+        # }
+        #
+        # self.sparse_vectors_config = {
+        #     "bm25":{ }
+        # }
+        # self.vectors_config = {
+        #     "dense": {
+        #         "size": self.__embedding__,
+        #         "distance": "Cosine"
+        #     },
+        #     "rerank": {
+        #         "size": 128,
+        #         "distance": "Cosine",
+        #         "multivector_config": {
+        #             "comparator": "max_sim"
+        #         }
+        #     }
+        # }
+        #
+        # self.sparse_vectors_config = {
+        #     "sparse": {}
+        # }
+        self.vectors_config = {}
+        self.sparse_vectors_config = {}
 
-        self.sparse_vectors_config = {
-            "bm25":{ }
-        }
-        # self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
+
         self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
-
         if llm_type != DEFAULT_LLM:
             self.llm_secret_embedding = Sysadmin.get_llm_secret(DEFAULT_LLM, bot)
         else:
@@ -73,8 +92,8 @@ class LLMProcessor(LLMBase):
 
     async def train(self, user, *args, **kwargs) -> Dict:
         invocation = kwargs.pop('invocation', None)
-        self.load_sparse_embedding_model()
-        self.load_rerank_embedding_model()
+        # self.load_sparse_embedding_model()
+        # self.load_rerank_embedding_model()
         await self.__delete_collections()
         count = 0
         processor = CognitionDataProcessor()
@@ -201,39 +220,65 @@ class LLMProcessor(LLMBase):
     #
     #     return embeddings
 
-    async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
+    # async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
+    #     """
+    #     Get embeddings for a batch of texts using multiple models.
+    #     """
+    #     is_single_text = isinstance(texts, str)
+    #     if is_single_text:
+    #         texts = [texts]
+    #     truncated_texts = self.truncate_text(texts)
+    #     embeddings = {}
+    #
+    #     result = await litellm.aembedding(
+    #         model="text-embedding-3-small",
+    #         input=truncated_texts,
+    #         metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
+    #         api_key=self.llm_secret_embedding.get('api_key'),
+    #         num_retries=3
+    #     )
+    #     embeddings["text-embedding-3-small"] = [embedding["embedding"] for embedding in result["data"]]
+    #
+    #     embeddings["bm25"] = [
+    #         self.get_sparse_embedding(sentence, as_object=False)
+    #         for sentence in truncated_texts
+    #     ]
+    #
+    #     embeddings["colbertv2.0"] = [
+    #         self.get_rerank_embedding(sentence)
+    #         for sentence in truncated_texts
+    #     ]
+    #
+    #     if is_single_text:
+    #         return {model: embedding[0] for model, embedding in embeddings.items()}
+    #
+    #     return embeddings
+
+    async def get_embedding(self, texts: Union[Text, List[Text]], user: Text, **kwargs):
         """
-        Get embeddings for a batch of texts using multiple models.
+        Get embeddings for a batch of texts by making an API call.
         """
         is_single_text = isinstance(texts, str)
-        if is_single_text:
-            texts = [texts]
-        truncated_texts = self.truncate_text(texts)
-        embeddings = {}
+        body = {
+            'texts': texts,
+            'user': user,
+            'invocation': kwargs.get("invocation")
+        }
 
-        result = await litellm.aembedding(
-            model="text-embedding-3-small",
-            input=truncated_texts,
-            metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-            api_key=self.llm_secret_embedding.get('api_key'),
-            num_retries=3
-        )
-        embeddings["text-embedding-3-small"] = [embedding["embedding"] for embedding in result["data"]]
+        timeout = Utility.environment['llm'].get('request_timeout', 30)
+        http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/embedding/{self.llm_type}",
+            request_method="POST",
+            request_body=body,
+            timeout=timeout)
 
-        embeddings["bm25"] = [
-            self.get_sparse_embedding(sentence, as_object=False)
-            for sentence in truncated_texts
-        ]
-
-        embeddings["colbertv2.0"] = [
-            self.get_rerank_embedding(sentence)
-            for sentence in truncated_texts
-        ]
-
-        if is_single_text:
-            return {model: embedding[0] for model, embedding in embeddings.items()}
-
-        return embeddings
+        if status_code == 200:
+            embeddings = http_response.get('embedding', {})
+            if is_single_text:
+                return {model: embedding[0] for model, embedding in embeddings.items()}
+            return embeddings
+        else:
+            raise Exception(f"Failed to fetch embeddings: {http_response.get('message', 'Unknown error')}")
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
@@ -339,6 +384,9 @@ class LLMProcessor(LLMBase):
             await client.cleanup()
 
     async def __create_collection__(self, collection_name: Text):
+        await self.initialize_vector_configs()
+        print(self.vectors_config)
+        print(self.sparse_vectors_config)
         await AioRestClient().request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                       request_method="PUT",
                                       headers=self.headers,
@@ -579,3 +627,19 @@ class LLMProcessor(LLMBase):
             return True
         else:
             return False
+
+    async def initialize_vector_configs(self):
+        """Fetch vector configurations from the API and initialize."""
+        timeout = Utility.environment['llm'].get('request_timeout', 30)
+
+        http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/config",
+            request_method="GET",
+            timeout=timeout
+        )
+        if status_code == 200:
+            response_data = http_response.get('configs', {})
+            self.vectors_config = response_data.get('vectors_config', {})
+            self.sparse_vectors_config = response_data.get('sparse_vectors_config', {})
+        else:
+            raise Exception(f"Failed to fetch vector configs: {http_response.get('message', 'Unknown error')}")
