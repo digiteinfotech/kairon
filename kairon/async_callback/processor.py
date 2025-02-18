@@ -6,12 +6,10 @@ from typing import Optional, Any, Text
 from loguru import logger
 from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
+from kairon.async_callback.utils import CallbackUtility
 from kairon.evaluator.processor import EvaluatorProcessor
 from kairon.exceptions import AppException
-from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, CallbackLog, CallbackExecutionMode
-from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import TASK_TYPE
+from kairon.shared.callback.data_objects import CallbackData, CallbackLog, CallbackExecutionMode
 
 async_task_executor = ThreadPoolExecutor(max_workers=64)
 
@@ -26,16 +24,14 @@ class CallbackProcessor:
         try:
             if trigger_task:
                 logger.info("Triggering lambda for pyscript evaluation")
-                lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, {
+                response = CallbackUtility.pyscript_handler({
                     'source_code': script,
                     'predefined_objects': predefined_objects
-                }, task_type=TASK_TYPE.CALLBACK.value)
-                if CloudUtility.lambda_execution_failed(lambda_response):
-                    err = lambda_response['Payload'].get('body') or lambda_response
+                }, None)
+                if response["statusCode"] != 200:
+                    err = response.get('body') or response
                     raise AppException(f"{err}")
-                if err := lambda_response["Payload"].get('errorMessage'):
-                    raise AppException(f"{err}")
-                result = lambda_response["Payload"].get('body')
+                result = response.get('body')
                 return result
             else:
                 logger.info("Triggering local_evaluator for pyscript evaluation")
