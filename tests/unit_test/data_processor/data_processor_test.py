@@ -16159,9 +16159,25 @@ class TestMongoProcessor:
             'failure_response': 'I have failed to process your request',
             'website': 'https://www.google.com',
         }
+        action2 = {
+            'name': 'google_custom_search2',
+            'api_key': {'value': '12345678'},
+            'search_term':{"parameter_type":"slot","value":"subject"},
+            'search_engine_id': 'asdfg:123456', "dispatch_response": False, "set_slot": "google_search_result",
+            'failure_response': 'I have failed to process your request',
+            'website': 'https://www.google.com',
+        }
         assert processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert processor.add_google_search_action(action2, bot, user)
+        assert Actions.objects(name='google_custom_search2', status=True, bot=bot).get()
+        assert GoogleSearchAction.objects(name='google_custom_search2', status=True, bot=bot).get()
+
+        GoogleSearchAction.objects(name='google_custom_search2', status=True, bot=bot).delete()
+        Actions.objects(name='google_custom_search2', status=True, bot=bot).delete()
+
+
 
         def __mock_get_slots(*args, **kwargs):
             return "some_mock_value"
@@ -16254,6 +16270,19 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
+        action0 = {
+            'name': 'google_custom_search',
+            'api_key': {'value': '1234567889'},
+            'search_engine_id': 'asdfg:12345689',
+            'failure_response': 'Failed to perform search',
+            'website': 'https://nimblework.com',
+            "search_term": {"parameter_type": "slot", "value": "subject"}
+        }
+
+        assert not processor.edit_google_search_action(action0, bot, user)
+        val = GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert val
+        assert val.search_term
         action = {
             'name': 'google_custom_search',
             'api_key': {'value': '1234567889'},
@@ -16263,7 +16292,10 @@ class TestMongoProcessor:
         }
         assert not processor.edit_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
-        assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+        val =  GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+        assert val
+        assert not val.search_term
+
 
     def test_list_google_search_action(self):
         processor = MongoProcessor()

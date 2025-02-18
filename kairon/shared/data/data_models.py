@@ -886,6 +886,7 @@ class GoogleSearchActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     api_key: CustomActionParameter = None
     search_engine_id: str = None
+    search_term: CustomActionParameter = None
     website: str = None
     failure_response: str = "I have failed to process your request."
     num_results: int = 1
