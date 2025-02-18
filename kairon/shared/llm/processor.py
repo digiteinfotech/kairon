@@ -465,6 +465,43 @@ class LLMProcessor(LLMBase):
             timeout=5)
         return response
 
+    async def __collection_hybrid_query__(self, collection_name: Text, embeddings: Dict, limit: int, score_threshold: float):
+        client = AioRestClient()
+        request_body = {
+            "prefetch": [
+                {
+                    "query": embeddings.get("dense", []),
+                    "using": "dense",
+                    "limit": limit
+                },
+                {
+                    "query": embeddings.get("rerank", []),
+                    "using": "rerank",
+                    "limit": limit
+                },
+                {
+                    "query": embeddings.get("sparse", {}),
+                    "using": "sparse",
+                    "limit": limit
+                }
+            ],
+            "query": {"fusion": "rrf"},
+            "with_payload": True,
+            "score_threshold": score_threshold,
+            "limit": limit
+        }
+
+        response = await client.request(
+            http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/query"),
+            request_method="POST",
+            headers={},
+            request_body=request_body,
+            return_json=True,
+            timeout=5
+        )
+
+        return response
+
     @property
     def logs(self):
         return self.__logs
@@ -483,10 +520,12 @@ class LLMProcessor(LLMBase):
                     collection_name = f"{self.bot}{self.suffix}"
                 else:
                     collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}"
-                search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
+                # search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
+                #                                                  score_threshold=score_threshold)
+                search_result = await self.__collection_hybrid_query__(collection_name, embeddings=query_embedding, limit=limit,
                                                                  score_threshold=score_threshold)
 
-                for entry in search_result['result']:
+                for entry in search_result['result']['points']:
                     if 'content' not in entry['payload']:
                         extracted_payload = {}
                         for key, value in entry['payload'].items():

@@ -709,12 +709,12 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -750,16 +750,50 @@ class TestLLM:
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
+                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
                 method="POST",
-                payload={'result': [
-                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+                payload = {
+                   "result":{
+                      "points":[
+                         {
+                            "id":test_content.vector_id,
+                            "version":0,
+                            "score":0.80,
+                            "payload":{
+                               "content": test_content.data
+                            }
+                         }
+                      ]
+                   },
+                   "status":"ok",
+                   "time":0.000957728
+                }
             )
 
             response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embeddings, 'limit': 10,
-                                                                                 'with_payload': True,
-                                                                                 'score_threshold': 0.70}
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
+                "prefetch": [
+                    {
+                        "query": embeddings.get("dense", []),
+                        "using": "dense",
+                        "limit": 10
+                    },
+                    {
+                        "query": embeddings.get("rerank", []),
+                        "using": "rerank",
+                        "limit": 10
+                    },
+                    {
+                        "query": embeddings.get("sparse", {}),
+                        "using": "sparse",
+                        "limit": 10
+                    }
+                ],
+                "query": {"fusion": "rrf"},
+                "with_payload": True,
+                "score_threshold": 0.70,
+                "limit": 10
+            }
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
@@ -785,12 +819,12 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -826,18 +860,52 @@ class TestLLM:
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                            f"/collections/{gpt3.bot}{gpt3.suffix}/points/query"),
                 method="POST",
-                payload={'result': [
-                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+                payload={
+                    "result": {
+                        "points": [
+                            {
+                                "id": test_content.vector_id,
+                                "version": 0,
+                                "score": 0.80,
+                                "payload":{
+                                   "content": test_content.data
+                                }
+                            }
+                        ]
+                    },
+                    "status": "ok",
+                    "time": 0.000957728
+                }
             )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embeddings, 'limit': 10,
-                                                                             'with_payload': True,
-                                                                             'score_threshold': 0.70}
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
+            "prefetch": [
+                {
+                    "query": embeddings.get("dense", []),
+                    "using": "dense",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("rerank", []),
+                    "using": "rerank",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("sparse", {}),
+                    "using": "sparse",
+                    "limit": 10
+                }
+            ],
+            "query": {"fusion": "rrf"},
+            "with_payload": True,
+            "score_threshold": 0.70,
+            "limit": 10
+        }
 
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
@@ -878,12 +946,12 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -908,20 +976,53 @@ class TestLLM:
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
+                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
                 method="POST",
-                payload={'result': [
-                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+                payload={
+                    "result": {
+                        "points": [
+                            {
+                                "id": test_content.vector_id,
+                                "version": 0,
+                                "score": 0.80,
+                                "payload": {
+                                    "content": test_content.data
+                                }
+                            }
+                        ]
+                    },
+                    "status": "ok",
+                    "time": 0.000957728
+                }
             )
 
             response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
             assert response['content'] == generated_text
             assert gpt3.logs == [{'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}], 'raw_completion_response': {'id': 'chatcmpl-5cde438e-0c93-47d8-bbee-13319b4f2000', 'created': 1720090690, 'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.', 'role': 'assistant'}}]}, 'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embeddings, 'limit': 10,
-                                                                                 'with_payload': True,
-                                                                                 'score_threshold': 0.70}
-
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
+                "prefetch": [
+                    {
+                        "query": embeddings.get("dense", []),
+                        "using": "dense",
+                        "limit": 10
+                    },
+                    {
+                        "query": embeddings.get("rerank", []),
+                        "using": "rerank",
+                        "limit": 10
+                    },
+                    {
+                        "query": embeddings.get("sparse", {}),
+                        "using": "sparse",
+                        "limit": 10
+                    }
+                ],
+                "query": {"fusion": "rrf"},
+                "with_payload": True,
+                "score_threshold": 0.70,
+                "limit": 10
+            }
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
@@ -961,12 +1062,12 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -989,20 +1090,53 @@ class TestLLM:
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
+                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
                 method="POST",
-                payload={'result': [
-                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+                payload={
+                    "result": {
+                        "points": [
+                            {
+                                "id": test_content.vector_id,
+                                "version": 0,
+                                "score": 0.80,
+                                "payload": {
+                                    "content": test_content.data
+                                }
+                            }
+                        ]
+                    },
+                    "status": "ok",
+                    "time": 0.000957728
+                }
             )
 
             response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
             assert response['content'] == "Python is dynamically typed, garbage-collected, high level, general purpose programming."
             assert gpt3.logs == [{'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}], 'raw_completion_response': {'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.', 'role': 'assistant'}}]}, 'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}, 'stream': True}}]
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embeddings, 'limit': 10,
-                                                                                 'with_payload': True,
-                                                                                 'score_threshold': 0.70}
-
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
+                "prefetch": [
+                    {
+                        "query": embeddings.get("dense", []),
+                        "using": "dense",
+                        "limit": 10
+                    },
+                    {
+                        "query": embeddings.get("rerank", []),
+                        "using": "rerank",
+                        "limit": 10
+                    },
+                    {
+                        "query": embeddings.get("sparse", {}),
+                        "using": "sparse",
+                        "limit": 10
+                    }
+                ],
+                "query": {"fusion": "rrf"},
+                "with_payload": True,
+                "score_threshold": 0.70,
+                "limit": 10
+            }
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
@@ -1062,12 +1196,12 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -1106,22 +1240,61 @@ class TestLLM:
         gpt3 = LLMProcessor(bot, DEFAULT_LLM)
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
-                        f"/collections/{gpt3.bot}_{test_content1.collection}{gpt3.suffix}/points/search"),
+                        f"/collections/{gpt3.bot}_{test_content1.collection}{gpt3.suffix}/points/query"),
             method="POST",
-            payload={'result': [
-                {'id': test_content2.vector_id, 'score': 0.80, "payload": test_content2.data},
-                {'id': test_content3.vector_id, 'score': 0.80, "payload": test_content3.data}
-            ]}
+            payload={
+                "result": {
+                    "points": [
+                        {
+                            "id": test_content2.vector_id,
+                            "version": 0,
+                            "score": 0.80,
+                            "payload": {
+                                "content": test_content2.data
+                            }
+                        },
+                        {
+                            "id": test_content3.vector_id,
+                            "version": 0,
+                            "score": 0.80,
+                            "payload": {
+                                "content": test_content3.data
+                            }
+                        }
+                    ]
+                },
+                "status": "ok",
+                "time": 0.000957728
+            }
         )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
         assert response['content'] == generated_text
         assert not DeepDiff(gpt3.logs, [{'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n[{'name': 'Fahad', 'city': 'Mumbai'}, {'name': 'Hitesh', 'city': 'Mumbai'}]\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: List all the user lives in mumbai city \nA:"}], 'raw_completion_response': {'choices': [{'id': 'chatcmpl-836a9b38-dfe9-4ae0-9f94-f431e2e8e8d1', 'choices': [{'finish_reason': 'stop', 'index': 0, 'message': {'content': 'Hitesh and Fahad lives in mumbai city.', 'role': 'assistant'}}], 'created': 1720090691, 'model': None, 'object': 'chat.completion', 'system_fingerprint': None, 'usage': {}}]}, 'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}}], ignore_order=True)
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embeddings, 'limit': 10,
-                                                                             'with_payload': True,
-                                                                             'score_threshold': 0.70}
-
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
+            "prefetch": [
+                {
+                    "query": embeddings.get("dense", []),
+                    "using": "dense",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("rerank", []),
+                    "using": "rerank",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("sparse", {}),
+                    "using": "sparse",
+                    "limit": 10
+                }
+            ],
+            "query": {"fusion": "rrf"},
+            "with_payload": True,
+            "score_threshold": 0.70,
+            "limit": 10
+        }
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio
@@ -1161,12 +1334,12 @@ class TestLLM:
                                    "collection": 'python'}],
             "hyperparameters": hyperparameters
         }
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -1186,10 +1359,24 @@ class TestLLM:
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
-                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
+                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
             method="POST",
-            payload={'result': [
-                {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+            payload={
+                "result": {
+                    "points": [
+                        {
+                            "id": test_content.vector_id,
+                            "version": 0,
+                            "score": 0.80,
+                            "payload": {
+                                "content": test_content.data
+                            }
+                        }
+                    ]
+                },
+                "status": "ok",
+                "time": 0.000957728
+            }
         )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
@@ -1198,9 +1385,29 @@ class TestLLM:
 
         assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Internal Server Error'}]
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embeddings, 'limit': 10,
-                                                                             'with_payload': True,
-                                                                             'score_threshold': 0.70}
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
+            "prefetch": [
+                {
+                    "query": embeddings.get("dense", []),
+                    "using": "dense",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("rerank", []),
+                    "using": "rerank",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("sparse", {}),
+                    "using": "sparse",
+                    "limit": 10
+                }
+            ],
+            "query": {"fusion": "rrf"},
+            "with_payload": True,
+            "score_threshold": 0.70,
+            "limit": 10
+        }
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
 
@@ -1238,12 +1445,12 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -1294,12 +1501,12 @@ class TestLLM:
         }
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -1349,12 +1556,12 @@ class TestLLM:
                                    "collection": 'python'}],
             "hyperparameters": hyperparameters
         }
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -1389,18 +1596,52 @@ class TestLLM:
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
-                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
+                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
             method="POST",
-            payload={'result': [
-                {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+            payload={
+                "result": {
+                    "points": [
+                        {
+                            "id": test_content.vector_id,
+                            "version": 0,
+                            "score": 0.80,
+                            "payload": {
+                                "content": test_content.data
+                            }
+                        }
+                    ]
+                },
+                "status": "ok",
+                "time": 0.000957728
+            }
         )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embeddings, 'limit': 10,
-                                                                             'with_payload': True,
-                                                                             'score_threshold': 0.70}
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
+            "prefetch": [
+                {
+                    "query": embeddings.get("dense", []),
+                    "using": "dense",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("rerank", []),
+                    "using": "rerank",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("sparse", {}),
+                    "using": "sparse",
+                    "limit": 10
+                }
+            ],
+            "query": {"fusion": "rrf"},
+            "with_payload": True,
+            "score_threshold": 0.70,
+            "limit": 10
+        }
 
         assert isinstance(time_elapsed, float) and time_elapsed > 0.
 
@@ -1449,12 +1690,12 @@ class TestLLM:
         ]}
 
         mock_rephrase_request.update(hyperparameters)
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
+        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+        colbertv2_0_embeddings = [np.random.random(128).tolist()]
+        bm25_embeddings = {
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
+        }
 
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
@@ -1489,18 +1730,52 @@ class TestLLM:
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
-                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
+                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
             method="POST",
-            payload={'result': [
-                {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+            payload={
+                "result": {
+                    "points": [
+                        {
+                            "id": test_content.vector_id,
+                            "version": 0,
+                            "score": 0.80,
+                            "payload": {
+                                "content": test_content.data
+                            }
+                        }
+                    ]
+                },
+                "status": "ok",
+                "time": 0.000957728
+            }
         )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embeddings, 'limit': 10,
-                                                                             'with_payload': True,
-                                                                             'score_threshold': 0.70}
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
+            "prefetch": [
+                {
+                    "query": embeddings.get("dense", []),
+                    "using": "dense",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("rerank", []),
+                    "using": "rerank",
+                    "limit": 10
+                },
+                {
+                    "query": embeddings.get("sparse", {}),
+                    "using": "sparse",
+                    "limit": 10
+                }
+            ],
+            "query": {"fusion": "rrf"},
+            "with_payload": True,
+            "score_threshold": 0.70,
+            "limit": 10
+        }
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
     @pytest.mark.asyncio

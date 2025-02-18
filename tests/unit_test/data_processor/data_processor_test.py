@@ -4951,12 +4951,12 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
 
-    @patch.object(litellm, "aembedding", autospec=True)
+    @patch.object(LLMProcessor, "get_embedding", autospec=True)
     @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
     def test_start_training_with_llm_faq(
-            self, mock_train, mock_bot, mock_vec_client, mock_openai
+            self, mock_train, mock_bot, mock_vec_client, mock_get_embedding
     ):
         bot = "tests"
         user = "testUser"
@@ -4980,8 +4980,19 @@ class TestMongoProcessor:
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
-        embedding = list(np.random.random(1532))
-        mock_openai.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
+        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+        bm25_embeddings = [{
+            "indices": [1850593538, 11711171],
+            "values": [1.66, 1.66]
+        }]
+
+        embeddings = {
+            "dense": text_embedding_3_small_embeddings,
+            "rerank": colbertv2_0_embeddings,
+            "sparse": bm25_embeddings,
+        }
+        mock_get_embedding.return_value = embeddings
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)
