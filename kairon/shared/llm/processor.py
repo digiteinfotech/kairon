@@ -474,11 +474,11 @@ class LLMProcessor(LLMBase):
                     "using": "dense",
                     "limit": limit
                 },
-                {
-                    "query": embeddings.get("rerank", []),
-                    "using": "rerank",
-                    "limit": limit
-                },
+                # {
+                #     "query": embeddings.get("rerank", []),
+                #     "using": "rerank",
+                #     "limit": limit
+                # },
                 {
                     "query": embeddings.get("sparse", {}),
                     "using": "sparse",

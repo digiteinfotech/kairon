@@ -11713,13 +11713,12 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_get_e
          'is_enabled': True}
     ]
 
-
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -11747,12 +11746,34 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_get_e
         body=json.dumps(expected_body)
     )
 
+    # aioresponses.add(
+    #     url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+    #     body={'vector': embeddings},
+    #     payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+    #     method="POST",
+    #     status=200
+    # )
+
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -11822,12 +11843,12 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
         mock.ANY,
         mock.ANY
     )
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -11852,12 +11873,33 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
         payload={'formatted_response': generated_text, 'response': generated_text},
         body=json.dumps(expected_body)
     )
+    # aioresponses.add(
+    #     url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+    #     body={'vector': embeddings},
+    #     payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+    #     method="POST",
+    #     status=200
+    # )
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
     hyperparameters = Utility.get_llm_hyperparameters("perplexity")
     hyperparameters['search_domain_filter'] = ["domain1.com", "domain2.com"]
