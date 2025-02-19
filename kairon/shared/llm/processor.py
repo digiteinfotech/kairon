@@ -474,68 +474,6 @@ class LLMProcessor(LLMBase):
                 user_msg = f"{user_msg} inurl:{search_domain_filter_str}"
         return user_msg
 
-    @classmethod
-    def load_sparse_embedding_model(cls):
-        from fastembed import SparseTextEmbedding
-        if cls._sparse_embedding is None:
-            cls._sparse_embedding = SparseTextEmbedding("Qdrant/bm25",
-                                                        cache_dir="./kairon/pre-trained-models/")
-            print("SPARSE MODEL LOADED")
-
-    @classmethod
-    def load_rerank_embedding_model(cls):
-        from fastembed import LateInteractionTextEmbedding
-        if cls._rerank_embedding is None:
-            cls._rerank_embedding = LateInteractionTextEmbedding("colbert-ir/colbertv2.0",
-                                                                 cache_dir="./kairon/pre-trained-models/")
-            print("RERANK MODEL LOADED")
-
-    def get_sparse_embedding(self, sentence, as_object: bool = True):
-        """
-        Generate a sparse embedding for a given sentence using a sparse embedding model.
-
-        Args:
-            sentence (str): The input sentence to be encoded into a sparse representation.
-            as_object (bool): weather return embedding as object or not
-
-        Returns:
-            list: A list containing the sparse embedding vector of the input sentence.
-        """
-        if not self.check_empty_string(sentence):
-            sentence = sentence.replace("\n", " ")
-            embedding = list(self._sparse_embedding.passage_embed(sentence))
-            print(embedding)
-            if as_object:
-                return embedding[0].as_object()
-            return {
-                "values": embedding[0].values.tolist(),
-                "indices": embedding[0].indices.tolist()
-            }
-
-
-    def get_rerank_embedding(self, sentence):
-        """
-        Generate a sparse embedding for a given sentence using a sparse embedding model.
-
-        Args:
-            sentence (str): The input sentence to be encoded into a sparse representation.
-
-        Returns:
-            list: A list containing the sparse embedding vector of the input sentence.
-        """
-        if not self.check_empty_string(sentence):
-            sentence = sentence.replace("\n", " ")
-            embedding = list(self._rerank_embedding.passage_embed(sentence))
-            return embedding[0].tolist()
-
-    @staticmethod
-    def check_empty_string(value: str):
-        if not value:
-            return True
-        if not value.strip():
-            return True
-        else:
-            return False
 
     async def initialize_vector_configs(self):
         """Fetch vector configurations from the API and initialize."""
