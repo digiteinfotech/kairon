@@ -98,12 +98,13 @@ class LLMProcessor(LLMBase):
 
                 embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation)
                 points = []
-                for idx in range(len(vector_ids)):
+
+                for idx, vector_id in enumerate(vector_ids):
                     vector_data = {}
                     for model_name, model_embeddings in embeddings.items():
                         vector_data[model_name] = model_embeddings[idx]
                     point = {
-                        "id": vector_ids[idx],
+                        "id": vector_id,
                         "payload": search_payloads[idx],
                         "vector": vector_data
                     }
@@ -167,7 +168,7 @@ class LLMProcessor(LLMBase):
         }
 
         timeout = Utility.environment['llm'].get('request_timeout', 30)
-        http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(
+        http_response, status_code, _, _ = await ActionUtility.execute_request_async(
             http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/embedding/{self.llm_type}",
             request_method="POST",
             request_body=body,
@@ -540,7 +541,7 @@ class LLMProcessor(LLMBase):
         """Fetch vector configurations from the API and initialize."""
         timeout = Utility.environment['llm'].get('request_timeout', 30)
 
-        http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(
+        http_response, status_code, _, _ = await ActionUtility.execute_request_async(
             http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/config",
             request_method="GET",
             timeout=timeout

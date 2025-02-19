@@ -2447,7 +2447,7 @@ def test_knowledge_vault_sync_document_non_existence(mock_get_embedding):
         "rerank": colbertv2_0_embeddings,
         "sparse": bm25_embeddings,
     }
-\
+
     mock_get_embedding.return_value = embeddings
 
     secrets = [
