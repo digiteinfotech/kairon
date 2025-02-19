@@ -12,7 +12,6 @@ from mongoengine import connect
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 
-Utility.load_system_metadata()
 
 from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
@@ -290,12 +289,6 @@ class TestLLM:
                             'vector': expected_embeddings[0],
                             'payload': {'name': 'Nupur'}}]}
 
-        # CognitionSchema.objects(bot=bot, collection_name="Country_details").delete()
-        # CognitionData.objects(bot=bot, collection="Country_details").delete()
-        # CognitionSchema.objects(bot=bot, collection_name="User_details").delete()
-        # CognitionData.objects(bot=bot, collection="User_details").delete()
-
-
     @pytest.mark.asyncio
     @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
     async def test_gpt3_faq_embedding_train_payload_with_int(self, mock_get_embedding, aioresponses):
@@ -308,9 +301,6 @@ class TestLLM:
                       {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             collection_name="payload_with_int",
             bot=bot, user=user).save()
-        # for schema in CognitionSchema.objects(bot = bot):
-        #     print(schema.to_mongo().to_dict())
-        # assert 0
         test_content = CognitionData(
             data={"name": "Ram", "age": 23, "color": "red"},
             content_type="json",
@@ -1472,10 +1462,11 @@ class TestLLM:
 
     @pytest.mark.asyncio
     @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_embedding_connection_error(self, mock_get_embedding):
+    async def test_gpt3_faq_embedding_predict_embedding_connection_error(self, mock_get_embedding, aioresponses):
         user = "test"
         bot = "test_gpt3_faq_embedding_predict_embedding_connection_error"
         key = "test"
+        llm_type = "openai"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot=bot, user=user).save()
@@ -1514,7 +1505,7 @@ class TestLLM:
             "sparse": bm25_embeddings,
         }
 
-        mock_get_embedding.return_value = embeddings
+        mock_get_embedding.side_effect = Exception("Connection reset by peer!")
         response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
         assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
 

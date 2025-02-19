@@ -11746,14 +11746,6 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_get_e
         body=json.dumps(expected_body)
     )
 
-    # aioresponses.add(
-    #     url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-    #     body={'vector': embeddings},
-    #     payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-    #     method="POST",
-    #     status=200
-    # )
-
     aioresponses.add(
         url=urljoin(Utility.environment['vector']['db'],
                     f"/collections/{bot}_python_faq_embd/points/query"),
@@ -11873,13 +11865,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
         payload={'formatted_response': generated_text, 'response': generated_text},
         body=json.dumps(expected_body)
     )
-    # aioresponses.add(
-    #     url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-    #     body={'vector': embeddings},
-    #     payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-    #     method="POST",
-    #     status=200
-    # )
+
     aioresponses.add(
         url=urljoin(Utility.environment['vector']['db'],
                     f"/collections/{bot}_python_faq_embd/points/query"),
@@ -11987,12 +11973,12 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
          'is_enabled': True}
     ]
 
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -12019,12 +12005,27 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
         repeat=True
     )
 
+
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12100,12 +12101,12 @@ def test_prompt_action_response_action_with_bot_responses(mock_get_embedding, ai
          'is_enabled': True}
     ]
 
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -12134,11 +12135,25 @@ def test_prompt_action_response_action_with_bot_responses(mock_get_embedding, ai
     )
 
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12202,12 +12217,12 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
          'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -12237,11 +12252,25 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     )
 
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -12329,12 +12358,12 @@ def test_prompt_action_response_action_with_query_prompt(mock_get_embedding, aio
         repeat=True
     )
 
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -12344,13 +12373,26 @@ def test_prompt_action_response_action_with_query_prompt(mock_get_embedding, aio
 
     mock_get_embedding.return_value = embeddings
 
-
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12416,24 +12458,52 @@ def test_prompt_response_action(mock_get_embedding, aioresponses):
     ]
     aioresponses.add(
         url=urljoin(Utility.environment['vector']['db'],
-                    f"/collections/5f50fd0a56b698ca10d35d2e_python_faq_embd/points/search"),
+                    f"/collections/5f50fd0a56b698ca10d35d2e_python_faq_embd/points/query"),
         method="POST",
-        status=200,
         payload={
-            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]})
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
+    )
     aioresponses.add(
         url=urljoin(Utility.environment['vector']['db'],
-                    f"/collections/5f50fd0a56b698ca10d35d2e_data_science_faq_embd/points/search"),
+                    f"/collections/5f50fd0a56b698ca10d35d2e_data_science_faq_embd/points/query"),
         method="POST",
-        status=200,
         payload={
-            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content_two}}]})
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content_two
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
+    )
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -12516,12 +12586,12 @@ def test_prompt_response_action_with_instructions(mock_get_embedding, aiorespons
          'is_enabled': True
          }
     ]
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -12548,11 +12618,25 @@ def test_prompt_response_action_with_instructions(mock_get_embedding, aiorespons
     )
 
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -12613,12 +12697,12 @@ def test_prompt_response_action_streaming_enabled(mock_get_embedding, aiorespons
          }
     ]
 
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -12646,11 +12730,25 @@ def test_prompt_response_action_streaming_enabled(mock_get_embedding, aiorespons
     )
 
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
@@ -12806,12 +12904,12 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_get_embeddin
     def __mock_cache_result(*args, **kwargs):
         return {'result': []}
 
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -12841,14 +12939,26 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_get_embeddin
     )
 
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200,
-        repeat=True
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
-
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -12899,12 +13009,12 @@ def test_prompt_action_response_action_with_action_prompt(mock_get_embedding, ai
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
 
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -12989,13 +13099,26 @@ def test_prompt_action_response_action_with_action_prompt(mock_get_embedding, ai
     )
 
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
-
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -13205,12 +13328,12 @@ def test_prompt_action_dispatch_response_disabled(mock_get_embedding, aiorespons
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -13251,13 +13374,26 @@ def test_prompt_action_dispatch_response_disabled(mock_get_embedding, aiorespons
     )
 
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
-
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -13472,12 +13608,12 @@ def test_prompt_action_response_action_slot_prompt(mock_get_embedding, aiorespon
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -13518,13 +13654,26 @@ def test_prompt_action_response_action_slot_prompt(mock_get_embedding, aiorespon
     )
 
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
-
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -13603,12 +13752,12 @@ def test_prompt_action_user_message_in_slot(mock_get_embedding, aioresponses):
     bot_content = "Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time."
     generated_text = "YES you can use both in a single project. However, in order to run the Sprint, you should only use the 'Scrum board'. On the other hand 'Kanban board' is only to track the progress or status of the Jira issues."
     hyperparameters = Utility.get_default_llm_hyperparameters()
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -13645,11 +13794,25 @@ def test_prompt_action_user_message_in_slot(mock_get_embedding, aioresponses):
     )
 
     aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": [
+                    {
+                        "id": uuid7().__str__(),
+                        "version": 0,
+                        "score": 0.80,
+                        "payload": {
+                            "content": bot_content
+                        }
+                    }
+                ]
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
     
     
@@ -13709,12 +13872,12 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_get_embeddi
          'is_enabled': True}
     ]
 
-    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-    bm25_embeddings = [{
+    text_embedding_3_small_embeddings = np.random.random(1536).tolist()
+    colbertv2_0_embeddings = [np.random.random(128).tolist()]
+    bm25_embeddings = {
         "indices": [1850593538, 11711171],
         "values": [1.66, 1.66]
-    }]
+    }
 
     embeddings = {
         "dense": text_embedding_3_small_embeddings,
@@ -13744,11 +13907,16 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_get_embeddi
     )
 
     aioresponses.add(
-        url= f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embeddings},
-        payload={'result': []},
+        url=urljoin(Utility.environment['vector']['db'],
+                    f"/collections/{bot}_python_faq_embd/points/query"),
         method="POST",
-        status=200
+        payload={
+            "result": {
+                "points": []
+            },
+            "status": "ok",
+            "time": 0.000957728
+        }
     )
 
 

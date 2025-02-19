@@ -42,40 +42,6 @@ class LLMProcessor(LLMBase):
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
         self.llm_type = llm_type
-        # self.vectors_config = {
-        #     "text-embedding-3-small": {
-        #         "size": self.__embedding__,
-        #         "distance": "Cosine"
-        #     },
-        #     "colbertv2.0": {
-        #         "size": 128,
-        #         "distance": "Cosine",
-        #         "multivector_config": {
-        #             "comparator": "max_sim"
-        #         }
-        #     }
-        # }
-        #
-        # self.sparse_vectors_config = {
-        #     "bm25":{ }
-        # }
-        # self.vectors_config = {
-        #     "dense": {
-        #         "size": self.__embedding__,
-        #         "distance": "Cosine"
-        #     },
-        #     "rerank": {
-        #         "size": 128,
-        #         "distance": "Cosine",
-        #         "multivector_config": {
-        #             "comparator": "max_sim"
-        #         }
-        #     }
-        # }
-        #
-        # self.sparse_vectors_config = {
-        #     "sparse": {}
-        # }
         self.vectors_config = {}
         self.sparse_vectors_config = {}
 
@@ -92,8 +58,6 @@ class LLMProcessor(LLMBase):
 
     async def train(self, user, *args, **kwargs) -> Dict:
         invocation = kwargs.pop('invocation', None)
-        # self.load_sparse_embedding_model()
-        # self.load_rerank_embedding_model()
         await self.__delete_collections()
         count = 0
         processor = CognitionDataProcessor()
@@ -133,10 +97,6 @@ class LLMProcessor(LLMBase):
                     vector_ids.append(content['vector_id'])
 
                 embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation)
-
-                # points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
-                #           for idx in range(len(vector_ids))]
-
                 points = []
                 for idx in range(len(vector_ids)):
                     vector_data = {}
@@ -194,65 +154,6 @@ class LLMProcessor(LLMBase):
             truncated_texts.append(self.tokenizer.decode(tokens))
 
         return truncated_texts
-
-    # async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
-    #     """
-    #     Get embeddings for a batch of texts.
-    #     """
-    #     is_single_text = isinstance(texts, str)
-    #     if is_single_text:
-    #         texts = [texts]
-    #
-    #     truncated_texts = self.truncate_text(texts)
-    #
-    #     result = await litellm.aembedding(
-    #         model="text-embedding-3-small",
-    #         input=truncated_texts,
-    #         metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-    #         api_key=self.llm_secret_embedding.get('api_key'),
-    #         num_retries=3
-    #     )
-    #
-    #     embeddings = [embedding["embedding"] for embedding in result["data"]]
-    #
-    #     if is_single_text:
-    #         return embeddings[0]
-    #
-    #     return embeddings
-
-    # async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
-    #     """
-    #     Get embeddings for a batch of texts using multiple models.
-    #     """
-    #     is_single_text = isinstance(texts, str)
-    #     if is_single_text:
-    #         texts = [texts]
-    #     truncated_texts = self.truncate_text(texts)
-    #     embeddings = {}
-    #
-    #     result = await litellm.aembedding(
-    #         model="text-embedding-3-small",
-    #         input=truncated_texts,
-    #         metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-    #         api_key=self.llm_secret_embedding.get('api_key'),
-    #         num_retries=3
-    #     )
-    #     embeddings["text-embedding-3-small"] = [embedding["embedding"] for embedding in result["data"]]
-    #
-    #     embeddings["bm25"] = [
-    #         self.get_sparse_embedding(sentence, as_object=False)
-    #         for sentence in truncated_texts
-    #     ]
-    #
-    #     embeddings["colbertv2.0"] = [
-    #         self.get_rerank_embedding(sentence)
-    #         for sentence in truncated_texts
-    #     ]
-    #
-    #     if is_single_text:
-    #         return {model: embedding[0] for model, embedding in embeddings.items()}
-    #
-    #     return embeddings
 
     async def get_embedding(self, texts: Union[Text, List[Text]], user: Text, **kwargs):
         """
@@ -385,8 +286,6 @@ class LLMProcessor(LLMBase):
 
     async def __create_collection__(self, collection_name: Text):
         await self.initialize_vector_configs()
-        print(self.vectors_config)
-        print(self.sparse_vectors_config)
         await AioRestClient().request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                       request_method="PUT",
                                       headers=self.headers,
@@ -410,34 +309,6 @@ class LLMProcessor(LLMBase):
                 if raise_err:
                     raise AppException(err_msg)
 
-    # async def __collection_upsert__(self, collection_name: Text, data: Dict, err_msg: Text, raise_err=True):
-    #     client = AioRestClient()
-    #     url = urljoin(self.db_url, f"/collections/{collection_name}/points")
-    #     try:
-    #         # Log the request payload
-    #         logging.info(f"Upserting data to collection: {collection_name} with payload: {data}")
-    #
-    #         response = await client.request(
-    #             http_url=url,
-    #             request_method="PUT",
-    #             headers=self.headers,
-    #             request_body=data,
-    #             return_json=True,
-    #             timeout=5
-    #         )
-    #
-    #         # Log the response
-    #         logging.info(f"Response: {response}")
-    #
-    #         if not response.get('result'):
-    #             if "status" in response:
-    #                 logging.exception(response['status'].get('error'))
-    #                 if raise_err:
-    #                     raise AppException(err_msg)
-    #     except Exception as e:
-    #         logging.exception(f"Failed to upsert data to collection {collection_name}: {str(e)}")
-    #         if raise_err:
-    #             raise
 
     async def __collection_exists__(self, collection_name: Text) -> bool:
         """Check if a collection exists."""
@@ -474,11 +345,11 @@ class LLMProcessor(LLMBase):
                     "using": "dense",
                     "limit": limit
                 },
-                # {
-                #     "query": embeddings.get("rerank", []),
-                #     "using": "rerank",
-                #     "limit": limit
-                # },
+                {
+                    "query": embeddings.get("rerank", []),
+                    "using": "rerank",
+                    "limit": limit
+                },
                 {
                     "query": embeddings.get("sparse", {}),
                     "using": "sparse",
@@ -520,8 +391,6 @@ class LLMProcessor(LLMBase):
                     collection_name = f"{self.bot}{self.suffix}"
                 else:
                     collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}"
-                # search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
-                #                                                  score_threshold=score_threshold)
                 search_result = await self.__collection_hybrid_query__(collection_name, embeddings=query_embedding, limit=limit,
                                                                  score_threshold=score_threshold)
 

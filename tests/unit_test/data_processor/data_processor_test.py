@@ -4,9 +4,11 @@ import os
 import re
 import shutil
 import tempfile
+import urllib
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
+from urllib.parse import urljoin
 
 import ujson as json
 import yaml
@@ -4951,12 +4953,14 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
 
+    @pytest.mark.asyncio
     @patch.object(LLMProcessor, "get_embedding", autospec=True)
     @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
+    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", autospec=True)
     def test_start_training_with_llm_faq(
-            self, mock_train, mock_bot, mock_vec_client, mock_get_embedding
+            self, mock_execute_request, mock_train, mock_bot, mock_vec_client, mock_get_embedding
     ):
         bot = "tests"
         user = "testUser"
@@ -4980,18 +4984,41 @@ class TestMongoProcessor:
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+        text_embedding_3_small_embeddings = [np.random.random(1536).tolist(), np.random.random(1536).tolist()]
+        colbertv2_0_embeddings = [[np.random.random(128).tolist()], [np.random.random(128).tolist()]]
         bm25_embeddings = [{
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
-        }]
-
+        },
+            {
+                "indices": [1850593538, 11711171],
+                "values": [1.66, 1.66]
+            }
+        ]
         embeddings = {
             "dense": text_embedding_3_small_embeddings,
             "rerank": colbertv2_0_embeddings,
             "sparse": bm25_embeddings,
         }
+
+        mock_execute_request.return_value = (
+            {
+                'configs': {
+                    'sparse_vectors_config': {'sparse': {}},
+                    'vectors_config': {
+                        'dense': {'distance': 'Cosine', 'size': 1536},
+                        'rerank': {
+                            'distance': 'Cosine',
+                            'multivector_config': {'comparator': 'max_sim'},
+                            'size': 128
+                        }
+                    }
+                }
+            },
+            200,
+            0.1,
+            None
+        )
         mock_get_embedding.return_value = embeddings
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
