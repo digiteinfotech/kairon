@@ -1,5 +1,7 @@
 import os
+import urllib
 from unittest import mock
+from unittest.mock import patch, AsyncMock
 from urllib.parse import urljoin
 
 import numpy as np
@@ -7,6 +9,7 @@ import pytest
 import ujson as json
 from absl.logging import exception
 from aiohttp import ClientConnectionError
+from fastapi.dependencies.utils import request_body_to_args
 from mongoengine import connect
 
 from kairon.shared.rest_client import AioRestClient
@@ -1835,4 +1838,369 @@ class TestLLM:
             timeout=5
         )
         assert result is False
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
+    async def test_initialize_vector_configs_success(self, mock_execute_request_async):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_response = {
+            'configs': {
+                'sparse_vectors_config': {'sparse': {}},
+                'vectors_config': {
+                    'dense': {'distance': 'Cosine', 'size': 1536},
+                    'rerank': {
+                        'distance': 'Cosine',
+                        'multivector_config': {'comparator': 'max_sim'},
+                        'size': 128
+                    }
+                }
+            }
+        }
+        mock_execute_request_async.return_value = (mock_response, 200, None, None)
+
+        processor = LLMProcessor(bot, llm_type)
+        await processor.initialize_vector_configs()
+
+        assert processor.vectors_config == {
+                    'dense': {'distance': 'Cosine', 'size': 1536},
+                    'rerank': {
+                        'distance': 'Cosine',
+                        'multivector_config': {'comparator': 'max_sim'},
+                        'size': 128
+                    }
+                }
+        assert processor.sparse_vectors_config == {'sparse': {}}
+
+        mock_execute_request_async.assert_called_once_with(
+            http_url = f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/config",
+            request_method="GET",
+            timeout=Utility.environment['llm'].get('request_timeout', 30)
+        )
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
+    async def test_initialize_vector_configs_failure(self, mock_execute_request_async):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_execute_request_async.return_value = ({"message": "Error fetching data"}, 500, None, None)
+
+        processor = LLMProcessor(bot, llm_type)
+
+        with pytest.raises(Exception, match="Failed to fetch vector configs: Error fetching data"):
+            await processor.initialize_vector_configs()
+
+        mock_execute_request_async.assert_called_once()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
+    async def test_initialize_vector_configs_empty_response(self, mock_execute_request_async):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+        mock_execute_request_async.return_value = ({}, 200, None, None)
+
+        processor = LLMProcessor(bot, llm_type)
+        await processor.initialize_vector_configs()
+
+        assert processor.vectors_config == {}
+        assert processor.sparse_vectors_config == {}
+
+        mock_execute_request_async.assert_called_once()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
+    async def test_get_embedding_success_single_text(self, mock_execute_request_async):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        texts = "Hello how are you??"
+        invocation = "test_invocation"
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_response = {
+            "embedding": {
+                "dense": [
+                    0.01926439255475998,
+                    -0.0645047277212143
+                ],
+                "sparse": {
+                    "values": [
+                        1.6877434821696136
+                    ],
+                    "indices": [
+                        613153351
+                    ]
+                },
+                "rerank": [
+                    [
+                        0.03842781484127045,
+                        0.10881761461496353,
+                    ],
+                    [
+                        0.046593569219112396,
+                        -0.023154577240347862
+                    ],
+                    [
+                        0.0206329133361578,
+                        -0.07174995541572571
+                    ],
+                    [
+                        -0.007417665328830481,
+                        0.09697738289833069
+                    ]
+                ]
+            }
+        }
+
+        mock_execute_request_async.return_value = (mock_response, 200, None, None)
+
+        processor = LLMProcessor(bot, llm_type)
+        embeddings = await processor.get_embedding(texts, user, invocation=invocation)
+
+        assert embeddings == mock_response["embedding"]
+        mock_execute_request_async.assert_called_once_with(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/embedding/{llm_type}",
+            request_method="POST",
+            request_body={
+                'texts': texts,
+                'user': user,
+                'invocation': invocation
+            },
+            timeout=Utility.environment['llm'].get('request_timeout', 30)
+        )
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
+    async def test_get_embedding_success_multiple_texts(self, mock_execute_request_async):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        texts = ["Hello how are you?","I am Python"]
+        invocation = "test_invocation"
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_response = {
+            "embedding": {
+                "dense": [
+                    [
+                        -0.014715306460857391,
+                        -0.022890476509928703
+                    ],
+                    [
+                        -0.019074518233537674,
+                        -0.0060106911696493626
+                    ]
+                ],
+                "sparse": [
+                    {
+                        "values": [
+                            1.6877434821696136
+                        ],
+                        "indices": [
+                            613153351
+                        ]
+                    },
+                    {
+                        "values": [
+                            1.6877434821696136
+                        ],
+                        "indices": [
+                            948991206
+                        ]
+                    }
+                ],
+                "rerank": [
+                    [
+                        [
+                            -0.17043153941631317,
+                            -0.05260511487722397
+                        ],
+                        [
+                            -0.0009218898485414684,
+                            0.028302231803536415
+                        ],
+                        [
+                            0.006710350513458252,
+                            0.06639177352190018
+                        ],
+                        [
+                            -0.1451372504234314,
+                            -0.0822567492723465
+                        ]
+                    ],
+                    [
+                        [
+                            -0.09881757199764252,
+                            -0.05606473982334137
+                        ],
+                        [
+                            -0.06487230211496353,
+                            -0.042552437633275986
+                        ],
+                        [
+                            -0.09635651856660843,
+                            -0.06676826626062393
+                        ],
+                        [
+                            -0.09975136816501617,
+                            -0.07088008522987366
+                        ]
+                    ]
+                ]
+            }
+        }
+
+        mock_execute_request_async.return_value = (mock_response, 200, None, None)
+
+        processor = LLMProcessor(bot, llm_type)
+        embeddings = await processor.get_embedding(texts, user, invocation=invocation)
+
+        assert embeddings == mock_response["embedding"]
+        mock_execute_request_async.assert_called_once_with(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/embedding/{llm_type}",
+            request_method="POST",
+            request_body={
+                'texts': texts,
+                'user': user,
+                'invocation': invocation
+            },
+            timeout=Utility.environment['llm'].get('request_timeout', 30)
+        )
+        LLMSecret.objects.delete()
+
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
+    async def test_get_embedding_api_error(self, mock_execute_request_async):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        texts = ["Hello how are you?", "I am Python"]
+        invocation = "test_invocation"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_execute_request_async.return_value = ({"message": "Internal Server Error"}, 500, None, None)
+
+        processor = LLMProcessor(bot, llm_type)
+
+        with pytest.raises(Exception, match="Failed to fetch embeddings: Internal Server Error"):
+            await processor.get_embedding(texts, user, invocation=invocation)
+
+        mock_execute_request_async.assert_called_once_with(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/embedding/{llm_type}",
+            request_method="POST",
+            request_body={
+                'texts': texts,
+                'user': user,
+                'invocation': invocation
+            },
+            timeout=Utility.environment['llm'].get('request_timeout', 30)
+        )
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
+    async def test_get_embedding_empty_response(self, mock_execute_request_async):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        texts = ["Hello how are you?", "I am Python"]
+        invocation = "test_invocation"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_execute_request_async.return_value = ({}, 200, None, None)
+
+        processor = LLMProcessor(bot, llm_type)
+        embeddings = await processor.get_embedding(texts, user, invocation=invocation)
+
+        assert embeddings == {}
+
+        mock_execute_request_async.assert_called_once_with(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/embedding/{llm_type}",
+            request_method="POST",
+            request_body={
+                'texts': texts,
+                'user': user,
+                'invocation': invocation
+            },
+            timeout=Utility.environment['llm'].get('request_timeout', 30)
+        )
         LLMSecret.objects.delete()

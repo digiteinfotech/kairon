@@ -144,23 +144,11 @@ class LLMProcessor(LLMBase):
         elapsed_time = end_time - start_time
         return response, elapsed_time
 
-    def truncate_text(self, texts: List[Text]) -> List[Text]:
-        """
-        Truncate multiple texts to 8191 tokens for openai
-        """
-        truncated_texts = []
-
-        for text in texts:
-            tokens = self.tokenizer.encode(text)[:self.EMBEDDING_CTX_LENGTH]
-            truncated_texts.append(self.tokenizer.decode(tokens))
-
-        return truncated_texts
 
     async def get_embedding(self, texts: Union[Text, List[Text]], user: Text, **kwargs):
         """
         Get embeddings for a batch of texts by making an API call.
         """
-        is_single_text = isinstance(texts, str)
         body = {
             'texts': texts,
             'user': user,
@@ -176,8 +164,6 @@ class LLMProcessor(LLMBase):
 
         if status_code == 200:
             embeddings = http_response.get('embedding', {})
-            if is_single_text:
-                return {model: embedding[0] for model, embedding in embeddings.items()}
             return embeddings
         else:
             raise Exception(f"Failed to fetch embeddings: {http_response.get('message', 'Unknown error')}")
