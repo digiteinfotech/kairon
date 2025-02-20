@@ -19,6 +19,7 @@ from kairon.api.models import (
     TextDataLowerCase, SlotMappingRequest, EventConfig, MultiFlowStoryRequest, BotSettingsRequest
 )
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
+from kairon.events.definitions.mail_channel import MailReadEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.exceptions import AppException
@@ -1670,3 +1671,16 @@ async def get_mail_channel_logs(start_idx: int = 0, page_size: int = 10,
     """
     data = MailProcessor.get_log(current_user.get_bot(), start_idx, page_size)
     return Response(data=data)
+
+
+@router.get("/mail_channel/read_mailbox", response_model=Response)
+async def trigger_mail_channel_read(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Trains the chatbot
+    """
+    event = MailReadEvent(current_user.get_bot(), current_user.get_user())
+    event.validate()
+    event.enqueue()
+    return Response(message="mail channel read triggered")
