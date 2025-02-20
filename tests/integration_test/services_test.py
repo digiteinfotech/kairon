@@ -15342,6 +15342,24 @@ def test_add_story_to_different_bot():
     assert actual["error_code"] == 0
 
 
+@patch('kairon.api.app.routers.bot.bot.MailReadEvent.__init__', return_value=None)
+@patch('kairon.api.app.routers.bot.bot.MailReadEvent.validate')
+@patch('kairon.api.app.routers.bot.bot.MailReadEvent.enqueue')
+def test_trigger_mail_channel_read(mock_enque, mock_validate, mock_init):
+    response = client.get(
+        f"/api/bot/{pytest.bot}/mail_channel/read_mailbox",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    mock_validate.assert_called_once()
+    mock_enque.assert_called_once()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "mail channel read triggered"
+
+
+
 @responses.activate
 def test_train_on_different_bot(monkeypatch):
     def _mock_training_limit(*arge, **kwargs):
