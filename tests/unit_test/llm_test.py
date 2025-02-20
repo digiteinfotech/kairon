@@ -2204,3 +2204,172 @@ class TestLLM:
             timeout=Utility.environment['llm'].get('request_timeout', 30)
         )
         LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.rest_client.AioRestClient.request", new_callable=AsyncMock)
+    async def test_collection_hybrid_query_success(self, mock_request):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        collection_name = "test_collection"
+        limit = 5
+        score_threshold = 0.7
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        embeddings = {
+                "dense": [
+                    0.01926439255475998,
+                    -0.0645047277212143
+                ],
+                "sparse": {
+                    "values": [
+                        1.6877434821696136
+                    ],
+                    "indices": [
+                        613153351
+                    ]
+                },
+                "rerank": [
+                    [
+                        0.03842781484127045,
+                        0.10881761461496353,
+                    ],
+                    [
+                        0.046593569219112396,
+                        -0.023154577240347862
+                    ]
+                ]
+            }
+
+        mock_response = {
+           "result":{
+              "points":[
+                 {
+                    "id":2,
+                    "version":0,
+                    "score":1.5,
+                    "payload":{
+                       "content":"Great Wall of China is a historic fortification stretching thousands of miles, built to protect Chinese states from invasions."
+                    }
+                 },
+                 {
+                    "id":1,
+                    "version":0,
+                    "score":1.0,
+                    "payload":{
+                       "content":"Taj Mahal is a white marble mausoleum in India, built by Mughal Emperor Shah Jahan in memory of his wife Mumtaz Mahal."
+                    }
+                 }
+              ]
+           },
+           "status":"ok",
+           "time":0.003191196
+        }
+
+        mock_request.return_value = mock_response
+
+        processor = LLMProcessor(bot, llm_type)
+        response = await processor.__collection_hybrid_query__(collection_name, embeddings, limit, score_threshold)
+
+        assert response == mock_response
+        mock_request.assert_called_once_with(
+            http_url=f"{Utility.environment['vector']['db']}/collections/{collection_name}/points/query",
+            request_method="POST",
+            headers={},
+            request_body={
+                "prefetch": [
+                    {"query": embeddings.get("dense", []), "using": "dense", "limit": limit},
+                    {"query": embeddings.get("rerank", []), "using": "rerank", "limit": limit},
+                    {"query": embeddings.get("sparse", {}), "using": "sparse", "limit": limit}
+                ],
+                "query": {"fusion": "rrf"},
+                "with_payload": True,
+                "score_threshold": score_threshold,
+                "limit": limit
+            },
+            return_json=True,
+            timeout=5
+        )
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.rest_client.AioRestClient.request", new_callable=AsyncMock)
+    async def test_collection_hybrid_query_request_failure(self, mock_request):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        collection_name = "test_collection"
+        limit = 5
+        score_threshold = 0.7
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        embeddings = {
+            "dense": [0.01926439255475998, -0.0645047277212143],
+            "sparse": {"values": [1.6877434821696136], "indices": [613153351]},
+            "rerank": [[0.03842781484127045, 0.10881761461496353], [0.046593569219112396, -0.023154577240347862]]
+        }
+
+        mock_request.side_effect = Exception("Request failed")
+
+        processor = LLMProcessor(bot, llm_type)
+        with pytest.raises(Exception, match="Request failed"):
+            await processor.__collection_hybrid_query__(collection_name, embeddings, limit, score_threshold)
+
+        mock_request.assert_called_once()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.rest_client.AioRestClient.request", new_callable=AsyncMock)
+    async def test_collection_hybrid_query_empty_response(self, mock_request):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+        collection_name = "test_collection"
+        limit = 5
+        score_threshold = 0.7
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        embeddings = {
+            "dense": [0.01926439255475998, -0.0645047277212143],
+            "sparse": {"values": [1.6877434821696136], "indices": [613153351]},
+            "rerank": [[0.03842781484127045, 0.10881761461496353], [0.046593569219112396, -0.023154577240347862]]
+        }
+
+        mock_request.return_value = {}
+
+        processor = LLMProcessor(bot, llm_type)
+        response = await processor.__collection_hybrid_query__(collection_name, embeddings, limit, score_threshold)
+
+        assert response == {}
+        mock_request.assert_called_once()
+        LLMSecret.objects.delete()

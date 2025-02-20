@@ -312,16 +312,6 @@ class LLMProcessor(LLMBase):
             logging.info(e)
             return False
 
-    async def __collection_search__(self, collection_name: Text, vector: List, limit: int, score_threshold: float):
-        client = AioRestClient()
-        response = await client.request(
-            http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/search"),
-            request_method="POST",
-            headers=self.headers,
-            request_body={'vector': vector, 'limit': limit, 'with_payload': True, 'score_threshold': score_threshold},
-            return_json=True,
-            timeout=5)
-        return response
 
     async def __collection_hybrid_query__(self, collection_name: Text, embeddings: Dict, limit: int, score_threshold: float):
         client = AioRestClient()
