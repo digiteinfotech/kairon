@@ -1678,7 +1678,7 @@ async def trigger_mail_channel_read(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Trains the chatbot
+    Triggers asynchronous reading of emails from the configured mailbox.
     """
     event = MailReadEvent(current_user.get_bot(), current_user.get_user())
     event.validate()
