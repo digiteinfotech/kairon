@@ -30,6 +30,8 @@ litellm.callbacks = [LiteLLMLogger()]
 
 
 class LLMProcessor(LLMBase):
+    _sparse_embedding = None
+    _rerank_embedding = None
     __embedding__ = 1536
 
     def __init__(self, bot: Text, llm_type: str):
@@ -40,9 +42,11 @@ class LLMProcessor(LLMBase):
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
         self.llm_type = llm_type
-        self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
-        self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
+        self.vectors_config = {}
+        self.sparse_vectors_config = {}
 
+
+        self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
         if llm_type != DEFAULT_LLM:
             self.llm_secret_embedding = Sysadmin.get_llm_secret(DEFAULT_LLM, bot)
         else:
@@ -93,9 +97,19 @@ class LLMProcessor(LLMBase):
                     vector_ids.append(content['vector_id'])
 
                 embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation)
+                points = []
 
-                points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
-                          for idx in range(len(vector_ids))]
+                for idx, vector_id in enumerate(vector_ids):
+                    vector_data = {}
+                    for model_name, model_embeddings in embeddings.items():
+                        vector_data[model_name] = model_embeddings[idx]
+                    point = {
+                        "id": vector_id,
+                        "payload": search_payloads[idx],
+                        "vector": vector_data
+                    }
+                    points.append(point)
+
                 await self.__collection_upsert__(collection, {'points': points},
                                                  err_msg="Unable to train FAQ! Contact support")
                 count += len(batch_contents)
@@ -130,42 +144,29 @@ class LLMProcessor(LLMBase):
         elapsed_time = end_time - start_time
         return response, elapsed_time
 
-    def truncate_text(self, texts: List[Text]) -> List[Text]:
+
+    async def get_embedding(self, texts: Union[Text, List[Text]], user: Text, **kwargs):
         """
-        Truncate multiple texts to 8191 tokens for openai
+        Get embeddings for a batch of texts by making an API call.
         """
-        truncated_texts = []
+        body = {
+            'texts': texts,
+            'user': user,
+            'invocation': kwargs.get("invocation")
+        }
 
-        for text in texts:
-            tokens = self.tokenizer.encode(text)[:self.EMBEDDING_CTX_LENGTH]
-            truncated_texts.append(self.tokenizer.decode(tokens))
+        timeout = Utility.environment['llm'].get('request_timeout', 30)
+        http_response, status_code, _, _ = await ActionUtility.execute_request_async(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/embedding/{self.llm_type}",
+            request_method="POST",
+            request_body=body,
+            timeout=timeout)
 
-        return truncated_texts
-
-    async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
-        """
-        Get embeddings for a batch of texts.
-        """
-        is_single_text = isinstance(texts, str)
-        if is_single_text:
-            texts = [texts]
-
-        truncated_texts = self.truncate_text(texts)
-
-        result = await litellm.aembedding(
-            model="text-embedding-3-small",
-            input=truncated_texts,
-            metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-            api_key=self.llm_secret_embedding.get('api_key'),
-            num_retries=3
-        )
-
-        embeddings = [embedding["embedding"] for embedding in result["data"]]
-
-        if is_single_text:
-            return embeddings[0]
-
-        return embeddings
+        if status_code == 200:
+            embeddings = http_response.get('embedding', {})
+            return embeddings
+        else:
+            raise Exception(f"Failed to fetch embeddings: {http_response.get('message', 'Unknown error')}")
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
@@ -271,10 +272,13 @@ class LLMProcessor(LLMBase):
             await client.cleanup()
 
     async def __create_collection__(self, collection_name: Text):
+        await self.initialize_vector_configs()
         await AioRestClient().request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                       request_method="PUT",
                                       headers=self.headers,
-                                      request_body={'name': collection_name, 'vectors': self.vector_config},
+                                      request_body={'name': collection_name, 'vectors': self.vectors_config,
+                                                    'sparse_vectors': self.sparse_vectors_config
+                                                    },
                                       return_json=False,
                                       timeout=5)
 
@@ -292,6 +296,7 @@ class LLMProcessor(LLMBase):
                 if raise_err:
                     raise AppException(err_msg)
 
+
     async def __collection_exists__(self, collection_name: Text) -> bool:
         """Check if a collection exists."""
         try:
@@ -307,15 +312,42 @@ class LLMProcessor(LLMBase):
             logging.info(e)
             return False
 
-    async def __collection_search__(self, collection_name: Text, vector: List, limit: int, score_threshold: float):
+
+    async def __collection_hybrid_query__(self, collection_name: Text, embeddings: Dict, limit: int, score_threshold: float):
         client = AioRestClient()
+        request_body = {
+            "prefetch": [
+                {
+                    "query": embeddings.get("dense", []),
+                    "using": "dense",
+                    "limit": limit
+                },
+                {
+                    "query": embeddings.get("rerank", []),
+                    "using": "rerank",
+                    "limit": limit
+                },
+                {
+                    "query": embeddings.get("sparse", {}),
+                    "using": "sparse",
+                    "limit": limit
+                }
+            ],
+            "query": {"fusion": "rrf"},
+            "with_payload": True,
+            "score_threshold": score_threshold,
+            "limit": limit
+        }
+
         response = await client.request(
-            http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/search"),
+            http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/query"),
             request_method="POST",
-            headers=self.headers,
-            request_body={'vector': vector, 'limit': limit, 'with_payload': True, 'score_threshold': score_threshold},
+            headers={},
+            request_body=request_body,
             return_json=True,
-            timeout=5)
+            timeout=5
+        )
+
         return response
 
     @property
@@ -336,10 +368,10 @@ class LLMProcessor(LLMBase):
                     collection_name = f"{self.bot}{self.suffix}"
                 else:
                     collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}"
-                search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
+                search_result = await self.__collection_hybrid_query__(collection_name, embeddings=query_embedding, limit=limit,
                                                                  score_threshold=score_threshold)
 
-                for entry in search_result['result']:
+                for entry in search_result['result']['points']:
                     if 'content' not in entry['payload']:
                         extracted_payload = {}
                         for key, value in entry['payload'].items():
@@ -417,3 +449,20 @@ class LLMProcessor(LLMBase):
                 )
                 user_msg = f"{user_msg} inurl:{search_domain_filter_str}"
         return user_msg
+
+
+    async def initialize_vector_configs(self):
+        """Fetch vector configurations from the API and initialize."""
+        timeout = Utility.environment['llm'].get('request_timeout', 30)
+
+        http_response, status_code, _, _ = await ActionUtility.execute_request_async(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/config",
+            request_method="GET",
+            timeout=timeout
+        )
+        if status_code == 200:
+            response_data = http_response.get('configs', {})
+            self.vectors_config = response_data.get('vectors_config', {})
+            self.sparse_vectors_config = response_data.get('sparse_vectors_config', {})
+        else:
+            raise Exception(f"Failed to fetch vector configs: {http_response.get('message', 'Unknown error')}")
