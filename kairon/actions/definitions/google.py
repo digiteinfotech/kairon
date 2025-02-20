@@ -64,11 +64,16 @@ class ActionGoogleSearch(ActionsBase):
                 user_msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
                 if not ActionUtility.is_empty(user_msg):
                     latest_msg = user_msg
-            tracker_data = ActionUtility.build_context(tracker)
+            tracker_data = ActionUtility.build_context(tracker, True)
+            tracker_data.update({'bot': self.bot})
+            if action_config.get('search_term'):
+                search_term = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, action_config['search_term'], self.bot)
+            else:
+                search_term = latest_msg
             api_key = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_key, self.bot)
             if not ActionUtility.is_empty(latest_msg):
                 results = ActionUtility.perform_google_search(
-                    api_key, action_config['search_engine_id'], latest_msg,
+                    api_key, action_config['search_engine_id'], search_term,
                     num=action_config.get("num_results"), website=action_config.get("website")
                 )
                 if results:

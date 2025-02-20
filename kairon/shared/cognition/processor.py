@@ -363,6 +363,15 @@ class CognitionDataProcessor:
         except DoesNotExist:
             raise AppException("Payload does not exists!")
 
+    def delete_multiple_cognition_data(self, row_ids: List[str], bot: Text, user: str = None):
+        """
+        Deletes multiple cognition entries in bulk.
+        """
+        if not row_ids:
+            raise AppException("row_ids list cannot be empty!")
+        query = {"id__in": row_ids}
+        Utility.hard_delete_document([CognitionData], bot=bot,user=user, **query)
+
     def delete_all_cognition_data_by_collection(self, collection_name: Text, bot: Text):
         """
         Deletes all documents from the specified collection for a given bot.
@@ -645,7 +654,8 @@ class CognitionDataProcessor:
             search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
                 document['data'], metadata)
             embeddings = await llm_processor.get_embedding(embedding_payload, user, invocation='knowledge_vault_sync')
-            points = [{'id': document['vector_id'], 'vector': embeddings, 'payload': search_payload}]
+            embeddings_formatted = {key: value[0] for key, value in embeddings.items()}
+            points = [{'id': document['vector_id'], 'vector': embeddings_formatted, 'payload': search_payload}]
             await llm_processor.__collection_upsert__(collection_name, {'points': points},
                                                       err_msg="Unable to train FAQ! Contact support")
             logger.info(f"Row with {primary_key_col}: {document['data'].get(primary_key_col)} upserted in Qdrant.")

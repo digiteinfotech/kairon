@@ -1443,6 +1443,107 @@ def test_list_bots():
     assert response["data"]["shared"] == []
 
 
+def test_delete_multiple_payload_content_with_empty_list():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.cognition_collections_limit = 20
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+    metadata = {
+        "metadata": None,
+        "collection_name": "multiple_delete_test",
+        "bot": pytest.bot,
+        "user": pytest.username
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json=metadata,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    contents = [
+        "A bot is a software application designed to automate tasks.",
+        "Bots can perform tasks like answering questions or analyzing data.",
+        "Some bots control physical machines, craeate leads or play games."
+    ]
+    content_ids = []
+    for content in contents:
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": "multiple_delete_test"
+        }
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/data/cognition",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["message"] == "Record saved!"
+        assert actual["data"]["_id"]
+        assert actual["error_code"] == 0
+        content_ids.append(actual["data"]["_id"])
+    data=json.dumps(content_ids)
+    data={
+        "row_ids":[]
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/delete_multiple",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["message"][0]["msg"] == 'row_ids must be a non-empty list of valid strings'
+
+def test_delete_multiple_payload_content():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.cognition_collections_limit = 20
+    bot_settings.llm_settings['enable_faq'] = True
+    bot_settings.save()
+    metadata = {
+        "metadata": None,
+        "collection_name": "multiple_delete_test1",
+        "bot": pytest.bot,
+        "user": pytest.username
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json=metadata,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    contents = [
+        "A bot is a software application designed to automate tasks.",
+        "Bots can perform tasks like answering questions or analyzing data.",
+        "Some bots control physical machines, craeate leads or play games."
+    ]
+    content_ids = []
+    for content in contents:
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": "multiple_delete_test1"
+        }
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/data/cognition",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+        actual = response.json()
+        assert actual["message"] == "Record saved!"
+        assert actual["data"]["_id"]
+        assert actual["error_code"] == 0
+        content_ids.append(actual["data"]["_id"])
+    data={
+        "row_ids":content_ids
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/delete_multiple",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["message"] == "Records deleted!"
+
 def test_get_client_config_with_nudge_server_url():
     expected_app_server_url = Utility.environment['app']['server_url']
     expected_nudge_server_url = Utility.environment['nudge']['server_url']
@@ -1817,8 +1918,8 @@ def test_default_values():
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
+@mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_knowledge_vault_sync_push_menu(mock_get_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
@@ -1829,8 +1930,20 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     mock_create_collection.return_value = None
     mock_collection_upsert.return_value = None
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
+    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+    bm25_embeddings = [{
+        "indices": [1850593538, 11711171],
+        "values": [1.66, 1.66]
+    }]
+
+    embeddings = {
+        "dense": text_embedding_3_small_embeddings,
+        "rerank": colbertv2_0_embeddings,
+        "sparse": bm25_embeddings,
+    }
+
+    mock_get_embedding.return_value = embeddings
 
     secrets = [
         {
@@ -1909,27 +2022,6 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
         doc_data = doc.to_mongo().to_dict()["data"]
         assert doc_data == expected_data[index]
 
-    expected_calls = [
-        {
-            "model": "text-embedding-3-small",
-            "input": ['{"id":1,"item":"Juice","price":2.5,"quantity":10}'],  # First input
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        },
-        {
-            "model": "text-embedding-3-small",
-            "input": ['{"id":2,"item":"Apples","price":1.2,"quantity":20}'],  # Second input
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        }
-    ]
-
-    for i, expected in enumerate(expected_calls):
-        actual_call = mock_embedding.call_args_list[i].kwargs
-        assert actual_call == expected
-
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
     LLMSecret.objects.delete()
@@ -1940,8 +2032,8 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
+@mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_knowledge_vault_sync_field_update(mock_get_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
@@ -1952,8 +2044,20 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
     mock_create_collection.return_value = None
     mock_collection_upsert.return_value = None
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
+    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+    bm25_embeddings = [{
+        "indices": [1850593538, 11711171],
+        "values": [1.66, 1.66]
+    }]
+
+    embeddings = {
+        "dense": text_embedding_3_small_embeddings,
+        "rerank": colbertv2_0_embeddings,
+        "sparse": bm25_embeddings,
+    }
+
+    mock_get_embedding.return_value = embeddings
 
     secrets = [
         {
@@ -2047,42 +2151,34 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
         doc_data = doc.to_mongo().to_dict()["data"]
         assert doc_data == expected_data[index]
 
-    expected_calls = [
-        {
-            "model": "text-embedding-3-small",
-            "input": ['{"id":1,"item":"Juice","price":80.5,"quantity":56}'],
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        },
-        {
-            "model": "text-embedding-3-small",
-            "input": ['{"id":2,"item":"Milk","price":27.0,"quantity":12}'],  # Second input
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        }
-    ]
-
-    for i, expected in enumerate(expected_calls):
-        actual_call = mock_embedding.call_args_list[i].kwargs
-        assert actual_call == expected
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
     LLMSecret.objects.delete()
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_event_type_does_not_exist(mock_embedding):
+@mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_knowledge_vault_sync_event_type_does_not_exist(mock_get_embedding):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
+    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+    bm25_embeddings = [{
+        "indices": [1850593538, 11711171],
+        "values": [1.66, 1.66]
+    }]
+
+    embeddings = {
+        "dense": text_embedding_3_small_embeddings,
+        "rerank": colbertv2_0_embeddings,
+        "sparse": bm25_embeddings,
+    }
+
+    mock_get_embedding.return_value = embeddings
 
     secrets = [
         {
@@ -2118,16 +2214,28 @@ def test_knowledge_vault_sync_event_type_does_not_exist(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_missing_collection(mock_embedding):
+@mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_knowledge_vault_sync_missing_collection(mock_get_embedding):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
+    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+    bm25_embeddings = [{
+        "indices": [1850593538, 11711171],
+        "values": [1.66, 1.66]
+    }]
+
+    embeddings = {
+        "dense": text_embedding_3_small_embeddings,
+        "rerank": colbertv2_0_embeddings,
+        "sparse": bm25_embeddings,
+    }
+
+    mock_get_embedding.return_value = embeddings
 
     secrets = [
         {
@@ -2164,16 +2272,28 @@ def test_knowledge_vault_sync_missing_collection(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
+@mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_knowledge_vault_sync_missing_primary_key(mock_get_embedding):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
+    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+    bm25_embeddings = [{
+        "indices": [1850593538, 11711171],
+        "values": [1.66, 1.66]
+    }]
+
+    embeddings = {
+        "dense": text_embedding_3_small_embeddings,
+        "rerank": colbertv2_0_embeddings,
+        "sparse": bm25_embeddings,
+    }
+
+    mock_get_embedding.return_value = embeddings
 
     secrets = [
         {
@@ -2231,16 +2351,28 @@ def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
+@mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_knowledge_vault_sync_column_length_mismatch(mock_get_embedding):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
+    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+    bm25_embeddings = [{
+        "indices": [1850593538, 11711171],
+        "values": [1.66, 1.66]
+    }]
+
+    embeddings = {
+        "dense": text_embedding_3_small_embeddings,
+        "rerank": colbertv2_0_embeddings,
+        "sparse": bm25_embeddings,
+    }
+
+    mock_get_embedding.return_value = embeddings
 
     secrets = [
         {
@@ -2296,16 +2428,28 @@ def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_invalid_columns(mock_embedding):
+@mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_knowledge_vault_sync_invalid_columns(mock_get_embedding):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
+    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+    bm25_embeddings = [{
+        "indices": [1850593538, 11711171],
+        "values": [1.66, 1.66]
+    }]
+
+    embeddings = {
+        "dense": text_embedding_3_small_embeddings,
+        "rerank": colbertv2_0_embeddings,
+        "sparse": bm25_embeddings,
+    }
+
+    mock_get_embedding.return_value = embeddings
 
     secrets = [
         {
@@ -2384,16 +2528,28 @@ def test_knowledge_vault_sync_invalid_columns(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_document_non_existence(mock_embedding):
+@mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_knowledge_vault_sync_document_non_existence(mock_get_embedding):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
+    colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+    bm25_embeddings = [{
+        "indices": [1850593538, 11711171],
+        "values": [1.66, 1.66]
+    }]
+
+    embeddings = {
+        "dense": text_embedding_3_small_embeddings,
+        "rerank": colbertv2_0_embeddings,
+        "sparse": bm25_embeddings,
+    }
+
+    mock_get_embedding.return_value = embeddings
 
     secrets = [
         {

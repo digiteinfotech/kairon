@@ -497,6 +497,7 @@ class GoogleSearchAction(Auditlog):
     name = StringField(required=True)
     api_key = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
     search_engine_id = StringField(default=None)
+    search_term = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
     website = StringField(default=None)
     failure_response = StringField(default="I have failed to process your request.")
     num_results = IntField(default=1)

@@ -4578,11 +4578,14 @@ class MongoProcessor:
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(action_config.get("name"), bot, GoogleSearchAction)
+        if action_config.get("search_term"):
+            action_config["search_term"]['key'] = 'search_term'
         action = (
             GoogleSearchAction(
                 name=action_config["name"],
                 api_key=CustomActionRequestParameters(**action_config["api_key"]),
                 search_engine_id=action_config["search_engine_id"],
+                search_term= CustomActionRequestParameters(**action_config["search_term"]) if action_config.get("search_term") else None,
                 website=action_config.get("website"),
                 failure_response=action_config.get("failure_response"),
                 num_results=action_config.get("num_results"),
@@ -4627,7 +4630,11 @@ class MongoProcessor:
         action = GoogleSearchAction.objects(
             name=action_config.get("name"), bot=bot, status=True
         ).get()
+        if action_config.get('search_term'):
+            action_config['search_term']['key'] = 'search_term'
+
         action.api_key = CustomActionRequestParameters(**action_config["api_key"])
+        action.search_term = CustomActionRequestParameters(**action_config["search_term"]) if action_config.get("search_term") else None
         action.search_engine_id = action_config["search_engine_id"]
         action.website = action_config.get("website")
         action.failure_response = action_config.get("failure_response")
