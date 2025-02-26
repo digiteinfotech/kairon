@@ -4137,8 +4137,32 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_get_embeddin
         url=http_url,
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher({'query': embeddings,
-                                                       'with_payload': True, 'limit': 10})],
+        match=[
+            responses.matchers.json_params_matcher(
+                {
+                    'prefetch': [
+                        {
+                            "query": embeddings.get("dense", []),
+                            "using": "dense",
+                            "limit": 10
+                        },
+                        {
+                            "query": embeddings.get("rerank", []),
+                            "using": "rerank",
+                            "limit": 10
+                        },
+                        {
+                            "query": embeddings.get("sparse", {}),
+                            "using": "sparse",
+                            "limit": 10
+                        }
+                    ],
+                    'query': {"fusion": "rrf"},
+                    'with_payload': True,
+                    'limit': 10
+                }
+            )
+        ],
     )
 
     request_object = {
@@ -4397,8 +4421,32 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_get_embedding
         url=http_url,
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher({'query': embeddings,
-                                                       'with_payload': True, 'limit': 10})],
+        match=[
+            responses.matchers.json_params_matcher(
+                {
+                    'prefetch': [
+                        {
+                            "query": embeddings.get("dense", []),
+                            "using": "dense",
+                            "limit": 10
+                        },
+                        {
+                            "query": embeddings.get("rerank", []),
+                            "using": "rerank",
+                            "limit": 10
+                        },
+                        {
+                            "query": embeddings.get("sparse", {}),
+                            "using": "sparse",
+                            "limit": 10
+                        }
+                    ],
+                    'query': {"fusion": "rrf"},
+                    'with_payload': True,
+                    'limit': 10
+                }
+            )
+        ],
     )
 
     request_object = {
@@ -4509,8 +4557,32 @@ def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_ge
         url=http_url,
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher({'query': embeddings,
-                                                       'with_payload': True, 'limit': 10})],
+        match=[
+            responses.matchers.json_params_matcher(
+                {
+                    'prefetch': [
+                        {
+                            "query": embeddings.get("dense", []),
+                            "using": "dense",
+                            "limit": 10
+                        },
+                        {
+                            "query": embeddings.get("rerank", []),
+                            "using": "rerank",
+                            "limit": 10
+                        },
+                        {
+                            "query": embeddings.get("sparse", {}),
+                            "using": "sparse",
+                            "limit": 10
+                        }
+                    ],
+                    'query': {"fusion": "rrf"},
+                    'with_payload': True,
+                    'limit': 10
+                }
+            )
+        ],
     )
 
     request_object = {
@@ -14235,10 +14307,34 @@ def test_vectordb_action_execution_embedding_payload_search(mock_get_embedding):
         url=http_url,
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher({'with_payload': True,
-                                                       'limit': 10,
-                                                       'query': embeddings,
-                                                       **payload}, strict_match=False)],
+        match=[
+            responses.matchers.json_params_matcher(
+                {
+                    'prefetch': [
+                        {
+                            "query": embeddings.get("dense", []),
+                            "using": "dense",
+                            "limit": 10
+                        },
+                        {
+                            "query": embeddings.get("rerank", []),
+                            "using": "rerank",
+                            "limit": 10
+                        },
+                        {
+                            "query": embeddings.get("sparse", {}),
+                            "using": "sparse",
+                            "limit": 10
+                        }
+                    ],
+                    'query': {"fusion": "rrf"},
+                    'with_payload': True,
+                    'limit': 10,
+                    **payload
+                },
+                strict_match=False
+            )
+        ],
     )
 
     request_object = {
