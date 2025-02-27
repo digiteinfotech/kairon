@@ -61,7 +61,7 @@ class LLMProcessor(LLMBase):
         await self.__delete_collections()
         count = 0
         processor = CognitionDataProcessor()
-        batch_size = 100
+        batch_size = 50
 
         collections_data = CognitionData.objects(bot=self.bot)
         collection_groups = {}
@@ -320,17 +320,17 @@ class LLMProcessor(LLMBase):
                 {
                     "query": embeddings.get("dense", []),
                     "using": "dense",
-                    "limit": limit
+                    "limit": limit * 2
                 },
                 {
                     "query": embeddings.get("rerank", []),
                     "using": "rerank",
-                    "limit": limit
+                    "limit": limit * 2
                 },
                 {
                     "query": embeddings.get("sparse", {}),
                     "using": "sparse",
-                    "limit": limit
+                    "limit": limit * 2
                 }
             ],
             "query": {"fusion": "rrf"},

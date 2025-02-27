@@ -37,7 +37,24 @@ class Qdrant(DatabaseBase, ABC):
             user_msg = data.get(DbActionOperationType.embedding_search)
             if user_msg and isinstance(user_msg, str):
                 vector = await self.__get_embedding(user_msg, user, **kwargs)
-                request['query'] = vector
+                request['prefetch'] = [
+                    {
+                        "query": vector.get("dense", []),
+                        "using": "dense",
+                        "limit": 20
+                    },
+                    {
+                        "query": vector.get("rerank", []),
+                        "using": "rerank",
+                        "limit": 20
+                    },
+                    {
+                        "query": vector.get("sparse", {}),
+                        "using": "sparse",
+                        "limit": 20
+                    }
+                ]
+                request.update({"query": {"fusion": "rrf"}})
 
         if DbActionOperationType.payload_search in data:
             payload = data.get(DbActionOperationType.payload_search)
