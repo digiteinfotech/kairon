@@ -41,17 +41,17 @@ class Qdrant(DatabaseBase, ABC):
                     {
                         "query": vector.get("dense", []),
                         "using": "dense",
-                        "limit": 10
+                        "limit": 20
                     },
                     {
                         "query": vector.get("rerank", []),
                         "using": "rerank",
-                        "limit": 10
+                        "limit": 20
                     },
                     {
                         "query": vector.get("sparse", {}),
                         "using": "sparse",
-                        "limit": 10
+                        "limit": 20
                     }
                 ]
                 request.update({"query": {"fusion": "rrf"}})

@@ -4144,17 +4144,17 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_get_embeddin
                         {
                             "query": embeddings.get("dense", []),
                             "using": "dense",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("rerank", []),
                             "using": "rerank",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("sparse", {}),
                             "using": "sparse",
-                            "limit": 10
+                            "limit": 20
                         }
                     ],
                     'query': {"fusion": "rrf"},
@@ -4428,17 +4428,17 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_get_embedding
                         {
                             "query": embeddings.get("dense", []),
                             "using": "dense",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("rerank", []),
                             "using": "rerank",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("sparse", {}),
                             "using": "sparse",
-                            "limit": 10
+                            "limit": 20
                         }
                     ],
                     'query': {"fusion": "rrf"},
@@ -4564,17 +4564,17 @@ def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_ge
                         {
                             "query": embeddings.get("dense", []),
                             "using": "dense",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("rerank", []),
                             "using": "rerank",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("sparse", {}),
                             "using": "sparse",
-                            "limit": 10
+                            "limit": 20
                         }
                     ],
                     'query': {"fusion": "rrf"},
@@ -14314,17 +14314,17 @@ def test_vectordb_action_execution_embedding_payload_search(mock_get_embedding):
                         {
                             "query": embeddings.get("dense", []),
                             "using": "dense",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("rerank", []),
                             "using": "rerank",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("sparse", {}),
                             "using": "sparse",
-                            "limit": 10
+                            "limit": 20
                         }
                     ],
                     'query': {"fusion": "rrf"},

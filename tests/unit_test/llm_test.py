@@ -769,17 +769,17 @@ class TestLLM:
                     {
                         "query": embeddings.get("dense", []),
                         "using": "dense",
-                        "limit": 10
+                        "limit": 20
                     },
                     {
                         "query": embeddings.get("rerank", []),
                         "using": "rerank",
-                        "limit": 10
+                        "limit": 20
                     },
                     {
                         "query": embeddings.get("sparse", {}),
                         "using": "sparse",
-                        "limit": 10
+                        "limit": 20
                     }
                 ],
                 "query": {"fusion": "rrf"},
@@ -881,17 +881,17 @@ class TestLLM:
                 {
                     "query": embeddings.get("dense", []),
                     "using": "dense",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("rerank", []),
                     "using": "rerank",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("sparse", {}),
                     "using": "sparse",
-                    "limit": 10
+                    "limit": 20
                 }
             ],
             "query": {"fusion": "rrf"},
@@ -998,17 +998,17 @@ class TestLLM:
                     {
                         "query": embeddings.get("dense", []),
                         "using": "dense",
-                        "limit": 10
+                        "limit": 20
                     },
                     {
                         "query": embeddings.get("rerank", []),
                         "using": "rerank",
-                        "limit": 10
+                        "limit": 20
                     },
                     {
                         "query": embeddings.get("sparse", {}),
                         "using": "sparse",
-                        "limit": 10
+                        "limit": 20
                     }
                 ],
                 "query": {"fusion": "rrf"},
@@ -1112,17 +1112,17 @@ class TestLLM:
                     {
                         "query": embeddings.get("dense", []),
                         "using": "dense",
-                        "limit": 10
+                        "limit": 20
                     },
                     {
                         "query": embeddings.get("rerank", []),
                         "using": "rerank",
-                        "limit": 10
+                        "limit": 20
                     },
                     {
                         "query": embeddings.get("sparse", {}),
                         "using": "sparse",
-                        "limit": 10
+                        "limit": 20
                     }
                 ],
                 "query": {"fusion": "rrf"},
@@ -1270,17 +1270,17 @@ class TestLLM:
                 {
                     "query": embeddings.get("dense", []),
                     "using": "dense",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("rerank", []),
                     "using": "rerank",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("sparse", {}),
                     "using": "sparse",
-                    "limit": 10
+                    "limit": 20
                 }
             ],
             "query": {"fusion": "rrf"},
@@ -1383,17 +1383,17 @@ class TestLLM:
                 {
                     "query": embeddings.get("dense", []),
                     "using": "dense",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("rerank", []),
                     "using": "rerank",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("sparse", {}),
                     "using": "sparse",
-                    "limit": 10
+                    "limit": 20
                 }
             ],
             "query": {"fusion": "rrf"},
@@ -1618,17 +1618,17 @@ class TestLLM:
                 {
                     "query": embeddings.get("dense", []),
                     "using": "dense",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("rerank", []),
                     "using": "rerank",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("sparse", {}),
                     "using": "sparse",
-                    "limit": 10
+                    "limit": 20
                 }
             ],
             "query": {"fusion": "rrf"},
@@ -1752,17 +1752,17 @@ class TestLLM:
                 {
                     "query": embeddings.get("dense", []),
                     "using": "dense",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("rerank", []),
                     "using": "rerank",
-                    "limit": 10
+                    "limit": 20
                 },
                 {
                     "query": embeddings.get("sparse", {}),
                     "using": "sparse",
-                    "limit": 10
+                    "limit": 20
                 }
             ],
             "query": {"fusion": "rrf"},
@@ -2288,9 +2288,9 @@ class TestLLM:
             headers={},
             request_body={
                 "prefetch": [
-                    {"query": embeddings.get("dense", []), "using": "dense", "limit": limit},
-                    {"query": embeddings.get("rerank", []), "using": "rerank", "limit": limit},
-                    {"query": embeddings.get("sparse", {}), "using": "sparse", "limit": limit}
+                    {"query": embeddings.get("dense", []), "using": "dense", "limit": limit * 2},
+                    {"query": embeddings.get("rerank", []), "using": "rerank", "limit": limit * 2},
+                    {"query": embeddings.get("sparse", {}), "using": "sparse", "limit": limit * 2}
                 ],
                 "query": {"fusion": "rrf"},
                 "with_payload": True,

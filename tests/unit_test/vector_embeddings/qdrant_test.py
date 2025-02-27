@@ -153,17 +153,17 @@ class TestQdrant:
                         {
                             "query": embeddings.get("dense", []),
                             "using": "dense",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("rerank", []),
                             "using": "rerank",
-                            "limit": 10
+                            "limit": 20
                         },
                         {
                             "query": embeddings.get("sparse", {}),
                             "using": "sparse",
-                            "limit": 10
+                            "limit": 20
                         }
                     ],
                     'query': {"fusion": "rrf"},

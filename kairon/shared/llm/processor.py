@@ -320,17 +320,17 @@ class LLMProcessor(LLMBase):
                 {
                     "query": embeddings.get("dense", []),
                     "using": "dense",
-                    "limit": limit
+                    "limit": limit * 2
                 },
                 {
                     "query": embeddings.get("rerank", []),
                     "using": "rerank",
-                    "limit": limit
+                    "limit": limit * 2
                 },
                 {
                     "query": embeddings.get("sparse", {}),
                     "using": "sparse",
-                    "limit": limit
+                    "limit": limit * 2
                 }
             ],
             "query": {"fusion": "rrf"},
