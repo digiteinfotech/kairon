@@ -417,7 +417,7 @@ class LLMProcessor(LLMBase):
         """
         metadata = Utility.llm_metadata
         llm_types = metadata.keys()
-
+        final_metadata = {}
         for llm_type in llm_types:
             secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
             if not secret:
@@ -428,9 +428,11 @@ class LLMProcessor(LLMBase):
             else:
                 models = []
 
-            metadata[llm_type]['properties']['model']['enum'] = models
+            if models:
+                metadata[llm_type]['properties']['model']['enum'] = models
+                final_metadata[llm_type] = metadata[llm_type]
 
-        return metadata
+        return final_metadata
 
     @staticmethod
     def modify_user_message_for_perplexity(user_msg: str, llm_type: str, hyperparameters: Dict) -> str:
