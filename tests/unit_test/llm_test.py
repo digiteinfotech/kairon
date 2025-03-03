@@ -6,10 +6,7 @@ from urllib.parse import urljoin
 
 import numpy as np
 import pytest
-import ujson as json
-from absl.logging import exception
 from aiohttp import ClientConnectionError
-from fastapi.dependencies.utils import request_body_to_args
 from mongoengine import connect
 
 from kairon.shared.rest_client import AioRestClient
@@ -17,12 +14,10 @@ from kairon.shared.utils import Utility
 
 
 from kairon.exceptions import AppException
-from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_LLM
 from kairon.shared.llm.processor import LLMProcessor
-import litellm
 from deepdiff import DeepDiff
 
 
