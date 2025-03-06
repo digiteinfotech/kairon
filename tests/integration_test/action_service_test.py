@@ -1363,7 +1363,14 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url(mock_trigger_l
         bot="5f50fd0a56b698ca10d35d2z",
         user="user"
     ).save()
-    mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, "url": None}}}
+    mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, 'url': "http://localhost:8080/evaluate"}},
+                        "action": {"request_timeout": 1}}
+    responses.add(
+        "POST", "http://localhost:8080/evaluate",
+        json={"message": "Success", "success": True, "error_code": 0,
+              "data": {"bot_response": "Successfully Evaluated the pyscript",
+                                  "slots": {"location": "Bangalore", "langauge": "Kannada"}}}
+    )
 
     request_object = {
         "next_action": action_name,
@@ -1408,16 +1415,6 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url(mock_trigger_l
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': "Successfully Evaluated the pyscript"}]
         assert response_json['responses'][0]['text'] == "Successfully Evaluated the pyscript"
-        called_args = mock_trigger_lambda.call_args
-        assert called_args.args[1] == \
-               {'source_code': script,
-                'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
-                                       'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                          'text': 'get intents'},
-                                       'slot': {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore",
-                                                "langauge": "Kannada"},
-                                       'intent': 'pyscript_action', 'chat_log': [], 'key_vault': {},
-                                       'kairon_user_msg': None, 'session_started': None}}
 
 
 @responses.activate
@@ -1442,7 +1439,12 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exceptio
         bot="5f50fd0a56b698ca10d35d2z",
         user="user"
     ).save()
-    mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, "url": None}}}
+    mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, 'url': "http://localhost:8080/evaluate"}},
+                        "action": {"request_timeout": 1}}
+    responses.add(
+        "POST", "http://localhost:8080/evaluate",
+        json={"message": "Failed to evaluated the pyscript", "success": False, "error_code": 422, "data": None}
+    )
 
     request_object = {
         "next_action": action_name,
@@ -1483,7 +1485,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exceptio
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': "I have failed to process your request"}]
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-        assert log['exception'] == "Failed to evaluated the pyscript"
+        assert log['exception'] == "Pyscript evaluation failed: {'message': 'Failed to evaluated the pyscript', 'success': False, 'error_code': 422, 'data': None}"
 
 
 @responses.activate

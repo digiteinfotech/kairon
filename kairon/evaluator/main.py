@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
+from mongoengine import connect, disconnect
 from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolicy, XContentTypeOptions, Server, \
     CacheControl, Secure, PermissionsPolicy
 
@@ -10,6 +11,7 @@ from kairon.api.models import Response
 from kairon.evaluator.router import pyscript
 from kairon.shared.utils import Utility
 from kairon.shared.otel import instrument_fastapi
+from contextlib import asynccontextmanager
 
 Utility.load_environment()
 
@@ -42,7 +44,17 @@ secure_headers = Secure(
     content=content
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """ MongoDB is connected on the bot trainer startup """
+    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
+    connect(**config)
+    yield
+    disconnect()
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

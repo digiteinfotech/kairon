@@ -1,13 +1,19 @@
 import os
-import textwrap
 
 import pytest
 from unittest.mock import patch, AsyncMock
 from mongoengine import connect
+from blacksheep.contents import JSONContent
 
 from kairon import Utility
 from fastapi.testclient import TestClient
+from blacksheep.testing import TestClient
 from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, encrypt_secret
+
+from kairon.async_callback.main import app
+
+from kairon.async_callback.router.pyscript_callback import process_router_message
+from kairon.exceptions import AppException
 
 
 @pytest.fixture(autouse=True, scope='class')
@@ -173,69 +179,142 @@ def setup():
     CallbackData.objects.insert(CallbackData(**callback_data_6))
     CallbackConfig.objects.insert(CallbackConfig(**callback_config_6))
 
-from kairon.async_callback.main import app
-client = TestClient(app)
 
-from kairon.async_callback.router.pyscript_callback import process_router_message
-from kairon.exceptions import AppException
+@pytest.mark.asyncio
+async def test_index():
+    await app.start()
+    client = TestClient(app)
+    response = await client.get("/")
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert not json_response["data"]
+    assert json_response["message"] == "Running BlackSheep Async Callback Server"
+    assert json_response["error_code"] == 0
+
+
+@pytest.mark.asyncio
+async def test_healthcheck():
+    await app.start()
+    client = TestClient(app)
+    response = await client.get("/healthcheck")
+
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert not json_response["data"]
+    assert json_response["message"] == "Health check OK"
+    assert json_response["error_code"] == 0
+
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_get_callback(mock_dispatch_message):
-    response = client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "{'type': 'GET', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
+    await app.start()
+    client = TestClient(app)
+    response = await client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
+    assert response.status == 200
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success", "data": "{'type': 'GET', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
     assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "019107c7570577a6b0f279b4038c4a8f i am happy : )", "telegram")
+
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'key_1' : 'value_1'
     }
 
-    response = client.post('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "{'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}} i am happy : )", "error_code": 0, "success": True}
+    response = await client.post('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success",
+                             "data": "{'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}} i am happy : )",
+                             "error_code": 0, "success": True}
     assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}} i am happy : )", "telegram")
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback_req_body_non_json(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = "key_1=value_1"
-    response = client.post('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "{'type': 'POST', 'body': 'key_1=value_1', 'params': {}} i am happy : )", "error_code": 0, "success": True}
+    response = await client.post('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {'message': 'success',
+                             'data': "{'type': 'POST', 'body': 'key_1=value_1', 'params': {}} i am happy : )",
+                             'error_code': 0, 'success': True}
     assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'POST', 'body': 'key_1=value_1', 'params': {}} i am happy : )", "telegram")
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_put_callback(mock_dispatch_message):
-    response = client.put('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "{'type': 'PUT', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
+    await app.start()
+    client = TestClient(app)
+    response = await client.put('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
+
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success", "data": "{'type': 'PUT', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
     assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'PUT', 'body': None, 'params': {}} i am happy : )", "telegram")
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_patch_callback(mock_dispatch_message):
-    response = client.patch('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "{'type': 'PATCH', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
+    await app.start()
+    client = TestClient(app)
+    response = await client.patch('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
+
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success", "data": "{'type': 'PATCH', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
     assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'PATCH', 'body': None, 'params': {}} i am happy : )", "telegram")
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_delete_callback(mock_dispatch_message):
-    response = client.delete('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "{'type': 'DELETE', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
+    await app.start()
+    client = TestClient(app)
+    response = await client.delete('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
+
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success", "data": "{'type': 'DELETE', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
     assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'DELETE', 'body': None, 'params': {}} i am happy : )", "telegram")
 
 
@@ -249,9 +328,17 @@ async def test_invalid_request():
 @patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript_async", new_callable=AsyncMock)
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async):
-    response = client.get('/callback/d/01916fefd1897634ad82274af4a7ecde/gAAAAABmxJeByymLTcvGh3ZcnUVSeh6hZrEV2EAVfBmMm1X5lDgjaSSp4E6h9LiqBE34uRgriOLU2ZRkBoKkg7w_pbq6cQ6OC_afnHagr99xNyBfnvzfXMujGCVNnNSGnPnlVYlN_TBK66QoaDVt1o6Mp4b1kJYyBE1I-Avq69Mj-5IRA2D0KP2r80kTWGWIGzbGVwPlWtsqTQtGj-gLl_O9eKJ0s5i-XlZC5Ge0B2P-EUsXqAA_G2tlDMOjpk0g9ppUiRXt4KYiW2ZQ6MdrJTJDY2ohydYnLw==')
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": None, "error_code": 0, "success": True}
+    await app.start()
+    client = TestClient(app)
+    response = await client.get('/callback/d/01916fefd1897634ad82274af4a7ecde/gAAAAABmxJeByymLTcvGh3ZcnUVSeh6hZrEV2EAVfBmMm1X5lDgjaSSp4E6h9LiqBE34uRgriOLU2ZRkBoKkg7w_pbq6cQ6OC_afnHagr99xNyBfnvzfXMujGCVNnNSGnPnlVYlN_TBK66QoaDVt1o6Mp4b1kJYyBE1I-Avq69Mj-5IRA2D0KP2r80kTWGWIGzbGVwPlWtsqTQtGj-gLl_O9eKJ0s5i-XlZC5Ge0B2P-EUsXqAA_G2tlDMOjpk0g9ppUiRXt4KYiW2ZQ6MdrJTJDY2ohydYnLw==')
+
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert not json_response["data"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success", "data": None, "error_code": 0, "success": True}
     assert mock_run_pyscript_async.called_once()
     assert mock_dispatch_message.called_once()
 
@@ -260,10 +347,18 @@ async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async):
 @patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript")
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
+    await app.start()
+    client = TestClient(app)
     mock_run_pyscript.side_effect = AppException("Error")
-    response = client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
-    assert response.status_code == 200
-    assert response.json() == {"message": "Error", "error_code": 400, "success": False, "data": None}
+    response = await client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
+
+    json_response = await response.json()
+    print(json_response)
+    assert not json_response["success"]
+    assert not json_response["data"]
+    assert json_response["message"] == "Error"
+    assert json_response["error_code"] == 400
+    assert json_response == {"message": "Error", "error_code": 400, "success": False, "data": None}
     assert mock_run_pyscript.called_once()
     assert mock_dispatch_message.called_once()
 
@@ -272,11 +367,14 @@ async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
 @patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript")
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_dispatch_message_failure(mock_dispatch_message, mock_run_pyscript):
+    await app.start()
+    client = TestClient(app)
     mock_dispatch_message.side_effect = AppException("Error")
-    response = client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
-    result = response.json()
+    response = await client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
+
+    result = await response.json()
     assert result["error_code"] == 400
-    assert result["success"] == False
+    assert not result["success"]
     assert mock_run_pyscript.called_once()
     assert mock_dispatch_message.called_once()
 
@@ -284,122 +382,209 @@ async def test_dispatch_message_failure(mock_dispatch_message, mock_run_pyscript
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_get_callback_url_shorten(mock_dispatch_message):
-    response = client.get('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg')
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "hello -> {'type': 'GET', 'body': None, 'params': {}}", "error_code": 0, "success": True}
+    await app.start()
+    client = TestClient(app)
+    response = await client.get('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg')
+
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"] == "hello -> {'type': 'GET', 'body': None, 'params': {}}"
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success", "data": "hello -> {'type': 'GET', 'body': None, 'params': {}}", "error_code": 0, "success": True}
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback_url_shorten(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'key_1': 'value_1'
     }
-    response = client.post('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "hello -> {'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}}", "error_code": 0, "success": True}
+    response = await client.post('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"] == "hello -> {'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}}"
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success", "data": "hello -> {'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}}", "error_code": 0, "success": True}
+
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_put_callback_url_shorten(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'key_1': 'value_1'
     }
-    response = client.put('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "hello -> {'type': 'PUT', 'body': {'key_1': 'value_1'}, 'params': {}}", "error_code": 0, "success": True}
+    response = await client.put('/callback/d/019170001814712f8921076fd134a083/98bxWFZL9nZy0L3lAKV2Qr_jI6iEQ6CpZq2vDnhQwQg',
+                                content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"] == "hello -> {'type': 'PUT', 'body': {'key_1': 'value_1'}, 'params': {}}"
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success",
+                             "data": "hello -> {'type': 'PUT', 'body': {'key_1': 'value_1'}, 'params': {}}",
+                             "error_code": 0, "success": True}
+
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback_standalone(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '0191702183ca7ac6b75be9cd645c6437'
         }
     }
-    response = client.post('/callback/s/gAAAAABmxKQ6lHtDmxTmr_X4nyUGEKL72ylRLODr4IAxsUVr3e9dx7ZTDSL0IlzvGCwLzSDrsyVqanSPSj6JB7srql3dH-rVb9KG6oAcW4yhsMJVP_WPa9sD5J7NqCcShJI3KgjjE7kAEkqqr0VqE2XCEwC7vUCjcYPasw2q4PhOCvg-_CMxT6gC8ZQL7vUVi74FdOnNTQhfiOvXp4ggeV_Jq-xer_-8gTnsplM_nZ_HRxns45gGzAyvtwsUWYnWOPleh6HQn1rgmjfS1hQuYmR7JGxgZDFDZA==',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "standalone -> {'type': 'POST', 'body': {'data': {'id': '0191702183ca7ac6b75be9cd645c6437'}}, 'params': {}}", "error_code": 0, "success": True}
+    response = await client.post('/callback/s/gAAAAABmxKQ6lHtDmxTmr_X4nyUGEKL72ylRLODr4IAxsUVr3e9dx7ZTDSL0IlzvGCwLzSDrsyVqanSPSj6JB7srql3dH-rVb9KG6oAcW4yhsMJVP_WPa9sD5J7NqCcShJI3KgjjE7kAEkqqr0VqE2XCEwC7vUCjcYPasw2q4PhOCvg-_CMxT6gC8ZQL7vUVi74FdOnNTQhfiOvXp4ggeV_Jq-xer_-8gTnsplM_nZ_HRxns45gGzAyvtwsUWYnWOPleh6HQn1rgmjfS1hQuYmR7JGxgZDFDZA==',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"] == "standalone -> {'type': 'POST', 'body': {'data': {'id': '0191702183ca7ac6b75be9cd645c6437'}}, 'params': {}}"
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success",
+                             "data": "standalone -> {'type': 'POST', 'body': {'data': {'id': '0191702183ca7ac6b75be9cd645c6437'}}, 'params': {}}",
+                             "error_code": 0, "success": True}
+
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback_standalone_identifier_path_not_present(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'idea': '0191702183ca7ac6b75be9cd645c6437'
         }
     }
-    response = client.post('/callback/s/gAAAAABmxKQ6lHtDmxTmr_X4nyUGEKL72ylRLODr4IAxsUVr3e9dx7ZTDSL0IlzvGCwLzSDrsyVqanSPSj6JB7srql3dH-rVb9KG6oAcW4yhsMJVP_WPa9sD5J7NqCcShJI3KgjjE7kAEkqqr0VqE2XCEwC7vUCjcYPasw2q4PhOCvg-_CMxT6gC8ZQL7vUVi74FdOnNTQhfiOvXp4ggeV_Jq-xer_-8gTnsplM_nZ_HRxns45gGzAyvtwsUWYnWOPleh6HQn1rgmjfS1hQuYmR7JGxgZDFDZA==',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "Cannot find identifier at path 'data.id' in request data!", "data": None, "error_code": 400, "success": False}
+    response = await client.post('/callback/s/gAAAAABmxKQ6lHtDmxTmr_X4nyUGEKL72ylRLODr4IAxsUVr3e9dx7ZTDSL0IlzvGCwLzSDrsyVqanSPSj6JB7srql3dH-rVb9KG6oAcW4yhsMJVP_WPa9sD5J7NqCcShJI3KgjjE7kAEkqqr0VqE2XCEwC7vUCjcYPasw2q4PhOCvg-_CMxT6gC8ZQL7vUVi74FdOnNTQhfiOvXp4ggeV_Jq-xer_-8gTnsplM_nZ_HRxns45gGzAyvtwsUWYnWOPleh6HQn1rgmjfS1hQuYmR7JGxgZDFDZA==',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert not json_response["success"]
+    assert json_response["message"] == "Cannot find identifier at path 'data.id' in request data!"
+    assert json_response["error_code"] == 400
+    assert not json_response["data"]
+    assert json_response == {'message': "Cannot find identifier at path 'data.id' in request data!",
+                             'error_code': 400, 'data': None, 'success': False}
+
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback_standalone_wrong_identifier(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '0191702183ca7ac6b75be9cd645c6438'
         }
     }
-    response = client.post('/callback/s/gAAAAABmxKQ6lHtDmxTmr_X4nyUGEKL72ylRLODr4IAxsUVr3e9dx7ZTDSL0IlzvGCwLzSDrsyVqanSPSj6JB7srql3dH-rVb9KG6oAcW4yhsMJVP_WPa9sD5J7NqCcShJI3KgjjE7kAEkqqr0VqE2XCEwC7vUCjcYPasw2q4PhOCvg-_CMxT6gC8ZQL7vUVi74FdOnNTQhfiOvXp4ggeV_Jq-xer_-8gTnsplM_nZ_HRxns45gGzAyvtwsUWYnWOPleh6HQn1rgmjfS1hQuYmR7JGxgZDFDZA==',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "Callback Record does not exist, invalid identifier!", "data": None, "error_code": 400, "success": False}
+    response = await client.post('/callback/s/gAAAAABmxKQ6lHtDmxTmr_X4nyUGEKL72ylRLODr4IAxsUVr3e9dx7ZTDSL0IlzvGCwLzSDrsyVqanSPSj6JB7srql3dH-rVb9KG6oAcW4yhsMJVP_WPa9sD5J7NqCcShJI3KgjjE7kAEkqqr0VqE2XCEwC7vUCjcYPasw2q4PhOCvg-_CMxT6gC8ZQL7vUVi74FdOnNTQhfiOvXp4ggeV_Jq-xer_-8gTnsplM_nZ_HRxns45gGzAyvtwsUWYnWOPleh6HQn1rgmjfS1hQuYmR7JGxgZDFDZA==',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert not json_response["success"]
+    assert json_response["message"] == "Callback Record does not exist, invalid identifier!"
+    assert json_response["error_code"] == 400
+    assert not json_response["data"]
+    assert json_response == {'message': 'Callback Record does not exist, invalid identifier!',
+                             'error_code': 400, 'data': None, 'success': False}
+
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback_standalone_url_shorten(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '01917036016877eb8ffb3930e40f6162'
         }
     }
-    response = client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True}
+    response = await client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["data"] == "state -> 1"
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True}
+
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback_standalone_url_shorten_wrong_url(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '01917036016877eb8ffb3930e40f6162'
         }
     }
-    response = client.post('/callback/s/VQEBBAYGV1EPD19eB1UHVgsBAw5SBQEGAAIJCwGVBlK=',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "Invalid token!", "data": None, "error_code": 400, "success": False}
+    response = await client.post('/callback/s/VQEBBAYGV1EPD19eB1UHVgsBAw5SBQEGAAIJCwGVBlK=',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert not json_response["success"]
+    assert json_response["message"] == "Invalid token!"
+    assert json_response["error_code"] == 400
+    assert not json_response["data"]
+    assert json_response == {"message": "Invalid token!", "data": None, "error_code": 400, "success": False}
+
 
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
 async def test_post_callback_statechange(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
     req_body = {
         'data': {
             'id': '01917036016877eb8ffb3930e40f6162'
         }
     }
-    response = client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True}
+    response = await client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response["data"] == 'state -> 1'
+    assert json_response == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True}
 
-    response = client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "state -> 2", "error_code": 0, "success": True}
+    response = await client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
+                                 content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response["data"] == 'state -> 2'
+    assert json_response == {"message": "success", "data": "state -> 2", "error_code": 0, "success": True}
 
-    response = client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
-                            json=req_body)
-    assert response.status_code == 200
-    assert response.json() == {"message": "success", "data": "state -> 3", "error_code": 0, "success": True}
+    response = await client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
+                            content=JSONContent(req_body))
+    json_response = await response.json()
+    print(json_response)
+    assert json_response["success"]
+    assert json_response["message"] == "success"
+    assert json_response["error_code"] == 0
+    assert json_response["data"] == 'state -> 3'
+    assert json_response == {"message": "success", "data": "state -> 3", "error_code": 0, "success": True}
