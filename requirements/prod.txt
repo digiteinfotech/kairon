@@ -70,3 +70,4 @@ imap-tools==1.7.4
 more-itertools
 python-multipart>=0.0.18
 nltk
+fastembed==0.5.1
