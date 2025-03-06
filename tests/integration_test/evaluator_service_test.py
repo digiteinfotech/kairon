@@ -288,7 +288,7 @@ def test_run_pyscript():
     """
     script = textwrap.dedent(script)
     request_body = {
-        "source_code": script,
+        "source_code": script, "predefined_objects": {"slot": {}}
     }
     response = client.post(
         url=f"/evaluate",

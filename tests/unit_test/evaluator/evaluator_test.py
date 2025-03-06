@@ -27,7 +27,7 @@ class TestEvaluatorProcessor:
         print(total)
         """
         script = textwrap.dedent(script)
-        response = EvaluatorProcessor.evaluate_pyscript(source_code=script)
+        response = EvaluatorProcessor.evaluate_pyscript(source_code=script, predefined_objects={"slot": {}})
         assert response["data"] == [1, 2, 3, 4, 5]
         assert response['total'] == 15
 
@@ -57,7 +57,7 @@ class TestEvaluatorProcessor:
             """
         script = textwrap.dedent(script)
         with pytest.raises(AppException, match="Script execution error: import of 'numpy' is unauthorized"):
-            EvaluatorProcessor.evaluate_pyscript(source_code=script)
+            EvaluatorProcessor.evaluate_pyscript(source_code=script, predefined_objects={"slot": {}})
 
     def test_evaluate_pyscript_with_interpreter_error(self):
         script = """
@@ -65,5 +65,4 @@ class TestEvaluatorProcessor:
         """
         script = textwrap.dedent(script)
         with pytest.raises(AppException, match=re.escape('Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)')):
-            EvaluatorProcessor.evaluate_pyscript(source_code=script)
-
+            EvaluatorProcessor.evaluate_pyscript(source_code=script, predefined_objects={"slot": {}})
