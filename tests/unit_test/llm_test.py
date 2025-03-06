@@ -1,8 +1,13 @@
+import logging
 import os
 import urllib
+from io import StringIO
 from unittest import mock
 from unittest.mock import patch, AsyncMock, MagicMock
 from urllib.parse import urljoin
+
+from loguru import logger
+from io import StringIO
 
 import numpy as np
 import pytest
@@ -10,6 +15,7 @@ import ujson as json
 from absl.logging import exception
 from aiohttp import ClientConnectionError
 from fastapi.dependencies.utils import request_body_to_args
+from fastembed import SparseTextEmbedding, LateInteractionTextEmbedding
 from mongoengine import connect
 
 from kairon.shared.rest_client import AioRestClient
@@ -2625,3 +2631,194 @@ class TestLLM:
 
         LLMSecret.objects.delete()
 
+    def test_load_sparse_embedding_model_already_initialized(self):
+        """Test that the sparse embedding model loads correctly when LLMProcessor is initialized."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        LLMProcessor._sparse_embedding = SparseTextEmbedding("Qdrant/bm25")
+
+        log_output = StringIO()
+        logger.add(log_output, format="{message}")
+
+        processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+        logger.remove()
+        log_contents = log_output.getvalue()
+
+        assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
+        assert "SPARSE MODEL LOADED" not in log_contents
+
+        LLMSecret.objects.delete()
+
+    def test_load_sparse_embedding_model_not_initialized(self):
+        """Test that the sparse embedding model loads correctly when LLMProcessor is not initialized."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        log_output = StringIO()
+        logger.add(log_output, format="{message}")
+
+        LLMProcessor._sparse_embedding = None
+        processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+        logger.remove()
+        log_contents = log_output.getvalue()
+
+        assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
+        assert "SPARSE MODEL LOADED" in log_contents
+        LLMSecret.objects.delete()
+
+    def test_load_sparse_embedding_model_fallback_cache(self):
+        """Test that the sparse embedding model falls back to the Kairon cache if Hugging Face cache is missing."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        with patch("os.path.exists", return_value=False):
+            LLMProcessor._sparse_embedding = None
+
+            log_output = StringIO()
+            logger.add(log_output, format="{message}")
+
+            processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+            logger.remove()
+            log_contents = log_output.getvalue()
+
+            assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
+            assert "SPARSE MODEL LOADED" in log_contents
+
+        LLMSecret.objects.delete()
+
+    def test_load_sparse_embedding_model_hf_cache(self):
+        """Test that the sparse embedding model falls back to the Kairon cache if Hugging Face cache is missing."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        with patch("os.path.exists", return_value=True):
+            LLMProcessor._sparse_embedding = None
+
+            log_output = StringIO()
+            logger.add(log_output, format="{message}")
+
+            processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+            logger.remove()
+            log_contents = log_output.getvalue()
+
+            assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
+            assert "SPARSE MODEL LOADED" in log_contents
+
+        LLMSecret.objects.delete()
+
+
+    def test_load_rerank_embedding_model_not_initialized(self):
+        """Test that the sparse embedding model loads correctly when LLMProcessor is not initialized."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        log_output = StringIO()
+        logger.add(log_output, format="{message}")
+
+        LLMProcessor._rerank_embedding = None
+        processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+        logger.remove()
+        log_contents = log_output.getvalue()
+
+        assert isinstance(LLMProcessor._rerank_embedding, LateInteractionTextEmbedding)
+        assert "RERANK MODEL LOADED" in log_contents
+        LLMSecret.objects.delete()
+
+    def test_load_rerank_embedding_model_hf_cache(self):
+        """Test that the sparse embedding model falls back to the Kairon cache if Hugging Face cache is missing."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        with patch("os.path.exists", return_value=True):
+            LLMProcessor._rerank_embedding = None
+
+            log_output = StringIO()
+            logger.add(log_output, format="{message}")
+
+            processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+            logger.remove()
+            log_contents = log_output.getvalue()
+
+            assert isinstance(LLMProcessor._rerank_embedding, LateInteractionTextEmbedding)
+            assert "RERANK MODEL LOADED" in log_contents
+
+        LLMSecret.objects.delete()
