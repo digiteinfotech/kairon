@@ -499,7 +499,7 @@ class LLMProcessor(LLMBase):
 
         if cls._sparse_embedding is None:
             cls._sparse_embedding = SparseTextEmbedding("Qdrant/bm25", cache_dir=cache_dir)
-            logging.info(f"SPARSE LOADED")
+            logging.info("SPARSE MODEL LOADED")
 
     @classmethod
     def load_rerank_embedding_model(cls):
@@ -510,7 +510,7 @@ class LLMProcessor(LLMBase):
 
         if cls._rerank_embedding is None:
             cls._rerank_embedding = LateInteractionTextEmbedding("colbert-ir/colbertv2.0", cache_dir=cache_dir)
-            logging.info(f"RERANK LOADED")
+            logging.info("RERANK MODEL LOADED")
 
     def get_sparse_embedding(self, sentences):
         """
