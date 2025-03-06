@@ -71,6 +71,8 @@ class WhatsappResponseConverter(ElementTransformerOps):
             body_default = ElementTransformerOps.getChannelConfig(self.channel, "body_message")
             body_msg = {"text": body_default}
             for item in jsoniterator:
+                if item.get("type") == 'label':
+                    body_msg = {"text": item.get("text")}
                 if item.get("type") == ElementTypes.BUTTON.value:
                     title = ElementTransformerOps.json_generator(item.get("children"))
                     for titletext in title:

@@ -1593,9 +1593,9 @@ def test_get_llm_metadata():
     assert "model" in actual["data"]["openai"]["properties"]
     assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
 
-    assert "anthropic" in actual["data"]
-    assert "model" in actual["data"]["anthropic"]["properties"]
-    assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == []
+    assert "anthropic" not in actual["data"]
+    #assert "model" in actual["data"]["anthropic"]["properties"]
+    #assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == []
     LLMSecret.objects.delete()
 
 

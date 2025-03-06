@@ -130,7 +130,7 @@ class LLMProcessor(LLMBase):
 
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
             answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,llm_type = llm_type, **kwargs)
-            response = {"content": answer}
+            response = {"content": answer, "context": context}
         except Exception as e:
             logging.exception(e)
             if embeddings_created:
@@ -417,7 +417,7 @@ class LLMProcessor(LLMBase):
         """
         metadata = Utility.llm_metadata
         llm_types = metadata.keys()
-
+        final_metadata = {}
         for llm_type in llm_types:
             secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
             if not secret:
@@ -428,9 +428,11 @@ class LLMProcessor(LLMBase):
             else:
                 models = []
 
-            metadata[llm_type]['properties']['model']['enum'] = models
+            if models:
+                metadata[llm_type]['properties']['model']['enum'] = models
+                final_metadata[llm_type] = metadata[llm_type]
 
-        return metadata
+        return final_metadata
 
     @staticmethod
     def modify_user_message_for_perplexity(user_msg: str, llm_type: str, hyperparameters: Dict) -> str:

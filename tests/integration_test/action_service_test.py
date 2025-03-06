@@ -13623,6 +13623,8 @@ def test_prompt_action_dispatch_response_disabled(mock_get_embedding, aiorespons
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
+        if event.get('llm_response_log'):
+            event['llm_response_log'].pop('context')
     assert events == [
         {'type': 'llm_response',
          'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
@@ -13754,6 +13756,8 @@ def test_prompt_action_set_slots(mock_slot_set, mock_get_embedding, aioresponses
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
+        if event.get('llm_response_log'):
+            event['llm_response_log'].pop('context')
     assert events == [
         {'type': 'llm_response',
          'response': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
@@ -13902,9 +13906,12 @@ def test_prompt_action_response_action_slot_prompt(mock_get_embedding, aiorespon
     assert log["time_elapsed"]
     log.pop('time_elapsed')
     events = log.pop('events')
+    assert len(events[0]['llm_response_log']['context']) > 0
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
+        if event.get('llm_response_log'):
+            event['llm_response_log'].pop('context')
     assert events == [
         {'type': 'llm_response',
          'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
