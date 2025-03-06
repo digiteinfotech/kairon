@@ -1,12 +1,16 @@
 import os
 import urllib
 from unittest import mock
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from urllib.parse import urljoin
+
+from loguru import logger
+from io import StringIO
 
 import numpy as np
 import pytest
 from aiohttp import ClientConnectionError
+from fastembed import SparseTextEmbedding, LateInteractionTextEmbedding
 from mongoengine import connect
 
 from kairon.shared.rest_client import AioRestClient
@@ -14,10 +18,12 @@ from kairon.shared.utils import Utility
 
 
 from kairon.exceptions import AppException
+from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_LLM
 from kairon.shared.llm.processor import LLMProcessor
+import litellm
 from deepdiff import DeepDiff
 
 
@@ -1942,265 +1948,6 @@ class TestLLM:
         LLMSecret.objects.delete()
 
     @pytest.mark.asyncio
-    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
-    async def test_get_embedding_success_single_text(self, mock_execute_request_async):
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-        texts = "Hello how are you??"
-        invocation = "test_invocation"
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        mock_response = {
-            "embedding": {
-                "dense": [
-                    0.01926439255475998,
-                    -0.0645047277212143
-                ],
-                "sparse": {
-                    "values": [
-                        1.6877434821696136
-                    ],
-                    "indices": [
-                        613153351
-                    ]
-                },
-                "rerank": [
-                    [
-                        0.03842781484127045,
-                        0.10881761461496353,
-                    ],
-                    [
-                        0.046593569219112396,
-                        -0.023154577240347862
-                    ],
-                    [
-                        0.0206329133361578,
-                        -0.07174995541572571
-                    ],
-                    [
-                        -0.007417665328830481,
-                        0.09697738289833069
-                    ]
-                ]
-            }
-        }
-
-        mock_execute_request_async.return_value = (mock_response, 200, None, None)
-
-        processor = LLMProcessor(bot, llm_type)
-        embeddings = await processor.get_embedding(texts, user, invocation=invocation)
-
-        assert embeddings == mock_response["embedding"]
-        mock_execute_request_async.assert_called_once_with(
-            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/embedding/{llm_type}",
-            request_method="POST",
-            request_body={
-                'texts': texts,
-                'user': user,
-                'invocation': invocation
-            },
-            timeout=Utility.environment['llm'].get('request_timeout', 30)
-        )
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
-    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
-    async def test_get_embedding_success_multiple_texts(self, mock_execute_request_async):
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-        texts = ["Hello how are you?","I am Python"]
-        invocation = "test_invocation"
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        mock_response = {
-            "embedding": {
-                "dense": [
-                    [
-                        -0.014715306460857391,
-                        -0.022890476509928703
-                    ],
-                    [
-                        -0.019074518233537674,
-                        -0.0060106911696493626
-                    ]
-                ],
-                "sparse": [
-                    {
-                        "values": [
-                            1.6877434821696136
-                        ],
-                        "indices": [
-                            613153351
-                        ]
-                    },
-                    {
-                        "values": [
-                            1.6877434821696136
-                        ],
-                        "indices": [
-                            948991206
-                        ]
-                    }
-                ],
-                "rerank": [
-                    [
-                        [
-                            -0.17043153941631317,
-                            -0.05260511487722397
-                        ],
-                        [
-                            -0.0009218898485414684,
-                            0.028302231803536415
-                        ],
-                        [
-                            0.006710350513458252,
-                            0.06639177352190018
-                        ],
-                        [
-                            -0.1451372504234314,
-                            -0.0822567492723465
-                        ]
-                    ],
-                    [
-                        [
-                            -0.09881757199764252,
-                            -0.05606473982334137
-                        ],
-                        [
-                            -0.06487230211496353,
-                            -0.042552437633275986
-                        ],
-                        [
-                            -0.09635651856660843,
-                            -0.06676826626062393
-                        ],
-                        [
-                            -0.09975136816501617,
-                            -0.07088008522987366
-                        ]
-                    ]
-                ]
-            }
-        }
-
-        mock_execute_request_async.return_value = (mock_response, 200, None, None)
-
-        processor = LLMProcessor(bot, llm_type)
-        embeddings = await processor.get_embedding(texts, user, invocation=invocation)
-
-        assert embeddings == mock_response["embedding"]
-        mock_execute_request_async.assert_called_once_with(
-            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/embedding/{llm_type}",
-            request_method="POST",
-            request_body={
-                'texts': texts,
-                'user': user,
-                'invocation': invocation
-            },
-            timeout=Utility.environment['llm'].get('request_timeout', 30)
-        )
-        LLMSecret.objects.delete()
-
-
-    @pytest.mark.asyncio
-    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
-    async def test_get_embedding_api_error(self, mock_execute_request_async):
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-        texts = ["Hello how are you?", "I am Python"]
-        invocation = "test_invocation"
-
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        mock_execute_request_async.return_value = ({"message": "Internal Server Error"}, 500, None, None)
-
-        processor = LLMProcessor(bot, llm_type)
-
-        with pytest.raises(Exception, match="Failed to fetch embeddings: Internal Server Error"):
-            await processor.get_embedding(texts, user, invocation=invocation)
-
-        mock_execute_request_async.assert_called_once_with(
-            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/embedding/{llm_type}",
-            request_method="POST",
-            request_body={
-                'texts': texts,
-                'user': user,
-                'invocation': invocation
-            },
-            timeout=Utility.environment['llm'].get('request_timeout', 30)
-        )
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
-    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
-    async def test_get_embedding_empty_response(self, mock_execute_request_async):
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-        texts = ["Hello how are you?", "I am Python"]
-        invocation = "test_invocation"
-
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        mock_execute_request_async.return_value = ({}, 200, None, None)
-
-        processor = LLMProcessor(bot, llm_type)
-        embeddings = await processor.get_embedding(texts, user, invocation=invocation)
-
-        assert embeddings == {}
-
-        mock_execute_request_async.assert_called_once_with(
-            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/embedding/{llm_type}",
-            request_method="POST",
-            request_body={
-                'texts': texts,
-                'user': user,
-                'invocation': invocation
-            },
-            timeout=Utility.environment['llm'].get('request_timeout', 30)
-        )
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
     @patch("kairon.shared.rest_client.AioRestClient.request", new_callable=AsyncMock)
     async def test_collection_hybrid_query_success(self, mock_request):
         bot = "test_bot"
@@ -2367,4 +2114,704 @@ class TestLLM:
 
         assert response == {}
         mock_request.assert_called_once()
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.llm.processor.LLMProcessor._sparse_embedding")
+    def test_sparse_embedding_single_sentence(self, mock_sparse):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+        mock_sparse.passage_embed.return_value = iter([
+            MagicMock(values=np.array([1.62, 1.87]), indices=np.array([101, 202]))
+        ])
+
+        result = processor.get_sparse_embedding(["Hello"])
+
+        assert result == [{"values": [1.62, 1.87], "indices": [101, 202]}]
+        mock_sparse.passage_embed.assert_called_once_with(["Hello"])
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.llm.processor.LLMProcessor._sparse_embedding")
+    async def test_sparse_embedding_multiple_sentences(self, mock_sparse):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+        mock_sparse.passage_embed.return_value = iter([
+            MagicMock(values=np.array([1.62, 1.87]), indices=np.array([101, 202])),
+            MagicMock(values=np.array([2.71, 3.14]), indices=np.array([303, 404]))
+        ])
+
+        result = processor.get_sparse_embedding(["Hello", "World"])
+
+        assert result == [
+            {"values": [1.62, 1.87], "indices": [101, 202]},
+            {"values": [2.71, 3.14], "indices": [303, 404]}
+        ]
+        mock_sparse.passage_embed.assert_called_once_with(["Hello", "World"])
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.llm.processor.LLMProcessor._sparse_embedding")
+    async def test_sparse_embedding_empty_list(self, mock_sparse):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+        mock_sparse.passage_embed.return_value = iter([])
+
+        result = processor.get_sparse_embedding([])
+
+        assert result == []
+        mock_sparse.passage_embed.assert_called_once_with([])
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.llm.processor.LLMProcessor._sparse_embedding")
+    async def test_sparse_embedding_raises_exception(self, mock_sparse):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+
+        mock_sparse.passage_embed.side_effect = Exception("Not Found")
+
+        with pytest.raises(Exception, match="Error processing sparse embeddings: Not Found"):
+            processor.get_sparse_embedding(["Text of error case"])
+
+        mock_sparse.passage_embed.assert_called_once_with(["Text of error case"])
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
+    def test_rerank_embedding_single_sentence(self, mock_rerank):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+
+        mock_rerank.passage_embed.return_value = iter([
+            np.array([[0.11, 0.22, 0.33], [0.44, 0.55, 0.66]])
+        ])
+
+        result = processor.get_rerank_embedding(["Hello"])
+
+        assert result == [
+            [[0.11, 0.22, 0.33], [0.44, 0.55, 0.66]]
+        ]
+
+        mock_rerank.passage_embed.assert_called_once_with(["Hello"])
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
+    def test_rerank_embedding_multiple_sentences(self, mock_rerank):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+
+        mock_rerank.passage_embed.return_value = iter([
+            np.array([[0.11, 0.22, 0.33], [0.44, 0.55, 0.66]]),
+            np.array([[0.77, 0.88, 0.99], [1.11, 1.22, 1.33]])
+        ])
+
+        result = processor.get_rerank_embedding(["Hello", "World"])
+
+        assert result == [
+            [[0.11, 0.22, 0.33], [0.44, 0.55, 0.66]],
+            [[0.77, 0.88, 0.99], [1.11, 1.22, 1.33]]
+        ]
+
+        mock_rerank.passage_embed.assert_called_once_with(["Hello", "World"])
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
+    def test_rerank_embedding_empty_sentences(self, mock_rerank):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+
+        mock_rerank.passage_embed.return_value = iter([])
+
+        result = processor.get_rerank_embedding([])
+
+        assert result == []
+
+        mock_rerank.passage_embed.assert_called_once_with([])
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
+    def test_rerank_embedding_raises_exception(self, mock_rerank):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+
+        mock_rerank.passage_embed.side_effect = Exception("Not Found")
+
+        with pytest.raises(Exception, match="Error processing rerank embeddings: Not Found"):
+            processor.get_rerank_embedding(["Text of error case"])
+
+        mock_rerank.passage_embed.assert_called_once_with(["Text of error case"])
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    async def test_get_embedding_single_text(self, mock_rerank, mock_sparse, mock_dense):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+        text = "Hello"
+
+        embedding = np.random.random(1536).tolist()
+        mock_dense.return_value = litellm.EmbeddingResponse(
+            **{'data': [{'embedding': embedding}]}
+        )
+
+        bm25_embedding = [{"indices": [1850593538, 11711171], "values": [1.66, 1.66]}]
+        mock_sparse.return_value = bm25_embedding
+
+        colbertv2_0_embedding = [[np.random.random(128).tolist()]]
+        mock_rerank.return_value = colbertv2_0_embedding
+
+        result = await processor.get_embedding(text, user)
+
+        assert result == {
+            "dense": embedding,
+            "sparse": bm25_embedding[0],
+            "rerank": colbertv2_0_embedding[0]
+        }
+
+        mock_dense.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=[text],
+            metadata={'user': user, 'bot': bot, 'invocation': None},
+            api_key=key,
+            num_retries=3
+        )
+
+        mock_sparse.assert_called_once_with([text])
+        mock_rerank.assert_called_once_with([text])
+
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    async def test_get_embedding_multiple_texts(
+        self, mock_rerank, mock_sparse, mock_dense
+    ):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+
+        texts = ["Hello", "World"]
+
+        embedding = np.random.random(1536).tolist()
+        mock_dense.return_value = litellm.EmbeddingResponse(
+            **{'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        )
+
+        bm25_embeddings = [
+            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]},
+            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]}
+        ]
+        mock_sparse.return_value = bm25_embeddings
+
+        colbertv2_0_embeddings = [
+            [np.random.random(128).tolist()],
+            [np.random.random(128).tolist()]
+        ]
+        mock_rerank.return_value = colbertv2_0_embeddings
+
+        result = await processor.get_embedding(texts, user)
+
+        assert result == {
+            "dense": [embedding, embedding],
+            "sparse": bm25_embeddings,
+            "rerank": colbertv2_0_embeddings
+        }
+
+        mock_dense.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=texts,
+            metadata={'user': user, 'bot': bot, 'invocation': None},
+            api_key=key,
+            num_retries=3
+        )
+
+        mock_sparse.assert_called_once_with(texts)
+        mock_rerank.assert_called_once_with(texts)
+
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    async def test_get_embedding_dense_failure(self, mock_rerank, mock_sparse, mock_dense):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+        texts = ["Hello", "World"]
+
+        mock_dense.side_effect = Exception("Dense embedding failed")
+
+        bm25_embeddings = [
+            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]},
+            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]}
+        ]
+        mock_sparse.return_value = bm25_embeddings
+
+        colbertv2_0_embeddings = [
+            [np.random.random(128).tolist()],
+            [np.random.random(128).tolist()]
+        ]
+        mock_rerank.return_value = colbertv2_0_embeddings
+
+        with pytest.raises(Exception, match="Failed to fetch embeddings: Dense embedding failed"):
+            await processor.get_embedding(texts, user)
+
+        mock_dense.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=texts,
+            metadata={'user': user, 'bot': bot, 'invocation': None},
+            api_key=key,
+            num_retries=3
+        )
+
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    async def test_get_embedding_sparse_failure(self, mock_rerank, mock_sparse, mock_dense):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+        texts = ["Hello", "World"]
+
+        embedding = np.random.random(1536).tolist()
+        mock_dense.return_value = litellm.EmbeddingResponse(
+            **{'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        )
+
+        mock_sparse.side_effect = Exception("Sparse embedding failed")
+
+        colbertv2_0_embeddings = [
+            [np.random.random(128).tolist()],
+            [np.random.random(128).tolist()]
+        ]
+        mock_rerank.return_value = colbertv2_0_embeddings
+
+        with pytest.raises(Exception, match="Failed to fetch embeddings: Sparse embedding failed"):
+            await processor.get_embedding(texts, user)
+
+        mock_dense.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=texts,
+            metadata={'user': user, 'bot': bot, 'invocation': None},
+            api_key=key,
+            num_retries=3
+        )
+
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    async def test_get_embedding_rerank_failure(self, mock_rerank, mock_sparse, mock_dense):
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        processor = LLMProcessor(bot, llm_type)
+        texts = ["Hello", "World"]
+
+        embedding = np.random.random(1536).tolist()
+        mock_dense.return_value = litellm.EmbeddingResponse(
+            **{'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        )
+
+        bm25_embeddings = [
+            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]},
+            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]}
+        ]
+        mock_sparse.return_value = bm25_embeddings
+
+        mock_rerank.side_effect = Exception("Failed to fetch embeddings: Rerank embedding failed")
+
+        with pytest.raises(Exception, match="Rerank embedding failed"):
+            await processor.get_embedding(texts, user)
+
+        mock_dense.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=texts,
+            metadata={'user': user, 'bot': bot, 'invocation': None},
+            api_key=key,
+            num_retries=3
+        )
+
+        LLMSecret.objects.delete()
+
+    def test_load_sparse_embedding_model_already_initialized(self):
+        """Test that the sparse embedding model loads correctly when LLMProcessor is initialized."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        LLMProcessor._sparse_embedding = SparseTextEmbedding("Qdrant/bm25")
+
+        log_output = StringIO()
+        logger.add(log_output, format="{message}")
+
+        processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+        logger.remove()
+        log_contents = log_output.getvalue()
+
+        assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
+        assert "SPARSE MODEL LOADED" not in log_contents
+
+        LLMSecret.objects.delete()
+
+    def test_load_sparse_embedding_model_not_initialized(self):
+        """Test that the sparse embedding model loads correctly when LLMProcessor is not initialized."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        log_output = StringIO()
+        logger.add(log_output, format="{message}")
+
+        LLMProcessor._sparse_embedding = None
+        processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+        logger.remove()
+        log_contents = log_output.getvalue()
+
+        assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
+        assert "SPARSE MODEL LOADED" in log_contents
+        LLMSecret.objects.delete()
+
+    def test_load_sparse_embedding_model_fallback_cache(self):
+        """Test that the sparse embedding model falls back to the Kairon cache if Hugging Face cache is missing."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        with patch("os.path.exists", return_value=False):
+            LLMProcessor._sparse_embedding = None
+
+            log_output = StringIO()
+            logger.add(log_output, format="{message}")
+
+            processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+            logger.remove()
+            log_contents = log_output.getvalue()
+
+            assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
+            assert "SPARSE MODEL LOADED" in log_contents
+
+        LLMSecret.objects.delete()
+
+    def test_load_sparse_embedding_model_hf_cache(self):
+        """Test that the sparse embedding model falls back to the Kairon cache if Hugging Face cache is missing."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        with patch("os.path.exists", return_value=True):
+            LLMProcessor._sparse_embedding = None
+
+            log_output = StringIO()
+            logger.add(log_output, format="{message}")
+
+            processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+            logger.remove()
+            log_contents = log_output.getvalue()
+
+            assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
+            assert "SPARSE MODEL LOADED" in log_contents
+
+        LLMSecret.objects.delete()
+
+    def test_load_rerank_embedding_model_not_initialized(self):
+        """Test that the sparse embedding model loads correctly when LLMProcessor is not initialized."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        log_output = StringIO()
+        logger.add(log_output, format="{message}")
+
+        LLMProcessor._rerank_embedding = None
+        processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+        logger.remove()
+        log_contents = log_output.getvalue()
+
+        assert isinstance(LLMProcessor._rerank_embedding, LateInteractionTextEmbedding)
+        assert "RERANK MODEL LOADED" in log_contents
+        LLMSecret.objects.delete()
+
+    def test_load_rerank_embedding_model_hf_cache(self):
+        """Test that the sparse embedding model falls back to the Kairon cache if Hugging Face cache is missing."""
+        bot = "test_bot"
+        llm_type = "openai"
+        key = "test"
+        user = "test"
+
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        with patch("os.path.exists", return_value=True):
+            LLMProcessor._rerank_embedding = None
+
+            log_output = StringIO()
+            logger.add(log_output, format="{message}")
+
+            processor = LLMProcessor(bot="test_bot", llm_type="openai")
+
+            logger.remove()
+            log_contents = log_output.getvalue()
+
+            assert isinstance(LLMProcessor._rerank_embedding, LateInteractionTextEmbedding)
+            assert "RERANK MODEL LOADED" in log_contents
+
         LLMSecret.objects.delete()
