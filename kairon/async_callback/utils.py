@@ -2,12 +2,9 @@ import pickle
 from calendar import timegm
 from datetime import datetime, date
 from requests import Response
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from functools import partial
-from smtplib import SMTP
 from types import ModuleType
-from typing import Text, Dict, List, Callable
+from typing import Text, Dict, Callable
 
 from AccessControl.SecurityInfo import allow_module
 from apscheduler.triggers.date import DateTrigger
@@ -30,6 +27,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.cognition.data_objects import CollectionData
+from kairon.shared.utils import MailUtility
 
 allow_module("datetime")
 allow_module("time")
@@ -152,50 +150,6 @@ class CallbackUtility:
         else:
             logger.info(http_response)
 
-
-    @staticmethod
-    def trigger_email(
-            email: List[str],
-            subject: str,
-            body: str,
-            smtp_url: str,
-            smtp_port: int,
-            sender_email: str,
-            smtp_password: str,
-            smtp_userid: str = None,
-            tls: bool = False,
-            content_type="html",
-    ):
-        """
-        Sends an email to the mail id of the recipient
-
-        :param smtp_userid:
-        :param sender_email:
-        :param tls:
-        :param smtp_port:
-        :param smtp_url:
-        :param email: the mail id of the recipient
-        :param smtp_password:
-        :param subject: the subject of the mail
-        :param body: the body of the mail
-        :param content_type: "plain" or "html" content
-        :return: None
-        """
-        smtp = SMTP(smtp_url, port=smtp_port, timeout=10)
-        smtp.connect(smtp_url, smtp_port)
-        if tls:
-            smtp.starttls()
-        smtp.login(smtp_userid if smtp_userid else sender_email, smtp_password)
-        from_addr = sender_email
-        body = MIMEText(body, content_type)
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = from_addr
-        msg["To"] = ",".join(email)
-        msg.attach(body)
-        smtp.sendmail(from_addr, email, msg.as_string())
-        smtp.quit()
-
     @staticmethod
     def send_email(email_action: Text,
                    from_email: Text,
@@ -212,7 +166,7 @@ class CallbackUtility:
         smtp_password = action_config.get('smtp_password').get("value")
         smtp_userid = action_config.get('smtp_userid').get("value")
 
-        CallbackUtility.trigger_email(
+        MailUtility.trigger_email(
             email=[to_email],
             subject=subject,
             body=body,
@@ -319,7 +273,7 @@ class CallbackUtility:
             yield final_data
 
     @staticmethod
-    def get_data(collection_name: str, user: str, filter: dict, bot: Text = None):
+    def get_data(collection_name: str, user: str, filter_data: dict, bot: Text = None):
         if not bot:
             raise Exception("Missing bot id")
 
@@ -327,7 +281,7 @@ class CallbackUtility:
 
         query = {"bot": bot, "collection_name": collection_name}
 
-        query.update({f"data__{key}": value for key, value in filter.items()})
+        query.update({f"data__{key}": value for key, value in filter_data.items()})
         data = list(CallbackUtility.fetch_collection_data(query))
         return {"data": data}
 
