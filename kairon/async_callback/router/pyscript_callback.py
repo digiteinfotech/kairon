@@ -82,42 +82,11 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         )
 
 
-@router.get("/callback/d/{identifier}/{token}")
-async def execute_async_action_get(request: Request, identifier: str, token: str) -> BSResponse:
-    print(token, identifier)
-    return await process_router_message(token, identifier, 'GET', request)
+@router.route("/callback/d/{identifier}/{token}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def execute_async_action(request: Request, identifier: str, token: str) -> BSResponse:
+    return await process_router_message(token, identifier, request.method, request)
 
 
-@router.post("/callback/d/{identifier}/{token}")
-async def execute_async_action_post(request: Request, identifier: str, token: str) -> BSResponse:
-    return await process_router_message(token, identifier, 'POST', request)
-
-
-@router.put("/callback/d/{identifier}/{token}")
-async def execute_async_action_put(request: Request, identifier: str, token: str) -> BSResponse:
-    return await process_router_message(token, identifier, 'PUT', request)
-
-
-@router.patch("/callback/d/{identifier}/{token}")
-async def execute_async_action_patch(request: Request, identifier: str, token: str) -> BSResponse:
-    return await process_router_message(token, identifier, 'PATCH', request)
-
-
-@router.delete("/callback/d/{identifier}/{token}")
-async def execute_async_action_delete(request: Request, identifier: str, token: str) -> BSResponse:
-    return await process_router_message(token, identifier, 'DELETE', request)
-
-
-@router.post("/callback/s/{token}")
-async def execute_async_action_standalone_post(request: Request, token: str) -> BSResponse:
-    return await process_router_message(token, None, 'POST', request)
-
-
-@router.put("/callback/s/{token}")
-async def execute_async_action_standalone_put(request: Request, token: str) -> BSResponse:
-    return await process_router_message(token, None, 'PUT', request)
-
-
-@router.patch("/callback/s/{token}")
-async def execute_async_action_standalone_patch(request: Request, token: str) -> BSResponse:
-    return await process_router_message(token, None, 'PATCH', request)
+@router.route("/callback/s/{token}", methods=["POST", "PUT", "PATCH"])
+async def execute_async_action_standalone(request: Request, token: str) -> BSResponse:
+    return await process_router_message(token, None, request.method, request)
