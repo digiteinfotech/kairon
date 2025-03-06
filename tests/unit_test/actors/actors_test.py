@@ -57,14 +57,14 @@ class TestActors:
 
     def test_actor_pyrunner_with_script_errors(self):
         script = """
-            import requests
-            response = requests.get('http://localhos')
-            value = response.json()
-            data = value['data']
+            import numpy as np
+            arr = np.array([1, 2, 3, 4, 5])
+            mean_value = np.mean(arr)
+            print("Mean:", mean_value)
             """
         script = textwrap.dedent(script)
 
-        with pytest.raises(AppException, match="Script execution error: import of 'requests' is unauthorized"):
+        with pytest.raises(AppException, match="Script execution error: import of 'numpy' is unauthorized"):
             ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script, timeout=10)
 
     def test_actor_pyrunner_with_timeout(self):
