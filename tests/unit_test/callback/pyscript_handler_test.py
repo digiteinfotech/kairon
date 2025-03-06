@@ -260,9 +260,8 @@ def test_lambda_handler_with_response_in_event_data():
     }
 
 
-@patch("kairon.async_callback.utils.SMTP", autospec=True)
 @patch("kairon.shared.utils.SMTP", autospec=True)
-def test_lambda_handler_for_send_email(mock_utils_smtp, mock_smtp):
+def test_lambda_handler_for_send_email(mock_smtp):
     from kairon.shared.actions.data_objects import EmailActionConfig
     EmailActionConfig(
         action_name="email_action",
@@ -314,7 +313,7 @@ def test_lambda_handler_for_send_email(mock_utils_smtp, mock_smtp):
     }
 
 
-@patch("kairon.async_callback.utils.SMTP", autospec=True)
+@patch("kairon.shared.utils.SMTP", autospec=True)
 def test_lambda_handler_for_send_email_without_bot(mock_smtp):
     source_code = '''
     send_email("email_action",    #email action name should be same as email action
