@@ -585,6 +585,8 @@ class CognitionDataProcessor:
         """
 
         from kairon.shared.llm.processor import LLMProcessor
+        LLMProcessor.load_sparse_embedding_model()
+        LLMProcessor.load_rerank_embedding_model()
         llm_processor = LLMProcessor(bot, DEFAULT_LLM)
         suffix = "_faq_embd"
         qdrant_collection = f"{bot}_{collection_name}{suffix}" if collection_name else f"{bot}{suffix}"

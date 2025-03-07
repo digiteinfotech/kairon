@@ -1,3 +1,4 @@
+import os
 import time
 import urllib.parse
 from secrets import randbelow, choice
@@ -5,6 +6,7 @@ from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
 
 import litellm
+from fastembed import SparseTextEmbedding, LateInteractionTextEmbedding
 from loguru import logger as logging
 from mongoengine.base import BaseList
 from tiktoken import get_encoding
@@ -25,7 +27,6 @@ from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 from http import HTTPStatus
-
 litellm.callbacks = [LiteLLMLogger()]
 
 
@@ -44,14 +45,11 @@ class LLMProcessor(LLMBase):
         self.llm_type = llm_type
         self.vectors_config = {}
         self.sparse_vectors_config = {}
-
-
         self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
         if llm_type != DEFAULT_LLM:
             self.llm_secret_embedding = Sysadmin.get_llm_secret(DEFAULT_LLM, bot)
         else:
             self.llm_secret_embedding = self.llm_secret
-
         self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
         self.__logs = []
@@ -144,29 +142,48 @@ class LLMProcessor(LLMBase):
         elapsed_time = end_time - start_time
         return response, elapsed_time
 
-
-    async def get_embedding(self, texts: Union[Text, List[Text]], user: Text, **kwargs):
+    def truncate_text(self, texts: List[Text]) -> List[Text]:
         """
-        Get embeddings for a batch of texts by making an API call.
+        Truncate multiple texts to 8191 tokens for openai
         """
-        body = {
-            'texts': texts,
-            'user': user,
-            'invocation': kwargs.get("invocation")
-        }
+        truncated_texts = []
 
-        timeout = Utility.environment['llm'].get('request_timeout', 30)
-        http_response, status_code, _, _ = await ActionUtility.execute_request_async(
-            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/embedding/{self.llm_type}",
-            request_method="POST",
-            request_body=body,
-            timeout=timeout)
+        for text in texts:
+            tokens = self.tokenizer.encode(text)[:self.EMBEDDING_CTX_LENGTH]
+            truncated_texts.append(self.tokenizer.decode(tokens))
 
-        if status_code == 200:
-            embeddings = http_response.get('embedding', {})
+        return truncated_texts
+
+    async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
+        """
+        Get embeddings for a batch of texts.
+        """
+        try:
+            is_single_text = isinstance(texts, str)
+            if is_single_text:
+                texts = [texts]
+
+            truncated_texts = self.truncate_text(texts)
+
+            embeddings = {}
+
+            result = await litellm.aembedding(
+                model="text-embedding-3-small",
+                input=truncated_texts,
+                metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
+                api_key=self.llm_secret_embedding.get('api_key'),
+                num_retries=3
+            )
+            embeddings["dense"] = [embedding["embedding"] for embedding in result["data"]]
+            embeddings["sparse"] = self.get_sparse_embedding(truncated_texts)
+            embeddings["rerank"] = self.get_rerank_embedding(truncated_texts)
+
+            if is_single_text:
+                return {model: embedding[0] for model, embedding in embeddings.items()}
+
             return embeddings
-        else:
-            raise Exception(f"Failed to fetch embeddings: {http_response.get('message', 'Unknown error')}")
+        except Exception as e:
+            raise Exception(f"Failed to fetch embeddings: {str(e)}")
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
@@ -468,3 +485,61 @@ class LLMProcessor(LLMBase):
             self.sparse_vectors_config = response_data.get('sparse_vectors_config', {})
         else:
             raise Exception(f"Failed to fetch vector configs: {http_response.get('message', 'Unknown error')}")
+
+    @classmethod
+    def load_sparse_embedding_model(cls):
+        hf_cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+        kairon_cache_dir = "./kairon/pre-trained-models/"
+
+        cache_dir = hf_cache_dir if os.path.exists(hf_cache_dir) else kairon_cache_dir
+
+        if cls._sparse_embedding is None:
+            cls._sparse_embedding = SparseTextEmbedding("Qdrant/bm25", cache_dir=cache_dir)
+            logging.info("SPARSE MODEL LOADED")
+
+    @classmethod
+    def load_rerank_embedding_model(cls):
+        hf_cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+        kairon_cache_dir = "./kairon/pre-trained-models/"
+
+        cache_dir = hf_cache_dir if os.path.exists(hf_cache_dir) else kairon_cache_dir
+
+        if cls._rerank_embedding is None:
+            cls._rerank_embedding = LateInteractionTextEmbedding("colbert-ir/colbertv2.0", cache_dir=cache_dir)
+            logging.info("RERANK MODEL LOADED")
+
+    def get_sparse_embedding(self, sentences):
+        """
+        Generate sparse embeddings for a list of sentences.
+
+        Args:
+            sentences (list): A list of sentences to be encoded
+
+        Returns:
+            list: A list of embeddings.
+        """
+        try:
+            embeddings = list(self._sparse_embedding.passage_embed(sentences))
+
+            return [
+                {"values": emb.values.tolist(), "indices": emb.indices.tolist()}
+                for emb in embeddings
+            ]
+        except Exception as e:
+            raise Exception(f"Error processing sparse embeddings: {str(e)}")
+
+    def get_rerank_embedding(self, sentences):
+        """
+        Generate embeddings for a list of sentences.
+
+        Args:
+            sentences (list): A list of sentences to be encoded.
+
+        Returns:
+            list: A list of embedding vectors.
+        """
+        try:
+            embeddings = list(self._rerank_embedding.passage_embed(sentences))
+            return [emb.tolist() for emb in embeddings]
+        except Exception as e:
+            raise Exception(f"Error processing rerank embeddings: {str(e)}")

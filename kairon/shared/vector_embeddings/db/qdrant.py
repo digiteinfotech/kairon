@@ -4,11 +4,13 @@ from urllib.parse import urljoin
 
 from kairon import Utility
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.data.constant import DEFAULT_LLM
 from kairon.shared.vector_embeddings.db.base import DatabaseBase
 from kairon.shared.actions.models import DbActionOperationType
 from kairon.shared.actions.exception import ActionFailure
+from kairon.shared.llm.processor import LLMProcessor
+LLMProcessor.load_sparse_embedding_model()
+LLMProcessor.load_rerank_embedding_model()
 
 
 class Qdrant(DatabaseBase, ABC):
