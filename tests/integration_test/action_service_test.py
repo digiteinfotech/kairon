@@ -3805,6 +3805,9 @@ def test_http_action_doesnotexist():
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_slot():
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25/tree/main")
+    responses.add_passthru("https://huggingface.co/colbert-ir/colbertv2.0")
     action_name = "test_vectordb_action_execution_payload_search_from_slot"
     bot = '5f50md0a56b698ca10d35e2e'
     Actions(name=action_name, type=ActionType.database_action.value, bot=bot,
@@ -3895,6 +3898,9 @@ def test_vectordb_action_execution_payload_search_from_slot():
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_user_message():
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25/tree/main")
+    responses.add_passthru("https://huggingface.co/colbert-ir/colbertv2.0")
     action_name = "test_vectordb_action_execution_payload_search_from_user_message"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
             user="user").save()
@@ -3984,6 +3990,9 @@ def test_vectordb_action_execution_payload_search_from_user_message():
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25/tree/main")
+    responses.add_passthru("https://huggingface.co/colbert-ir/colbertv2.0")
     action_name = "test_vectordb_action_execution_payload_search_from_user_message_in_slot"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2f",
             user="user").save()
@@ -4076,6 +4085,9 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
 @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
 def test_vectordb_action_execution_embedding_search_from_value(mock_get_embedding):
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25/tree/main")
+    responses.add_passthru("https://huggingface.co/colbert-ir/colbertv2.0")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56b698ca10d75d2e",
             user="user").save()
@@ -4210,6 +4222,9 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_get_embeddin
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_value():
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25/tree/main")
+    responses.add_passthru("https://huggingface.co/colbert-ir/colbertv2.0")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2z",
             user="user").save()
@@ -4298,6 +4313,9 @@ def test_vectordb_action_execution_payload_search_from_value():
 @responses.activate
 def test_vectordb_action_execution_payload_search_from_value_json_decode_error():
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25/tree/main")
+    responses.add_passthru("https://huggingface.co/colbert-ir/colbertv2.0")
     action_name = "test_vectordb_action_execution_payload_search_from_value_json_decode_error"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e",
             user="user").save()
@@ -4358,6 +4376,9 @@ def test_vectordb_action_execution_payload_search_from_value_json_decode_error()
 @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
 def test_vectordb_action_execution_embedding_search_from_slot(mock_get_embedding):
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25/tree/main")
+    responses.add_passthru("https://huggingface.co/colbert-ir/colbertv2.0")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fx0a56b698ca10d35d2e",
             user="user").save()
@@ -4495,6 +4516,9 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_get_embedding
 @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
 def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_get_embedding):
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25")
+    responses.add_passthru("https://huggingface.co/Qdrant/bm25/tree/main")
+    responses.add_passthru("https://huggingface.co/colbert-ir/colbertv2.0")
     action_name = "test_vectordb_action_execution_no_response_dispatch"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56v098ca10d75d2e",
             user="user").save()

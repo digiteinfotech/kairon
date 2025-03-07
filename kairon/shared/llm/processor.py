@@ -27,7 +27,6 @@ from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 from http import HTTPStatus
-
 litellm.callbacks = [LiteLLMLogger()]
 
 
@@ -54,8 +53,6 @@ class LLMProcessor(LLMBase):
         self.tokenizer = get_encoding("cl100k_base")
         self.EMBEDDING_CTX_LENGTH = 8191
         self.__logs = []
-        self.load_sparse_embedding_model()
-        self.load_rerank_embedding_model()
 
     async def train(self, user, *args, **kwargs) -> Dict:
         invocation = kwargs.pop('invocation', None)

@@ -2678,7 +2678,7 @@ class TestLLM:
         logger.add(log_output, format="{message}")
 
         LLMProcessor._sparse_embedding = None
-        processor = LLMProcessor(bot="test_bot", llm_type="openai")
+        LLMProcessor.load_sparse_embedding_model()
 
         logger.remove()
         log_contents = log_output.getvalue()
@@ -2710,7 +2710,7 @@ class TestLLM:
             log_output = StringIO()
             logger.add(log_output, format="{message}")
 
-            processor = LLMProcessor(bot="test_bot", llm_type="openai")
+            LLMProcessor.load_sparse_embedding_model()
 
             logger.remove()
             log_contents = log_output.getvalue()
@@ -2743,7 +2743,7 @@ class TestLLM:
             log_output = StringIO()
             logger.add(log_output, format="{message}")
 
-            processor = LLMProcessor(bot="test_bot", llm_type="openai")
+            LLMProcessor.load_sparse_embedding_model()
 
             logger.remove()
             log_contents = log_output.getvalue()
@@ -2774,7 +2774,7 @@ class TestLLM:
         logger.add(log_output, format="{message}")
 
         LLMProcessor._rerank_embedding = None
-        processor = LLMProcessor(bot="test_bot", llm_type="openai")
+        LLMProcessor.load_rerank_embedding_model()
 
         logger.remove()
         log_contents = log_output.getvalue()
@@ -2806,7 +2806,7 @@ class TestLLM:
             log_output = StringIO()
             logger.add(log_output, format="{message}")
 
-            processor = LLMProcessor(bot="test_bot", llm_type="openai")
+            LLMProcessor.load_rerank_embedding_model()
 
             logger.remove()
             log_contents = log_output.getvalue()
