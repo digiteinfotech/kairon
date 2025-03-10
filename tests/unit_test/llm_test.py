@@ -1,4 +1,7 @@
 import os
+from urllib.parse import urljoin
+import ujson as json
+from kairon.shared.utils import Utility
 import urllib
 from unittest import mock
 from unittest.mock import patch, AsyncMock, MagicMock
@@ -15,6 +18,8 @@ from mongoengine import connect
 
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
+
+Utility.load_system_metadata()
 
 
 from kairon.exceptions import AppException
@@ -35,8 +40,8 @@ class TestLLM:
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_train(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train(self, mock_embedding, aioresponses):
         bot = "test_embed_faq"
         user = "test"
         value = "nupurkhare"
@@ -53,37 +58,11 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret, 'url': "http://kairon:8333"},
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret},
                                                    'vector': {'db': "http://kairon:6333", "key": None}}):
-            mock_get_embedding.return_value = embeddings
+            mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
-
-            aioresponses.add(
-                url=urljoin(Utility.environment['llm']['url'], f"/{bot}/config"),
-                method="GET",
-                payload={
-                    "configs":{
-                        "vectors_config":{
-                            "dense":{"size":1536,"distance":"Cosine"},
-                            "rerank":{"size":128,"distance":"Cosine","multivector_config":{"comparator":"max_sim"}}},
-                        "sparse_vectors_config":{
-                            "sparse":{}
-                        }
-                    }
-                }
-            )
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -109,21 +88,24 @@ class TestLLM:
 
             response = await gpt3.train(user=user)
             assert response['faq'] == 1
+
+            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix,
+                                                                                 'vectors': gpt3.vector_config}
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
-                'name': gpt3.bot + gpt3.suffix,
-                'vectors': gpt3.vectors_config,
-                'sparse_vectors': gpt3.sparse_vectors_config
-            }
-            expected_embeddings = {key: value[0] for key, value in embeddings.items()}
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
-                            'vector': expected_embeddings,
+                            'vector': embedding,
                             'payload': {'content': test_content.data}
                             }]}
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [test_content.data], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_train_payload_text(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_payload_text(self, mock_embedding, aioresponses):
         bot = "test_embed_faq_text"
         user = "test"
         value = "nupurkhare"
@@ -165,56 +147,12 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist(), np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()], [np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        },
-            {
-                "indices": [1850593538, 11711171],
-                "values": [1.66, 1.66]
-            }
-        ]
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+        mock_embedding.side_effect = (
+        litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]}),
+        litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]}))
         gpt3 = LLMProcessor(bot, DEFAULT_LLM)
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret, 'url': "http://kairon:8333"}}):
-            mock_get_embedding.return_value = embeddings
-            aioresponses.add(
-                url=urljoin(Utility.environment['llm']['url'], f"/{bot}/config"),
-                method="GET",
-                payload={
-                    "configs": {
-                        "vectors_config": {
-                            "dense": {"size": 1536, "distance": "Cosine"},
-                            "rerank": {"size": 128, "distance": "Cosine",
-                                       "multivector_config": {"comparator": "max_sim"}}},
-                        "sparse_vectors_config": {
-                            "sparse": {}
-                        }
-                    }
-                }
-            )
-            aioresponses.add(
-                url=urljoin(Utility.environment['llm']['url'], f"/{bot}/config"),
-                method="GET",
-                payload={
-                    "configs": {
-                        "vectors_config": {
-                            "dense": {"size": 1536, "distance": "Cosine"},
-                            "rerank": {"size": 128, "distance": "Cosine",
-                                       "multivector_config": {"comparator": "max_sim"}}},
-                        "sparse_vectors_config": {
-                            "sparse": {}
-                        }
-                    }
-                }
-            )
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
                 method="GET",
@@ -265,37 +203,36 @@ class TestLLM:
             response = await gpt3.train(user=user)
             assert response['faq'] == 3
 
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
                 'name': f"{gpt3.bot}_country_details{gpt3.suffix}",
-                'vectors': gpt3.vectors_config,
-                'sparse_vectors': gpt3.sparse_vectors_config
-            }
-
-            expected_embeddings = [{key: value[0] for key, value in embeddings.items()}, {key: value[1] for key, value in embeddings.items()}]
-            assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {
+                'vectors': gpt3.vector_config}
+            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'points': [{'id': test_content_two.vector_id,
-                            'payload': {'country': 'Spain'},
-                            'vector': expected_embeddings[0]
-                            },
+                            'vector': embedding,
+                            'payload': {'country': 'Spain'}},
                            {'id': test_content_three.vector_id,
-                            'payload': {'role': 'ds'},
-                            'vector': expected_embeddings[1],
-                            }
+                            'vector': embedding,
+                            'payload': {'role': 'ds'}}
                            ]}
-
-            assert list(aioresponses.requests.values())[5][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {
                 'name': f"{gpt3.bot}_user_details{gpt3.suffix}",
-                'vectors': gpt3.vectors_config,
-                'sparse_vectors': gpt3.sparse_vectors_config
-            }
-            assert list(aioresponses.requests.values())[6][0].kwargs['json'] == {
+                'vectors': gpt3.vector_config}
+            assert list(aioresponses.requests.values())[5][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
-                            'vector': expected_embeddings[0],
+                            'vector': embedding,
                             'payload': {'name': 'Nupur'}}]}
+            assert response['faq'] == 3
+
+            expected = {"model": "text-embedding-3-small",
+                        "input": [json.dumps(test_content.data)],
+                        'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_train_payload_with_int(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_payload_with_int(self, mock_embedding, aioresponses):
         bot = "test_embed_faq_json"
         user = "test"
         value = "nupurkhare"
@@ -321,22 +258,11 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-        mock_get_embedding.return_value = embeddings
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+        input = {"name": "Ram", "color": "red"}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
         gpt3 = LLMProcessor(bot, DEFAULT_LLM)
-
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
                         f"/collections/test_embed_faq_json_payload_with_int_faq_embd"),
@@ -355,40 +281,28 @@ class TestLLM:
             payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
         )
 
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret,  'url': "http://kairon:8333"}}):
-            aioresponses.add(
-                url=urljoin(Utility.environment['llm']['url'], f"/{bot}/config"),
-                method="GET",
-                payload={
-                    "configs": {
-                        "vectors_config": {
-                            "dense": {"size": 1536, "distance": "Cosine"},
-                            "rerank": {"size": 128, "distance": "Cosine",
-                                       "multivector_config": {"comparator": "max_sim"}}},
-                        "sparse_vectors_config": {
-                            "sparse": {}
-                        }
-                    }
-                }
-            )
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             response = await gpt3.train(user=user)
             assert response['faq'] == 1
 
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {
                 'name': 'test_embed_faq_json_payload_with_int_faq_embd',
-                'vectors': gpt3.vectors_config,
-                'sparse_vectors': gpt3.sparse_vectors_config
-            }
-            expected_embeddings = {key: value[0] for key, value in embeddings.items()}
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
+                'vectors': gpt3.vector_config}
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
-                            'vector': expected_embeddings,
+                            'vector': embedding,
                             'payload': {'name': 'Ram', 'age': 23, 'color': 'red'}
                             }]}
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_train_int(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_int(self, mock_embedding, aioresponses):
         bot = "test_int"
         user = "test"
         value = "nupurkhare"
@@ -414,38 +328,11 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret, 'url': "http://kairon:8333"}}):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+        input = {"name": "Ram", "color": "red"}
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             gpt3 = LLMProcessor(bot, DEFAULT_LLM)
-            mock_get_embedding.return_value = embeddings
-
-            aioresponses.add(
-                url=urljoin(Utility.environment['llm']['url'], f"/{bot}/config"),
-                method="GET",
-                payload={
-                    "configs": {
-                        "vectors_config": {
-                            "dense": {"size": 1536, "distance": "Cosine"},
-                            "rerank": {"size": 128, "distance": "Cosine",
-                                       "multivector_config": {"comparator": "max_sim"}}},
-                        "sparse_vectors_config": {
-                            "sparse": {}
-                        }
-                    }
-                }
-            )
-
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -478,23 +365,29 @@ class TestLLM:
             response = await gpt3.train(user=user)
             assert response['faq'] == 1
 
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'name': 'test_int_embd_int_faq_embd',
-                                                                                 'vectors': gpt3.vectors_config,
-                                                                                 'sparse_vectors': gpt3.sparse_vectors_config}
-            expected_embeddings = {key: value[0] for key, value in embeddings.items()}
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': 'test_int_embd_int_faq_embd',
+                                                                                 'vectors': gpt3.vector_config}
+            expected_payload = test_content.data
+            #expected_payload['collection_name'] = 'test_int_embd_int_faq_embd'
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
-                            'vector': expected_embeddings,
-                            'payload': test_content.data
+                            'vector': embedding,
+                            'payload': expected_payload
                             }]}
+
+            expected = {"model": "text-embedding-3-small",
+                        "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
     def test_gpt3_faq_embedding_train_failure(self):
         with pytest.raises(AppException, match=f"LLM secret for '{DEFAULT_LLM}' is not configured!"):
             LLMProcessor('test_gpt3_faq_embedding_train_failure', DEFAULT_LLM)
 
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_train_upsert_error(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_upsert_error(self, mock_embedding, aioresponses):
         bot = "test_embed_faq_not_exists"
         user = "test"
         value = "nupurk"
@@ -512,37 +405,12 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret, 'url': "http://kairon:8333"}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
-            mock_get_embedding.return_value = embeddings
-            aioresponses.add(
-                url=urljoin(Utility.environment['llm']['url'], f"/{bot}/config"),
-                method="GET",
-                payload={
-                    "configs": {
-                        "vectors_config": {
-                            "dense": {"size": 1536, "distance": "Cosine"},
-                            "rerank": {"size": 128, "distance": "Cosine",
-                                       "multivector_config": {"comparator": "max_sim"}}},
-                        "sparse_vectors_config": {
-                            "sparse": {}
-                        }
-                    }
-                }
-            )
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
@@ -571,18 +439,21 @@ class TestLLM:
             with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
                 await gpt3.train(user=user)
 
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix,
-                                                                                 'vectors': gpt3.vectors_config,
-                                                                                 'sparse_vectors': gpt3.sparse_vectors_config}
-            expected_embeddings = {key: value[0] for key, value in embeddings.items()}
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix,
+                                                                                 'vectors': gpt3.vector_config}
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
-                            'vector': expected_embeddings, 'payload': {'content': test_content.data}}]}
+                            'vector': embedding, 'payload': {'content': test_content.data}}]}
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [test_content.data], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_train_payload_upsert_error_json(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_train_payload_upsert_error_json(self, mock_embedding, aioresponses):
         bot = "payload_upsert_error"
         user = "test"
         value = "nupurk"
@@ -608,38 +479,12 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret, 'url': "http://kairon:8333"}}):
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret}}):
             gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
-            mock_get_embedding.return_value = embeddings
-
-            aioresponses.add(
-                url=urljoin(Utility.environment['llm']['url'], f"/{bot}/config"),
-                method="GET",
-                payload={
-                    "configs": {
-                        "vectors_config": {
-                            "dense": {"size": 1536, "distance": "Cosine"},
-                            "rerank": {"size": 128, "distance": "Cosine",
-                                       "multivector_config": {"comparator": "max_sim"}}},
-                        "sparse_vectors_config": {
-                            "sparse": {}
-                        }
-                    }
-                }
-            )
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
                 method="GET",
@@ -670,19 +515,26 @@ class TestLLM:
             with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
                 await gpt3.train(user=user)
 
+            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {
+                'name': 'payload_upsert_error_error_json_faq_embd', 'vectors': gpt3.vector_config}
+            expected_payload = test_content.data
+            #expected_payload['collection_name'] = 'payload_upsert_error_error_json_faq_embd'
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
-                'name': 'payload_upsert_error_error_json_faq_embd', 'vectors': gpt3.vectors_config,
-                'sparse_vectors': gpt3.sparse_vectors_config}
-            expected_embeddings = {key: value[0] for key, value in embeddings.items()}
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
-                            'vector': expected_embeddings,
-                            'payload': test_content.data
+                            'vector': embedding,
+                            'payload': expected_payload
                             }]}
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [json.dumps(test_content.data)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict(self, mock_embedding, aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         bot = "test_embed_faq_predict"
         user = "test"
@@ -703,19 +555,6 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         hyperparameters = Utility.get_default_llm_hyperparameters()
@@ -729,7 +568,8 @@ class TestLLM:
                                    'collection': 'python'}],
             "hyperparameters": hyperparameters
         }
-        mock_get_embedding.return_value = embeddings
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+
         aioresponses.add(
             url=urljoin(Utility.environment['llm']['url'],
                         f"/{bot}/completion/{llm_type}"),
@@ -744,56 +584,31 @@ class TestLLM:
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
+                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
-                payload = {
-                   "result":{
-                      "points":[
-                         {
-                            "id":test_content.vector_id,
-                            "version":0,
-                            "score":0.80,
-                            "payload":{
-                               "content": test_content.data
-                            }
-                         }
-                      ]
-                   },
-                   "status":"ok",
-                   "time":0.000957728
-                }
+                payload={'result': [
+                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
             response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
-                "prefetch": [
-                    {
-                        "query": embeddings.get("dense", []),
-                        "using": "dense",
-                        "limit": 20
-                    },
-                    {
-                        "query": embeddings.get("rerank", []),
-                        "using": "rerank",
-                        "limit": 20
-                    },
-                    {
-                        "query": embeddings.get("sparse", {}),
-                        "using": "sparse",
-                        "limit": 20
-                    }
-                ],
-                "query": {"fusion": "rrf"},
-                "with_payload": True,
-                "score_threshold": 0.70,
-                "limit": 10
-            }
+
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                                 'with_payload': True,
+                                                                                 'score_threshold': 0.70}
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                        "api_key": value,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_with_default_collection(self, mock_get_embedding,
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_default_collection(self, mock_embedding,
                                                                       aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
+
         bot = "test_embed_faq_predict_with_default_collection"
         user = "test"
         value = "knupur"
@@ -813,19 +628,6 @@ class TestLLM:
         )
         llm_secret.save()
 
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
         hyperparameters = Utility.get_default_llm_hyperparameters()
@@ -838,7 +640,8 @@ class TestLLM:
                                    'collection': 'default'}],
             'hyperparameters': hyperparameters
         }
-        mock_get_embedding.return_value = embeddings
+
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
         aioresponses.add(
             url=urljoin(Utility.environment['llm']['url'],
@@ -854,58 +657,31 @@ class TestLLM:
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/{gpt3.bot}{gpt3.suffix}/points/query"),
+                            f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
                 method="POST",
-                payload={
-                    "result": {
-                        "points": [
-                            {
-                                "id": test_content.vector_id,
-                                "version": 0,
-                                "score": 0.80,
-                                "payload":{
-                                   "content": test_content.data
-                                }
-                            }
-                        ]
-                    },
-                    "status": "ok",
-                    "time": 0.000957728
-                }
+                payload={'result': [
+                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
-            "prefetch": [
-                {
-                    "query": embeddings.get("dense", []),
-                    "using": "dense",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("rerank", []),
-                    "using": "rerank",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("sparse", {}),
-                    "using": "sparse",
-                    "limit": 20
-                }
-            ],
-            "query": {"fusion": "rrf"},
-            "with_payload": True,
-            "score_threshold": 0.70,
-            "limit": 10
-        }
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                             'with_payload': True,
+                                                                             'score_threshold': 0.70}
 
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                    "api_key": value,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_with_values(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_values(self, mock_embedding, aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
@@ -940,20 +716,7 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
         aioresponses.add(
             url=urljoin(Utility.environment['llm']['url'],
@@ -970,59 +733,33 @@ class TestLLM:
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
+                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
-                payload={
-                    "result": {
-                        "points": [
-                            {
-                                "id": test_content.vector_id,
-                                "version": 0,
-                                "score": 0.80,
-                                "payload": {
-                                    "content": test_content.data
-                                }
-                            }
-                        ]
-                    },
-                    "status": "ok",
-                    "time": 0.000957728
-                }
+                payload={'result': [
+                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
             response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
             assert response['content'] == generated_text
             assert gpt3.logs == [{'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}], 'raw_completion_response': {'id': 'chatcmpl-5cde438e-0c93-47d8-bbee-13319b4f2000', 'created': 1720090690, 'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.', 'role': 'assistant'}}]}, 'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
-                "prefetch": [
-                    {
-                        "query": embeddings.get("dense", []),
-                        "using": "dense",
-                        "limit": 20
-                    },
-                    {
-                        "query": embeddings.get("rerank", []),
-                        "using": "rerank",
-                        "limit": 20
-                    },
-                    {
-                        "query": embeddings.get("sparse", {}),
-                        "using": "sparse",
-                        "limit": 20
-                    }
-                ],
-                "query": {"fusion": "rrf"},
-                "with_payload": True,
-                "score_threshold": 0.70,
-                "limit": 10
-            }
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                                 'with_payload': True,
+                                                                                 'score_threshold': 0.70}
+
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [query], 'metadata': {'user': user, 'bot': gpt3.bot, 'invocation': None},
+                        "api_key": key,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_with_values_and_stream(self, mock_get_embedding,
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_values_and_stream(self, mock_embedding,
                                                                      aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
@@ -1056,19 +793,7 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-        mock_get_embedding.return_value = embeddings
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
         aioresponses.add(
             url=urljoin(Utility.environment['llm']['url'],
@@ -1084,60 +809,34 @@ class TestLLM:
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
+                            f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
                 method="POST",
-                payload={
-                    "result": {
-                        "points": [
-                            {
-                                "id": test_content.vector_id,
-                                "version": 0,
-                                "score": 0.80,
-                                "payload": {
-                                    "content": test_content.data
-                                }
-                            }
-                        ]
-                    },
-                    "status": "ok",
-                    "time": 0.000957728
-                }
+                payload={'result': [
+                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
             response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
             assert response['content'] == "Python is dynamically typed, garbage-collected, high level, general purpose programming."
             assert gpt3.logs == [{'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer according to this context.\n \nQ: What kind of language is python? \nA:"}], 'raw_completion_response': {'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.', 'role': 'assistant'}}]}, 'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}, 'stream': True}}]
 
-            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
-                "prefetch": [
-                    {
-                        "query": embeddings.get("dense", []),
-                        "using": "dense",
-                        "limit": 20
-                    },
-                    {
-                        "query": embeddings.get("rerank", []),
-                        "using": "rerank",
-                        "limit": 20
-                    },
-                    {
-                        "query": embeddings.get("sparse", {}),
-                        "using": "sparse",
-                        "limit": 20
-                    }
-                ],
-                "query": {"fusion": "rrf"},
-                "with_payload": True,
-                "score_threshold": 0.70,
-                "limit": 10
-            }
+            assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                                 'with_payload': True,
+                                                                                 'score_threshold': 0.70}
+
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+            expected = {"model": "text-embedding-3-small",
+                        "input": [query], 'metadata': {'user': user, 'bot': gpt3.bot, 'invocation': None},
+                        "api_key": key,
+                        "num_retries": 3}
+            assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
     async def test_gpt3_faq_embedding_predict_with_values_with_instructions(self,
-                                                                            mock_get_embedding,
+                                                                            mock_embedding,
                                                                             aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
         user = "test"
         bot = "payload_with_instruction"
         key = 'test'
@@ -1190,20 +889,7 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
         expected_body = {'messages': [
             {'role': 'system',
@@ -1234,67 +920,35 @@ class TestLLM:
         gpt3 = LLMProcessor(bot, DEFAULT_LLM)
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
-                        f"/collections/{gpt3.bot}_{test_content1.collection}{gpt3.suffix}/points/query"),
+                        f"/collections/{gpt3.bot}_{test_content1.collection}{gpt3.suffix}/points/search"),
             method="POST",
-            payload={
-                "result": {
-                    "points": [
-                        {
-                            "id": test_content2.vector_id,
-                            "version": 0,
-                            "score": 0.80,
-                            "payload": {
-                                "content": test_content2.data
-                            }
-                        },
-                        {
-                            "id": test_content3.vector_id,
-                            "version": 0,
-                            "score": 0.80,
-                            "payload": {
-                                "content": test_content3.data
-                            }
-                        }
-                    ]
-                },
-                "status": "ok",
-                "time": 0.000957728
-            }
+            payload={'result': [
+                {'id': test_content2.vector_id, 'score': 0.80, "payload": test_content2.data},
+                {'id': test_content3.vector_id, 'score': 0.80, "payload": test_content3.data}
+            ]}
         )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
         assert response['content'] == generated_text
         assert not DeepDiff(gpt3.logs, [{'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'}, {'role': 'user', 'content': "Based on below context answer question, if answer not in context check previous logs.\nInstructions on how to use Similarity Prompt:\n[{'name': 'Fahad', 'city': 'Mumbai'}, {'name': 'Hitesh', 'city': 'Mumbai'}]\nAnswer according to this context.\n \nAnswer in a short way.\nKeep it simple. \nQ: List all the user lives in mumbai city \nA:"}], 'raw_completion_response': {'choices': [{'id': 'chatcmpl-836a9b38-dfe9-4ae0-9f94-f431e2e8e8d1', 'choices': [{'finish_reason': 'stop', 'index': 0, 'message': {'content': 'Hitesh and Fahad lives in mumbai city.', 'role': 'assistant'}}], 'created': 1720090691, 'model': None, 'object': 'chat.completion', 'system_fingerprint': None, 'usage': {}}]}, 'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}}], ignore_order=True)
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
-            "prefetch": [
-                {
-                    "query": embeddings.get("dense", []),
-                    "using": "dense",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("rerank", []),
-                    "using": "rerank",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("sparse", {}),
-                    "using": "sparse",
-                    "limit": 20
-                }
-            ],
-            "query": {"fusion": "rrf"},
-            "with_payload": True,
-            "score_threshold": 0.70,
-            "limit": 10
-        }
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                             'with_payload': True,
+                                                                             'score_threshold': 0.70}
+
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_completion_connection_error(self, mock_get_embedding,
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_completion_connection_error(self, mock_embedding,
                                                                           aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
         bot = "test_gpt3_faq_embedding_predict_completion_connection_error"
         user = 'test'
         key = "test"
@@ -1328,19 +982,8 @@ class TestLLM:
                                    "collection": 'python'}],
             "hyperparameters": hyperparameters
         }
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
 
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-        mock_get_embedding.return_value = embeddings
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
         aioresponses.add(
             url=urljoin(Utility.environment['llm']['url'],
@@ -1353,24 +996,10 @@ class TestLLM:
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
-                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
+                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
             method="POST",
-            payload={
-                "result": {
-                    "points": [
-                        {
-                            "id": test_content.vector_id,
-                            "version": 0,
-                            "score": 0.80,
-                            "payload": {
-                                "content": test_content.data
-                            }
-                        }
-                    ]
-                },
-                "status": "ok",
-                "time": 0.000957728
-            }
+            payload={'result': [
+                {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
@@ -1379,36 +1008,23 @@ class TestLLM:
 
         assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Internal Server Error'}]
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
-            "prefetch": [
-                {
-                    "query": embeddings.get("dense", []),
-                    "using": "dense",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("rerank", []),
-                    "using": "rerank",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("sparse", {}),
-                    "using": "sparse",
-                    "limit": 20
-                }
-            ],
-            "query": {"fusion": "rrf"},
-            "with_payload": True,
-            "score_threshold": 0.70,
-            "limit": 10
-        }
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                             'with_payload': True,
+                                                                             'score_threshold': 0.70}
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
 
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger", autospec=True)
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_exact_match(self, mock_get_embedding, mock_llm_request):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_exact_match(self, mock_embedding, mock_llm_request):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
         user = "test"
         bot = "test_gpt3_faq_embedding_predict_exact_match"
         key = 'test'
@@ -1439,20 +1055,7 @@ class TestLLM:
             "hyperparameters": hyperparameters
         }
 
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         mock_llm_request.side_effect = ClientConnectionError()
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
@@ -1464,13 +1067,19 @@ class TestLLM:
             {'error': 'Retrieving chat completion for the provided query. Failed to connect to service: localhost'}]
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_embedding_connection_error(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_embedding_connection_error(self, mock_embedding):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
         user = "test"
         bot = "test_gpt3_faq_embedding_predict_embedding_connection_error"
         key = "test"
-        llm_type = "openai"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot=bot, user=user).save()
@@ -1496,30 +1105,25 @@ class TestLLM:
         }
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
+        mock_embedding.side_effect = [Exception("Connection reset by peer!"), litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})]
 
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.side_effect = Exception("Connection reset by peer!")
         response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
         assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
 
         assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_with_previous_bot_responses(self, mock_get_embedding,
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_previous_bot_responses(self, mock_embedding,
                                                                           aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
         llm_type = "openai"
         bot = "test_gpt3_faq_embedding_predict_with_previous_bot_responses"
         user = "test"
@@ -1551,20 +1155,8 @@ class TestLLM:
                                    "collection": 'python'}],
             "hyperparameters": hyperparameters
         }
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
 
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         expected_body = {'messages': [
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
             {'role': 'user', 'content': 'hello'},
@@ -1591,58 +1183,31 @@ class TestLLM:
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
-                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
+                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
             method="POST",
-            payload={
-                "result": {
-                    "points": [
-                        {
-                            "id": test_content.vector_id,
-                            "version": 0,
-                            "score": 0.80,
-                            "payload": {
-                                "content": test_content.data
-                            }
-                        }
-                    ]
-                },
-                "status": "ok",
-                "time": 0.000957728
-            }
+            payload={'result': [
+                {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
-            "prefetch": [
-                {
-                    "query": embeddings.get("dense", []),
-                    "using": "dense",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("rerank", []),
-                    "using": "rerank",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("sparse", {}),
-                    "using": "sparse",
-                    "limit": 20
-                }
-            ],
-            "query": {"fusion": "rrf"},
-            "with_payload": True,
-            "score_threshold": 0.70,
-            "limit": 10
-        }
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                             'with_payload': True,
+                                                                             'score_threshold': 0.70}
 
-        assert isinstance(time_elapsed, float) and time_elapsed > 0.
+        assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_with_query_prompt(self, mock_get_embedding, aioresponses):
+    @mock.patch.object(litellm, "aembedding", autospec=True)
+    async def test_gpt3_faq_embedding_predict_with_query_prompt(self, mock_embedding, aioresponses):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
 
         llm_type = "openai"
         bot = "test_gpt3_faq_embedding_predict_with_query_prompt"
@@ -1685,20 +1250,8 @@ class TestLLM:
         ]}
 
         mock_rephrase_request.update(hyperparameters)
-        text_embedding_3_small_embeddings = np.random.random(1536).tolist()
-        colbertv2_0_embeddings = [np.random.random(128).tolist()]
-        bm25_embeddings = {
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }
 
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         expected_body = {'messages': [
             {"role": "system",
              "content": DEFAULT_SYSTEM_PROMPT},
@@ -1725,53 +1278,25 @@ class TestLLM:
 
         aioresponses.add(
             url=urljoin(Utility.environment['vector']['db'],
-                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/query"),
+                        f"/collections/{gpt3.bot}_{test_content.collection}{gpt3.suffix}/points/search"),
             method="POST",
-            payload={
-                "result": {
-                    "points": [
-                        {
-                            "id": test_content.vector_id,
-                            "version": 0,
-                            "score": 0.80,
-                            "payload": {
-                                "content": test_content.data
-                            }
-                        }
-                    ]
-                },
-                "status": "ok",
-                "time": 0.000957728
-            }
+            payload={'result': [
+                {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
         response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
         assert response['content'] == generated_text
 
-        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {
-            "prefetch": [
-                {
-                    "query": embeddings.get("dense", []),
-                    "using": "dense",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("rerank", []),
-                    "using": "rerank",
-                    "limit": 20
-                },
-                {
-                    "query": embeddings.get("sparse", {}),
-                    "using": "sparse",
-                    "limit": 20
-                }
-            ],
-            "query": {"fusion": "rrf"},
-            "with_payload": True,
-            "score_threshold": 0.70,
-            "limit": 10
-        }
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10,
+                                                                             'with_payload': True,
+                                                                             'score_threshold': 0.70}
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+        expected = {"model": "text-embedding-3-small",
+                    "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
+                    "api_key": key,
+                    "num_retries": 3}
+        assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
     @pytest.mark.asyncio
     @mock.patch.object(AioRestClient, "request", autospec=True)
@@ -2358,272 +1883,272 @@ class TestLLM:
         mock_rerank.passage_embed.assert_called_once_with(["Text of error case"])
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
-    @mock.patch.object(litellm, "aembedding", autospec=True)
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
-    async def test_get_embedding_single_text(self, mock_rerank, mock_sparse, mock_dense):
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        processor = LLMProcessor(bot, llm_type)
-        text = "Hello"
-
-        embedding = np.random.random(1536).tolist()
-        mock_dense.return_value = litellm.EmbeddingResponse(
-            **{'data': [{'embedding': embedding}]}
-        )
-
-        bm25_embedding = [{"indices": [1850593538, 11711171], "values": [1.66, 1.66]}]
-        mock_sparse.return_value = bm25_embedding
-
-        colbertv2_0_embedding = [[np.random.random(128).tolist()]]
-        mock_rerank.return_value = colbertv2_0_embedding
-
-        result = await processor.get_embedding(text, user)
-
-        assert result == {
-            "dense": embedding,
-            "sparse": bm25_embedding[0],
-            "rerank": colbertv2_0_embedding[0]
-        }
-
-        mock_dense.assert_called_once_with(
-            model="text-embedding-3-small",
-            input=[text],
-            metadata={'user': user, 'bot': bot, 'invocation': None},
-            api_key=key,
-            num_retries=3
-        )
-
-        mock_sparse.assert_called_once_with([text])
-        mock_rerank.assert_called_once_with([text])
-
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
-    @mock.patch.object(litellm, "aembedding", autospec=True)
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
-    async def test_get_embedding_multiple_texts(
-        self, mock_rerank, mock_sparse, mock_dense
-    ):
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        processor = LLMProcessor(bot, llm_type)
-
-        texts = ["Hello", "World"]
-
-        embedding = np.random.random(1536).tolist()
-        mock_dense.return_value = litellm.EmbeddingResponse(
-            **{'data': [{'embedding': embedding}, {'embedding': embedding}]}
-        )
-
-        bm25_embeddings = [
-            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]},
-            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]}
-        ]
-        mock_sparse.return_value = bm25_embeddings
-
-        colbertv2_0_embeddings = [
-            [np.random.random(128).tolist()],
-            [np.random.random(128).tolist()]
-        ]
-        mock_rerank.return_value = colbertv2_0_embeddings
-
-        result = await processor.get_embedding(texts, user)
-
-        assert result == {
-            "dense": [embedding, embedding],
-            "sparse": bm25_embeddings,
-            "rerank": colbertv2_0_embeddings
-        }
-
-        mock_dense.assert_called_once_with(
-            model="text-embedding-3-small",
-            input=texts,
-            metadata={'user': user, 'bot': bot, 'invocation': None},
-            api_key=key,
-            num_retries=3
-        )
-
-        mock_sparse.assert_called_once_with(texts)
-        mock_rerank.assert_called_once_with(texts)
-
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
-    @mock.patch.object(litellm, "aembedding", autospec=True)
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
-    async def test_get_embedding_dense_failure(self, mock_rerank, mock_sparse, mock_dense):
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        processor = LLMProcessor(bot, llm_type)
-        texts = ["Hello", "World"]
-
-        mock_dense.side_effect = Exception("Dense embedding failed")
-
-        bm25_embeddings = [
-            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]},
-            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]}
-        ]
-        mock_sparse.return_value = bm25_embeddings
-
-        colbertv2_0_embeddings = [
-            [np.random.random(128).tolist()],
-            [np.random.random(128).tolist()]
-        ]
-        mock_rerank.return_value = colbertv2_0_embeddings
-
-        with pytest.raises(Exception, match="Failed to fetch embeddings: Dense embedding failed"):
-            await processor.get_embedding(texts, user)
-
-        mock_dense.assert_called_once_with(
-            model="text-embedding-3-small",
-            input=texts,
-            metadata={'user': user, 'bot': bot, 'invocation': None},
-            api_key=key,
-            num_retries=3
-        )
-
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
-    @mock.patch.object(litellm, "aembedding", autospec=True)
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
-    async def test_get_embedding_sparse_failure(self, mock_rerank, mock_sparse, mock_dense):
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        processor = LLMProcessor(bot, llm_type)
-        texts = ["Hello", "World"]
-
-        embedding = np.random.random(1536).tolist()
-        mock_dense.return_value = litellm.EmbeddingResponse(
-            **{'data': [{'embedding': embedding}, {'embedding': embedding}]}
-        )
-
-        mock_sparse.side_effect = Exception("Sparse embedding failed")
-
-        colbertv2_0_embeddings = [
-            [np.random.random(128).tolist()],
-            [np.random.random(128).tolist()]
-        ]
-        mock_rerank.return_value = colbertv2_0_embeddings
-
-        with pytest.raises(Exception, match="Failed to fetch embeddings: Sparse embedding failed"):
-            await processor.get_embedding(texts, user)
-
-        mock_dense.assert_called_once_with(
-            model="text-embedding-3-small",
-            input=texts,
-            metadata={'user': user, 'bot': bot, 'invocation': None},
-            api_key=key,
-            num_retries=3
-        )
-
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
-    @mock.patch.object(litellm, "aembedding", autospec=True)
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
-    @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
-    async def test_get_embedding_rerank_failure(self, mock_rerank, mock_sparse, mock_dense):
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        processor = LLMProcessor(bot, llm_type)
-        texts = ["Hello", "World"]
-
-        embedding = np.random.random(1536).tolist()
-        mock_dense.return_value = litellm.EmbeddingResponse(
-            **{'data': [{'embedding': embedding}, {'embedding': embedding}]}
-        )
-
-        bm25_embeddings = [
-            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]},
-            {"indices": [1850593538, 11711171], "values": [1.66, 1.66]}
-        ]
-        mock_sparse.return_value = bm25_embeddings
-
-        mock_rerank.side_effect = Exception("Failed to fetch embeddings: Rerank embedding failed")
-
-        with pytest.raises(Exception, match="Rerank embedding failed"):
-            await processor.get_embedding(texts, user)
-
-        mock_dense.assert_called_once_with(
-            model="text-embedding-3-small",
-            input=texts,
-            metadata={'user': user, 'bot': bot, 'invocation': None},
-            api_key=key,
-            num_retries=3
-        )
-
-        LLMSecret.objects.delete()
+    # @pytest.mark.asyncio
+    # @mock.patch.object(litellm, "aembedding", autospec=True)
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    # async def test_get_embedding_single_text(self, mock_rerank, mock_sparse, mock_dense):
+    #     bot = "test_bot"
+    #     llm_type = "openai"
+    #     key = "test"
+    #     user = "test"
+    #
+    #     llm_secret = LLMSecret(
+    #         llm_type=llm_type,
+    #         api_key=key,
+    #         models=["model1", "model2"],
+    #         api_base_url="https://api.example.com",
+    #         bot=bot,
+    #         user=user
+    #     )
+    #     llm_secret.save()
+    #
+    #     processor = LLMProcessor(bot, llm_type)
+    #     text = "Hello"
+    #
+    #     embedding = np.random.random(1536).tolist()
+    #     mock_dense.return_value = litellm.EmbeddingResponse(
+    #         **{'data': [{'embedding': embedding}]}
+    #     )
+    #
+    #     bm25_embedding = [{"indices": [1850593538, 11711171], "values": [1.66, 1.66]}]
+    #     mock_sparse.return_value = bm25_embedding
+    #
+    #     colbertv2_0_embedding = [[np.random.random(128).tolist()]]
+    #     mock_rerank.return_value = colbertv2_0_embedding
+    #
+    #     result = await processor.get_embedding(text, user)
+    #
+    #     assert result == {
+    #         "dense": embedding,
+    #         "sparse": bm25_embedding[0],
+    #         "rerank": colbertv2_0_embedding[0]
+    #     }
+    #
+    #     mock_dense.assert_called_once_with(
+    #         model="text-embedding-3-small",
+    #         input=[text],
+    #         metadata={'user': user, 'bot': bot, 'invocation': None},
+    #         api_key=key,
+    #         num_retries=3
+    #     )
+    #
+    #     mock_sparse.assert_called_once_with([text])
+    #     mock_rerank.assert_called_once_with([text])
+    #
+    #     LLMSecret.objects.delete()
+    #
+    # @pytest.mark.asyncio
+    # @mock.patch.object(litellm, "aembedding", autospec=True)
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    # async def test_get_embedding_multiple_texts(
+    #     self, mock_rerank, mock_sparse, mock_dense
+    # ):
+    #     bot = "test_bot"
+    #     llm_type = "openai"
+    #     key = "test"
+    #     user = "test"
+    #
+    #     llm_secret = LLMSecret(
+    #         llm_type=llm_type,
+    #         api_key=key,
+    #         models=["model1", "model2"],
+    #         api_base_url="https://api.example.com",
+    #         bot=bot,
+    #         user=user
+    #     )
+    #     llm_secret.save()
+    #
+    #     processor = LLMProcessor(bot, llm_type)
+    #
+    #     texts = ["Hello", "World"]
+    #
+    #     embedding = np.random.random(1536).tolist()
+    #     mock_dense.return_value = litellm.EmbeddingResponse(
+    #         **{'data': [{'embedding': embedding}, {'embedding': embedding}]}
+    #     )
+    #
+    #     bm25_embeddings = [
+    #         {"indices": [1850593538, 11711171], "values": [1.66, 1.66]},
+    #         {"indices": [1850593538, 11711171], "values": [1.66, 1.66]}
+    #     ]
+    #     mock_sparse.return_value = bm25_embeddings
+    #
+    #     colbertv2_0_embeddings = [
+    #         [np.random.random(128).tolist()],
+    #         [np.random.random(128).tolist()]
+    #     ]
+    #     mock_rerank.return_value = colbertv2_0_embeddings
+    #
+    #     result = await processor.get_embedding(texts, user)
+    #
+    #     assert result == {
+    #         "dense": [embedding, embedding],
+    #         "sparse": bm25_embeddings,
+    #         "rerank": colbertv2_0_embeddings
+    #     }
+    #
+    #     mock_dense.assert_called_once_with(
+    #         model="text-embedding-3-small",
+    #         input=texts,
+    #         metadata={'user': user, 'bot': bot, 'invocation': None},
+    #         api_key=key,
+    #         num_retries=3
+    #     )
+    #
+    #     mock_sparse.assert_called_once_with(texts)
+    #     mock_rerank.assert_called_once_with(texts)
+    #
+    #     LLMSecret.objects.delete()
+    #
+    # @pytest.mark.asyncio
+    # @mock.patch.object(litellm, "aembedding", autospec=True)
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    # async def test_get_embedding_dense_failure(self, mock_rerank, mock_sparse, mock_dense):
+    #     bot = "test_bot"
+    #     llm_type = "openai"
+    #     key = "test"
+    #     user = "test"
+    #
+    #     llm_secret = LLMSecret(
+    #         llm_type=llm_type,
+    #         api_key=key,
+    #         models=["model1", "model2"],
+    #         api_base_url="https://api.example.com",
+    #         bot=bot,
+    #         user=user
+    #     )
+    #     llm_secret.save()
+    #
+    #     processor = LLMProcessor(bot, llm_type)
+    #     texts = ["Hello", "World"]
+    #
+    #     mock_dense.side_effect = Exception("Dense embedding failed")
+    #
+    #     bm25_embeddings = [
+    #         {"indices": [1850593538, 11711171], "values": [1.66, 1.66]},
+    #         {"indices": [1850593538, 11711171], "values": [1.66, 1.66]}
+    #     ]
+    #     mock_sparse.return_value = bm25_embeddings
+    #
+    #     colbertv2_0_embeddings = [
+    #         [np.random.random(128).tolist()],
+    #         [np.random.random(128).tolist()]
+    #     ]
+    #     mock_rerank.return_value = colbertv2_0_embeddings
+    #
+    #     with pytest.raises(Exception, match="Failed to fetch embeddings: Dense embedding failed"):
+    #         await processor.get_embedding(texts, user)
+    #
+    #     mock_dense.assert_called_once_with(
+    #         model="text-embedding-3-small",
+    #         input=texts,
+    #         metadata={'user': user, 'bot': bot, 'invocation': None},
+    #         api_key=key,
+    #         num_retries=3
+    #     )
+    #
+    #     LLMSecret.objects.delete()
+    #
+    # @pytest.mark.asyncio
+    # @mock.patch.object(litellm, "aembedding", autospec=True)
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    # async def test_get_embedding_sparse_failure(self, mock_rerank, mock_sparse, mock_dense):
+    #     bot = "test_bot"
+    #     llm_type = "openai"
+    #     key = "test"
+    #     user = "test"
+    #
+    #     llm_secret = LLMSecret(
+    #         llm_type=llm_type,
+    #         api_key=key,
+    #         models=["model1", "model2"],
+    #         api_base_url="https://api.example.com",
+    #         bot=bot,
+    #         user=user
+    #     )
+    #     llm_secret.save()
+    #
+    #     processor = LLMProcessor(bot, llm_type)
+    #     texts = ["Hello", "World"]
+    #
+    #     embedding = np.random.random(1536).tolist()
+    #     mock_dense.return_value = litellm.EmbeddingResponse(
+    #         **{'data': [{'embedding': embedding}, {'embedding': embedding}]}
+    #     )
+    #
+    #     mock_sparse.side_effect = Exception("Sparse embedding failed")
+    #
+    #     colbertv2_0_embeddings = [
+    #         [np.random.random(128).tolist()],
+    #         [np.random.random(128).tolist()]
+    #     ]
+    #     mock_rerank.return_value = colbertv2_0_embeddings
+    #
+    #     with pytest.raises(Exception, match="Failed to fetch embeddings: Sparse embedding failed"):
+    #         await processor.get_embedding(texts, user)
+    #
+    #     mock_dense.assert_called_once_with(
+    #         model="text-embedding-3-small",
+    #         input=texts,
+    #         metadata={'user': user, 'bot': bot, 'invocation': None},
+    #         api_key=key,
+    #         num_retries=3
+    #     )
+    #
+    #     LLMSecret.objects.delete()
+    #
+    # @pytest.mark.asyncio
+    # @mock.patch.object(litellm, "aembedding", autospec=True)
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_sparse_embedding")
+    # @patch("kairon.shared.llm.processor.LLMProcessor.get_rerank_embedding")
+    # async def test_get_embedding_rerank_failure(self, mock_rerank, mock_sparse, mock_dense):
+    #     bot = "test_bot"
+    #     llm_type = "openai"
+    #     key = "test"
+    #     user = "test"
+    #
+    #     llm_secret = LLMSecret(
+    #         llm_type=llm_type,
+    #         api_key=key,
+    #         models=["model1", "model2"],
+    #         api_base_url="https://api.example.com",
+    #         bot=bot,
+    #         user=user
+    #     )
+    #     llm_secret.save()
+    #
+    #     processor = LLMProcessor(bot, llm_type)
+    #     texts = ["Hello", "World"]
+    #
+    #     embedding = np.random.random(1536).tolist()
+    #     mock_dense.return_value = litellm.EmbeddingResponse(
+    #         **{'data': [{'embedding': embedding}, {'embedding': embedding}]}
+    #     )
+    #
+    #     bm25_embeddings = [
+    #         {"indices": [1850593538, 11711171], "values": [1.66, 1.66]},
+    #         {"indices": [1850593538, 11711171], "values": [1.66, 1.66]}
+    #     ]
+    #     mock_sparse.return_value = bm25_embeddings
+    #
+    #     mock_rerank.side_effect = Exception("Failed to fetch embeddings: Rerank embedding failed")
+    #
+    #     with pytest.raises(Exception, match="Rerank embedding failed"):
+    #         await processor.get_embedding(texts, user)
+    #
+    #     mock_dense.assert_called_once_with(
+    #         model="text-embedding-3-small",
+    #         input=texts,
+    #         metadata={'user': user, 'bot': bot, 'invocation': None},
+    #         api_key=key,
+    #         num_retries=3
+    #     )
+    #
+    #     LLMSecret.objects.delete()
 
     def test_load_sparse_embedding_model_already_initialized(self):
         """Test that the sparse embedding model loads correctly when LLMProcessor is initialized."""

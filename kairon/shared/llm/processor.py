@@ -43,8 +43,9 @@ class LLMProcessor(LLMBase):
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
         self.llm_type = llm_type
-        self.vectors_config = {}
-        self.sparse_vectors_config = {}
+        self.vector_config = {'size': self.__embedding__, 'distance': 'Cosine'}
+        # self.vectors_config = {}
+        # self.sparse_vectors_config = {}
         self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
         if llm_type != DEFAULT_LLM:
             self.llm_secret_embedding = Sysadmin.get_llm_secret(DEFAULT_LLM, bot)
@@ -95,19 +96,8 @@ class LLMProcessor(LLMBase):
                     vector_ids.append(content['vector_id'])
 
                 embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation)
-                points = []
-
-                for idx, vector_id in enumerate(vector_ids):
-                    vector_data = {}
-                    for model_name, model_embeddings in embeddings.items():
-                        vector_data[model_name] = model_embeddings[idx]
-                    point = {
-                        "id": vector_id,
-                        "payload": search_payloads[idx],
-                        "vector": vector_data
-                    }
-                    points.append(point)
-
+                points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
+                          for idx in range(len(vector_ids))]
                 await self.__collection_upsert__(collection, {'points': points},
                                                  err_msg="Unable to train FAQ! Contact support")
                 count += len(batch_contents)
@@ -158,32 +148,26 @@ class LLMProcessor(LLMBase):
         """
         Get embeddings for a batch of texts.
         """
-        try:
-            is_single_text = isinstance(texts, str)
-            if is_single_text:
-                texts = [texts]
+        is_single_text = isinstance(texts, str)
+        if is_single_text:
+            texts = [texts]
 
-            truncated_texts = self.truncate_text(texts)
+        truncated_texts = self.truncate_text(texts)
 
-            embeddings = {}
+        result = await litellm.aembedding(
+            model="text-embedding-3-small",
+            input=truncated_texts,
+            metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
+            api_key=self.llm_secret_embedding.get('api_key'),
+            num_retries=3
+        )
 
-            result = await litellm.aembedding(
-                model="text-embedding-3-small",
-                input=truncated_texts,
-                metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-                api_key=self.llm_secret_embedding.get('api_key'),
-                num_retries=3
-            )
-            embeddings["dense"] = [embedding["embedding"] for embedding in result["data"]]
-            embeddings["sparse"] = self.get_sparse_embedding(truncated_texts)
-            embeddings["rerank"] = self.get_rerank_embedding(truncated_texts)
+        embeddings = [embedding["embedding"] for embedding in result["data"]]
 
-            if is_single_text:
-                return {model: embedding[0] for model, embedding in embeddings.items()}
+        if is_single_text:
+            return embeddings[0]
 
-            return embeddings
-        except Exception as e:
-            raise Exception(f"Failed to fetch embeddings: {str(e)}")
+        return embeddings
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
@@ -289,13 +273,10 @@ class LLMProcessor(LLMBase):
             await client.cleanup()
 
     async def __create_collection__(self, collection_name: Text):
-        await self.initialize_vector_configs()
         await AioRestClient().request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                       request_method="PUT",
                                       headers=self.headers,
-                                      request_body={'name': collection_name, 'vectors': self.vectors_config,
-                                                    'sparse_vectors': self.sparse_vectors_config
-                                                    },
+                                      request_body={'name': collection_name, 'vectors': self.vector_config},
                                       return_json=False,
                                       timeout=5)
 
@@ -329,6 +310,16 @@ class LLMProcessor(LLMBase):
             logging.info(e)
             return False
 
+    async def __collection_search__(self, collection_name: Text, vector: List, limit: int, score_threshold: float):
+        client = AioRestClient()
+        response = await client.request(
+            http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/search"),
+            request_method="POST",
+            headers=self.headers,
+            request_body={'vector': vector, 'limit': limit, 'with_payload': True, 'score_threshold': score_threshold},
+            return_json=True,
+            timeout=5)
+        return response
 
     async def __collection_hybrid_query__(self, collection_name: Text, embeddings: Dict, limit: int, score_threshold: float):
         client = AioRestClient()
@@ -385,10 +376,10 @@ class LLMProcessor(LLMBase):
                     collection_name = f"{self.bot}{self.suffix}"
                 else:
                     collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}"
-                search_result = await self.__collection_hybrid_query__(collection_name, embeddings=query_embedding, limit=limit,
+                search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
                                                                  score_threshold=score_threshold)
 
-                for entry in search_result['result']['points']:
+                for entry in search_result['result']:
                     if 'content' not in entry['payload']:
                         extracted_payload = {}
                         for key, value in entry['payload'].items():
