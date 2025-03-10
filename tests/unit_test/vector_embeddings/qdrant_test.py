@@ -31,12 +31,13 @@ class TestQdrant:
 
     @pytest.mark.asyncio
     @mock.patch.dict(Utility.environment, {'vector': {"key": "TEST", 'db': 'http://localhost:6333'}})
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+    @mock.patch.object(litellm, "aembedding", autospec=True)
     @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
-    async def test_embedding_search_valid_request_body(self, mock_http_request, mock_get_embedding):
+    async def test_embedding_search_valid_request_body(self, mock_http_request, mock_embedding):
+        embedding = list(np.random.random(LLMProcessor.__embedding__))
         user = "test"
         Utility.load_environment()
-        llm_secret=LLMSecret(
+        llm_secret = LLMSecret(
             llm_type="openai",
             api_key="key_value",
             models=["model1", "model2"],
@@ -45,23 +46,10 @@ class TestQdrant:
             user="user"
         )
         llm_secret.save()
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
         qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
                         LLMSettings(provider="openai").to_mongo().to_dict())
         mock_http_request.return_value = 'expected_result'
+        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
         result = await qdrant.perform_operation({'embedding_search': 'Hi'}, user=user)
         assert result == 'expected_result'
 
@@ -148,27 +136,9 @@ class TestQdrant:
         mock_http_request.assert_called_once()
         called_args = mock_http_request.call_args
         called_payload = called_args.kwargs['request_body']
-        assert called_payload == {
-                    'prefetch': [
-                        {
-                            "query": embeddings.get("dense", []),
-                            "using": "dense",
-                            "limit": 20
-                        },
-                        {
-                            "query": embeddings.get("rerank", []),
-                            "using": "rerank",
-                            "limit": 20
-                        },
-                        {
-                            "query": embeddings.get("sparse", {}),
-                            "using": "sparse",
-                            "limit": 20
-                        }
-                    ],
-                    'query': {"fusion": "rrf"},
-                    'with_payload': True,
-                    'limit': 10
-                }
-        assert called_args.kwargs['http_url'] == 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2g/points/query'
+        assert called_payload == {'query': embeddings,
+                                  'with_payload': True,
+                                  'limit': 10}
+        assert called_args.kwargs[
+                   'http_url'] == 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2g/points/query'
         assert called_args.kwargs['request_method'] == 'POST'

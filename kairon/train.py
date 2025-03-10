@@ -17,8 +17,6 @@ from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.llm.processor import LLMProcessor
-LLMProcessor.load_sparse_embedding_model()
-LLMProcessor.load_rerank_embedding_model()
 
 
 def train_model_for_bot(bot: str):

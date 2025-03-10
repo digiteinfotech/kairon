@@ -1747,9 +1747,9 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_upsert_data_push_menu_success(self, mock_get_embedding, mock_collection_upsert, mock_create_collection,
-                                       mock_collection_exists):
+    @patch.object(litellm, "aembedding", autospec=True)
+    async def test_upsert_data_push_menu_success(self, mock_embedding, mock_collection_upsert, mock_create_collection,
+                                                 mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
@@ -1808,20 +1808,8 @@ class TestMongoProcessor:
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
 
         processor = CognitionDataProcessor()
 
@@ -1859,9 +1847,10 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_upsert_data_field_update_success(self, mock_get_embedding, mock_collection_upsert, mock_create_collection,
-                                                 mock_collection_exists):
+    @patch.object(litellm, "aembedding", autospec=True)
+    async def test_upsert_data_field_update_success(self, mock_embedding, mock_collection_upsert,
+                                                    mock_create_collection,
+                                                    mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
@@ -1936,20 +1925,8 @@ class TestMongoProcessor:
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
 
         processor = CognitionDataProcessor()
 
@@ -1987,8 +1964,8 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(LLMProcessor, "get_embedding", autospec=True)
-    async def test_upsert_data_empty_data_list(self, mock_get_embedding, mock_collection_upsert, mock_create_collection,
+    @patch.object(litellm, "aembedding", autospec=True)
+    async def test_upsert_data_empty_data_list(self, mock_embedding, mock_collection_upsert, mock_create_collection,
                                                mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
@@ -2045,20 +2022,9 @@ class TestMongoProcessor:
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
 
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
         processor = CognitionDataProcessor()
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
@@ -2085,9 +2051,9 @@ class TestMongoProcessor:
         LLMSecret.objects.delete()
 
     @pytest.mark.asyncio
-    @patch.object(LLMProcessor, "get_embedding", autospec=True)
+    @patch.object(litellm, "aembedding", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    async def test_sync_with_qdrant_success(self, mock_collection_upsert, mock_get_embedding):
+    async def test_sync_with_qdrant_success(self, mock_collection_upsert, mock_embedding):
         bot = "test_bot"
         user = "test_user"
         collection_name = "groceries"
@@ -2138,20 +2104,8 @@ class TestMongoProcessor:
         if not isinstance(document, dict):
             document = document.to_mongo().to_dict()
 
-        text_embedding_3_small_embeddings = [np.random.random(2).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(1).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
 
         mock_collection_upsert.return_value = None
 
@@ -2176,7 +2130,13 @@ class TestMongoProcessor:
             primary_key_col=primary_key_col
         )
 
-        expected_embeddings = {key: value[0] for key, value in embeddings.items()}
+        mock_embedding.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
+            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
+            api_key="openai_key",
+            num_retries=3
+        )
         mock_collection_upsert.assert_called_once_with(
             llm_processor,
             collection_name,
@@ -2184,7 +2144,7 @@ class TestMongoProcessor:
                 "points": [
                     {
                         "id": vector_id,
-                        "vector": expected_embeddings,
+                        "vector": embedding,
                         "payload": {'id': 2, 'item': 'Milk', 'price': 2.8, 'quantity': 5}
                     }
                 ]
@@ -2197,9 +2157,9 @@ class TestMongoProcessor:
         LLMSecret.objects.delete()
 
     @pytest.mark.asyncio
-    @patch.object(LLMProcessor, "get_embedding", autospec=True)
+    @patch.object(litellm, "aembedding", autospec=True)
     @patch.object(AioRestClient, "request", autospec=True)
-    async def test_sync_with_qdrant_upsert_failure(self, mock_request, mock_get_embedding):
+    async def test_sync_with_qdrant_upsert_failure(self, mock_request, mock_embedding):
         bot = "test_bot"
         user = "test_user"
         collection_name = "groceries"
@@ -2240,20 +2200,8 @@ class TestMongoProcessor:
         if not isinstance(document, dict):
             document = document.to_mongo().to_dict()
 
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        }]
-
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_get_embedding.return_value = embeddings
+        embedding = list(np.random.random(1532))
+        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
 
         mock_request.side_effect = ConnectionError("Failed to connect to Qdrant")
 
@@ -2279,6 +2227,14 @@ class TestMongoProcessor:
                 user=user,
                 primary_key_col=primary_key_col
             )
+
+        mock_embedding.assert_called_once_with(
+            model="text-embedding-3-small",
+            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
+            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
+            api_key="openai_key",
+            num_retries=3
+        )
 
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
@@ -4953,14 +4909,12 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
 
-    @pytest.mark.asyncio
-    @patch.object(LLMProcessor, "get_embedding", autospec=True)
+    @patch.object(litellm, "aembedding", autospec=True)
     @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
-    @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", autospec=True)
     def test_start_training_with_llm_faq(
-            self, mock_execute_request, mock_train, mock_bot, mock_vec_client, mock_get_embedding
+        self, mock_train, mock_bot, mock_vec_client, mock_openai
     ):
         bot = "tests"
         user = "testUser"
@@ -4984,42 +4938,8 @@ class TestMongoProcessor:
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist(), np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()], [np.random.random(128).tolist()]]
-        bm25_embeddings = [{
-            "indices": [1850593538, 11711171],
-            "values": [1.66, 1.66]
-        },
-            {
-                "indices": [1850593538, 11711171],
-                "values": [1.66, 1.66]
-            }
-        ]
-        embeddings = {
-            "dense": text_embedding_3_small_embeddings,
-            "rerank": colbertv2_0_embeddings,
-            "sparse": bm25_embeddings,
-        }
-
-        mock_execute_request.return_value = (
-            {
-                'configs': {
-                    'sparse_vectors_config': {'sparse': {}},
-                    'vectors_config': {
-                        'dense': {'distance': 'Cosine', 'size': 1536},
-                        'rerank': {
-                            'distance': 'Cosine',
-                            'multivector_config': {'comparator': 'max_sim'},
-                            'size': 128
-                        }
-                    }
-                }
-            },
-            200,
-            0.1,
-            None
-        )
-        mock_get_embedding.return_value = embeddings
+        embedding = list(np.random.random(1532))
+        mock_openai.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)

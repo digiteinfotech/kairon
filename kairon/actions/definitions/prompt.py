@@ -14,8 +14,6 @@ from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.models import LlmPromptType, LlmPromptSource
 from kairon.shared.llm.processor import LLMProcessor
-LLMProcessor.load_sparse_embedding_model()
-LLMProcessor.load_rerank_embedding_model()
 
 
 
