@@ -585,8 +585,6 @@ class CognitionDataProcessor:
         """
 
         from kairon.shared.llm.processor import LLMProcessor
-        LLMProcessor.load_sparse_embedding_model()
-        LLMProcessor.load_rerank_embedding_model()
         llm_processor = LLMProcessor(bot, DEFAULT_LLM)
         suffix = "_faq_embd"
         qdrant_collection = f"{bot}_{collection_name}{suffix}" if collection_name else f"{bot}{suffix}"
@@ -656,8 +654,7 @@ class CognitionDataProcessor:
             search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
                 document['data'], metadata)
             embeddings = await llm_processor.get_embedding(embedding_payload, user, invocation='knowledge_vault_sync')
-            embeddings_formatted = {key: value[0] for key, value in embeddings.items()}
-            points = [{'id': document['vector_id'], 'vector': embeddings_formatted, 'payload': search_payload}]
+            points = [{'id': document['vector_id'], 'vector': embeddings, 'payload': search_payload}]
             await llm_processor.__collection_upsert__(collection_name, {'points': points},
                                                       err_msg="Unable to train FAQ! Contact support")
             logger.info(f"Row with {primary_key_col}: {document['data'].get(primary_key_col)} upserted in Qdrant.")
