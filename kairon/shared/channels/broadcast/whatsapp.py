@@ -12,6 +12,7 @@ from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFacto
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.from_config import MessageBroadcastFromConfig
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
+from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, MessageBroadcastType
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
@@ -48,13 +49,27 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
     def send(self, recipients: List, **kwargs):
         if self.config["broadcast_type"] == MessageBroadcastType.static.value:
             self.__send_using_configuration(recipients)
+        elif self.config["broadcast_type"] == MessageBroadcastType.flow.value:
+            self.__send_using_flow(recipients)
         else:
             self.__send_using_pyscript()
 
-    async def send_template_message(self, template_id: Text, recipient, language_code: Text = "en", components: Dict = None,
-                                 namespace: Text = None):
+    async def send_template_message(self, template_id: Text, recipient, language_code: Text = "en", components: list = None,
+                                 namespace: Text = None, flowname: Text = None):
         if not self.channel_client:
             self.channel_client = self.__get_client()
+
+        if flowname:
+            flow = AgenticFlow(self.bot)
+            resps, errs = await flow.execute_rule(flowname, sender_id=recipient)
+            if  resps:
+                resp = resps[0]
+                if txt := resp.get('text'):
+                    components = json.loads(txt)
+                elif custom := resp.get('custom'):
+                    components = custom
+
+
         status_flag, status_code, response = await self.channel_client.send_template_message_async(template_id,
                                                                                               recipient,
                                                                                               language_code,
@@ -183,7 +198,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         def send_msg(messages_list :list, recipients_list:list, template_id: Text, recipient, language_code: Text = "en",
                            components: Dict = None, namespace: Text = None):
-            messages_list.append((template_id, recipient, language_code, components, namespace))
+            messages_list.append((template_id, recipient, language_code, components, namespace, None))
             recipients_list.append(recipient)
             return True
 
@@ -253,7 +268,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
 
-                    message_list.append((template_id, recipient, lang, t_params, namespace))
+                    message_list.append((template_id, recipient, lang, t_params, namespace, None))
 
 
             _, non_sent_recipients = self.initiate_broadcast(message_list)
@@ -270,6 +285,50 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 log_type=MessageBroadcastLogType.send.value, retry_count=0,
                 template_exception=template_exception
             )
+
+    def __send_using_flow(self, recipients: List, **kwargs):
+        total = len(recipients)
+        flowname = self.config.get("flowname")
+        for i, template_config in enumerate(self.config['template_config']):
+            template_id = template_config["template_id"]
+            namespace = template_config.get("namespace")
+            lang = template_config["language"]
+            template_params = self._get_template_parameters(template_config)
+            raw_template, template_exception = self.__get_template(template_id, lang)
+            template_params = template_params * len(recipients) if template_params else [template_params] * len(
+                recipients)
+            num_msg = len(list(zip(recipients, template_params)))
+            evaluation_log = {
+                f"Template {i + 1}": f"There are {total} recipients and {len(template_params)} template bodies. "
+                                     f"Sending {num_msg} messages to {num_msg} recipients."
+            }
+
+            message_list = []
+
+
+            for recipient, t_params in zip(recipients, template_params):
+                recipient = str(recipient) if recipient else ""
+                if not Utility.check_empty_string(recipient):
+
+
+                    message_list.append((template_id, recipient, lang, t_params, namespace, flowname))
+
+            _, non_sent_recipients = self.initiate_broadcast(message_list)
+            failure_cnt = len(non_sent_recipients)
+
+            MessageBroadcastProcessor.add_event_log(
+                self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
+                event_id=self.event_id, nonsent_recipients=non_sent_recipients, **evaluation_log
+            )
+
+            MessageBroadcastProcessor.update_broadcast_logs_with_template(
+                self.reference_id, self.event_id, raw_template=raw_template,
+                log_type=MessageBroadcastLogType.send.value, retry_count=0,
+                template_exception=template_exception
+            )
+
+
+
 
     def resend_broadcast(self):
         config = MessageBroadcastProcessor.get_settings(self.event_id, self.bot, is_resend=True)
