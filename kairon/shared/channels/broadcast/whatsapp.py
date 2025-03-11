@@ -61,7 +61,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         if flowname:
             flow = AgenticFlow(self.bot)
-            resps, errs = await flow.execute_rule(flowname, sender_id=recipient)
+            resps, _ = await flow.execute_rule(flowname, sender_id=recipient)
             if  resps:
                 resp = resps[0]
                 if txt := resp.get('text'):
