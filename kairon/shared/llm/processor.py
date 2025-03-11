@@ -33,7 +33,7 @@ litellm.callbacks = [LiteLLMLogger()]
 class LLMProcessor(LLMBase):
     _sparse_embedding = None
     _rerank_embedding = None
-    __embedding__ = 1536
+    __embedding__ = 3072
 
     def __init__(self, bot: Text, llm_type: str):
         super().__init__(bot)
@@ -155,7 +155,7 @@ class LLMProcessor(LLMBase):
         truncated_texts = self.truncate_text(texts)
 
         result = await litellm.aembedding(
-            model="text-embedding-3-small",
+            model="text-embedding-3-large",
             input=truncated_texts,
             metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
             api_key=self.llm_secret_embedding.get('api_key'),

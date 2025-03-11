@@ -2131,7 +2131,7 @@ class TestMongoProcessor:
         )
 
         mock_embedding.assert_called_once_with(
-            model="text-embedding-3-small",
+            model="text-embedding-3-large",
             input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
             metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
             api_key="openai_key",
@@ -2229,7 +2229,7 @@ class TestMongoProcessor:
             )
 
         mock_embedding.assert_called_once_with(
-            model="text-embedding-3-small",
+            model="text-embedding-3-large",
             input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
             metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
             api_key="openai_key",
