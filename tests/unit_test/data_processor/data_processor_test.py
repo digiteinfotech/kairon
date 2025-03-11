@@ -18653,6 +18653,7 @@ class TestModelProcessor:
                 'timezone': 'UTC',
                 'schedule_action': 'test_pyscript',
                 'response_text': 'action scheduled',
+                'schedule_action_type': 'pyscript',
                 'params_list': [
                     {
                         '_cls': 'CustomActionRequestParameters',
@@ -18790,6 +18791,7 @@ class TestModelProcessor:
                 'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'},
                 'timezone': 'UTC',
                 'schedule_action': 'test_pyscript_new',
+                'schedule_action_type': 'pyscript',
                 'response_text': 'action scheduled',
                 'params_list': [
                     {

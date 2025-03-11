@@ -5633,6 +5633,7 @@ def test_list_schedule_action():
             'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'}, 
             'timezone': 'UTC', 
             'schedule_action': 'test_pyscript',
+            'schedule_action_type': 'pyscript',
             'response_text': 'action scheduled',
             'params_list': [
                 {
@@ -5698,7 +5699,8 @@ def test_list_schedule_action_after_update():
             'name': 'test_schedule_action', 
             'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'}, 
             'timezone': 'UTC', 
-            'schedule_action': 'test_pyscript_new', 
+            'schedule_action': 'test_pyscript_new',
+            'schedule_action_type': 'pyscript',
             'response_text': 'action scheduled, will be notified', 
             'params_list': [
                 {
