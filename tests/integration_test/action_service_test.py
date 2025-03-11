@@ -35,14 +35,14 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
     DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig, \
-    CustomActionParameters, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters
+    CustomActionParameters, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
-from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, FORM_SLOT_SET_TYPE
+from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, FORM_SLOT_SET_TYPE, EventClass
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, GPT_LLM_FAQ, \
     DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
@@ -13916,7 +13916,7 @@ def test_schedule_action_invalid_date():
                    'status': 'FAILURE',
                    'user_msg': 'get intents', 'schedule_action': callback_script,
                    'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                   'pyscript_code': "bot_response='hello world'",
+                   'execution_info': None,
                    'data': {'bot': '**********************75', 'user': '1011'},
                    'exception': 'Unknown string format: text'}
 
@@ -13982,15 +13982,16 @@ def test_schedule_action_invalid_callback():
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
+    log.pop('data')
+    log.pop('schedule_time')
     assert log == {'type': 'schedule_action', 'intent': 'test_run',
                    'action': action_name, 'sender': 'default', 'headers': {},
                    'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
                    'bot': bot,
                    'status': 'FAILURE',
                    'user_msg': 'get intents', 'schedule_action': 'invalid_callback',
-                   'schedule_time': None, 'timezone': 'Asia/Kolkata',
-                   'pyscript_code': None,
-                   'data': {},
+                   'timezone': 'Asia/Kolkata',
+                   'execution_info': None,
                    'exception': 'Callback Configuration with name \'invalid_callback\' does not exist!'}
 
 
@@ -14077,7 +14078,7 @@ def test_schedule_action_execution(mock_add_job, aioresponses):
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'pyscript_code': "bot_response='hello world'",
+                       'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {'user': '1011'}}
 
         args, kwargs = mock_add_job.call_args
@@ -14179,7 +14180,7 @@ def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponse
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'pyscript_code': "bot_response='hello world'",
+                       'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {}}
 
         args, kwargs = mock_add_job.call_args
@@ -14285,7 +14286,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'pyscript_code': "bot_response='hello world'",
+                       'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {'bot': '**********************74', 'user': '1011'}}
 
         args, kwargs = mock_add_job.call_args
@@ -14301,3 +14302,102 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
         assert job_state['args'][2]['predefined_objects']['bot'] == bot
         assert job_state['args'][2]['predefined_objects']['user'] == '1011'
         assert 'event' in job_state['args'][2]['predefined_objects']
+
+
+
+@mock.patch("pymongo.collection.Collection.insert_one", autospec=True)
+def test_schedule_action_execution_flow(mock_add_job, aioresponses):
+    mock_env = Utility.environment.copy()
+    mock_env['events']['executor']['type'] = 'aws_lambda'
+
+    bot = '6697add6b8e47524eb983374'
+    user = 'test1'
+    action_name = "test_schedule_action_execution_flow"
+    flow_name = "greet"
+    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    slot_name = "schedule_slot"
+    timezone = "Asia/Kolkata"
+
+    pattern = re.compile(rf'^{Utility.environment["events"]["server_url"]}/api/events/dispatch/.*')
+    aioresponses.get(pattern, status=200, payload={'message': "Scheduled event dispatch!", 'data': None})
+    with mock.patch.dict(Utility.environment, mock_env):
+        Actions(name=action_name, type=ActionType.schedule_action.value,
+                bot=bot, user=user).save()
+
+
+        ScheduleAction(
+            name=action_name,
+            bot=bot,
+            user=user,
+            schedule_action_type=ScheduleActionType.FLOW.value,
+            schedule_time=CustomActionDynamicParameters(parameter_type=ActionParameterType.slot.value,
+                                                        value=slot_name),
+            schedule_action=flow_name,
+            timezone=timezone,
+            response_text="Action schedule",
+            params_list=[CustomActionRequestParameters(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         CustomActionRequestParameters(key="user", parameter_type="value", value="1011", encrypt=False)]
+        ).save()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, "schedule_slot": date_str},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": bot},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert len(response_json['responses']) == 1
+        assert response_json == {'events': [], 'responses': [
+            {'text': 'Action schedule', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+             'image': None, 'attachment': None}]}
+
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {'type': 'schedule_action', 'intent': 'test_run',
+                       'action': 'test_schedule_action_execution_flow',
+                       'sender': 'default', 'headers': {},
+                       'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
+                       'status': 'SUCCESS',
+                       'user_msg': 'get intents', 'schedule_action': 'greet',
+                       'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                       'execution_info': {'flow': "greet", 'type': 'flow'},
+                       'data': {'bot': '**********************74', 'user': '1011'}}
+
+        args, kwargs = mock_add_job.call_args
+        assert args[1]['_id']
+        assert args[1]['next_run_time']
+        assert args[1]['job_state']
+        job_state = pickle.loads(args[1]['job_state'])
+        assert job_state['func'] == 'kairon.events.executors.lamda:LambdaExecutor.execute_task'
+        assert job_state['kwargs']['task_type'] == 'Event'
+        assert job_state['args'][1] == EventClass.agentic_flow
+        assert job_state['args'][2]['slot_data']
+        assert job_state['args'][2]['bot'] == bot
+        assert job_state['args'][2]['user'] == 'default'
+        assert job_state['args'][2]['flow_name'] == 'greet'
+
