@@ -1,5 +1,6 @@
 import secrets
 import time
+from typing import Any
 
 from mongoengine import DoesNotExist
 from pymongo import MongoClient
@@ -57,11 +58,8 @@ class AgenticFlow:
             raise AppException(f"Bot [{self.bot}] not found")
         self.responses = []
         self.errors = []
-        slots = self.load_slots(slot_vals)
         self.input_slot_vals = slot_vals
-        self.fake_tracker = DialogueStateTracker(sender_id=self.sender_id,
-                                                 slots=slots,
-                                                 max_event_history=self.max_history)
+        self.fake_tracker = self.create_fake_tracker(slot_vals, self.sender_id)
         endpoint = AgenticFlow.mongo_processor.get_endpoints(
             bot, raise_exception=False
         )
@@ -69,6 +67,13 @@ class AgenticFlow:
         self.domain = AgenticFlow.mongo_processor.load_domain(bot)
         self.nlg = TemplatedNaturalLanguageGenerator(self.domain.responses)
         self.executed_actions = []
+        self.cache = {}
+
+    def create_fake_tracker(self, slot_vals: dict[str,any] = None, sender_id: str = None):
+        slots = self.load_slots(slot_vals)
+        return DialogueStateTracker(sender_id=sender_id,
+                                    slots=slots,
+                                    max_event_history=20)
 
 
 
@@ -100,26 +105,34 @@ class AgenticFlow:
             raise AppException(f"Error in loading slots: {e}")
 
     def load_rule_events(self, name: str) -> tuple:
+        """
+        Load events for the rule / multiflow from the database
+        :param name: name of the rule
+        :return: list of events, start node id
+        """
         self.fake_tracker.update(UserUttered(name,intent={'name': name, 'confidence': 1.0}))
         try:
-
+            if name in self.cache:
+                return self.cache[name]
             if rule := Rules.objects(bot=self.bot, block_name=name).first():
                 events = [{
                         'name': event.name,
                         'type': event.type,
                     } for event in rule.events]
-                return events, None
+                self.cache[name] = events, None
+
             elif multiflow := MultiflowStories.objects(bot=self.bot, block_name=name).first():
                 events = multiflow.events
                 event_map, start = AgenticFlow.sanitize_multiflow_events(events)
-                return event_map, start
+                self.cache[name] = event_map, start
             else:
                 raise DoesNotExist(f"[{name}] not found for this bot")
+            return self.cache[name]
         except DoesNotExist as e:
             raise AppException(e)
 
     @staticmethod
-    def sanitize_multiflow_events(events):
+    def sanitize_multiflow_events(events) -> tuple[dict, str]:
         """
         convert database multiflow events into usable graph format
         :param events: list of events
@@ -160,7 +173,13 @@ class AgenticFlow:
             new_graph[e['node_id']] = e
         return new_graph, start
 
-    def evaluate_criteria(self, criteria: str, connections: dict):
+    def evaluate_criteria(self, criteria: str, connections: dict) -> Any|None:
+        """
+        Evaluate criteria for branching
+        :param criteria: criteria for branching
+        :param connections: connections for branching
+        :return: node id
+        """
         if criteria == 'SLOT':
             slot_name = connections['name']
             slot_value = self.fake_tracker.get_slot(slot_name)
@@ -170,17 +189,26 @@ class AgenticFlow:
                 self.errors.append(f"Slot [{slot_name}] not set!")
                 return None
 
-    async def execute_rule(self, rule_name: str):
+    async def execute_rule(self, rule_name: str, sender_id: str = None, slot_vals: dict = None) -> tuple[list, list]:
         """
         Execute a rule for the bot
 
         :param rule_name: name of the rule to be executed
+        :param sender_id: sender id
+        :param slot_vals: dictionary of slot values
         :return: list of responses, list of errors
         """
         self.responses = []
         self.errors = []
         self.executed_actions = []
+
+        if sender_id:
+            self.fake_tracker = self.create_fake_tracker(slot_vals, sender_id)
+            self.input_slot_vals = slot_vals
+
         events, node_id = self.load_rule_events(rule_name)
+
+
         if not node_id:
             for event in events:
                 await self.execute_event(event)
@@ -201,6 +229,9 @@ class AgenticFlow:
         return self.responses, self.errors
 
     async def execute_event(self, event: dict):
+        """
+        Execute an event for the bot i.e. utterance or action etc.
+        """
         if event['type'] == 'action':
             if event['name'] == "...":
                 return
@@ -242,6 +273,11 @@ class AgenticFlow:
                     self.responses.append({'custom': event.data})
 
     def get_non_empty_slots(self, all_slots:bool = False) -> dict:
+        """
+        Get non empty slots from the tracker
+        :param all_slots: flag to get all slots
+        :return: dictionary of slots
+        """
         slots = {}
         for name in self.fake_tracker.slots.keys():
             slot = self.fake_tracker.slots[name]
@@ -249,7 +285,7 @@ class AgenticFlow:
                 slots[name] = slot.value
         return slots
 
-    def get_utterance_response(self, utterance: str):
+    def get_utterance_response(self, utterance: str) -> dict:
         responses = Responses.objects(bot=self.bot, name=utterance)
         if not responses:
             raise AppException(f"No response found for [{utterance}]")
@@ -268,6 +304,10 @@ class AgenticFlow:
         return random_response
 
     def log_chat_history(self, rule_name: str):
+        """
+        Log chat history in the database
+        :param rule_name: name of the rule
+        """
         if not AgenticFlow.chat_history_client:
             AgenticFlow.chat_history_client = MongoClient(host=Utility.environment["tracker"]["url"])
         db = AgenticFlow.chat_history_client.get_database()
@@ -288,3 +328,16 @@ class AgenticFlow:
           "tag": "agentic_flow"
         }
         conversations.insert_one(data)
+
+    @staticmethod
+    def flow_exists(bot: str, flow_name: str) -> bool:
+        """
+        Check if flow exists in the database
+        :param bot: bot id
+        :param flow_name: name of the flow
+        """
+        if Rules.objects(bot=bot, block_name=flow_name):
+            return True
+        if MultiflowStories.objects(bot=bot, block_name=flow_name):
+            return True
+        return False

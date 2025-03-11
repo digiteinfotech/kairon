@@ -13,4 +13,5 @@ class MessageBroadcastLogType(str, Enum):
 class MessageBroadcastType(str, Enum):
     static = "static"
     dynamic = "dynamic"
+    flow = "flow"
 

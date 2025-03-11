@@ -1,3 +1,4 @@
+import json
 from calendar import timegm
 from datetime import datetime
 import pickle
@@ -20,11 +21,12 @@ from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction
+from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction, ScheduleActionType
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
+from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE
 
 
@@ -78,7 +80,8 @@ class ActionSchedule(ActionsBase):
         schedule_action = None
         schedule_time = None
         timezone = None
-        pyscript_code = None
+        execution_info = None
+        event_data = None
         try:
             action_config = self.retrieve_config()
             dispatch_bot_response = action_config.get('dispatch_bot_response', True)
@@ -87,8 +90,6 @@ class ActionSchedule(ActionsBase):
             tracker_data.update({'bot': self.bot})
             schedule_action = action_config['schedule_action']
             timezone = action_config['timezone']
-            callback = CallbackConfig.get_entry(name=schedule_action, bot=self.bot)
-            pyscript_code = callback['pyscript_code']
             schedule_time, _ = ActionUtility.get_parameter_value(tracker_data,
                                                                  action_config['schedule_time'],
                                                                  self.bot)
@@ -98,12 +99,35 @@ class ActionSchedule(ActionsBase):
                                                                                       action_config['params_list'],
                                                                                       self.bot)
             logger.info("schedule_data: " + str(schedule_data_log))
-            event_data = {'data': {'source_code': callback['pyscript_code'],
-                                   'predefined_objects': schedule_data
-                                   },
-                          'date_time': date_parser.parse(schedule_time),
-                          'timezone': action_config['timezone']
-                          }
+
+            if action_config['schedule_action_type'] == ScheduleActionType.PYSCRIPT.value:
+                callback = CallbackConfig.get_entry(name=schedule_action, bot=self.bot)
+                event_data = {'data': {'source_code': callback['pyscript_code'],
+                                       'predefined_objects': schedule_data
+                                       },
+                              'date_time': date_parser.parse(schedule_time),
+                              'timezone': action_config['timezone']
+                              }
+                execution_info = {
+                    'pyscript_code': callback['pyscript_code'],
+                    'type': ScheduleActionType.PYSCRIPT.value
+                }
+            elif action_config['schedule_action_type'] == ScheduleActionType.FLOW.value:
+                event_data = {
+                                'data': {
+                                        'slot_data': json.dumps(schedule_data),
+                                        'flow_name': schedule_action,
+                                        'bot': self.bot,
+                                        'user': tracker.sender_id
+                                    },
+                                  'date_time': date_parser.parse(schedule_time),
+                                  'timezone': action_config['timezone'],
+                                  'is_flow': True
+                              }
+                execution_info = {
+                    'flow': schedule_action,
+                    'type': ScheduleActionType.FLOW.value
+                }
             await self.add_schedule_job(**event_data)
         except Exception as e:
             exception = e
@@ -128,7 +152,7 @@ class ActionSchedule(ActionsBase):
                 schedule_action=schedule_action,
                 schedule_time=schedule_time,
                 timezone=timezone,
-                pyscript_code=pyscript_code,
+                execution_info=execution_info,
                 data=schedule_data_log
             ).save()
         return {}
@@ -137,13 +161,19 @@ class ActionSchedule(ActionsBase):
                                date_time: datetime,
                                data: Dict,
                                timezone: Text,
+                               is_flow=False,
                                **kwargs):
         func = obj_to_ref(ExecutorFactory.get_executor().execute_task)
 
         _id = uuid7().hex
-        data['predefined_objects']['event'] = _id
         args = (func, "scheduler_evaluator", data,)
-        kwargs.update({'task_type': TASK_TYPE.ACTION.value})
+        if is_flow:
+            args = (ExecutorFactory.get_executor(), EventClass.agentic_flow, data,)
+            kwargs.update({'task_type': TASK_TYPE.EVENT.value})
+        else:
+            kwargs.update({'task_type': TASK_TYPE.ACTION.value})
+            data['predefined_objects']['event'] = _id
+
         trigger = DateTrigger(run_date=date_time, timezone=timezone)
 
         next_run_time = trigger.get_next_fire_time(None, datetime.now(astimezone(timezone) or get_localzone()))

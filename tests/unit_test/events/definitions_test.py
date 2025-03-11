@@ -12,6 +12,7 @@ from unittest.mock import patch
 from mongoengine import connect
 
 from kairon import Utility
+from kairon.events.definitions.agentic_flow import AgenticFlowEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
@@ -1249,3 +1250,104 @@ class TestEventDefinitions:
             event = MailReadEvent(bot, user)
             with pytest.raises(AppException, match=f"Failed to schedule mail reading for bot {bot}. Error: Test error"):
                 event.execute()
+
+    @patch('kairon.events.definitions.agentic_flow.Utility.request_event_server')
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlowEvent.validate')
+    def test_agentic_flow_event_enqueue(self, mock_validate, mock_request_event_server):
+        mock_validate.return_value = True
+        mock_request_event_server.return_value = None
+
+        event = AgenticFlowEvent(bot='test_bot', user='test_user', flow_name='test_flow')
+        event.enqueue(flow_name='test_flow', slot_data={'key': 'value'})
+
+        mock_validate.assert_called_once()
+        mock_request_event_server.assert_called_once_with(EventClass.agentic_flow, {
+            'bot': 'test_bot',
+            'user': 'test_user',
+            'flow_name': 'test_flow',
+            'slot_data': {'key': 'value'}
+        })
+
+    def test_agentic_flow_event_enqueue_exception(self):
+        with patch('kairon.events.definitions.agentic_flow.Utility.request_event_server',
+                   side_effect=Exception("Test Exception")):
+            event = AgenticFlowEvent(bot='test_bot', user='test_user', flow_name='test_flow')
+            with pytest.raises(AppException) as excinfo:
+                event.enqueue(flow_name='test_flow', slot_data={'key': 'value'})
+            assert str(excinfo.value) == "Test Exception"
+
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlow.execute_rule')
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlow.__init__', return_value=None)
+    @patch('kairon.shared.auth.Authentication.get_current_user_and_bot')
+    def test_agentic_flow_event_execute(self, mock_get_current_user_and_bot, mock_agentic_flow_init, mock_execute_rule):
+        mock_get_current_user_and_bot.return_value = type('User', (object,), {
+            'get_bot': lambda: 'test_bot',
+            'get_user': lambda: 'test_user'}
+        )
+        mock_execute_rule.return_value = ({"result": "success"}, None)
+
+        event = AgenticFlowEvent(bot='test_bot', user='test_user', flow_name='test_flow')
+        event.execute(flow_name='test_flow', slot_data={'key': 'value'})
+
+        mock_execute_rule.assert_called_once_with('test_flow')
+
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlow.execute_rule')
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlow.__init__', return_value=None)
+    @patch('kairon.shared.auth.Authentication.get_current_user_and_bot')
+    def test_agentic_flow_event_execute_slot_data_json_str(self, mock_get_current_user_and_bot, mock_agentic_flow_init, mock_execute_rule):
+        mock_get_current_user_and_bot.return_value = type('User', (object,), {
+            'get_bot': lambda: 'test_bot',
+            'get_user': lambda: 'test_user'}
+                                                          )
+        mock_execute_rule.return_value = ({"result": "success"}, None)
+        sld = {'key': 'value'}
+        event = AgenticFlowEvent(bot='test_bot', user='test_user', flow_name='test_flow')
+        event.execute(flow_name='test_flow', slot_data=json.dumps(sld))
+
+        mock_execute_rule.assert_called_once_with('test_flow')
+
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlow.execute_rule')
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlow.__init__', return_value=None)
+    @patch('kairon.shared.auth.Authentication.get_current_user_and_bot')
+    def test_agentic_flow_event_execute_with_errors(self, mock_get_current_user_and_bot, mock_agentic_flow_init, mock_execute_rule):
+        mock_get_current_user_and_bot.return_value = type('User', (object,), {
+            'get_bot': lambda: 'test_bot',
+            'get_user': lambda: 'test_user'}
+        )
+        mock_execute_rule.return_value = (None, ["error"])
+
+        event = AgenticFlowEvent(bot='test_bot', user='test_user', flow_name='test_flow')
+        with pytest.raises(AppException, match="Failed to execute flow test_flow. Errors: \['error'\]"):
+            event.execute(flow_name='test_flow', slot_data={'key': 'value'})
+
+        mock_execute_rule.assert_called_once_with('test_flow')
+
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlow.execute_rule')
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlow.__init__', return_value=None)
+    @patch('kairon.shared.auth.Authentication.get_current_user_and_bot')
+    def test_agentic_flow_event_execute_exception(self, mock_get_current_user_and_bot, mock_agentic_flow_init, mock_execute_rule):
+        mock_get_current_user_and_bot.return_value = type('User', (object,), {'get_bot': lambda: 'test_bot',
+                                                                              'get_user': lambda: 'test_user'})
+        mock_execute_rule.side_effect = Exception("Test Exception")
+
+        event = AgenticFlowEvent(bot='test_bot', user='test_user', flow_name='test_flow')
+        with pytest.raises(AppException,
+                           match="Failed to execute flow test_flow for bot test_bot. Error: Test Exception"):
+            event.execute(flow_name='test_flow', slot_data={'key': 'value'})
+
+        mock_execute_rule.assert_called_once_with('test_flow')
+
+    @patch('kairon.shared.chat.agent.agent_flow.AgenticFlow.flow_exists')
+    def test_agentic_flow_event_validate(self, mock_flow_exists):
+        mock_flow_exists.return_value = True
+        event = AgenticFlowEvent(bot='test_bot', user='test_user', flow_name='test_flow')
+        result = event.validate()
+        assert result is True
+        mock_flow_exists.assert_called_once_with('test_bot', 'test_flow')
+
+    @patch('kairon.shared.chat.agent.agent_flow.AgenticFlow.flow_exists')
+    def test_agentic_flow_event_validate_no_flow_name(self, mock_flow_exists):
+        event = AgenticFlowEvent(bot='test_bot', user='test_user')
+        result = event.validate()
+        assert result is None
+        mock_flow_exists.assert_not_called()
