@@ -317,10 +317,6 @@ class CognitionDataProcessor:
                                          collection_name__iexact=payload.get('collection'), raise_error=False):
                 raise AppException('Text content type does not have schema!')
         if payload.get('content_type') == CognitionDataType.json.value:
-            # payload['data'] = {
-            #     key: value.strip() if isinstance(value, str) else value
-            #     for key, value in payload['data'].items()
-            # }
             payload['data'] = CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
 
         payload_obj = CognitionData()
@@ -348,10 +344,6 @@ class CognitionDataProcessor:
         try:
             payload_obj = CognitionData.objects(bot=bot, id=row_id).get()
             if content_type == CognitionDataType.json.value:
-                # payload['data'] = {
-                #     key: value.strip() if isinstance(value, str) else value
-                #     for key, value in payload['data'].items()
-                # }
                 payload['data'] = CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
             payload_obj.data = data
             payload_obj.content_type = content_type
