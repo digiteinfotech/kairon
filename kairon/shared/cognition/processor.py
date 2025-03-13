@@ -293,6 +293,8 @@ class CognitionDataProcessor:
         for metadata_dict in matched_metadata['metadata']:
             column_name = metadata_dict['column_name']
             if column_name in data:
+                if isinstance(data[column_name], str):
+                    data[column_name] = data[column_name].strip()
                 data[column_name] = CognitionDataProcessor.validate_column_values(data, metadata_dict)
         return data
 
@@ -315,10 +317,6 @@ class CognitionDataProcessor:
                                          collection_name__iexact=payload.get('collection'), raise_error=False):
                 raise AppException('Text content type does not have schema!')
         if payload.get('content_type') == CognitionDataType.json.value:
-            payload['data'] = {
-                key: value.strip() if isinstance(value, str) else value
-                for key, value in payload['data'].items()
-            }
             payload['data'] = CognitionDataProcessor.validate_metadata_and_payload(bot, payload)
 
         payload_obj = CognitionData()
