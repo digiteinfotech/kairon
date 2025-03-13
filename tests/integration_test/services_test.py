@@ -2012,14 +2012,14 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
 
     expected_calls = [
         {
-            "model": "text-embedding-3-small",
+            "model": "text-embedding-3-large",
             "input": ['{"id":1,"item":"Juice","price":2.5,"quantity":10}'],  # First input
             "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
             "api_key": "common_openai_key",
             "num_retries": 3
         },
         {
-            "model": "text-embedding-3-small",
+            "model": "text-embedding-3-large",
             "input": ['{"id":2,"item":"Apples","price":1.2,"quantity":20}'],  # Second input
             "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
             "api_key": "common_openai_key",
@@ -2150,14 +2150,14 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
 
     expected_calls = [
         {
-            "model": "text-embedding-3-small",
+            "model": "text-embedding-3-large",
             "input": ['{"id":1,"item":"Juice","price":80.5,"quantity":56}'],
             "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
             "api_key": "common_openai_key",
             "num_retries": 3
         },
         {
-            "model": "text-embedding-3-small",
+            "model": "text-embedding-3-large",
             "input": ['{"id":2,"item":"Milk","price":27.0,"quantity":12}'],  # Second input
             "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
             "api_key": "common_openai_key",
