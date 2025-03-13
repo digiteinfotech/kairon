@@ -99,7 +99,7 @@ class CallbackConfig(Auditlog):
         return list(names)
 
     @staticmethod
-    def get_entry(bot, name) -> dict:
+    def get_entry(bot :str, name :str) -> dict:
         entry = CallbackConfig.objects(bot=bot, name__iexact=name).first()
         if not entry:
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
@@ -147,7 +147,7 @@ class CallbackConfig(Auditlog):
         return config.to_mongo().to_dict()
 
     @staticmethod
-    def get_auth_token(bot, name) -> tuple[str, bool]:
+    def get_auth_token(bot: str, name: str) -> tuple[str, bool]:
         entry = CallbackConfig.objects(bot=bot, name__iexact=name).first()
         if not entry:
             raise AppException(f"Callback Configuration with name '{name}' does not exist!")
@@ -281,7 +281,7 @@ class CallbackData(Document):
         return callback_url, identifier, is_standalone
 
     @staticmethod
-    def get_value_from_json(json_obj, path):
+    def get_value_from_json(json_obj: Any, path: str):
         keys = path.split('.')
         value = json_obj
         try:
@@ -295,7 +295,7 @@ class CallbackData(Document):
         return value
 
     @staticmethod
-    def validate_entry(token: str, identifier: Optional[str] = None, request_body: Any = None):
+    def validate_entry(token: str, identifier: Optional[str] = None, request_body: Any = None) -> tuple[dict, dict]:
         check_nonempty_string(token)
         config_entry = CallbackConfig.verify_auth_token(token)
 
@@ -363,7 +363,7 @@ class CallbackLog(Document):
                              request_data: Any,
                              metadata: dict,
                              callback_url: str,
-                             callback_source: str):
+                             callback_source: str) -> dict:
         check_nonempty_string(name)
         check_nonempty_string(bot)
         check_nonempty_string(identifier)
@@ -396,7 +396,7 @@ class CallbackLog(Document):
                              request_data: Any,
                              metadata: dict,
                              callback_url: str,
-                             callback_source: str):
+                             callback_source: str) -> dict:
         check_nonempty_string(name)
         check_nonempty_string(bot)
         check_nonempty_string(identifier)
@@ -419,7 +419,7 @@ class CallbackLog(Document):
         return record.to_mongo().to_dict()
 
     @staticmethod
-    def get_logs(query: dict, offset: int, limit: int):
+    def get_logs(query: dict, offset: int, limit: int) -> tuple[list[dict], int]:
         logs = CallbackLog.objects(**query).skip(offset).limit(limit).exclude('id').order_by('-timestamp').to_json()
         logs_dict_list = json.loads(logs)
         for log in logs_dict_list:

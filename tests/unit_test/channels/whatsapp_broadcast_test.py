@@ -11,6 +11,7 @@ from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 from kairon.chat.handlers.channels.clients.whatsapp.dialog360 import BSP360Dialog
 from kairon.shared.channels.broadcast.whatsapp import WhatsappBroadcast
+from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
@@ -566,3 +567,130 @@ def test_log_failed_messages():
             assert kwargs['api_response'] == {"error": error_msg}
             assert kwargs['status'] == "Failed"
             assert kwargs['errors'] == [{'code': 131026, 'title': "Message undeliverable", 'message': error_msg}]
+
+
+
+
+
+@pytest.mark.asyncio
+async def test_send_using_flow():
+    with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template', return_value=([], None)) as mock_get_template, \
+         patch.object(WhatsappBroadcast, 'initiate_broadcast', return_value=(0, [])) as mock_initiate_broadcast, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log') as mock_add_event_log, \
+         patch.object(MessageBroadcastProcessor, 'update_broadcast_logs_with_template') as mock_update_broadcast_logs_with_template:
+
+        config = {
+            "template_config": [
+                {
+                    "template_id": "template_1",
+                    "namespace": "namespace_1",
+                    "language": "en",
+                    "params": ["param1", "param2"]
+                }
+            ],
+            "flowname": "test_flow"
+        }
+
+        event_id = "test_event_id"
+        reference_id = "test_reference_id"
+
+        broadcast = WhatsappBroadcast(config=config, bot="test_bot", user="test_user", event_id=event_id, reference_id=reference_id)
+        recipients = ["recipient1", "recipient2"]
+
+        broadcast._WhatsappBroadcast__send_using_flow(recipients)
+
+        mock_get_template.assert_called_once_with("template_1", "en")
+        mock_initiate_broadcast.assert_called_once()
+        mock_add_event_log.assert_called()
+        mock_update_broadcast_logs_with_template.assert_called()
+
+        assert mock_add_event_log.call_count == 2
+        assert mock_update_broadcast_logs_with_template.call_count == 1
+
+
+
+
+@pytest.mark.asyncio
+async def test_send_template_message_success_with_flow():
+    template_id = "template_id_1"
+    recipient = "recipient_1"
+    language_code = "en"
+    components = {"param": "value"}
+    namespace = "namespace_1"
+    flowname = "test_flow"
+
+    bot = "test_bot"
+    user = "test_user"
+    config = {
+        "broadcast": {},
+        "notifications": {}
+    }
+    event_id = "test_event_id"
+    reference_id = "test_reference_id"
+
+    whatsapp_broadcast = WhatsappBroadcast(bot, user, config, event_id, reference_id)
+
+    async def mock_send_template_message_async(*args, **kwargs):
+        return True, 200, {}
+
+    async def mock_execute_rule(*args, **kwargs):
+        return [{"text": '{"param": "value"}'}], None
+
+    with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_client', return_value=MagicMock()) as mock_get_client, \
+         patch.object(whatsapp_broadcast, 'channel_client', new_callable=MagicMock) as mock_channel_client, \
+         patch.object(whatsapp_broadcast.channel_client, 'send_template_message_async', side_effect=mock_send_template_message_async) as mock_send_template_message_async, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log') as mock_add_event_log, \
+            patch.object(AgenticFlow, '__init__', return_value=None) as mock_init, \
+            patch.object(AgenticFlow, 'execute_rule', side_effect=mock_execute_rule) as mock_execute_rule:
+
+        status_flag, status_code, response = await whatsapp_broadcast.send_template_message(template_id, recipient, language_code, components, namespace, flowname)
+
+        assert status_flag is True
+        assert status_code == 200
+        assert response == {}
+
+        mock_send_template_message_async.assert_called_once_with(template_id, recipient, language_code, components, namespace)
+        mock_add_event_log.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_send_template_message_success_with_flow():
+    template_id = "template_id_1"
+    recipient = "recipient_1"
+    language_code = "en"
+    components = {"param": "value"}
+    namespace = "namespace_1"
+    flowname = "test_flow"
+
+    bot = "test_bot"
+    user = "test_user"
+    config = {
+        "broadcast": {},
+        "notifications": {}
+    }
+    event_id = "test_event_id"
+    reference_id = "test_reference_id"
+
+    whatsapp_broadcast = WhatsappBroadcast(bot, user, config, event_id, reference_id)
+
+    async def mock_send_template_message_async(*args, **kwargs):
+        return False, 500, {"error": "Some error"}
+
+    async def mock_execute_rule(*args, **kwargs):
+        return [{"text": '{"param": "value"}'}], None
+
+    with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_client', return_value=MagicMock()) as mock_get_client, \
+         patch.object(whatsapp_broadcast, 'channel_client', new_callable=MagicMock) as mock_channel_client, \
+         patch.object(whatsapp_broadcast.channel_client, 'send_template_message_async', side_effect=mock_send_template_message_async) as mock_send_template_message_async, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log') as mock_add_event_log, \
+        patch.object(AgenticFlow, '__init__', return_value = None) as mock_init,\
+         patch.object(AgenticFlow, 'execute_rule', side_effect=mock_execute_rule) as mock_execute_rule:
+
+        status_flag, status_code, response = await whatsapp_broadcast.send_template_message(template_id, recipient, language_code, components, namespace, flowname)
+
+        assert status_flag is False
+        assert status_code == 500
+        assert response == {"error": "Some error"}
+
+        mock_send_template_message_async.assert_called_once_with(template_id, recipient, language_code, components, namespace)
+        mock_add_event_log.assert_not_called()
+

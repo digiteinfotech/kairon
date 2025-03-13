@@ -36,7 +36,7 @@ from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import (
     TemplateType,
     StoryStepType,
-    StoryType,
+    StoryType, GlobalSlotsEntryType, FlowTagType,
 )
 from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, DEMO_REQUEST_STATUS
@@ -687,6 +687,8 @@ class MultiflowStories(Auditlog):
         default=TemplateType.CUSTOM.value,
         choices=[template.value for template in TemplateType],
     )
+    tag = StringField(default=FlowTagType.chatbot_flow.value, choices=[flow_tag.value for flow_tag in FlowTagType])
+
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "block_name")]}]}
 
@@ -723,6 +725,7 @@ class Rules(Auditlog):
         default=TemplateType.CUSTOM.value,
         choices=[template.value for template in TemplateType],
     )
+    tag = StringField(default=FlowTagType.chatbot_flow.value, choices=[flow_tag.value for flow_tag in FlowTagType])
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "block_name")]}]}
 
@@ -1047,3 +1050,14 @@ class UserOrgMappings(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
 
     meta = {"indexes": [{"fields": ["user", ("user", "feature_type", "organization")]}]}
+
+
+
+class GlobalSlots(Auditlog):
+    entry_type = StringField(default=GlobalSlotsEntryType.agentic_flow.value, choices=[entry_type.value for entry_type in GlobalSlotsEntryType])
+    slots = DictField()
+    sender_id = StringField(required=True)
+    bot = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id", "entry_type")]}]}

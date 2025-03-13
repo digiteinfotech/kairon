@@ -257,7 +257,7 @@ class TestMailChannel:
         mp = MailProcessor(bot=bot_id)
 
         rasa_chat_response = {
-            "slots": ["name: John Doe"],
+            "slots": {"name": "John Doe"},
             "response": [{"text": "How can I help you today?"}]
         }
         result = mp.process_mail( rasa_chat_response, mail_response_log.id)
@@ -265,7 +265,7 @@ class TestMailChannel:
 
 
         rasa_chat_response = {
-            "slots": ["name: John Doe"],
+            "slots": {"name": "John Doe"},
             "response": [{"text": "How can I help you today?"}]
         }
         mp.mail_template = "Hello {name}, {bot_response}"
@@ -402,7 +402,7 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.MailProcessor.login_smtp")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_smtp")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.send_mail")
-    @patch("kairon.chat.utils.ChatUtils.process_messages_via_bot")
+    @patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule")
     @pytest.mark.asyncio
     async def test_process_messages(self, mock_process_messages_via_bot, mock_send_mail, mock_logout_smtp, mock_login_smtp, mock_get_channel_config):
 
@@ -425,10 +425,7 @@ class TestMailChannel:
         bot = pytest.mail_test_bot
         batch = [{"mail_id": "test@example.com", "subject": "Test Subject", "date": "2023-10-10", "body": "Test Body", "log_id": str(mail_response_log.id)}]
 
-        mock_process_messages_via_bot.return_value = [{
-            "slots": ["name: spandan"],
-            "response": [{"text": "Test Response"}]
-        }]
+        mock_process_messages_via_bot.return_value = [{"text": "hello world"}], []
 
         await MailProcessor.process_messages(bot, batch)
 

@@ -84,6 +84,7 @@ class MessageBroadcastRequest(BaseModel):
     template_name: str = None
     language_code: str = None
     pyscript: str = None
+    flowname: str = None
 
     @root_validator
     def validate_request(cls, values):
