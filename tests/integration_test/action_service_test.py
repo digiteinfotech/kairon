@@ -13200,7 +13200,7 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
         if event.get('llm_response_log'):
-            event['llm_response_log'].pop('context')
+            event['llm_response_log'].pop('similarity_context')
     assert events == [
         {'type': 'llm_response',
          'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
@@ -13322,7 +13322,7 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
         if event.get('llm_response_log'):
-            event['llm_response_log'].pop('context')
+            event['llm_response_log'].pop('similarity_context')
     assert events == [
         {'type': 'llm_response',
          'response': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
@@ -13445,12 +13445,12 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     assert log["time_elapsed"]
     log.pop('time_elapsed')
     events = log.pop('events')
-    assert len(events[0]['llm_response_log']['context']) > 0
+    assert len(events[0]['llm_response_log']['similarity_context']) > 0
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
         if event.get('llm_response_log'):
-            event['llm_response_log'].pop('context')
+            event['llm_response_log'].pop('similarity_context')
     assert events == [
         {'type': 'llm_response',
          'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',

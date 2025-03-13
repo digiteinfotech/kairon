@@ -13,9 +13,11 @@ from uuid6 import uuid7
 from kairon import Utility
 from kairon.chat.actions import KRemoteAction
 from kairon.exceptions import AppException
-from kairon.shared.data.data_objects import Slots, Rules, MultiflowStories, Responses, BotSettings
+from kairon.shared.data.data_objects import Slots, Rules, MultiflowStories, Responses, BotSettings, GlobalSlots
 from kairon.shared.data.processor import MongoProcessor
 from loguru import logger
+
+from kairon.shared.models import GlobalSlotsEntryType
 
 
 class AgenticFlow:
@@ -52,6 +54,7 @@ class AgenticFlow:
     def __init__(self, bot: str, slot_vals: dict[str,any] = None, sender_id: str = None):
         self.bot = bot
         self.max_history = 20
+        self.should_use_global_slots = True if sender_id else False
         self.sender_id =  sender_id if sender_id else str(uuid7().hex)
         self.bot_settings = BotSettings.objects(bot=self.bot).first()
         if not self.bot_settings:
@@ -71,6 +74,11 @@ class AgenticFlow:
 
     def create_fake_tracker(self, slot_vals: dict[str,any] = None, sender_id: str = None):
         slots = self.load_slots(slot_vals)
+        if self.should_use_global_slots:
+            global_slots = self.load_global_slots()
+            for slot in slots:
+                if slot.name in global_slots:
+                    slot.value = global_slots[slot.name]
         return DialogueStateTracker(sender_id=sender_id,
                                     slots=slots,
                                     max_event_history=20)
@@ -203,6 +211,7 @@ class AgenticFlow:
         self.executed_actions = []
 
         if sender_id:
+            self.should_use_global_slots = True
             self.fake_tracker = self.create_fake_tracker(slot_vals, sender_id)
             self.input_slot_vals = slot_vals
 
@@ -226,6 +235,8 @@ class AgenticFlow:
                 else:
                     node_id = None
         self.log_chat_history(rule_name)
+        if self.should_use_global_slots:
+            self.save_global_slots()
         return self.responses, self.errors
 
     async def execute_event(self, event: dict):
@@ -328,6 +339,35 @@ class AgenticFlow:
           "tag": "agentic_flow"
         }
         conversations.insert_one(data)
+
+    def load_global_slots(self) -> dict:
+        entry = GlobalSlots.objects(
+            bot=self.bot,
+            sender_id = self.sender_id,
+            entry_type = GlobalSlotsEntryType.agentic_flow.value
+        ).first()
+
+        if not entry:
+            return {}
+        return entry.slots
+
+    def save_global_slots(self):
+        entry = GlobalSlots.objects(
+            bot=self.bot,
+            sender_id = self.sender_id,
+            entry_type = GlobalSlotsEntryType.agentic_flow.value
+        ).first()
+        if not entry:
+            entry = GlobalSlots(
+                bot=self.bot,
+                sender_id = self.sender_id,
+                entry_type = GlobalSlotsEntryType.agentic_flow.value,
+                slots = self.get_non_empty_slots(True)
+            )
+        else:
+            entry.slots = self.get_non_empty_slots(True)
+        entry.save()
+
 
     @staticmethod
     def flow_exists(bot: str, flow_name: str) -> bool:
