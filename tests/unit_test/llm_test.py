@@ -97,7 +97,7 @@ class TestLLM:
                             'payload': {'content': test_content.data}
                             }]}
 
-            expected = {"model": "text-embedding-3-small",
+            expected = {"model": "text-embedding-3-large",
                         "input": [test_content.data], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
@@ -223,7 +223,7 @@ class TestLLM:
                             'payload': {'name': 'Nupur'}}]}
             assert response['faq'] == 3
 
-            expected = {"model": "text-embedding-3-small",
+            expected = {"model": "text-embedding-3-large",
                         "input": [json.dumps(test_content.data)],
                         'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
@@ -294,7 +294,7 @@ class TestLLM:
                             'payload': {'name': 'Ram', 'age': 23, 'color': 'red'}
                             }]}
 
-            expected = {"model": "text-embedding-3-small",
+            expected = {"model": "text-embedding-3-large",
                         "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
@@ -375,7 +375,7 @@ class TestLLM:
                             'payload': expected_payload
                             }]}
 
-            expected = {"model": "text-embedding-3-small",
+            expected = {"model": "text-embedding-3-large",
                         "input": [json.dumps(input)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
@@ -445,7 +445,7 @@ class TestLLM:
                 'points': [{'id': test_content.vector_id,
                             'vector': embedding, 'payload': {'content': test_content.data}}]}
 
-            expected = {"model": "text-embedding-3-small",
+            expected = {"model": "text-embedding-3-large",
                         "input": [test_content.data], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
@@ -525,7 +525,7 @@ class TestLLM:
                             'payload': expected_payload
                             }]}
 
-            expected = {"model": "text-embedding-3-small",
+            expected = {"model": "text-embedding-3-large",
                         "input": [json.dumps(test_content.data)], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
@@ -597,7 +597,7 @@ class TestLLM:
                                                                                  'score_threshold': 0.70}
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-            expected = {"model": "text-embedding-3-small",
+            expected = {"model": "text-embedding-3-large",
                         "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                         "api_key": value,
                         "num_retries": 3}
@@ -672,7 +672,7 @@ class TestLLM:
 
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-        expected = {"model": "text-embedding-3-small",
+        expected = {"model": "text-embedding-3-large",
                     "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": value,
                     "num_retries": 3}
@@ -749,7 +749,7 @@ class TestLLM:
 
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-            expected = {"model": "text-embedding-3-small",
+            expected = {"model": "text-embedding-3-large",
                         "input": [query], 'metadata': {'user': user, 'bot': gpt3.bot, 'invocation': None},
                         "api_key": key,
                         "num_retries": 3}
@@ -825,7 +825,7 @@ class TestLLM:
 
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-            expected = {"model": "text-embedding-3-small",
+            expected = {"model": "text-embedding-3-large",
                         "input": [query], 'metadata': {'user': user, 'bot': gpt3.bot, 'invocation': None},
                         "api_key": key,
                         "num_retries": 3}
@@ -938,7 +938,7 @@ class TestLLM:
 
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-        expected = {"model": "text-embedding-3-small",
+        expected = {"model": "text-embedding-3-large",
                     "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
@@ -1013,7 +1013,7 @@ class TestLLM:
                                                                              'score_threshold': 0.70}
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-        expected = {"model": "text-embedding-3-small",
+        expected = {"model": "text-embedding-3-large",
                     "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
@@ -1067,7 +1067,7 @@ class TestLLM:
             {'error': 'Retrieving chat completion for the provided query. Failed to connect to service: localhost'}]
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-        expected = {"model": "text-embedding-3-small",
+        expected = {"model": "text-embedding-3-large",
                     "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
@@ -1113,7 +1113,7 @@ class TestLLM:
         assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-        expected = {"model": "text-embedding-3-small",
+        expected = {"model": "text-embedding-3-large",
                     "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
@@ -1198,7 +1198,7 @@ class TestLLM:
 
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-        expected = {"model": "text-embedding-3-small",
+        expected = {"model": "text-embedding-3-large",
                     "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
@@ -1292,7 +1292,7 @@ class TestLLM:
                                                                              'score_threshold': 0.70}
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
-        expected = {"model": "text-embedding-3-small",
+        expected = {"model": "text-embedding-3-large",
                     "input": [query], 'metadata': {'user': user, 'bot': bot, 'invocation': None},
                     "api_key": key,
                     "num_retries": 3}
@@ -1926,7 +1926,7 @@ class TestLLM:
     #     }
     #
     #     mock_dense.assert_called_once_with(
-    #         model="text-embedding-3-small",
+    #         model="text-embedding-3-large",
     #         input=[text],
     #         metadata={'user': user, 'bot': bot, 'invocation': None},
     #         api_key=key,
@@ -1990,7 +1990,7 @@ class TestLLM:
     #     }
     #
     #     mock_dense.assert_called_once_with(
-    #         model="text-embedding-3-small",
+    #         model="text-embedding-3-large",
     #         input=texts,
     #         metadata={'user': user, 'bot': bot, 'invocation': None},
     #         api_key=key,
@@ -2043,7 +2043,7 @@ class TestLLM:
     #         await processor.get_embedding(texts, user)
     #
     #     mock_dense.assert_called_once_with(
-    #         model="text-embedding-3-small",
+    #         model="text-embedding-3-large",
     #         input=texts,
     #         metadata={'user': user, 'bot': bot, 'invocation': None},
     #         api_key=key,
@@ -2092,7 +2092,7 @@ class TestLLM:
     #         await processor.get_embedding(texts, user)
     #
     #     mock_dense.assert_called_once_with(
-    #         model="text-embedding-3-small",
+    #         model="text-embedding-3-large",
     #         input=texts,
     #         metadata={'user': user, 'bot': bot, 'invocation': None},
     #         api_key=key,
@@ -2141,7 +2141,7 @@ class TestLLM:
     #         await processor.get_embedding(texts, user)
     #
     #     mock_dense.assert_called_once_with(
-    #         model="text-embedding-3-small",
+    #         model="text-embedding-3-large",
     #         input=texts,
     #         metadata={'user': user, 'bot': bot, 'invocation': None},
     #         api_key=key,

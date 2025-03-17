@@ -4170,7 +4170,7 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56b698ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    expected = {"model": "text-embedding-3-small",
+    expected = {"model": "text-embedding-3-large",
                 "input": [payload_body],
                 'metadata': {'user': 'default', 'bot': '5f50fd0a56b698ca10d75d2e', 'invocation': 'db_action_qdrant'},
                 "api_key": 'key_value',
@@ -4422,7 +4422,7 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
     log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56b698ca10d35d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    expected = {"model": "text-embedding-3-small",
+    expected = {"model": "text-embedding-3-large",
                 "input": [payload],
                 'metadata': {'user': 'default', 'bot': '5f50fx0a56b698ca10d35d2e', 'invocation': 'db_action_qdrant'},
                 "api_key": 'key_value',
@@ -4527,7 +4527,7 @@ def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_em
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56v098ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    expected = {"model": "text-embedding-3-small",
+    expected = {"model": "text-embedding-3-large",
                 "input": [payload_body],
                 'metadata': {'user': 'default', 'bot': '5f50fd0a56v098ca10d75d2e', 'invocation': 'db_action_qdrant'},
                 "api_key": 'key_value',
@@ -13831,7 +13831,7 @@ def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
     log = ActionServerLogs.objects(action=action_name, bot=bot).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    expected = {"model": "text-embedding-3-small",
+    expected = {"model": "text-embedding-3-large",
                 "input": ["Hi How are you"],
                 'metadata': {'user': 'default', 'bot': bot, 'invocation': 'db_action_qdrant'},
                 "api_key": 'key_value',
