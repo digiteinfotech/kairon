@@ -5592,6 +5592,48 @@ def test_add_schedule_action():
     assert actual["error_code"] == 0
     assert actual["message"] == "Action added!"
 
+def test_add_schedule_action_with_type():
+    schedule_action_data = {
+        "name": "test_schedule_action2",
+        "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+        "timezone": None,
+        "schedule_action": "flow_name",
+        "response_text": "action scheduled",
+        "params_list": [
+            {
+                "key": "param_key",
+                "value": "param_1",
+                "parameter_type": "value",
+                "count": 0
+            }
+        ],
+        "schedule_action_type": 'flow',
+        "dispatch_bot_response": True
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/schedule",
+        json=schedule_action_data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+
+    actions = ScheduleAction.objects(bot=pytest.bot)
+    action_data = []
+    for act in actions:
+        a = {
+            'name': act.name,
+            'type': act.schedule_action_type
+        }
+        action_data.append(a)
+    expected = [{'name': 'test_schedule_action', 'type': 'pyscript'}, {'name': 'test_schedule_action2', 'type': 'flow'}]
+    assert action_data == expected
+
+    ScheduleAction.objects(bot=pytest.bot, name='test_schedule_action2').delete()
+
 
 def test_add_schedule_action_exists():
     schedule_action_data = {

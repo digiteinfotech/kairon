@@ -86,7 +86,7 @@ from kairon.shared.actions.data_objects import (
     PyscriptActionConfig,
     WebSearchAction,
     UserQuestion, CustomActionParameters,
-    LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters,
+    LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -8627,6 +8627,7 @@ class MongoProcessor:
         schedule_action.schedule_action = request_data.get("schedule_action")
         schedule_action.dispatch_bot_response = request_data.get("dispatch_response", True)
         schedule_action.status = request_data.get("status", True)
+        schedule_action.schedule_action_type = request_data.get("schedule_action_type", ScheduleActionType.PYSCRIPT.value)
         schedule_action.save()
         return schedule_action.id.__str__()
 

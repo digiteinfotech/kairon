@@ -77,12 +77,14 @@ class AgenticFlow:
         if self.should_use_global_slots:
             global_slots = self.load_global_slots()
             for slot in slots:
-                if slot.name in global_slots:
+                if (not slot_vals or slot.name not in slot_vals.keys()) and (slot.name in global_slots):
                     slot.value = global_slots[slot.name]
-        return DialogueStateTracker(sender_id=sender_id,
+        tracker =  DialogueStateTracker(sender_id=sender_id,
                                     slots=slots,
                                     max_event_history=20)
-
+        for slot in slots:
+            tracker.slots[slot.name] = slot
+        return tracker
 
 
     def load_slots(self, slot_vals: dict[str,any] = None) -> list:
