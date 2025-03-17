@@ -334,6 +334,39 @@ class TestMailChannelCli:
             cli()
         mock_execute.assert_called_once()
 
+class TestAgenticFlowCli:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlowEvent.execute')
+    def test_exec_agentic_flow_cli(self, mock_execute):
+        from kairon.cli.agentic_flow import exec_agentic_flow
+        with patch('argparse.ArgumentParser.parse_args',
+                   return_value=argparse.Namespace(func=exec_agentic_flow,
+                                                   bot="test_bot",
+                                                   user="test_user",
+                                                   flow_name="test_flow",
+                                                   slot_data='{"key": "value"}')):
+            cli()
+        mock_execute.assert_called_once_with(flow_name='test_flow', slot_data='{"key": "value"}')
+
+    @patch('kairon.events.definitions.agentic_flow.AgenticFlowEvent.execute')
+    def test_exec_agentic_flow(self, mock_execute):
+        from kairon.cli.agentic_flow import exec_agentic_flow
+
+        args = type('Args', (object,), {
+            'bot': 'test_bot',
+            'user': 'test_user',
+            'flow_name': 'test_flow',
+            'slot_data': '{"key": "value"}'
+        })()
+        exec_agentic_flow(args)
+        mock_execute.assert_called_once_with(flow_name='test_flow', slot_data='{"key": "value"}')
+
 class TestMessageBroadcastCli:
 
     @pytest.fixture(autouse=True, scope="class")

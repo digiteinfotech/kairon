@@ -118,7 +118,7 @@ class LLMProcessor(LLMBase):
 
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
             answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,llm_type = llm_type, **kwargs)
-            response = {"content": answer, "context": context}
+            response = {"content": answer, "similarity_context": context}
         except Exception as e:
             logging.exception(e)
             if embeddings_created:

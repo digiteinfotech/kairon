@@ -83,11 +83,12 @@ class TemplateConfiguration(EmbeddedDocument):
 class MessageBroadcastSettings(Auditlog):
     name = StringField(required=True)
     connector_type = StringField(required=True)
-    broadcast_type = StringField(required=True, choices=[MessageBroadcastType.static.value, MessageBroadcastType.dynamic.value])
+    broadcast_type = StringField(required=True, choices=[MessageBroadcastType.static.value, MessageBroadcastType.dynamic.value, MessageBroadcastType.flow.value])
     scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
     recipients_config = EmbeddedDocumentField(RecipientsConfiguration)
     template_config = ListField(EmbeddedDocumentField(TemplateConfiguration))
     pyscript = StringField()
+    flowname = StringField()
     template_name = StringField(default=None)
     language_code = StringField(default=None)
     retry_count = IntField(default=0)

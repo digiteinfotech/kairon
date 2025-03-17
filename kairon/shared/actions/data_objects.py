@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 
 from mongoengine import (
     EmbeddedDocument,
@@ -963,6 +964,10 @@ class CallbackActionConfig(Auditlog):
             raise ValidationError("Action name cannot start with utter_")
 
 
+class ScheduleActionType(Enum):
+    PYSCRIPT = "pyscript"
+    FLOW = "flow"
+
 @auditlogger.log
 @push_notification.apply
 class ScheduleAction(Auditlog):
@@ -972,6 +977,9 @@ class ScheduleAction(Auditlog):
     schedule_time = EmbeddedDocumentField(CustomActionDynamicParameters)
     timezone = StringField(default="UTC", required=True)
     schedule_action = StringField(required=True)
+    schedule_action_type = StringField(
+        default=ScheduleActionType.PYSCRIPT.value, choices=[type.value for type in ScheduleActionType]
+    )
     response_text = StringField(required=False)
     params_list = ListField(
         EmbeddedDocumentField(CustomActionRequestParameters), required=False
