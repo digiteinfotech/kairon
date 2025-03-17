@@ -5633,6 +5633,7 @@ def test_list_schedule_action():
             'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'}, 
             'timezone': 'UTC', 
             'schedule_action': 'test_pyscript',
+            'schedule_action_type': 'pyscript',
             'response_text': 'action scheduled',
             'params_list': [
                 {
@@ -5698,7 +5699,8 @@ def test_list_schedule_action_after_update():
             'name': 'test_schedule_action', 
             'schedule_time': {'value': '2024-08-06T09:00:00.000+0530', 'parameter_type': 'value'}, 
             'timezone': 'UTC', 
-            'schedule_action': 'test_pyscript_new', 
+            'schedule_action': 'test_pyscript_new',
+            'schedule_action_type': 'pyscript',
             'response_text': 'action scheduled, will be notified', 
             'params_list': [
                 {
@@ -13271,6 +13273,51 @@ def test_download_multiflow_story_with_stop_flow_action():
 
     assert domain_content['actions'][-1] == 'stop_flow_action'
 
+
+
+@patch('kairon.shared.data.processor.MongoProcessor.change_flow_tag')
+def test_change_flow_tag(mock_change_flow_tag):
+    mock_change_flow_tag.return_value = None
+
+    request_data = {
+        "name": "test_add_multiflow_story_stop_flow_action",
+        "tag": "agentic_flow",
+        "type": "rule"
+    }
+
+    response = client.post( f"/api/bot/{pytest.bot}/change_flow_tag",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=request_data
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {'data': None, 'error_code': 0, 'success': True, 'message': "Flow tag changed to 'agentic_flow'"}
+    mock_change_flow_tag.assert_called_once_with(bot=pytest.bot, flow_name='test_add_multiflow_story_stop_flow_action', tag='agentic_flow', flow_type='rule')
+
+
+@patch('kairon.shared.data.processor.MongoProcessor.get_flows_by_tag')
+def test_get_flows_by_tag(mock_tag_list):
+    mock_tag_list.return_value = {
+        'rule': ['rule1', 'rule2'],
+        'multiflow': ['multiflow1', 'multiflow2']
+    }
+
+    response = client.get(f"/api/bot/{pytest.bot}/flow_tag/agentic_flow",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+
+    assert response.status_code == 200
+    data_out = response.json()
+    print(data_out)
+    assert data_out == {
+        'data': {
+            'rule': ['rule1', 'rule2'],
+            'multiflow': ['multiflow1', 'multiflow2']
+        },
+        'error_code': 0,
+        'success': True,
+        'message': None
+    }
+    mock_tag_list.assert_called_once_with(pytest.bot, 'agentic_flow')
 
 
 @responses.activate
@@ -24618,7 +24665,7 @@ def test_add_bot_with_template_with_sysadmin_as_user(monkeypatch):
                     {'name': 'nlu_fallback', 'type': 'user', 'entities': []},
                     {'name': 'google_search_action', 'type': 'action'},
                     {'name': 'kairon_faq_action', 'type': 'action'}],
-         'user': 'sysadmin', 'status': True, 'template_type': 'CUSTOM'}
+         'user': 'sysadmin', 'status': True, 'template_type': 'CUSTOM', 'tag': 'chatbot_flow'}
     ]
 
     utterances = Utterances.objects(bot=bot_id)
@@ -24686,17 +24733,17 @@ def test_add_bot_without_template(monkeypatch):
          'condition_events_indices': [], 'start_checkpoints': ['STORY_START'], 'end_checkpoints': [],
          'events': [{'name': '...', 'type': 'action'}, {'name': 'nlu_fallback', 'type': 'user'},
                     {'name': 'utter_please_rephrase', 'type': 'action'}],
-         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'CUSTOM'},
+         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'CUSTOM', 'tag': 'chatbot_flow'},
         {'block_name': 'bye', 'condition_events_indices': [], 'start_checkpoints': ['STORY_START'],
          'end_checkpoints': [],
          'events': [{'name': '...', 'type': 'action'}, {'name': 'bye', 'type': 'user'},
                     {'name': 'utter_bye', 'type': 'action'}], 'user': 'integ1@gmail.com',
-         'status': True, 'template_type': 'Q&A'},
+         'status': True, 'template_type': 'Q&A',  'tag': 'chatbot_flow',},
         {'block_name': 'greet', 'condition_events_indices': [], 'start_checkpoints': ['STORY_START'],
          'end_checkpoints': [],
          'events': [{'name': '...', 'type': 'action'}, {'name': 'greet', 'type': 'user'},
                     {'name': 'utter_greet', 'type': 'action'}],
-         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'Q&A'}
+         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'Q&A',  'tag': 'chatbot_flow'}
     ]
 
     utterances = Utterances.objects(bot=bot_id)

@@ -8889,5 +8889,45 @@ class MongoProcessor:
 
         return file_path
 
+    @staticmethod
+    def change_flow_tag(bot: str, flow_name: str, flow_type: str, tag: str):
+
+        if Utility.check_empty_string(flow_name):
+            raise AppException("Name cannot be empty or blank spaces")
+
+        data_collection = None
+        if flow_type == 'rule':
+            data_collection = Rules
+        elif flow_type == 'multiflow':
+            data_collection = MultiflowStories
+
+        if not data_collection:
+            raise AppException(f"Invalid flow_type [{flow_type}]. Allowed flow types are 'rule' and 'multiflow'.")
+
+        flow = data_collection.objects(bot=bot, block_name=flow_name).first()
+        if not flow:
+            raise AppException(f"{flow_type} {flow_name} doesn't exist")
+
+        flow.tag = tag
+
+        flow.save()
+
+    @staticmethod
+    def get_flows_by_tag(bot: str, tag: str):
+        data = {
+            'rule': [],
+            'multiflow': []
+        }
+
+        rules = Rules.objects(bot=bot, tag=tag)
+        for rule in rules:
+            data['rule'].append(rule.block_name)
+
+        multiflows = MultiflowStories.objects(bot=bot, tag=tag)
+        for multiflow in multiflows:
+            data['multiflow'].append(multiflow.block_name)
+
+        return data
+
 
 

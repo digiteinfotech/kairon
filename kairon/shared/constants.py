@@ -82,6 +82,7 @@ class EventClass(str, Enum):
     scheduler_evaluator = "scheduler_evaluator"
     content_importer = "content_importer"
     mail_channel_read_mails = "email_channel_read_mails"
+    agentic_flow = "agentic_flow"
 
 
 class EventRequestType(str, Enum):

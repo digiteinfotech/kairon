@@ -121,3 +121,10 @@ class VaultSyncEventType(str, Enum):
     push_menu = ["column_length_mismatch", "invalid_columns", "pydantic_validation"]
     field_update = ["invalid_columns", "document_non_existence", "pydantic_validation"]
 
+class GlobalSlotsEntryType(str, Enum):
+    agentic_flow = "agentic_flow"
+
+class FlowTagType(str, Enum):
+    agentic_flow = "agentic_flow"
+    chatbot_flow = "chatbot_flow"
+

@@ -1,5 +1,4 @@
 import asyncio
-import json
 import time
 
 from loguru import logger
@@ -12,6 +11,7 @@ from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.channels.mail.constants import MailConstants
 from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus, MailChannelStateData
+from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.data_objects import BotSettings
@@ -26,6 +26,8 @@ class MailProcessor:
         self.bot = bot
         self.config = ChatDataProcessor.get_channel_config(ChannelTypes.MAIL, bot, False)['config']
         self.intent = self.config.get('intent')
+        if not self.intent:
+            self.intent = self.config.get('flowname')
         self.mail_template = self.config.get('mail_template')
         if not self.mail_template or len(self.mail_template) == 0:
             self.mail_template = MailConstants.DEFAULT_TEMPLATE
@@ -164,11 +166,9 @@ class MailProcessor:
         :param log_id: str - log id
         :return: str - formatted mail
         """
-        slots = rasa_chat_response.get('slots', [])
-        slots = {key.strip(): value.strip() for slot_str in slots
-                    for split_result in [slot_str.split(":", 1)]
-                    if len(split_result) == 2
-                    for key, value in [split_result]}
+
+        slots = rasa_chat_response.get('slots', {})
+
 
         responses = '<br/><br/>'.join(response.get('text', '') for response in rasa_chat_response.get('response', []))
         if len(responses) == 0:
@@ -214,7 +214,7 @@ class MailProcessor:
         Pass messages to bot and send responses
         """
         try:
-            from kairon.chat.utils import ChatUtils
+            flow = AgenticFlow(bot)
             mp = MailProcessor(bot)
             user_messages: [str] = []
             users: [str] = []
@@ -227,34 +227,31 @@ class MailProcessor:
                         'date': mail['date'],
                         'body': mail['body']
                     }
-                    entities_str = json.dumps(entities)
-                    user_msg = f'/{mp.intent}{entities_str}'
+                    user_msg = mp.intent
                     user_messages.append(user_msg)
                     users.append(mail['mail_id'])
                     subject = mail.get('subject', 'Reply')
                     if not subject.startswith('Re:'):
                         subject = f"Re: {subject}"
 
+                    resp, errors = await flow.execute_rule(user_msg, sender_id=mail['mail_id'], slot_vals=entities)
+                    chat_response = {
+                        'response': resp,
+                        'slots': flow.get_non_empty_slots(True)
+                    }
+                    if errors:
+                        raise AppException(f"Failed to execute flow {user_msg}. Errors: {errors}")
                     responses.append({
                         'to': mail['mail_id'],
                         'subject': subject,
-                        'body': '',
+                        'body': mp.process_mail(chat_response, log_id=mail['log_id']),
                         'log_id': mail['log_id']
                     })
+
+                except AppException as e:
+                    logger.error(str(e))
                 except Exception as e:
                     logger.error(str(e))
-
-            chat_responses = await ChatUtils.process_messages_via_bot(user_messages,
-                                                                mp.account,
-                                                                bot,
-                                                                users,
-                                                                False,
-                                                                {
-                                                                    'channel': ChannelTypes.MAIL.value
-                                                                })
-
-            for index, response in enumerate(chat_responses):
-                responses[index]['body'] = mp.process_mail(response, log_id=batch[index]['log_id'])
 
             mp.login_smtp()
             tasks = [mp.send_mail(**response) for response in responses]

@@ -1360,3 +1360,9 @@ class ScheduleActionRequest(BaseModel):
 
         return values
 
+
+
+class FlowTagChangeRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    tag: str
+    type: str
