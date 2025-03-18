@@ -619,4 +619,20 @@ class TestAgenticFlow:
 
 
 
+    @patch.object(AgenticFlow, 'load_global_slots')
+    def test_create_fake_tracker_new(self, mock_load_global_slots):
+        mock_load_global_slots.return_value = {
+            'order': 'global_value1',
+            'subject': 'global_value2'
+        }
+
+        agentic_flow = AgenticFlow(bot=pytest.af_test_bot, sender_id='test_sender')
+        agentic_flow.should_use_global_slots = True
+        slot_vals = {'subject': 'local_value2'}
+        tracker = agentic_flow.create_fake_tracker(slot_vals, 'test_sender')
+        assert isinstance(tracker, DialogueStateTracker)
+        assert tracker.sender_id == 'test_sender'
+        assert tracker.slots['order'].value == 'global_value1'
+        assert tracker.slots['subject'].value == 'local_value2'
+        mock_load_global_slots.assert_called()
 

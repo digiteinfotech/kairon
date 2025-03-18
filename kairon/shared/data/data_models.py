@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import ScheduleActionType
 from kairon.shared.data.constant import (
     EVENT_STATUS,
     SLOT_MAPPING_TYPE,
@@ -1347,6 +1348,7 @@ class ScheduleActionRequest(BaseModel):
     response_text: Optional[str]
     params_list: Optional[List[HttpActionParameters]]
     dispatch_bot_response: bool = True
+    schedule_action_type : str = ScheduleActionType.PYSCRIPT.value
 
     @root_validator
     def validate_name(cls, values):
