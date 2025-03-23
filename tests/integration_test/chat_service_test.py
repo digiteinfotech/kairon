@@ -10,7 +10,6 @@ from urllib.parse import urlencode, quote_plus
 
 from rasa.utils.endpoints import EndpointConfig
 
-import kairon.shared.chat.agent.agent_flow
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
