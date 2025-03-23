@@ -12071,6 +12071,114 @@ def test_update_story_invalid_event_type():
     ]
 
 
+def test_update_multiflow_story_with_tag():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
+        json={
+            "name": "test_path",
+            "steps": [
+                {
+                    "step": {
+                        "name": "greeting",
+                        "type": "INTENT",
+                        "node_id": "1",
+                        "component_id": "MNbcg",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_greeting",
+                            "type": "BOT",
+                            "node_id": "2",
+                            "component_id": "MNbcZZg",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_greeting",
+                        "type": "BOT",
+                        "node_id": "2",
+                        "component_id": "MNbcZZg",
+                    },
+                    "connections": [
+                        {
+                            "name": "more_query",
+                            "type": "INTENT",
+                            "node_id": "3",
+                            "component_id": "uhsjJ",
+                        },
+                        {
+                            "name": "goodbye",
+                            "type": "INTENT",
+                            "node_id": "4",
+                            "component_id": "MgGFD",
+                        },
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "goodbye",
+                        "type": "INTENT",
+                        "node_id": "4",
+                        "component_id": "MgGFD",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_goodbye",
+                            "type": "BOT",
+                            "node_id": "5",
+                            "component_id": "MNbcg",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_goodbye",
+                        "type": "BOT",
+                        "node_id": "5",
+                        "component_id": "MNbcg",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "utter_more_query",
+                        "type": "BOT",
+                        "node_id": "6",
+                        "component_id": "IIUUUYY",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "more_query",
+                        "type": "INTENT",
+                        "node_id": "3",
+                        "component_id": "uhsjJ",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_more_query",
+                            "type": "BOT",
+                            "node_id": "6",
+                            "component_id": "IIUUUYY",
+                        }
+                    ],
+                },
+            ],
+            "flow_tags": ["agentic_flow", "chatbot_flow"]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["message"] == "Story flow updated successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+
 def test_update_multiflow_story():
     response = client.put(
         f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
@@ -13315,26 +13423,6 @@ def test_download_multiflow_story_with_stop_flow_action():
 
     assert domain_content['actions'][-1] == 'stop_flow_action'
 
-
-
-@patch('kairon.shared.data.processor.MongoProcessor.change_flow_tag')
-def test_change_flow_tag(mock_change_flow_tag):
-    mock_change_flow_tag.return_value = None
-
-    request_data = {
-        "name": "test_add_multiflow_story_stop_flow_action",
-        "tag": "agentic_flow",
-        "type": "rule"
-    }
-
-    response = client.post( f"/api/bot/{pytest.bot}/change_flow_tag",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json=request_data
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {'data': None, 'error_code': 0, 'success': True, 'message': "Flow tag changed to 'agentic_flow'"}
-    mock_change_flow_tag.assert_called_once_with(bot=pytest.bot, flow_name='test_add_multiflow_story_stop_flow_action', tag='agentic_flow', flow_type='rule')
 
 
 @patch('kairon.shared.data.processor.MongoProcessor.get_flows_by_tag')
@@ -18302,6 +18390,27 @@ def test_add_rule_invalid_event_type():
             "type": "type_error.enum",
         }
     ]
+
+def test_update_rule_with_tag():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
+        json={
+            "name": "test_path",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+            "flow_tags": ["agentic_flow"]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow updated successfully"
+    assert actual["data"]["_id"]
+
 
 
 def test_update_rule():
@@ -24707,7 +24816,7 @@ def test_add_bot_with_template_with_sysadmin_as_user(monkeypatch):
                     {'name': 'nlu_fallback', 'type': 'user', 'entities': []},
                     {'name': 'google_search_action', 'type': 'action'},
                     {'name': 'kairon_faq_action', 'type': 'action'}],
-         'user': 'sysadmin', 'status': True, 'template_type': 'CUSTOM', 'tag': 'chatbot_flow'}
+         'user': 'sysadmin', 'status': True, 'template_type': 'CUSTOM', 'flow_tags': ['chatbot_flow']}
     ]
 
     utterances = Utterances.objects(bot=bot_id)
@@ -24775,17 +24884,17 @@ def test_add_bot_without_template(monkeypatch):
          'condition_events_indices': [], 'start_checkpoints': ['STORY_START'], 'end_checkpoints': [],
          'events': [{'name': '...', 'type': 'action'}, {'name': 'nlu_fallback', 'type': 'user'},
                     {'name': 'utter_please_rephrase', 'type': 'action'}],
-         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'CUSTOM', 'tag': 'chatbot_flow'},
+         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'CUSTOM', 'flow_tags': ['chatbot_flow']},
         {'block_name': 'bye', 'condition_events_indices': [], 'start_checkpoints': ['STORY_START'],
          'end_checkpoints': [],
          'events': [{'name': '...', 'type': 'action'}, {'name': 'bye', 'type': 'user'},
                     {'name': 'utter_bye', 'type': 'action'}], 'user': 'integ1@gmail.com',
-         'status': True, 'template_type': 'Q&A',  'tag': 'chatbot_flow',},
+         'status': True, 'template_type': 'Q&A',  'flow_tags': ['chatbot_flow']},
         {'block_name': 'greet', 'condition_events_indices': [], 'start_checkpoints': ['STORY_START'],
          'end_checkpoints': [],
          'events': [{'name': '...', 'type': 'action'}, {'name': 'greet', 'type': 'user'},
                     {'name': 'utter_greet', 'type': 'action'}],
-         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'Q&A',  'tag': 'chatbot_flow'}
+         'user': 'integ1@gmail.com', 'status': True, 'template_type': 'Q&A',  'flow_tags': ['chatbot_flow']}
     ]
 
     utterances = Utterances.objects(bot=bot_id)
