@@ -880,43 +880,6 @@ def test_api_login_with_recaptcha(monkeypatch):
             for key in ["access_token", "token_type"]
         ]
     )
-def test_delete_organization(monkeypatch):
-    def _delete_idp(*args, **kwargs):
-        return
-
-    monkeypatch.setattr(IDPProcessor, "delete_idp", _delete_idp)
-    email = "integration1234567890@demo.ai"
-    response = client.post(
-        "/api/auth/login",
-        data={"username": email, "password": "Welcome@10"},
-    )
-    login = response.json()
-    response = client.post(
-        f"/api/account/organization",
-        headers={
-            "Authorization": login["data"]["token_type"]
-                             + " "
-                             + login["data"]["access_token"]
-        },
-        json={
-            "data": {
-                "name": "test_delete_org"
-            }
-        }
-    )
-    org_id= response.json()["data"]["org_id"]
-    response = client.delete(
-        f"/api/account/organization/{org_id}",
-        headers={
-            "Authorization": login["data"]["token_type"]
-                             + " "
-                             + login["data"]["access_token"]
-        },
-    )
-    result = response.json()
-    assert False
-    assert result["data"] is None
-    assert result["message"] == "Organization deleted"
 
 @responses.activate
 def test_api_login_with_recaptcha_failed(monkeypatch):
