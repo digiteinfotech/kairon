@@ -687,7 +687,9 @@ class MultiflowStories(Auditlog):
         default=TemplateType.CUSTOM.value,
         choices=[template.value for template in TemplateType],
     )
-    tag = StringField(default=FlowTagType.chatbot_flow.value, choices=[flow_tag.value for flow_tag in FlowTagType])
+
+    flow_tags = ListField(StringField(), default=[FlowTagType.chatbot_flow.value])
+
 
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "block_name")]}]}
@@ -725,7 +727,7 @@ class Rules(Auditlog):
         default=TemplateType.CUSTOM.value,
         choices=[template.value for template in TemplateType],
     )
-    tag = StringField(default=FlowTagType.chatbot_flow.value, choices=[flow_tag.value for flow_tag in FlowTagType])
+    flow_tags = ListField(StringField(), default=[FlowTagType.chatbot_flow.value])
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "block_name")]}]}
 

@@ -104,7 +104,7 @@ from kairon.shared.models import (
     StoryStepType,
     HttpContentType,
     StoryType,
-    LlmPromptSource, CognitionDataType,
+    LlmPromptSource, CognitionDataType, FlowTagType,
 )
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
@@ -840,18 +840,19 @@ class MongoProcessor:
         )
         Utility.hard_delete_document([Actions], bot=bot, type=None, user=user)
 
-    def load_domain(self, bot: Text) -> Domain:
+    def load_domain(self, bot: Text, story_graphs: list[StoryGraph] = None ) -> Domain:
         """
         loads domain data for training
 
         :param bot: bot id
+        :param story_graphs (optional)
         :return: dict of Domain objects
         """
         intent_properties = self.__prepare_training_intents_and_properties(bot)
 
         domain_dict = {
             DOMAIN.INTENTS.value: intent_properties,
-            DOMAIN.ACTIONS.value: self.__prepare_training_actions(bot),
+            DOMAIN.ACTIONS.value: self.__prepare_training_actions(bot, story_graphs),
             DOMAIN.SLOTS.value: self.__prepare_training_slots(bot),
             DOMAIN.SESSION_CONFIG.value: self.__prepare_training_session_config(bot),
             DOMAIN.RESPONSES.value: self.__prepare_training_responses(bot),
@@ -1474,9 +1475,24 @@ class MongoProcessor:
 
         return actions_list
 
-    def __prepare_training_actions(self, bot: Text):
+    def __prepare_training_actions(self, bot: Text, story_graphs: list[StoryGraph] = None)-> list[str]:
         actions = self.fetch_actions(bot)
-        return actions
+        if not story_graphs:
+            return actions
+
+        required_actions =MongoProcessor.extract_action_names_from_story_graph(story_graphs)
+        return [action for action in actions if action in required_actions]
+
+
+    @staticmethod
+    def extract_action_names_from_story_graph(story_graphs: list[StoryGraph]) -> list:
+        action_names = set()
+        for story_graph in story_graphs:
+            for step in story_graph.story_steps:
+                for event in step.events:
+                    if isinstance(event, ActionExecuted):
+                        action_names.add(event.action_name)
+        return list(action_names)
 
     def __extract_session_config(
             self, session_config: SessionConfig, bot: Text, user: Text
@@ -2100,6 +2116,8 @@ class MongoProcessor:
     def __prepare_training_multiflow_story_step(self, bot: Text):
         flows = {StoryType.story.value: StoryStep, StoryType.rule.value: RuleStep}
         for story in MultiflowStories.objects(bot=bot, status=True):
+            if FlowTagType.chatbot_flow.value not in story.flow_tags:
+                continue
             events = story.to_mongo().to_dict()["events"]
             metadata = (
                 story.to_mongo().to_dict()["metadata"] if story["metadata"] else {}
@@ -3357,6 +3375,7 @@ class MongoProcessor:
         name = story["name"]
         steps = story["steps"]
         flowtype = story["type"]
+        flow_tags = story.get("flow_tags")
         if Utility.check_empty_string(name):
             raise AppException("path name cannot be empty or blank spaces")
 
@@ -3374,6 +3393,8 @@ class MongoProcessor:
         elif flowtype == "RULE":
             data_class = Rules
             data_object = Rules()
+            if flow_tags:
+                data_object.flow_tags = flow_tags
             exception_message_name = "Rule"
         else:
             raise AppException("Invalid type")
@@ -3431,6 +3452,7 @@ class MongoProcessor:
         name = story["name"]
         steps = story["steps"]
         metadata = story.get("metadata")
+        flow_tags = story.get("flow_tags")
 
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
@@ -3461,6 +3483,8 @@ class MongoProcessor:
         story_obj.bot = bot
         story_obj.user = user
         story_obj.start_checkpoints = [STORY_START]
+        if flow_tags:
+            story_obj.flow_tags = flow_tags
 
         id = story_obj.save().id.__str__()
 
@@ -3494,6 +3518,8 @@ class MongoProcessor:
         name = story["name"]
         steps = story["steps"]
         flowtype = story["type"]
+        flow_tags = story.get("flow_tags")
+
         if Utility.check_empty_string(name):
             raise AppException("path name cannot be empty or blank spaces")
 
@@ -3534,6 +3560,8 @@ class MongoProcessor:
             exp_message="Flow already exists!",
         )
         data_object["block_name"] = name
+        if flow_tags and flowtype == "RULE":
+            data_object["flow_tags"] = flow_tags
         story_id = data_object.save().id.__str__()
         return story_id
 
@@ -3552,6 +3580,8 @@ class MongoProcessor:
         name = story["name"]
         steps = story["steps"]
         metadata = story.get("metadata")
+        flow_tags = story.get("flow_tags")
+
 
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
@@ -3582,6 +3612,8 @@ class MongoProcessor:
             story_obj.events = events
             story_obj.metadata = path_metadata
             story_obj.block_name = name
+            if flow_tags:
+                story_obj.flow_tags = flow_tags
             story_id = story_obj.save().id.__str__()
             return story_id
         except DoesNotExist:
@@ -3653,6 +3685,7 @@ class MongoProcessor:
                 final_data["type"] = StoryType.story.value
             elif isinstance(value, Rules):
                 final_data["type"] = StoryType.rule.value
+                final_data['flow_tags'] = item.get('flow_tags', [])
             else:
                 continue
             steps = []
@@ -3746,6 +3779,7 @@ class MongoProcessor:
             final_data["_id"] = item["_id"].__str__()
             final_data["name"] = block_name
             final_data["steps"] = events
+            final_data['flow_tags'] = item.get('flow_tags', [])
             yield final_data
 
     def get_utterance_from_intent(self, intent: Text, bot: Text):
@@ -5022,7 +5056,7 @@ class MongoProcessor:
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None, user=user)
 
     def __get_rules(self, bot: Text):
-        for rule in Rules.objects(bot=bot, status=True):
+        for rule in Rules.objects(bot=bot, status=True, flow_tags__in=[FlowTagType.chatbot_flow.value]):
             rule_events = list(
                 self.__prepare_training_story_events(
                     rule.events, datetime.now().timestamp(), bot
@@ -5435,6 +5469,9 @@ class MongoProcessor:
         @param which: which training data is to be written
         @return:
         """
+
+        stories_graphs = []
+
         if not bot_data_home_dir:
             bot_data_home_dir = os.path.join("training_data", bot, str(uuid.uuid4()))
         data_path = os.path.join(bot_data_home_dir, DEFAULT_DATA_PATH)
@@ -5446,18 +5483,10 @@ class MongoProcessor:
             nlu_as_str = nlu.nlu_as_yaml().encode()
             Utility.write_to_file(nlu_path, nlu_as_str)
 
-        if "domain" in which:
-            domain_path = os.path.join(bot_data_home_dir, DEFAULT_DOMAIN_PATH)
-            domain = self.load_domain(bot)
-            if isinstance(domain, Domain):
-                domain_as_str = domain.as_yaml().encode()
-                Utility.write_to_file(domain_path, domain_as_str)
-            elif isinstance(domain, Dict):
-                yaml.safe_dump(domain, open(domain_path, "w"))
-
         if "stories" in which:
             stories_path = os.path.join(data_path, "stories.yml")
             stories = self.load_stories(bot)
+            stories_graphs.append(stories)
             YAMLStoryWriter().dump(stories_path, stories.story_steps)
 
         if "config" in which:
@@ -5469,7 +5498,18 @@ class MongoProcessor:
         if "rules" in which:
             rules_path = os.path.join(data_path, "rules.yml")
             rules = self.get_rules_for_training(bot)
+            stories_graphs.append(rules)
             YAMLStoryWriter().dump(rules_path, rules.story_steps)
+
+        if "domain" in which:
+            domain_path = os.path.join(bot_data_home_dir, DEFAULT_DOMAIN_PATH)
+            domain = self.load_domain(bot, stories_graphs)
+            if isinstance(domain, Domain):
+                domain_as_str = domain.as_yaml().encode()
+                Utility.write_to_file(domain_path, domain_as_str)
+            elif isinstance(domain, Dict):
+                yaml.safe_dump(domain, open(domain_path, "w"))
+
 
     def add_default_fallback_config(self, config_obj: dict, bot: Text, user: Text, default_fallback_data: bool = False):
         idx = next(
@@ -8890,28 +8930,6 @@ class MongoProcessor:
 
         return file_path
 
-    @staticmethod
-    def change_flow_tag(bot: str, flow_name: str, flow_type: str, tag: str):
-
-        if Utility.check_empty_string(flow_name):
-            raise AppException("Name cannot be empty or blank spaces")
-
-        data_collection = None
-        if flow_type == 'rule':
-            data_collection = Rules
-        elif flow_type == 'multiflow':
-            data_collection = MultiflowStories
-
-        if not data_collection:
-            raise AppException(f"Invalid flow_type [{flow_type}]. Allowed flow types are 'rule' and 'multiflow'.")
-
-        flow = data_collection.objects(bot=bot, block_name=flow_name).first()
-        if not flow:
-            raise AppException(f"{flow_type} {flow_name} doesn't exist")
-
-        flow.tag = tag
-
-        flow.save()
 
     @staticmethod
     def get_flows_by_tag(bot: str, tag: str):
@@ -8920,11 +8938,11 @@ class MongoProcessor:
             'multiflow': []
         }
 
-        rules = Rules.objects(bot=bot, tag=tag)
+        rules = Rules.objects(bot=bot, flow_tags__in=[tag])
         for rule in rules:
             data['rule'].append(rule.block_name)
 
-        multiflows = MultiflowStories.objects(bot=bot, tag=tag)
+        multiflows = MultiflowStories.objects(bot=bot, flow_tags__in=[tag])
         for multiflow in multiflows:
             data['multiflow'].append(multiflow.block_name)
 
