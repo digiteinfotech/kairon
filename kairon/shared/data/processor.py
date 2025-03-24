@@ -2116,7 +2116,7 @@ class MongoProcessor:
     def __prepare_training_multiflow_story_step(self, bot: Text):
         flows = {StoryType.story.value: StoryStep, StoryType.rule.value: RuleStep}
         for story in MultiflowStories.objects(bot=bot, status=True):
-            if FlowTagType.agentic_flow.value in story.flow_tags:
+            if FlowTagType.chatbot_flow.value not in story.flow_tags:
                 continue
             events = story.to_mongo().to_dict()["events"]
             metadata = (
@@ -5056,7 +5056,7 @@ class MongoProcessor:
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None, user=user)
 
     def __get_rules(self, bot: Text):
-        for rule in Rules.objects(bot=bot, status=True, flow_tags__nin=[FlowTagType.agentic_flow.value]):
+        for rule in Rules.objects(bot=bot, status=True, flow_tags__in=[FlowTagType.chatbot_flow.value]):
             rule_events = list(
                 self.__prepare_training_story_events(
                     rule.events, datetime.now().timestamp(), bot
