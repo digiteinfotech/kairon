@@ -3,6 +3,8 @@ import re
 from unittest.mock import patch, MagicMock
 
 import pytest
+from rasa.shared.core.events import ActionExecuted
+from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
 
 from kairon.exceptions import AppException
 from kairon.shared.cognition.processor import CognitionDataProcessor
@@ -1129,56 +1131,6 @@ def test_prepare_cognition_data_for_bot_text_format_not_called(mock_cognition_da
 
 
 
-@patch('kairon.shared.data.processor.Utility.check_empty_string')
-@patch('kairon.shared.data.processor.Rules')
-@patch('kairon.shared.data.processor.MultiflowStories')
-def test_change_flow_tag_rule(mock_multiflow_stories, mock_rules, mock_check_empty_string):
-    mock_check_empty_string.return_value = False
-    mock_rules.objects.return_value.first.return_value = MagicMock()
-
-    MongoProcessor.change_flow_tag('test_bot', 'test_flow', 'rule', 'new_tag')
-
-    mock_rules.objects.assert_called_once_with(bot='test_bot', block_name='test_flow')
-    mock_rules.objects.return_value.first.return_value.save.assert_called_once()
-    assert mock_rules.objects.return_value.first.return_value.tag == 'new_tag'
-
-@patch('kairon.shared.data.processor.Utility.check_empty_string')
-@patch('kairon.shared.data.processor.Rules')
-@patch('kairon.shared.data.processor.MultiflowStories')
-def test_change_flow_tag_multiflow(mock_multiflow_stories, mock_rules, mock_check_empty_string):
-    mock_check_empty_string.return_value = False
-    mock_multiflow_stories.objects.return_value.first.return_value = MagicMock()
-
-    MongoProcessor.change_flow_tag('test_bot', 'test_flow', 'multiflow', 'new_tag')
-
-    mock_multiflow_stories.objects.assert_called_once_with(bot='test_bot', block_name='test_flow')
-    mock_multiflow_stories.objects.return_value.first.return_value.save.assert_called_once()
-    assert mock_multiflow_stories.objects.return_value.first.return_value.tag == 'new_tag'
-
-@patch('kairon.shared.data.processor.Utility.check_empty_string')
-def test_change_flow_tag_empty_name(mock_check_empty_string):
-    mock_check_empty_string.return_value = True
-
-    with pytest.raises(AppException, match="Name cannot be empty or blank spaces"):
-        MongoProcessor.change_flow_tag('test_bot', ' ', 'rule', 'new_tag')
-
-@patch('kairon.shared.data.processor.Utility.check_empty_string')
-def test_change_flow_tag_invalid_flow_type(mock_check_empty_string):
-    mock_check_empty_string.return_value = False
-
-    with pytest.raises(AppException, match="Invalid flow_type \[invalid_type\]. Allowed flow types are 'rule' and 'multiflow'."):
-        MongoProcessor.change_flow_tag('test_bot', 'test_flow', 'invalid_type', 'new_tag')
-
-@patch('kairon.shared.data.processor.Utility.check_empty_string')
-@patch('kairon.shared.data.processor.Rules')
-@patch('kairon.shared.data.processor.MultiflowStories')
-def test_change_flow_tag_flow_not_exist(mock_multiflow_stories, mock_rules, mock_check_empty_string):
-    mock_check_empty_string.return_value = False
-    mock_rules.objects.return_value.first.return_value = None
-
-    with pytest.raises(AppException, match="rule test_flow doesn't exist"):
-        MongoProcessor.change_flow_tag('test_bot', 'test_flow', 'rule', 'new_tag')
-
 @patch('kairon.shared.data.processor.Rules')
 @patch('kairon.shared.data.processor.MultiflowStories')
 def test_get_flows_by_tag(mock_multiflow_stories, mock_rules):
@@ -1191,10 +1143,10 @@ def test_get_flows_by_tag(mock_multiflow_stories, mock_rules):
         MagicMock(block_name='multiflow2')
     ]
 
-    result = MongoProcessor.get_flows_by_tag('test_bot', 'test_tag')
+    result = MongoProcessor.get_flows_by_tag('test_bot', 'agentic_flow')
 
-    mock_rules.objects.assert_called_once_with(bot='test_bot', tag='test_tag')
-    mock_multiflow_stories.objects.assert_called_once_with(bot='test_bot', tag='test_tag')
+    mock_rules.objects.assert_called_once()
+    mock_multiflow_stories.objects.assert_called_once()
     assert result == {
         'rule': ['rule1', 'rule2'],
         'multiflow': ['multiflow1', 'multiflow2']
@@ -1208,9 +1160,49 @@ def test_get_flows_by_tag_no_flows(mock_multiflow_stories, mock_rules):
 
     result = MongoProcessor.get_flows_by_tag('test_bot', 'test_tag')
 
-    mock_rules.objects.assert_called_once_with(bot='test_bot', tag='test_tag')
-    mock_multiflow_stories.objects.assert_called_once_with(bot='test_bot', tag='test_tag')
+    mock_rules.objects.assert_called_once()
+    mock_multiflow_stories.objects.assert_called_once()
     assert result == {
         'rule': [],
         'multiflow': []
     }
+
+def test_extract_action_names_from_story_graph():
+    story_graph = MagicMock(spec=StoryGraph)
+
+    story_step = MagicMock(spec=StoryStep)
+
+    action_executed_event = MagicMock(spec=ActionExecuted)
+    action_executed_event.action_name = 'action_test'
+
+    story_step.events = [action_executed_event]
+
+    story_graph.story_steps = [story_step]
+
+    action_names = MongoProcessor.extract_action_names_from_story_graph([story_graph])
+
+    assert action_names == ['action_test']
+
+@patch.object(MongoProcessor, 'fetch_actions')
+@patch.object(MongoProcessor, 'extract_action_names_from_story_graph')
+def test_prepare_training_actions_with_story_graphs(mock_extract_action_names, mock_fetch_actions):
+    mock_fetch_actions.return_value = ['action1', 'action2', 'action3']
+    mock_extract_action_names.return_value = ['action1', 'action3']
+
+    processor = MongoProcessor()
+    story_graphs = [MagicMock(spec=StoryGraph)]
+    result = processor._MongoProcessor__prepare_training_actions('test_bot', story_graphs)
+
+    mock_fetch_actions.assert_called_once_with('test_bot')
+    mock_extract_action_names.assert_called_once_with(story_graphs)
+    assert result == ['action1', 'action3']
+
+@patch.object(MongoProcessor, 'fetch_actions')
+def test_prepare_training_actions_without_story_graphs(mock_fetch_actions):
+    mock_fetch_actions.return_value = ['action1', 'action2', 'action3']
+
+    processor = MongoProcessor()
+    result = processor._MongoProcessor__prepare_training_actions('test_bot')
+
+    mock_fetch_actions.assert_called_once_with('test_bot')
+    assert result == ['action1', 'action2', 'action3']

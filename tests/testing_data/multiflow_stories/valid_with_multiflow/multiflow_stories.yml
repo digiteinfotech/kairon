@@ -111,12 +111,12 @@ multiflow_story:
         node_id: "10"
         component_id: "62N9BCfSKVYOKoSixGhWDRHC"
       connections:
-        - name: form_image
+        - name: validate_form_image
           type: FORM_ACTION
           node_id: "12"
           component_id: "62ib6tlbgICth8vBSwSYFvbS"
     - step:
-        name: form_image
+        name: validate_form_image
         type: FORM_ACTION
         node_id: "12"
         component_id: "62ib6tlbgICth8vBSwSYFvbS"

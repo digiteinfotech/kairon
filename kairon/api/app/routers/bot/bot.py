@@ -1687,22 +1687,7 @@ async def trigger_mail_channel_read(
     return Response(message="mail channel read triggered")
 
 
-@router.post("/change_flow_tag", response_model=Response)
-async def change_flow_tag(
-        request: FlowTagChangeRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    change tag or rule or multiflow
-    """
-    data = request.dict()
-    mongo_processor.change_flow_tag(
-        bot = current_user.get_bot(),
-        flow_name=data['name'],
-        tag=data['tag'],
-        flow_type=data['type']
-    )
-    return Response(message=f"Flow tag changed to '{data['tag']}'")
+
 
 @router.get("/flow_tag/{tag}", response_model=Response)
 async def get_flow_tag(

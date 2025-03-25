@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import ScheduleActionType
 from kairon.shared.data.constant import (
     EVENT_STATUS,
     SLOT_MAPPING_TYPE,
@@ -36,7 +37,7 @@ from kairon.shared.models import (
     LlmPromptSource,
     LlmPromptType,
     CognitionDataType,
-    CognitionMetadataType,
+    CognitionMetadataType, FlowTagType,
 )
 
 
@@ -552,6 +553,8 @@ class MultiFlowStoryRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     steps: List[StoryStepData]
     metadata: List[StoryMetadata] = None
+    flow_tags: List[str] = [FlowTagType.chatbot_flow.value]
+
 
     @validator("steps")
     def validate_request_method(cls, v, values, **kwargs):
@@ -565,6 +568,7 @@ class StoryRequest(BaseModel):
     type: StoryType
     steps: List[StoryStepRequest]
     template_type: TemplateType = None
+    flow_tags: List[str] = [FlowTagType.chatbot_flow.value]
 
     class Config:
         use_enum_values = True
@@ -1347,6 +1351,7 @@ class ScheduleActionRequest(BaseModel):
     response_text: Optional[str]
     params_list: Optional[List[HttpActionParameters]]
     dispatch_bot_response: bool = True
+    schedule_action_type : str = ScheduleActionType.PYSCRIPT.value
 
     @root_validator
     def validate_name(cls, values):

@@ -32,7 +32,6 @@ def train_model_for_bot(bot: str):
     if not nlu.training_examples:
         raise AppException("Training data does not exists!")
     try:
-        domain = processor.load_domain(bot)
         stories = processor.load_stories(bot)
         multiflow_stories = processor.load_linear_flows_from_multiflow_stories(bot)
         stories = stories.merge(multiflow_stories[0])
@@ -45,6 +44,9 @@ def train_model_for_bot(bot: str):
 
         rules = processor.get_rules_for_training(bot)
         rules = rules.merge(multiflow_stories[1])
+
+        domain = processor.load_domain(bot, [stories, rules])
+
 
         output = os.path.join(DEFAULT_MODELS_PATH, bot)
 

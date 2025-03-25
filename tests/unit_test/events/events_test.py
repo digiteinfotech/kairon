@@ -516,6 +516,7 @@ class TestEventExecution:
         Utility.make_dirs(nlu_path)
         shutil.copy2('tests/testing_data/multiflow_stories/valid_with_multiflow/data/nlu.yml', nlu_path)
         shutil.copy2('tests/testing_data/multiflow_stories/valid_with_multiflow/multiflow_stories.yml', test_data_path)
+        shutil.copy2('tests/testing_data/multiflow_stories/valid_with_multiflow/domain.yml', test_data_path)
         nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(
             get_training_data('tests/testing_data/multiflow_stories/valid_with_multiflow'))
         mongo_processor = MongoProcessor()
@@ -535,7 +536,7 @@ class TestEventExecution:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user, files_received=["multiflow_stories"])
+        DataImporterLogProcessor.add_log(bot, user, files_received=["multiflow_stories", "domain"])
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -567,6 +568,7 @@ class TestEventExecution:
         data_path = os.path.join(test_data_path, 'data')
         Utility.make_dirs(data_path)
         shutil.copy2('tests/testing_data/validator/valid/data/stories.yml', data_path)
+        shutil.copy2('tests/testing_data/validator/valid/domain.yml', test_data_path)
         nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
@@ -583,9 +585,10 @@ class TestEventExecution:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user, files_received=["stories"])
+        DataImporterLogProcessor.add_log(bot, user, files_received=["stories", "domain"])
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
+        print(logs)
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
