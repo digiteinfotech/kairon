@@ -1,6 +1,8 @@
 import pickle
 from calendar import timegm
 from datetime import datetime, date
+
+import requests
 from requests import Response
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -14,8 +16,6 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
 from bson import Binary
 from pymongo import MongoClient
-from AccessControl.ZopeGuards import _safe_globals
-from RestrictedPython import compile_restricted
 from RestrictedPython.Guards import safer_getattr
 import orjson as json
 from tzlocal import get_localzone
@@ -30,6 +30,8 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.cognition.data_objects import CollectionData
+from kairon.shared.concurrency.orchestrator import ActorOrchestrator
+from kairon.shared.constants import ActorType
 
 allow_module("datetime")
 allow_module("time")
@@ -251,27 +253,24 @@ class CallbackUtility:
 
         bot = predefined_objects.get("bot")
 
-        global_safe = _safe_globals
-        global_safe['_getattr_'] = safer_getattr
-        global_safe['json'] = json
-        global_safe['add_schedule_job'] = partial(CallbackUtility.add_schedule_job, bot=bot)
-        global_safe['delete_schedule_job'] = partial(CallbackUtility.delete_schedule_job, bot=bot)
-        global_safe['send_email'] = partial(CallbackUtility.send_email, bot=bot)
-        global_safe['add_data'] = partial(CallbackUtility.add_data, bot=bot)
-        global_safe['get_data'] = partial(CallbackUtility.get_data, bot=bot)
-        global_safe['delete_data'] = partial(CallbackUtility.delete_data, bot=bot)
-        global_safe['update_data'] = partial(CallbackUtility.update_data, bot=bot)
-        global_safe["generate_id"] = CallbackUtility.generate_id
+        # global_safe = _safe_globals
+        predefined_objects['_getattr_'] = safer_getattr
+        predefined_objects['requests']=requests
+        predefined_objects['json'] = json
+        predefined_objects['add_schedule_job'] = partial(CallbackUtility.add_schedule_job, bot=bot)
+        predefined_objects['delete_schedule_job'] = partial(CallbackUtility.delete_schedule_job, bot=bot)
+        predefined_objects['send_email'] = partial(CallbackUtility.send_email, bot=bot)
+        predefined_objects['add_data'] = partial(CallbackUtility.add_data, bot=bot)
+        predefined_objects['get_data'] = partial(CallbackUtility.get_data, bot=bot)
+        predefined_objects['delete_data'] = partial(CallbackUtility.delete_data, bot=bot)
+        predefined_objects['update_data'] = partial(CallbackUtility.update_data, bot=bot)
+        predefined_objects["generate_id"] = CallbackUtility.generate_id
 
-        byte_code = compile_restricted(
-            source_code,
-            filename='<inline code>',
-            mode='exec',
-            flags=0,
+        script_variables = ActorOrchestrator.run(
+            ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
+            predefined_objects=predefined_objects
         )
-        exec(byte_code, global_safe, predefined_objects)
-        filtered_locals = CallbackUtility.perform_cleanup(predefined_objects)
-        return filtered_locals
+        return script_variables
 
     @staticmethod
     def pyscript_handler(event, context):
@@ -319,7 +318,7 @@ class CallbackUtility:
             yield final_data
 
     @staticmethod
-    def get_data(collection_name: str, user: str, filter: dict, bot: Text = None):
+    def get_data(collection_name: str, user: str, data_filter: dict, bot: Text = None):
         if not bot:
             raise Exception("Missing bot id")
 
@@ -327,7 +326,7 @@ class CallbackUtility:
 
         query = {"bot": bot, "collection_name": collection_name}
 
-        query.update({f"data__{key}": value for key, value in filter.items()})
+        query.update({f"data__{key}": value for key, value in data_filter.items()})
         data = list(CallbackUtility.fetch_collection_data(query))
         return {"data": data}
 
