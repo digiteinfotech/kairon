@@ -1,16 +1,23 @@
 import os
 import re
 import textwrap
+from datetime import datetime
+from unittest.mock import patch, MagicMock
+from urllib.parse import urljoin
 
+import litellm
 import pytest
 import responses
 from mongoengine import connect
 
-from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
+from kairon.shared.concurrency.actors.utils import PyscriptUtility
+from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.utils import Utility
+
 
 
 class TestActors:
@@ -322,3 +329,146 @@ class TestActors:
 
         value = ActorOrchestrator.run(ActorType.callable_runner, add, a=1, b=4)
         assert value == 5
+
+
+def test_srtptime():
+    date_string = "2025-03-26"
+    formate = "%Y-%m-%d"
+    expected_date = datetime(2025, 3, 26)
+
+    with patch("datetime.datetime") as mock_datetime:
+        mock_datetime.strptime.return_value = expected_date
+        result = PyscriptUtility.srtptime(date_string, formate)
+
+    assert result == expected_date
+
+
+def test_srtftime():
+    date_obj = datetime(2025, 3, 26)
+    formate = "%Y-%m-%d"
+    expected_string = "2025-03-26"
+
+    result = PyscriptUtility.srtftime(date_obj, formate)
+
+    assert result == expected_string
+
+
+def test_url_parse_quote_plus():
+    input_string = "hello world!"
+    expected_output = "hello+world%21"
+
+    with patch("urllib.parse.quote_plus", return_value=expected_output) as mock_quote_plus:
+        result = PyscriptUtility.url_parse_quote_plus(input_string)
+
+    assert result == expected_output
+    mock_quote_plus.assert_called_once_with(input_string, '', None, None)
+
+
+def test_get_embedding():
+    texts = ["Hello world!"]
+    user = "test_user"
+    bot = "test_bot"
+    invocation = "test_invocation"
+    mock_api_key = "mocked_api_key"
+    mock_embedding_result = {"data": [{"embedding": [0.1, 0.2, 0.3]}]}
+
+    with patch("tiktoken.get_encoding") as mock_get_encoding, \
+         patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}) as mock_get_llm_secret, \
+         patch("litellm.embedding", return_value=mock_embedding_result) as mock_litellm:
+
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.encode.return_value = [1, 2, 3]
+        mock_tokenizer.decode.return_value = texts[0]
+        mock_get_encoding.return_value = mock_tokenizer
+
+        result = PyscriptUtility.get_embedding(texts, user, bot, invocation)
+        assert result == [[0.1, 0.2, 0.3]]
+
+
+def test_perform_operation():
+    data = {"embedding_search": "test message", "payload_search": {"filter": "some_filter"}}
+    user = "test_user"
+    kwargs = {"collection_name": "test_collection"}
+    mock_vector_db_url = "http://mocked-vector-db.com"
+    mock_embedding = [0.1, 0.2, 0.3]
+    mock_response_data = {"result": "success"}
+
+    with patch.dict(Utility.environment, {"vector": {"db": mock_vector_db_url}}), \
+            patch.object(PyscriptUtility, "get_embedding", return_value=mock_embedding) as mock_get_embedding, \
+            patch("requests.post") as mock_post:
+        mock_post.return_value.json.return_value = mock_response_data
+
+        result = PyscriptUtility.perform_operation(data, user, **kwargs)
+
+        expected_url = urljoin(mock_vector_db_url, f"/collections/{kwargs['collection_name']}/points/scroll")
+        expected_request = {
+            "query": mock_embedding,
+            "filter": "some_filter",
+            "with_payload": True,
+            "limit": 10
+        }
+        mock_get_embedding.assert_called_once_with("test message", user, invocation='db_action_qdrant')
+        mock_post.assert_called_once_with(expected_url, json=expected_request)
+        assert result == mock_response_data
+
+
+def test_perform_operation_embedding_search():
+    mock_vector_db_url = 'http://localhost:6333'
+    mock_embedding = [0.1, 0.2, 0.3]
+    mock_response_data = {"mocked": "response"}
+
+    data = {"embedding_search": "test query"}
+    user = "test_user"
+    kwargs = {"collection_name": "test_collection"}
+
+    with patch.object(PyscriptUtility, "get_embedding", return_value=mock_embedding) as mock_get_embedding, \
+         patch("requests.post") as mock_post:
+
+        mock_post.return_value.json.return_value = mock_response_data
+
+        # Directly pass the URL instead of using Utility.environment
+        result = PyscriptUtility.perform_operation(data, user, vector_db_url=mock_vector_db_url, **kwargs)
+
+        expected_url = urljoin(mock_vector_db_url, f"/collections/{kwargs['collection_name']}/points/scroll")
+        expected_request = {
+            "query": mock_embedding,
+            "with_payload": True,
+            "limit": 10
+        }
+
+        mock_get_embedding.assert_called_once_with('test query', 'test_user', invocation='db_action_qdrant', vector_db_url=mock_vector_db_url)
+        mock_post.assert_called_once_with(expected_url, json=expected_request)
+        assert result == mock_response_data
+
+def test_perform_operation_payload_search():
+    mock_vector_db_url = 'http://localhost:6333'
+    mock_response_data = {"mocked": "response"}
+
+    data = {"payload_search": {"filter": {"field": "value"}}}
+    user = "test_user"
+    kwargs = {"collection_name": "test_collection"}
+
+    with patch("requests.post") as mock_post:
+        mock_post.return_value.json.return_value = mock_response_data
+
+        # Directly pass the URL instead of using Utility.environment
+        result = PyscriptUtility.perform_operation(data, user, vector_db_url=mock_vector_db_url, **kwargs)
+
+        expected_url = urljoin(mock_vector_db_url, f"/collections/{kwargs['collection_name']}/points/scroll")
+        expected_request = {
+            "filter": {"field": "value"},
+            "with_payload": True,
+            "limit": 10
+        }
+
+        mock_post.assert_called_once_with(expected_url, json=expected_request)
+        assert result == mock_response_data
+
+def test_perform_operation_no_operation():
+    data = {}  # No valid search parameters
+    user = "test_user"
+    kwargs = {"collection_name": "test_collection"}
+
+    with pytest.raises(Exception) as context:
+        PyscriptUtility.perform_operation(data, user, **kwargs)
+    assert str(context.value) == "No Operation to perform"
