@@ -15251,7 +15251,7 @@ class TestMongoProcessor:
             story_dict = {'name': "Invalid@Name!", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
             processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
-    def test_update_invalid_multiflow_story_name(self):
+    def test_update_valid_multiflow_story_name(self):
         processor = MongoProcessor()
         events = [
             {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
@@ -15506,7 +15506,7 @@ class TestMongoProcessor:
             story_dict = {'name': "Invalid@Name!", 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
             processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
 
-    def test_update_invalid_complex_story_name(self):
+    def test_update_valid_complex_story_name(self):
         processor = MongoProcessor()
         events = [
             {"name": "greeting", "type": "INTENT"},
