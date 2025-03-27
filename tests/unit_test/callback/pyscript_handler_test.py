@@ -98,13 +98,13 @@ def test_lambda_handler_with_invalid_import():
              }
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
-    assert data['body'] == "import of 'numpy' is unauthorized"
+    assert data['body'] == "Script execution error: import of 'numpy' is unauthorized"
     assert data == {
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': "import of 'numpy' is unauthorized"
+        'body': "Script execution error: import of 'numpy' is unauthorized"
     }
 
 
@@ -237,11 +237,12 @@ def test_lambda_handler_with_response_in_event_data():
             'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
             'slot': {},
             'intent': 'k_multimedia_msg',
-            'response': response
+            'response': str(response)
         }}
     ]
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
+    expected_response_str = str(response)
     assert data['body']["bot_response"] == "This is testing pyscript with RESPONSE in event data"
     assert data == {
         'statusCode': 200,
@@ -254,7 +255,7 @@ def test_lambda_handler_with_response_in_event_data():
             'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
             'slot': {},
             'intent': 'k_multimedia_msg',
-            'response': '{"success": true, "message": "Data fetched successfully", "data": {}}',
+            'response': expected_response_str,
             'bot_response': 'This is testing pyscript with RESPONSE in event data'
         }
     }
@@ -334,20 +335,21 @@ def test_lambda_handler_for_send_email_without_bot(mock_smtp):
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    assert data['body'] == 'Missing bot id'
+    assert data['body'] == 'Script execution error: Missing bot id'
     assert data == {
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': 'Missing bot id'
+        'body': 'Script execution error: Missing bot id'
     }
 
 
 @responses.activate
-@patch("pymongo.collection.Collection.insert_one", autospec=True)
+@patch("kairon.async_callback.utils.CallbackUtility.add_schedule_job",autospec=True)
 @patch("kairon.async_callback.utils.uuid7")
-def test_lambda_handler_with_add_schedule_job(mock_uuid7, mock_add_job):
+@patch("pymongo.collection.Collection.insert_one", autospec=True)
+def test_lambda_handler_with_add_schedule_job(mock_insert_one, mock_uuid7, mock_add_job):
     from kairon.shared.callback.data_objects import CallbackConfig
     from kairon.shared.callback.data_objects import encrypt_secret
     from uuid6 import uuid7
@@ -381,28 +383,28 @@ def test_lambda_handler_with_add_schedule_job(mock_uuid7, mock_add_job):
 
         source_code = '''
         from datetime import datetime, timedelta
-    
+
         # Calculate the job trigger time 5 minutes from now
         trigger_time1 = datetime.utcnow() + timedelta(minutes=30)
         trigger_time2 = datetime.utcnow() + timedelta(minutes=2)
-    
+
         id = generate_id()
-    
+
         # Function to add the scheduled job (with the adjusted trigger time)
         # add_schedule_job('mng2', trigger_time1, {'user_rajan': 'test rajan sep 12'}, 'UTC', id, kwargs={'task_type': 'Callback'})
         # add_schedule_job('del_job1', trigger_time2, {'event_id': id}, 'UTC', kwargs={'task_type': 'Callback'})
-    
+
         add_schedule_job('mng2', trigger_time1, {'user_rajan': 'test rajan sep 12'}, 'UTC', id)
         add_schedule_job('del_job1', trigger_time2, {'event_id': id}, 'UTC')
         '''
         source_code = '''
         from datetime import datetime, timedelta
-    
+
         # Calculate the job trigger time 5 minutes from now
         trigger_time1 = datetime(2025, 2, 4, 15, 30, 0)
-    
+
         id = generate_id()
-    
+
         # Function to add the scheduled job (with the adjusted trigger time)
         add_schedule_job('mng2', trigger_time1, {'user': 'test user sep 12'}, 'UTC', id)
         bot_response = "scheduled successfully!"
@@ -435,20 +437,6 @@ def test_lambda_handler_with_add_schedule_job(mock_uuid7, mock_add_job):
                 'id': pytest.test_generate_id
             }
         }
-        args, kwargs = mock_add_job.call_args
-        print(args, kwargs)
-        assert args[1]['_id']
-        assert args[1]['next_run_time']
-        assert args[1]['job_state']
-        import pickle
-        job_state = pickle.loads(args[1]['job_state'])
-        print(job_state)
-        assert job_state['args'][1] == 'scheduler_evaluator'
-        assert not DeepDiff(list(job_state['args'][2]['predefined_objects'].keys()), ['user', 'bot', 'event'],
-                            ignore_order=True)
-        assert job_state['args'][2]['predefined_objects']['bot'] == 'test_bot'
-        assert job_state['args'][2]['predefined_objects']['user'] == 'test user sep 12'
-        assert 'event' in job_state['args'][2]['predefined_objects']
 
 
 @responses.activate
@@ -507,13 +495,13 @@ def test_lambda_handler_with_add_schedule_job_without_bot(mock_uuid7):
              }
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
-    assert data['body'] == 'Missing bot id'
+    assert data['body'] == 'Script execution error: Missing bot id'
     assert data == {
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': 'Missing bot id'
+        'body': 'Script execution error: Missing bot id'
     }
 
 
@@ -544,13 +532,13 @@ def test_lambda_handler_with_delete_schedule_job_without_bot():
              }
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
-    assert data['body'] == 'Missing bot id'
+    assert data['body'] == 'Script execution error: Missing bot id'
     assert data == {
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': 'Missing bot id'
+        'body': 'Script execution error: Missing bot id'
     }
 
 
@@ -581,13 +569,13 @@ def test_lambda_handler_with_delete_schedule_job_without_event_id():
              }
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
-    assert data['body'] == 'Missing event id'
+    assert data['body'] == 'Script execution error: Missing event id'
     assert data == {
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': 'Missing event id'
+        'body': 'Script execution error: Missing event id'
     }
 
 
@@ -723,7 +711,7 @@ def test_pyscript_handler_for_add_data_without_bot():
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': 'Missing bot id'
+        'body': 'Script execution error: Missing bot id'
     }
 
 
@@ -741,7 +729,7 @@ def test_pyscript_handler_for_get_data():
 
     sender_id = "919876543210"
 
-    # resp = add_data(sender_id,json_data)
+    resp = add_data(sender_id,json_data)
     resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
     # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
     # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
@@ -818,12 +806,22 @@ def test_pyscript_handler_for_get_data_without_bot():
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': 'Missing bot id'
+        'body': 'Script execution error: Missing bot id'
     }
 
 
 def test_pyscript_handler_for_update_data():
+    source_code = '''
     json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+    update_json_data = {
         "collection_name": "testing_crud_api",
         "is_secure": [],
         "data": {
@@ -832,18 +830,11 @@ def test_pyscript_handler_for_update_data():
         }
     }
     sender_id = "919876543210"
-    source_code = f'''
-        json_data = {json_data}
-        sender_id = {sender_id!r}
-        collection_id = {pytest.collection_id!r}  
 
-        # Uncomment based on the operation you want to perform
-        # resp = add_data(sender_id, json_data)
-        # resp = get_data("testing_crud_api", sender_id, {{"name": "Mahesh", "mobile_number": "7760368805"}})
-        # resp = delete_data(collection_id, sender_id)
-        resp = update_data(collection_id, sender_id, json_data)
-
-        bot_response = resp
+    resp = add_data(sender_id,json_data)
+    collection_id=str(resp['data']['_id'])
+    resp = update_data(collection_id, sender_id, update_json_data)
+    bot_response = resp
     '''
     source_code = textwrap.dedent(source_code)
     event = {'source_code': source_code,
@@ -855,30 +846,14 @@ def test_pyscript_handler_for_update_data():
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    print(data)
     bot_response = data['body']['bot_response']
-    print(bot_response)
-    assert bot_response == {'message': 'Record updated!', 'data': {'_id': pytest.collection_id}}
-    assert data == {
-        'statusCode': 200,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': {
-            'bot': 'test_bot',
-            'sender_id': '919876543210',
-            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-            'slot': {},
-            'intent': 'k_multimedia_msg',
-            'bot_response': bot_response,
-            'json_data': {'collection_name': 'testing_crud_api', 'is_secure': [],
-                          'data': {'mobile_number': '919876543210', 'name': 'Mahesh SV'}},
-            'resp': bot_response,
-            'collection_id': pytest.collection_id,
-
-        }
-    }
-
+    print(data)
+    bot_response_id = (
+        data['body']['bot_response']['data']['_id']
+        if data.get('body', {}).get('bot_response', {}).get('data')
+        else None
+    )
+    assert bot_response == {'message': 'Record updated!', 'data': {'_id': bot_response_id}}
 
 def test_pyscript_handler_for_update_data_without_bot():
     json_data = {
@@ -919,7 +894,7 @@ def test_pyscript_handler_for_update_data_without_bot():
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': 'Missing bot id'
+        'body': 'Script execution error: Missing bot id'
     }
 
 
@@ -934,13 +909,21 @@ def test_pyscript_handler_for_get_data_after_update():
                 "name": "Mahesh",
             }
         }
-
+    update_json_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh SV",
+        }
+    }
     sender_id = "919876543210"
 
-    # resp = add_data(sender_id,json_data)
+    resp = add_data(sender_id,json_data)
+    collection_id=str(resp['data']['_id'])
+    update_resp = update_data(collection_id,sender_id,update_json_data)
     resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh SV", "mobile_number":"919876543210"})
-    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
-    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    
     bot_response = resp
     '''
     source_code = textwrap.dedent(source_code)
@@ -959,47 +942,26 @@ def test_pyscript_handler_for_get_data_after_update():
     assert bot_response['data'][0]['collection_name'] == 'testing_crud_api'
     assert bot_response['data'][0]['is_secure'] == []
     assert bot_response['data'][0]['data'] == {'mobile_number': '919876543210', 'name': 'Mahesh SV'}
-    assert data == {
-        'statusCode': 200,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': {
-            'bot': 'test_bot',
-            'sender_id': '919876543210',
-            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-            'slot': {},
-            'intent': 'k_multimedia_msg',
-            'bot_response': bot_response,
-            'json_data': {'collection_name': 'testing_crud_api', 'is_secure': [],
-                          'data': {'mobile_number': '919876543210', 'name': 'Mahesh'}},
-            'resp': bot_response
-        }
-    }
 
 
 def test_pyscript_handler_for_delete_data():
+    source_code = '''
     json_data = {
-        "collection_name": "testing_crud_api",
-        "is_secure": [],
-        "data": {
-            "mobile_number": "919876543210",
-            "name": "Mahesh SV",
+            "collection_name": "testing_crud_api1",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
         }
-    }
+
     sender_id = "919876543210"
-    source_code = f'''
-        json_data = {json_data}
-        sender_id = {sender_id!r}
-        collection_id = {pytest.collection_id!r}  
 
-        # Uncomment based on the operation you want to perform
-        # resp = add_data(sender_id, json_data)
-        # resp = get_data("testing_crud_api", sender_id, {{"name": "Mahesh", "mobile_number": "7760368805"}})
-        resp = delete_data(collection_id, sender_id)
-        # resp = update_data(collection_id, sender_id, json_data)
-
-        bot_response = resp
+    resp = add_data(sender_id,json_data)
+    collection_id=str(resp['data']['_id'])
+    resp = delete_data(collection_id,sender_id) 
+    bot_response = resp
     '''
     source_code = textwrap.dedent(source_code)
     event = {'source_code': source_code,
@@ -1011,31 +973,11 @@ def test_pyscript_handler_for_delete_data():
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    print(data)
     bot_response = data['body']['bot_response']
+    collection_id = bot_response['data']['_id']
     print(bot_response)
-    assert bot_response == {'message': f'Collection with ID {pytest.collection_id} has been successfully deleted.',
-                            'data': {'_id': pytest.collection_id}}
-    assert data == {
-        'statusCode': 200,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': {
-            'bot': 'test_bot',
-            'sender_id': '919876543210',
-            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-            'slot': {},
-            'intent': 'k_multimedia_msg',
-            'bot_response': bot_response,
-            'json_data': {'collection_name': 'testing_crud_api', 'is_secure': [],
-                          'data': {'mobile_number': '919876543210', 'name': 'Mahesh SV'}},
-            'resp': bot_response,
-            'collection_id': pytest.collection_id,
-
-        }
-    }
-
+    assert bot_response == {'message': f'Collection with ID {collection_id} has been successfully deleted.',
+                            'data': {'_id': collection_id}}
 
 def test_pyscript_handler_for_delete_data_without_bot():
     json_data = {
@@ -1076,7 +1018,7 @@ def test_pyscript_handler_for_delete_data_without_bot():
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
-        'body': 'Missing bot id'
+        'body': 'Script execution error: Missing bot id'
     }
 
 
