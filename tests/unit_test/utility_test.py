@@ -840,6 +840,63 @@ class TestUtility:
 
     @pytest.mark.asyncio
     @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_verification_with_valid_first_name(self, validate_and_send_mail_mock):
+        mail_type = "verification"
+        email = "sampletest@gmail.com"
+        first_name = "Sample"  # Valid first name
+        base_url = Utility.environment["app"]["frontend_url"]
+
+        Utility.email_conf["email"]["templates"]["verification"] = (
+            open("template/emails/verification.html", "rb").read().decode()
+        )
+
+        expected_body = Utility.email_conf["email"]["templates"]["verification"]
+        expected_body = (
+            expected_body.replace("FIRST_NAME", first_name)
+            .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
+        )
+        expected_subject = Utility.email_conf["email"]["templates"]["confirmation_subject"]
+
+        await MailUtility.format_and_send_mail(
+            mail_type=mail_type, email=email, first_name=first_name
+        )
+
+        validate_and_send_mail_mock.assert_called_once_with(
+            email, expected_subject, expected_body
+        )
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_verification_with_valid_first_name(self, validate_and_send_mail_mock):
+        mail_type = "verification"
+        email = "sampletest@gmail.com"
+        first_name = "Samp#le"  # InValid first name
+        base_url = Utility.environment["app"]["frontend_url"]
+
+        Utility.email_conf["email"]["templates"]["verification"] = (
+            open("template/emails/verification.html", "rb").read().decode()
+        )
+
+        expected_body = Utility.email_conf["email"]["templates"]["verification"]
+        expected_body = (
+            expected_body.replace("FIRST_NAME", first_name)
+            .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
+        )
+        expected_subject = Utility.email_conf["email"]["templates"]["confirmation_subject"]
+
+        await MailUtility.format_and_send_mail(
+            mail_type=mail_type, email=email, first_name=first_name
+        )
+
+        validate_and_send_mail_mock.assert_called_once_with(
+            email, expected_subject, expected_body
+        )
+
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_verification_confirmation(self, validate_and_send_mail_mock):
         mail_type = "verification_confirmation"
         email = "sampletest@gmail.com"
@@ -2806,21 +2863,15 @@ class TestUtility:
     def test_special_match_without_special_character(self):
         assert Utility.special_match(strg="Testing123") is False
 
-    def test_contains_special_characters(self):
-        assert Utility.contains_special_characters(strg="Testing@123") is True
-
-    def test_contains_special_characters_with_space(self):
-        assert Utility.contains_special_characters(strg="Testing 123") is False
-
-    def test_contains_special_characters_with_hyphens(self):
-        assert Utility.contains_special_characters(strg="Testing-123") is False
-
-    def test_contains_special_characters_with_underscores(self):
-        assert Utility.contains_special_characters(strg="Testing_123") is False
-
-    def test_contains_special_characters_with_ampersand(self):
-        assert Utility.contains_special_characters(strg="Tom & Jerry") is True
-
+    @pytest.mark.parametrize("input_str, expected", [
+        ("Testing@123", True),
+        ("Testing 123", False),
+        ("Testing-123", False),
+        ("Testing_123", False),
+        ("Tom & Jerry", True)
+    ])
+    def test_special_match(self, input_str, expected):
+        assert Utility.special_match(strg=input_str) is expected
 
     def test_load_json_file(self):
         testing_path = "./template/chat-client/default-config.json"

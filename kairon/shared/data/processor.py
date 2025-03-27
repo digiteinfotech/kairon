@@ -1,5 +1,6 @@
 import csv
 import itertools
+import re
 import shutil
 
 import ujson as json
@@ -133,7 +134,7 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
-    DEMO_REQUEST_STATUS,
+    DEMO_REQUEST_STATUS, RE_VALID_NAME,
 )
 from .data_objects import (
     Responses,
@@ -3379,6 +3380,10 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("path name cannot be empty or blank spaces")
 
+        if not Utility.special_match(name, RE_VALID_NAME):
+            raise AppException("Story name can only contain letters, numbers, hyphens (-), and underscores (_)")
+
+
         if not steps:
             raise AppException("steps are required")
 
@@ -3457,6 +3462,10 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
 
+        if not Utility.special_match(name, RE_VALID_NAME):
+            raise AppException("Story name can only contain letters, numbers, hyphens (-), and underscores (_)")
+
+
         if not steps:
             raise AppException("steps are required")
         Utility.is_exist(
@@ -3523,6 +3532,9 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("path name cannot be empty or blank spaces")
 
+        if not Utility.special_match(name, RE_VALID_NAME):
+            raise AppException("Story name can only contain letters, numbers, hyphens (-), and underscores (_)")
+
         if not steps:
             raise AppException("steps are required")
 
@@ -3585,6 +3597,9 @@ class MongoProcessor:
 
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
+
+        if not Utility.special_match(name, RE_VALID_NAME):
+            raise AppException("Story name can only contain letters, numbers, hyphens (-), and underscores (_)")
 
         if not steps:
             raise AppException("steps are required")
