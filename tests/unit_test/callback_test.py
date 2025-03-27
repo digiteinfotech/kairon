@@ -384,7 +384,7 @@ from kairon.async_callback.processor import CallbackProcessor
 @patch('kairon.async_callback.processor.CallbackUtility')
 @patch('kairon.async_callback.processor.Utility')
 def test_run_pyscript(mock_utility, mock_callback_utility):
-    mock_utility.environment = {'async_callback_action': {'pyscript': {'trigger_task': True}}}
+    mock_utility.environment = {'async_callback_action': {'pyscript': {'trigger_task': False}}}
     resp = {
         "statusCode": 200,
         "statusDescription": "200 OK",

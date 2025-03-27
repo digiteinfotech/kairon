@@ -11,6 +11,8 @@ import responses
 from mongoengine import connect
 
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
@@ -472,3 +474,36 @@ def test_perform_operation_no_operation():
     with pytest.raises(Exception) as context:
         PyscriptUtility.perform_operation(data, user, **kwargs)
     assert str(context.value) == "No Operation to perform"
+
+def test_get_db_action_data():
+    action_name = "test_action"
+    user = "test_user"
+    payload_dict = {"key": "value"}
+    bot = "test_bot"
+    predefined_objects = {}
+    mock_response_data = {"mocked": "response"}
+    mock_db_action_config = {
+        "collection": "test_collection",
+        "payload": [{"query_type": "test_query_type"}]
+    }
+
+    with patch.object(DatabaseAction, "objects") as mock_objects, \
+         patch.object(PyscriptUtility, "get_payload", return_value=payload_dict) as mock_get_payload, \
+         patch.object(PyscriptUtility, "perform_operation", return_value=mock_response_data) as mock_perform_operation:
+
+        mock_db_action = MagicMock()
+        mock_db_action.get.return_value.to_mongo.return_value.to_dict.return_value = mock_db_action_config
+        mock_objects.return_value = mock_db_action
+
+        result = PyscriptUtility.get_db_action_data(action_name, user, payload_dict, bot, predefined_objects)
+
+        expected_collection_name = f"{bot}_{mock_db_action_config['collection']}_faq_embd"  # Adjust suffix
+        mock_perform_operation.assert_called_once_with(
+            {"test_query_type": payload_dict},
+            user=user,
+            bot=bot,
+            collection_name=expected_collection_name
+        )
+        assert result == mock_response_data
+
+
