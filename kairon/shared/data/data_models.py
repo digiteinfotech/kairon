@@ -219,7 +219,6 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     @validator("last_name")
     def validate_last_name(cls, v):
         from kairon.shared.utils import Utility
-        import re
 
         if Utility.check_empty_string(v):
             raise ValueError("Last name cannot be empty or blank spaces")
