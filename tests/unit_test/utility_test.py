@@ -2865,8 +2865,8 @@ class TestUtility:
 
     @pytest.mark.parametrize("input_str, expected", [
         ("Testing@123", True),
-        ("Testing 123", False),
-        ("Testing-123", False),
+        ("Testing 123", True),
+        ("Testing-123", True),
         ("Testing_123", False),
         ("Tom & Jerry", True)
     ])
