@@ -1,7 +1,6 @@
 import re
 from enum import Enum
 
-from cfnlint.helpers import REGEX_ALPHANUMERIC
 from rasa.shared.core.slots import (
     CategoricalSlot,
     FloatSlot,
