@@ -6,9 +6,9 @@ from typing import Optional, Any, Text
 from loguru import logger
 from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
-from kairon.evaluator.processor import EvaluatorProcessor
+from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
-from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, CallbackLog, CallbackExecutionMode
+from kairon.shared.callback.data_objects import CallbackData, CallbackLog, CallbackExecutionMode
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE
@@ -38,8 +38,15 @@ class CallbackProcessor:
                 result = lambda_response["Payload"].get('body')
                 return result
             else:
-                logger.info("Triggering local_evaluator for pyscript evaluation")
-                result = EvaluatorProcessor.evaluate_pyscript(source_code=script, predefined_objects=predefined_objects)
+                logger.info("Triggering Callback Server for pyscript evaluation")
+                response = CallbackUtility.pyscript_handler({
+                    'source_code': script,
+                    'predefined_objects': predefined_objects
+                }, None)
+                if response["statusCode"] != 200:
+                    err = response.get('body') or response
+                    raise AppException(f"{err}")
+                result = response.get('body')
                 return result
         except AppException as e:
             raise AppException(f"Error while executing pyscript: {str(e)}")

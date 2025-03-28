@@ -288,7 +288,7 @@ def test_run_pyscript():
     """
     script = textwrap.dedent(script)
     request_body = {
-        "source_code": script,
+        "source_code": script, "predefined_objects": {"slot": {}}
     }
     response = client.post(
         url=f"/evaluate",
@@ -331,11 +331,11 @@ def test_run_pyscript_with_predefined_objects():
 
 def test_run_pyscript_with_script_errors():
     script = """
-    import requests
-    response = requests.get('http://localhost')
-    value = response.json()
-    data = value['data']
-    """
+        import numpy as np
+        arr = np.array([1, 2, 3, 4, 5])
+        mean_value = np.mean(arr)
+        print("Mean:", mean_value)
+        """
     script = textwrap.dedent(script)
     predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
                           'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
@@ -351,7 +351,7 @@ def test_run_pyscript_with_script_errors():
     assert not actual['success']
     assert actual['error_code'] == 422
     assert not actual['data']
-    assert actual['message'] == "Script execution error: import of 'requests' is unauthorized"
+    assert actual['message'] == "Script execution error: import of 'numpy' is unauthorized"
 
 
 def test_run_pyscript_with_interpreter_error():
