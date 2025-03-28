@@ -1,6 +1,8 @@
 import os
 import textwrap
-from unittest.mock import patch
+from calendar import timegm
+from datetime import datetime, timezone, date
+from unittest.mock import patch, MagicMock
 
 import pytest
 import responses
@@ -1073,3 +1075,121 @@ def test_pyscript_handler_for_get_data_after_delete():
             'resp': bot_response
         }
     }
+
+def test_generate_id():
+    uuid1 = CallbackUtility.generate_id()
+    uuid2 = CallbackUtility.generate_id()
+
+    assert isinstance(uuid1, str)
+    assert isinstance(uuid2, str)
+    assert len(uuid1) == 32
+    assert len(uuid2) == 32
+    assert uuid1 != uuid2
+
+def test_datetime_to_utc_timestamp():
+    dt = datetime(2024, 3, 27, 12, 30, 45, 123456, tzinfo=timezone.utc)
+    expected_timestamp = timegm(dt.utctimetuple()) + dt.microsecond / 1000000
+
+    assert CallbackUtility.datetime_to_utc_timestamp(dt) == expected_timestamp
+
+def test_datetime_to_utc_timestamp_none():
+
+    assert CallbackUtility.datetime_to_utc_timestamp(None) is None
+
+def test_get_data_missing_bot():
+
+    with pytest.raises(Exception, match="Missing bot id"):
+        CallbackUtility.get_data("TestCollection", "user1", {"field": "value"}, bot=None)
+
+@patch.object(CallbackUtility, "fetch_collection_data", return_value=[{"dummy": "data"}])
+def test_get_data_success(mock_fetch):
+    collection_name = "TestCollection"
+    user = "user1"
+    data_filter = {"field": "value"}
+    bot = "TestBot"
+
+    result = CallbackUtility.get_data(collection_name, user, data_filter, bot=bot)
+
+    expected_query = {
+        "bot": bot,
+        "collection_name": collection_name.lower(),
+        "data__field": "value"
+    }
+
+    mock_fetch.assert_called_once_with(expected_query)
+
+    assert result == {"data": [{"dummy": "data"}]}
+
+def test_add_data_missing_bot():
+    with pytest.raises(Exception, match="Missing bot id"):
+        CallbackUtility.add_data("test_user", {"key": "value"}, bot=None)
+
+@patch('kairon.shared.cognition.processor.CognitionDataProcessor.save_collection_data')
+def test_add_data_success(mock_save):
+
+    mock_save.return_value = "collection_id_123"
+    result = CallbackUtility.add_data("test_user", {"key": "value"}, bot="test_bot")
+
+    mock_save.assert_called_once_with({"key": "value"}, "test_user", "test_bot")
+
+    expected = {
+        "message": "Record saved!",
+        "data": {"_id": "collection_id_123"}
+    }
+    assert result == expected
+
+def test_update_data_missing_bot():
+    with pytest.raises(Exception, match="Missing bot id"):
+        CallbackUtility.update_data("id_123", "test_user", {"key": "value"}, bot=None)
+
+@patch('kairon.shared.cognition.processor.CognitionDataProcessor.update_collection_data')
+def test_update_data_success(mock_update):
+    mock_update.return_value = "updated_id_123"
+    result = CallbackUtility.update_data("id_123", "test_user", {"key": "value"}, bot="test_bot")
+
+    mock_update.assert_called_once_with("id_123", {"key": "value"}, "test_user", "test_bot")
+
+    expected = {
+        "message": "Record updated!",
+        "data": {"_id": "updated_id_123"}
+    }
+    assert result == expected
+
+def test_delete_data_missing_bot():
+    with pytest.raises(Exception, match="Missing bot id"):
+        CallbackUtility.delete_data("id_123", "test_user", bot=None)
+
+@patch('kairon.shared.cognition.processor.CognitionDataProcessor.delete_collection_data')
+def test_delete_data_success(mock_delete):
+    result = CallbackUtility.delete_data("id_123", "test_user", bot="test_bot")
+
+    mock_delete.assert_called_once_with("id_123", "test_bot", "test_user")
+
+    expected = {
+        "message": "Collection with ID id_123 has been successfully deleted.",
+        "data": {"_id": "id_123"}
+    }
+    assert result == expected
+
+def test_perform_cleanup():
+    local_vars = {
+        "a": lambda x: x,
+        "b": __import__("math"),
+        "c": datetime(2025, 3, 28, 14, 30, 0),
+        "d": date(2025, 3, 28),
+        "f": "normal string",
+        "g": 123,
+    }
+
+    # Call the function under test.
+    result = CallbackUtility.perform_cleanup(local_vars)
+
+    # Expected result after filtering and formatting.
+    expected = {
+        "c": "03/28/2025, 14:30:00",
+        "d": "2025-03-28",
+        "f": "normal string",
+        "g": 123,
+    }
+
+    assert result == expected
