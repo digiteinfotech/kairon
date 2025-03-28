@@ -401,6 +401,69 @@ def test_run_pyscript(mock_utility, mock_callback_utility):
     result = CallbackProcessor.run_pyscript(script, predefined_objects)
     assert result == {'bot_response': 'Test response'}
 
+@patch('kairon.async_callback.processor.CloudUtility.lambda_execution_failed')
+@patch('kairon.async_callback.processor.CloudUtility.trigger_lambda')
+@patch('kairon.async_callback.processor.Utility')
+def test_run_pyscript_with_lambda(mock_utility, mock_trigger_lambda, mock_lambda_execution_failed):
+    mock_utility.environment = {'async_callback_action': {'pyscript': {'trigger_task': True}}}
+
+    lambda_response = {
+        "Payload": {
+            "body": {'bot_response': 'Lambda test response'},
+            "errorMessage": None
+        }
+    }
+    mock_trigger_lambda.return_value = lambda_response
+    mock_lambda_execution_failed.return_value = False
+
+    script = 'print("Hello, Lambda!")'
+    predefined_objects = {'bot_response': 'Lambda test response'}
+
+    result = CallbackProcessor.run_pyscript(script, predefined_objects)
+
+    assert result == {'bot_response': 'Lambda test response'}
+    mock_trigger_lambda.assert_called_once()
+    mock_lambda_execution_failed.assert_called_once()
+
+
+@patch('kairon.async_callback.processor.CloudUtility.lambda_execution_failed')
+@patch('kairon.async_callback.processor.CloudUtility.trigger_lambda')
+@patch('kairon.async_callback.processor.Utility')
+def test_run_pyscript_with_lambda_failure(mock_utility, mock_trigger_lambda, mock_lambda_execution_failed):
+    mock_utility.environment = {'async_callback_action': {'pyscript': {'trigger_task': True}}}
+    lambda_response = {
+        "Payload": {
+            "body": None,
+            "errorMessage": "Lambda execution failed!"
+        }
+    }
+    mock_trigger_lambda.return_value = lambda_response
+    mock_lambda_execution_failed.return_value = False
+
+    script = 'print("Error Case")'
+    predefined_objects = {}
+
+    with pytest.raises(AppException, match="Lambda execution failed!"):
+        CallbackProcessor.run_pyscript(script, predefined_objects)
+
+    mock_trigger_lambda.assert_called_once()
+    mock_lambda_execution_failed.assert_called_once()
+
+@patch('kairon.async_callback.processor.CallbackUtility.pyscript_handler')
+@patch('kairon.async_callback.processor.Utility')
+def test_run_pyscript_fallback_server_failure(mock_utility, mock_pyscript_handler):
+    mock_utility.environment = {'async_callback_action': {'pyscript': {'trigger_task': False}}}
+    mock_pyscript_handler.return_value = {
+        "statusCode": 500,  # Failure case
+        "body": "Internal Server Error"
+    }
+
+    script = 'print("This should fail")'
+    predefined_objects = {}
+
+    with pytest.raises(AppException, match="Internal Server Error"):
+        CallbackProcessor.run_pyscript(script, predefined_objects)
+    mock_pyscript_handler.assert_called_once()
 
 import asyncio
 
@@ -494,6 +557,47 @@ async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_
                                                pyscript_code=cb['pyscript_code'], sender_id=sid, error_log=f"Error while executing pyscript: {obj['error']}", request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
 
 
+@pytest.mark.asyncio
+@patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
+async def test_async_callback_no_response_none(mock_failure_entry):
+    obj = None  # Simulating a None response
+    ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier',
+           'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata',
+           'callback_url': 'Test url', 'callback_source': 'Test source'}
+    cb = {'pyscript_code': 'Test code'}
+    c_src = 'Test source'
+    bot_id = 'Test bot'
+    sid = 'Test sender'
+    chnl = 'Test channel'
+    rd = {'key': 'value'}
+
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
+    mock_failure_entry.assert_called_once_with(
+        name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
+        channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
+        error_log="No response received from callback script",
+        request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src
+    )
+
+@pytest.mark.asyncio
+@patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
+async def test_async_callback_no_response_empty_dict(mock_failure_entry):
+    obj = {}  # Simulating an empty dictionary response
+    ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
+    cb = {'pyscript_code': 'Test code'}
+    c_src = 'Test source'
+    bot_id = 'Test bot'
+    sid = 'Test sender'
+    chnl = 'Test channel'
+    rd = {'key': 'value'}
+
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
+    mock_failure_entry.assert_called_once_with(
+        name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
+        channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
+        error_log="No response received from callback script",
+        request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src
+    )
 
 #not needed already covered in other tests
 # @patch('kairon.shared.callback.data_objects.CallbackConfig.objects')

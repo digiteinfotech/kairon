@@ -208,6 +208,7 @@ class CallbackUtility:
         predefined_objects['_getattr_'] = safer_getattr
         predefined_objects['requests']=requests
         predefined_objects['json'] = json
+        predefined_objects['datetime']= datetime
         predefined_objects['add_schedule_job'] = partial(CallbackUtility.add_schedule_job, bot=bot)
         predefined_objects['delete_schedule_job'] = partial(CallbackUtility.delete_schedule_job, bot=bot)
         predefined_objects['send_email'] = partial(CallbackUtility.send_email, bot=bot)
@@ -216,6 +217,7 @@ class CallbackUtility:
         predefined_objects['delete_data'] = partial(CallbackUtility.delete_data, bot=bot)
         predefined_objects['update_data'] = partial(CallbackUtility.update_data, bot=bot)
         predefined_objects["generate_id"] = CallbackUtility.generate_id
+        predefined_objects["datetime_to_utc_timestamp"]=CallbackUtility.datetime_to_utc_timestamp
 
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
@@ -314,3 +316,5 @@ class CallbackUtility:
             "message": f"Collection with ID {collection_id} has been successfully deleted.",
             "data": {"_id": collection_id}
         }
+
+

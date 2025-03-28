@@ -2,8 +2,11 @@ import os
 
 import pytest
 from unittest.mock import patch, AsyncMock
+
+from httpx import QueryParams
 from mongoengine import connect
 from blacksheep.contents import JSONContent
+from requests import Request
 
 from kairon import Utility
 from fastapi.testclient import TestClient
@@ -323,6 +326,21 @@ async def test_invalid_request():
     with pytest.raises(AppException):
         await process_router_message("test_bot", "test_name", "test_param", request=None)
 
+
+@pytest.mark.asyncio
+async def test_request_fallback_to_text():
+
+    mock_request = AsyncMock(spec=Request)
+    mock_request.json = AsyncMock(side_effect=Exception("JSON decode error"))
+    mock_request.read = AsyncMock(return_value=b"test body content")
+    mock_request.query = QueryParams({})
+    mock_request.scope = {"client": ["127.0.0.1"]}
+    # response = await process_router_message("test_bot", "test_name", "GET", request=mock_request)
+    with patch("kairon.async_callback.processor.CallbackProcessor.process_async_callback_request", new=AsyncMock(return_value=({}, "Success", 0))):
+        response = await process_router_message("valid_token", "test_name", "GET", request=mock_request)
+    response_json = await response.json()
+    assert response_json["success"] is True
+    assert response_json["message"] == "Success"
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript_async", new_callable=AsyncMock)
