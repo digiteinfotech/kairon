@@ -265,5 +265,5 @@ ORG_SETTINGS_MESSAGES = {
     "only_sso_login": "Login with your org SSO url, Login with username/password not allowed",
 }
 
-RE_ALPHA_NUM = re.compile(r"^[a-zA-Z0-9]+").search
-RE_VALID_NAME= re.compile(r"^[a-zA-Z0-9 -_]+").search
+RE_ALPHA_NUM = re.compile(r"^[a-zA-Z0-9]+$").search
+RE_VALID_NAME= re.compile(r"^[a-zA-Z0-9 -_]+$").search
