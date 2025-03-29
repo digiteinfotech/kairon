@@ -1395,7 +1395,6 @@ def test_api_login_enabled_sso_only(monkeypatch):
     assert not actual["success"]
     assert actual["error_code"] == 422
 
-
 def test_add_bot():
     response = client.post(
         "/api/account/bot",
@@ -12177,6 +12176,111 @@ def test_update_multiflow_story_with_tag():
     assert actual["success"]
     assert actual["error_code"] == 0
 
+def test_update_multiflow_story_invalid_name():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
+        json={
+            "name": "tes@#_path",
+            "steps": [
+                {
+                    "step": {
+                        "name": "greeting",
+                        "type": "INTENT",
+                        "node_id": "1",
+                        "component_id": "MNbcg",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_greeting",
+                            "type": "BOT",
+                            "node_id": "2",
+                            "component_id": "MNbcZZg",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_greeting",
+                        "type": "BOT",
+                        "node_id": "2",
+                        "component_id": "MNbcZZg",
+                    },
+                    "connections": [
+                        {
+                            "name": "more_query",
+                            "type": "INTENT",
+                            "node_id": "3",
+                            "component_id": "uhsjJ",
+                        },
+                        {
+                            "name": "goodbye",
+                            "type": "INTENT",
+                            "node_id": "4",
+                            "component_id": "MgGFD",
+                        },
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "goodbye",
+                        "type": "INTENT",
+                        "node_id": "4",
+                        "component_id": "MgGFD",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_goodbye",
+                            "type": "BOT",
+                            "node_id": "5",
+                            "component_id": "MNbcg",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_goodbye",
+                        "type": "BOT",
+                        "node_id": "5",
+                        "component_id": "MNbcg",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "utter_more_query",
+                        "type": "BOT",
+                        "node_id": "6",
+                        "component_id": "IIUUUYY",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "more_query",
+                        "type": "INTENT",
+                        "node_id": "3",
+                        "component_id": "uhsjJ",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_more_query",
+                            "type": "BOT",
+                            "node_id": "6",
+                            "component_id": "IIUUUYY",
+                        }
+                    ],
+                },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["message"] == "Story flow updated successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 
 def test_update_multiflow_story():
