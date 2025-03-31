@@ -29,7 +29,6 @@ bot_data_created = False
 class TestMailChannel:
     @pytest.fixture(autouse=True, scope='class')
     def setup(self):
-        global bot_data_created
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         a = Account.objects.create(name="mail_channel_test_user_acc", user="mail_channel_test_user_acc")
         bot = Bot.objects.create(name="mail_channel_test_bot", user="mail_channel_test_user_acc", status=True,
