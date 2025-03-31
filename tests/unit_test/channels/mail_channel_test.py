@@ -23,7 +23,6 @@ from kairon.exceptions import AppException
 from kairon.shared.constants import ChannelTypes
 
 
-bot_data_created = False
 
 
 class TestMailChannel:
