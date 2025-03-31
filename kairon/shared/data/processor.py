@@ -49,7 +49,6 @@ from rasa.shared.core.training_data.structures import Checkpoint, RuleStep
 from rasa.shared.core.training_data.structures import STORY_START
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
 from rasa.shared.importers.rasa import Domain
-from rasa.shared.importers.rasa import RasaFileImporter
 from rasa.shared.nlu.constants import TEXT
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
@@ -162,6 +161,7 @@ from .data_objects import (
 )
 from .action_serializer import ActionSerializer
 from .data_validation import DataValidation
+from .model_data_imporer import KRasaFileImporter, CustomRuleStep
 from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
@@ -230,7 +230,7 @@ class MongoProcessor:
         stories = self.load_stories(bot)
         config = self.load_config(bot)
         chat_client_config = self.load_chat_client_config(bot, user)
-        rules = self.get_rules_for_training(bot)
+        rules = self.get_rules_for_download(bot)
         if download_multiflow:
             multiflow_stories = self.load_linear_flows_from_multiflow_stories(bot)
             stories = stories.merge(multiflow_stories[0])
@@ -505,7 +505,7 @@ class MongoProcessor:
             multiflow_stories_yml = os.path.join(path, "multiflow_stories.yml")
             bot_content_yml = os.path.join(path, "bot_content.yml")
             other_collections_yml = os.path.join(path, "other_collections.yml")
-            importer = RasaFileImporter.load_from_config(
+            importer = KRasaFileImporter.load_from_config(
                 config_path=config_path,
                 domain_path=domain_path,
                 training_data_paths=training_data_path,
@@ -1995,6 +1995,7 @@ class MongoProcessor:
                 multiflow_story = MultiflowStories(**story)
                 multiflow_story.bot = bot
                 multiflow_story.user = user
+                multiflow_story.flow_tags = story.get("flow_tags", [FlowTagType.chatbot_flow.value])
                 multiflow_story.clean()
                 yield multiflow_story
 
@@ -4797,7 +4798,7 @@ class MongoProcessor:
             action.pop("timestamp")
             yield action
 
-    def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True, is_default = False):
+    def add_slot(self, slot_value: Dict, bot: str, user: str, raise_exception_if_exists=True, is_default = False):
         """
         Adds slot if it doesn't exist, updates slot if it exists
         :param slot_value: slot data dict
@@ -4985,23 +4986,30 @@ class MongoProcessor:
             log.pop("_id")
             yield log
 
-    def __extract_rules(self, story_steps, bot: Text, user: Text):
+    def __extract_rules(self, story_steps, bot: str, user: str):
         saved_rules = self.fetch_rule_block_names(bot)
 
         for story_step in story_steps:
             if (
-                    isinstance(story_step, RuleStep)
+                    (isinstance(story_step, CustomRuleStep) or isinstance(story_step, RuleStep))
                     and story_step.block_name.strip().lower() not in saved_rules
             ):
                 rule = self.__extract_rule_events(story_step, bot, user)
                 yield rule
 
-    def __extract_rule_events(self, rule_step, bot: Text, user: Text):
+
+    def __extract_rule_events(self, rule_step: CustomRuleStep | RuleStep, bot: str, user: str):
         rule_events = list(self.__extract_story_events(rule_step.events))
         template_type = DataUtility.get_template_type(rule_step)
+        condition_events_indices = []
+        flow_tags = [FlowTagType.chatbot_flow.value]
+        if hasattr(rule_step, "condition_events_indices"):
+            condition_events_indices = list(rule_step.condition_events_indices)
+        if hasattr(rule_step, "flow_tags"):
+            flow_tags = rule_step.flow_tags
         rule = Rules(
             block_name=rule_step.block_name,
-            condition_events_indices=list(rule_step.condition_events_indices),
+            condition_events_indices=condition_events_indices,
             start_checkpoints=[
                 start_checkpoint.name
                 for start_checkpoint in rule_step.start_checkpoints
@@ -5013,6 +5021,7 @@ class MongoProcessor:
             template_type=template_type,
             bot=bot,
             user=user,
+            flow_tags=flow_tags
         )
         rule.clean()
         return rule
@@ -5077,8 +5086,36 @@ class MongoProcessor:
                 ],
             )
 
-    def get_rules_for_training(self, bot: Text):
+    def get_rules_for_training(self, bot: Text) -> StoryGraph:
         return StoryGraph(list(self.__get_rules(bot)))
+
+    def get_rules_for_download(self, bot: Text) ->StoryGraph:
+        rule_steps = []
+        for rule in Rules.objects(bot=bot, status=True):
+            rule_events = list(
+                self.__prepare_training_story_events(
+                    rule.events, datetime.now().timestamp(), bot
+                )
+            )
+
+            rule_step =  CustomRuleStep(
+                flow_tags= rule.flow_tags,
+                block_name=rule.block_name,
+                condition_events_indices=set(rule.condition_events_indices),
+                events=rule_events,
+                start_checkpoints=[
+                    Checkpoint(start_checkpoint)
+                    for start_checkpoint in rule.start_checkpoints
+                ],
+                end_checkpoints=[
+                    Checkpoint(end_checkpoints)
+                    for end_checkpoints in rule.end_checkpoints
+                ],
+            )
+
+            rule_steps.append(rule_step)
+
+        return StoryGraph(rule_steps)
 
     def save_integrated_actions(self, actions: dict, bot: Text, user: Text):
         """
