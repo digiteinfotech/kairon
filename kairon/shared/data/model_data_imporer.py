@@ -20,14 +20,6 @@ from rasa.shared.core.training_data.story_reader.yaml_story_reader import YAMLSt
 
 from kairon.shared.models import FlowTagType
 
-"""
-DISCLAIMER BY SPANDAN:
-rasa stories and rules can have an optional metadata field, that the rasa system does not use.
-This field can be used to store additional information about the story or rule.
-However keep in mind that this field is not used by rasa and will not be used by the rasa system so it is up to you to
-use this field in your own way.
-"""
-
 
 
 
@@ -167,7 +159,6 @@ class KYAMLStoryReader(YAMLStoryReader):
 class KRasaFileImporter(RasaFileImporter):
     def get_stories(self, exclusion_percentage: Optional[int] = None) -> CustomStoryGraph:
         story_graph = self._get_stories(exclusion_percentage)
-        flow_tags = self._extract_flow_tags(story_graph)
         return CustomStoryGraph(story_graph.story_steps)
 
     def _get_stories(self, exclusion_percentage: Optional[int] = None) -> CustomStoryGraph:
@@ -191,12 +182,6 @@ class KRasaFileImporter(RasaFileImporter):
             story_steps = story_steps[:-idx]
         return story_steps
 
-    def _extract_flow_tags(self, story_graph: CustomStoryGraph) -> List[str]:
-        flow_tags = []
-        for step in story_graph.story_steps:
-            if hasattr(step, 'flow_tags'):
-                flow_tags.extend(step.flow_tags)
-        return flow_tags
 
 
 class KYAMLStoryWriter(YAMLStoryWriter):
