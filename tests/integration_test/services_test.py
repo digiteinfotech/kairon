@@ -12285,6 +12285,7 @@ def test_update_multiflow_story_with_tag():
 #     assert actual["message"] == "valid story name"
 
 
+
 def test_update_multiflow_story():
     response = client.put(
         f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
@@ -21054,7 +21055,7 @@ def test_create_stories_with_form():
         {"name": "utter_submit", "type": "BOT"},
     ]
     story_dict = {
-        "name": "stop form - continue",
+        "name": "stop form + continue",
         "steps": steps,
         "type": "STORY",
         "template_type": "CUSTOM",
