@@ -10,6 +10,8 @@ from deepdiff import DeepDiff
 from mongoengine import connect
 
 from kairon import Utility
+from kairon.shared.actions.data_objects import EmailActionConfig
+from kairon.shared.utils import MailUtility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -1120,6 +1122,26 @@ def test_get_data_success(mock_fetch):
 
     assert result == {"data": [{"dummy": "data"}]}
 
+@patch.object(CallbackUtility, "fetch_collection_data", return_value=[{"dummy": "data"}])
+def test_fetch_data_success(mock_fetch):
+    collection_name = "testcollection"
+    user = "user1"
+    data_filter = {"field": "value"}
+    bot = "TestBot"
+    query = {"bot": bot, "collection_name": collection_name}
+
+    query.update({f"data__{key}": value for key, value in data_filter.items()})
+    result=CallbackUtility.fetch_collection_data(query)
+    expected_query = {
+        "bot": bot,
+        "collection_name": collection_name.lower(),
+        "data__field": "value"
+    }
+
+    mock_fetch.assert_called_once_with(expected_query)
+
+    assert result ==  [{"dummy": "data"}]
+
 def test_add_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
         CallbackUtility.add_data("test_user", {"key": "value"}, bot=None)
@@ -1193,3 +1215,48 @@ def test_perform_cleanup():
     }
 
     assert result == expected
+
+def test_send_email_direct():
+    mock_email_config = MagicMock()
+    mock_email_config.to_mongo.return_value.to_dict.return_value = {
+        "smtp_url": "smtp.gmail.com",
+        "smtp_port": 587,
+        "tls": True,
+        "smtp_userid": {"value": "user@example.com"},
+        "smtp_password": {"value": "password123"}
+    }
+    with patch.object(EmailActionConfig, "objects",
+                      return_value=MagicMock(first=MagicMock(return_value=mock_email_config))) as mock_objects, \
+            patch.object(MailUtility, "trigger_email") as mock_trigger_email:
+        CallbackUtility.send_email(
+            email_action="send_mail",
+            from_email="from@example.com",
+            to_email="to@example.com",
+            subject="Test Subject",
+            body="Test Body",
+            bot="bot123"
+        )
+        mock_objects.assert_called_once_with(bot="bot123", action_name="send_mail")
+        mock_trigger_email.assert_called_once_with(
+            email=["to@example.com"],
+            subject="Test Subject",
+            body="Test Body",
+            smtp_url="smtp.gmail.com",
+            smtp_port=587,
+            sender_email="from@example.com",
+            smtp_password="password123",
+            smtp_userid="user@example.com",
+            tls=True
+        )
+
+
+def test_send_email_missing_bot_direct():
+    with pytest.raises(Exception, match="Missing bot id"):
+        CallbackUtility.send_email(
+            email_action="send_mail",
+            from_email="from@example.com",
+            to_email="to@example.com",
+            subject="Test Subject",
+            body="Test Body",
+            bot=""
+        )
