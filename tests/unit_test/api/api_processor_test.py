@@ -112,23 +112,10 @@ class TestAccountProcessor:
         account = pytest.account
         user = "fshaikh@digite.com"
         is_new_account = True
-        with pytest.raises(
-                AppException,
-                match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
-            name = "test#21"
-            AccountProcessor.add_bot(name=name, account=account, user=user, is_new_account=is_new_account)
-
-        with pytest.raises(
-                AppException,
-                match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
-            name = "test@3"
-            AccountProcessor.add_bot(name=name, account=account, user=user, is_new_account=is_new_account)
-
-        with pytest.raises(
-                AppException,
-                match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
-            name = "test&5"
-            AccountProcessor.add_bot(name=name, account=account, user=user, is_new_account=is_new_account)
+        invalid_names = ["test#21", "test@3", "test&5"]
+        for name in invalid_names:
+            with pytest.raises(AppException,match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
+                AccountProcessor.add_bot(name=name, account=account, user=user, is_new_account=is_new_account)
 
     def test_update_bot_with_invalid_name(self):
         import re
