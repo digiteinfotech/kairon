@@ -20,6 +20,7 @@ from responses import matchers
 
 from kairon.shared.actions.data_objects import Actions
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
+from kairon.shared.data.model_data_imporer import KRasaFileImporter
 from kairon.shared.utils import Utility
 
 Utility.load_system_metadata()
@@ -72,7 +73,7 @@ class TestEventExecution:
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             http_actions_path = os.path.join(path, 'actions.yml')
             multiflow_stories_path = os.path.join(path, 'multiflow_stories.yml')
-            importer = RasaFileImporter.load_from_config(config_path=config_path,
+            importer = KRasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
             domain = importer.get_domain()

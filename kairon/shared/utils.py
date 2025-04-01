@@ -83,6 +83,7 @@ from .data.constant import (
 )
 from kairon.shared.kairon_yaml_story_writer import kaironYAMLStoryWriter
 from .data.dto import KaironStoryStep
+from .data.model_data_imporer import KYAMLStoryWriter
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
 from ..exceptions import AppException
 from werkzeug.utils import secure_filename
@@ -1202,7 +1203,7 @@ class Utility:
         story_writer = kaironYAMLStoryWriter()
         story_writer.dump(stories_path, stories.story_steps)
         if rules:
-            YAMLStoryWriter().dump(rules_path, rules.story_steps)
+            KYAMLStoryWriter().dump(rules_path, rules.story_steps)
         if actions:
             actions_as_str = yaml.dump(actions).encode()
             Utility.write_to_file(actions_path, actions_as_str)
@@ -1631,7 +1632,7 @@ class Utility:
             raise error("Agent system not supported")
 
     @staticmethod
-    def register_telegram_webhook(access_token, webhook_url):
+    def register_telegram_webhook(access_token: str, webhook_url: str):
         api = Utility.system_metadata["channels"]["telegram"]["api"]["url"]
         response = Utility.http_request(
             "GET",

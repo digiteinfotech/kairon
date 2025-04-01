@@ -11,11 +11,11 @@ from rasa.shared.core.generator import TrainingDataGenerator
 from rasa.shared.core.training_data.structures import StoryStep, RuleStep
 from rasa.shared.exceptions import YamlSyntaxException
 from rasa.shared.importers.importer import TrainingDataImporter
-from rasa.shared.importers.rasa import RasaFileImporter
 from rasa.shared.nlu import constants
 from rasa.shared.utils.validation import YamlValidationException
 from rasa.validator import Validator
 from pykwalify.core import Core
+from ruamel import yaml
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, \
@@ -27,6 +27,7 @@ from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRI
 from kairon.shared.data.action_serializer import ActionSerializer
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import MultiflowStories
+from kairon.shared.data.model_data_imporer import KRasaFileImporter
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import StoryStepType
@@ -77,7 +78,7 @@ class TrainingDataValidator(Validator):
         if not (os.path.exists(training_data_paths) and os.path.exists(domain_path) and os.path.exists(config_path)):
             raise AppException("Some training files are absent!")
         try:
-            file_importer = RasaFileImporter(
+            file_importer = KRasaFileImporter(
                 domain_path=domain_path, training_data_paths=training_data_paths, config_file=config_path,
             )
             cls.actions = Utility.read_yaml(os.path.join(root_dir, 'actions.yml'))
@@ -1110,6 +1111,22 @@ class TrainingDataValidator(Validator):
             self.summary['bot_content'] = errors
             if errors and raise_exception:
                 raise AppException("Invalid bot_content.yml. Check logs!")
+
+    @staticmethod
+    def validate_rules(rules_path: str):
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        schema_file_path = os.path.join(current_dir, "..", "shared", "schemas", "rules.yml")
+
+        with open(schema_file_path, 'r') as schema_file:
+            schema = yaml.safe_load(schema_file)
+
+        validator = Validator(schema)
+
+        with open(rules_path, 'r') as rules_file:
+            rules = yaml.safe_load(rules_file)
+
+        if not validator.validate(rules):
+            raise ValueError(f"Validation errors: {validator.errors}")
 
     def validate_training_data(self, raise_exception: bool = True, bot: Text = None, user: Text = None,
                                save_data: bool = True,
