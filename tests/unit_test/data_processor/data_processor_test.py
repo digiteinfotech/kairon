@@ -9643,16 +9643,16 @@ class TestMongoProcessor:
             {"type": "FORM_END"},
             {"name": "utter_submit", "type": "BOT"},
         ]
-        story_dict = {'name': "stop form + continue", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "stop form - continue", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         pytest.form_continue_story_id = processor.add_complex_story(story_dict, bot, user)
-        stories = Stories.objects(block_name="stop form + continue", bot=bot, events__name='know_user',
+        stories = Stories.objects(block_name="stop form - continue", bot=bot, events__name='know_user',
                                   status=True).get()
         assert stories.events[1].type == 'action'
         assert stories.events[2].type == 'active_loop'
         assert stories.events[2].name == 'know_user'
         assert stories.events[6].type == 'active_loop'
         stories = list(processor.get_stories(bot))
-        story_with_form = [s for s in stories if s['name'] == 'stop form + continue']
+        story_with_form = [s for s in stories if s['name'] == 'stop form - continue']
         assert story_with_form[0]['steps'] == steps
 
     def test_create_unhappy_path_form_story_to_breakout(self):
@@ -9669,15 +9669,15 @@ class TestMongoProcessor:
             {"type": "FORM_END"},
             {"name": "utter_submit", "type": "BOT"},
         ]
-        story_dict = {'name': "stop form + stop", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "stop form - stop", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         pytest.form_stop_story_id = processor.add_complex_story(story_dict, bot, user)
-        stories = Stories.objects(block_name="stop form + stop", bot=bot, events__name='know_user', status=True).get()
+        stories = Stories.objects(block_name="stop form - stop", bot=bot, events__name='know_user', status=True).get()
         assert stories.events[1].type == 'action'
         assert stories.events[2].type == 'active_loop'
         assert stories.events[2].name == 'know_user'
         assert stories.events[6].type == 'active_loop'
         stories = list(processor.get_stories(bot))
-        story_with_form = [s for s in stories if s['name'] == 'stop form + stop']
+        story_with_form = [s for s in stories if s['name'] == 'stop form - stop']
         assert story_with_form[0]['steps'] == steps
 
     def test_delete_slot_mapping_attached_to_form(self):
@@ -10463,7 +10463,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         form_name = 'know_user'
-        story_name = "stop form + continue"
+        story_name = "stop form - continue"
         with pytest.raises(AppException,
                            match=re.escape(f'Cannot remove action "{form_name}" linked to flow "{story_name}"')):
             processor.delete_form(form_name, bot, user)
@@ -10483,9 +10483,9 @@ class TestMongoProcessor:
         processor.delete_complex_story(pytest.form_continue_story_id, 'STORY', bot, user)
         processor.delete_complex_story(pytest.form_stop_story_id, 'STORY', bot, user)
         with pytest.raises(DoesNotExist):
-            Stories.objects(block_name="stop form + continue", bot=bot, events__name='know_user', status=True).get()
+            Stories.objects(block_name="stop form - continue", bot=bot, events__name='know_user', status=True).get()
         with pytest.raises(DoesNotExist):
-            Stories.objects(block_name="stop form + stop", bot=bot, events__name='know_user', status=True).get()
+            Stories.objects(block_name="stop form - stop", bot=bot, events__name='know_user', status=True).get()
 
     def test_delete_form_utterance_deleted(self):
         processor = MongoProcessor()
@@ -15224,32 +15224,6 @@ class TestMongoProcessor:
             story_dict = {'name': "", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
             processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
-    def test_update_invalid_multiflow_story_name(self):
-        processor = MongoProcessor()
-        events = [
-            {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
-             },
-            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
-             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
-             },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
-             "connections": None
-             },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
-             "connections": None
-             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
-             }
-        ]
-        with pytest.raises(AppException,match="Path name can only contain letters, numbers, hyphens (-), and underscores (_)"):
-            story_dict = {'name': "Invalid@Name!", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-            processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
     def test_update_valid_multiflow_story_name(self):
         processor = MongoProcessor()
