@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 
 import litellm
 import pytest
+import requests
 import responses
 from mongoengine import connect
 
@@ -507,3 +508,217 @@ def test_get_db_action_data():
         assert result == mock_response_data
 
 
+def test_get_payload():
+    predefined_objects = {
+        "slot": {"test_key": "{\"key\": \"value\"}"},
+        "latest_message": {
+            "text": "/user_command",
+            "entities": [{"entity": "kairon_user_msg", "value": "extracted_value"}]
+        }
+    }
+
+    payload = [
+        {"type": "from_slot", "value": "test_key", "query_type": "payload_search"},
+        {"type": "from_user_message", "value": "ignored", "query_type": "embedding_search"},
+        {"type": "static", "value": "static_value", "query_type": "embedding_search"}
+    ]
+
+    expected_result = {
+        "payload_search": {"key": "value"},
+        "embedding_search": "extracted_value static_value"
+    }
+
+    with patch.object(ActionUtility, "is_empty", side_effect=lambda x: x is None or x == ""):
+        result = PyscriptUtility.get_payload(payload, predefined_objects)
+
+    assert result == expected_result
+
+
+def get_dummy_objects(http_action_config_mock):
+    # Create a dummy objects attribute with a get method that always returns our mock.
+    class DummyObjects:
+        def get(self, *args, **kwargs):
+            return http_action_config_mock
+    return DummyObjects()
+
+def test_api_call_success(monkeypatch):
+    bot = "test_bot"
+    action_name = "test_action"
+    user = "test_user"
+    payload = {"key": "value"}
+    headers = {"Authorization": "Bearer token"}
+    predefined_objects = {"tracker": {}}
+
+    http_action_config_mock = MagicMock()
+    http_action_config_mock.to_mongo.return_value.to_dict.return_value = {
+        "request_method": "POST",
+        "http_url": "http://example.com/api"
+    }
+
+    # Override HttpActionConfig.objects entirely
+    monkeypatch.setattr(HttpActionConfig, "objects", get_dummy_objects(http_action_config_mock))
+    # Patch the ActionUtility.prepare_url method
+    monkeypatch.setattr(ActionUtility, "prepare_url", lambda http_url, tracker_data: "http://example.com/api")
+    # Patch the ActionUtility.prepare_request method (won't be used because headers is provided)
+    monkeypatch.setattr(ActionUtility, "prepare_request", lambda predefined_objects, headers_config, bot: headers)
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"success": True}
+
+    # Patch requests.request
+    monkeypatch.setattr(requests, "request", lambda method, url, headers, json: mock_response)
+
+    response = PyscriptUtility.api_call(action_name, user, payload, headers, bot, predefined_objects)
+    assert response == {"success": True}
+
+
+def test_api_call_failure(monkeypatch):
+    bot = "test_bot"
+    action_name = "test_action"
+    user = "test_user"
+    payload = {"key": "value"}
+    headers = {"Authorization": "Bearer token"}
+    predefined_objects = {"tracker": {}}
+
+    http_action_config_mock = MagicMock()
+    http_action_config_mock.to_mongo.return_value.to_dict.return_value = {
+        "request_method": "POST",
+        "http_url": "http://example.com/api"
+    }
+
+    monkeypatch.setattr(HttpActionConfig, "objects", get_dummy_objects(http_action_config_mock))
+    monkeypatch.setattr(ActionUtility, "prepare_url", lambda http_url, tracker_data: "http://example.com/api")
+    monkeypatch.setattr(ActionUtility, "prepare_request", lambda predefined_objects, headers_config, bot: headers)
+
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_response.text = "Internal Server Error"
+
+    monkeypatch.setattr(requests, "request", lambda method, url, headers, json: mock_response)
+
+    with pytest.raises(Exception, match="Internal Server Error"):
+        PyscriptUtility.api_call(action_name, user, payload, headers, bot, predefined_objects)
+
+
+def test_api_call_no_headers(monkeypatch):
+    bot = "test_bot"
+    action_name = "test_action"
+    user = "test_user"
+    payload = {"key": "value"}
+    headers = None
+    predefined_objects = {"tracker": {}}
+
+    http_action_config_mock = MagicMock()
+    http_action_config_mock.to_mongo.return_value.to_dict.return_value = {
+        "request_method": "POST",
+        "http_url": "http://example.com/api"
+    }
+
+    monkeypatch.setattr(HttpActionConfig, "objects", get_dummy_objects(http_action_config_mock))
+    monkeypatch.setattr(ActionUtility, "prepare_url", lambda http_url, tracker_data: "http://example.com/api")
+
+    # Provide alternate headers since none were passed
+    prepared_headers = {"Authorization": "Bearer generated-token"}
+    monkeypatch.setattr(ActionUtility, "prepare_request", lambda predefined_objects, headers_config, bot: prepared_headers)
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"success": True}
+
+    monkeypatch.setattr(requests, "request", lambda method, url, headers, json: mock_response)
+
+    response = PyscriptUtility.api_call(action_name, user, payload, headers, bot, predefined_objects)
+    assert response == {"success": True}
+
+@pytest.fixture
+def predefined_objects():
+    return {
+        "slot": {"test_key": "{\"key\": \"value\"}"},
+        "latest_message": {
+            "text": "/user_command",
+            "entities": [{"entity": "kairon_user_msg", "value": "extracted_value"}]
+        }
+    }
+
+def test_get_payload_success(predefined_objects):
+    payload = [
+        {"type": "from_slot", "value": "test_key", "query_type": "payload_search"},
+        {"type": "from_user_message", "value": "ignored", "query_type": "embedding_search"},
+        {"type": "static", "value": "static_value", "query_type": "embedding_search"}
+    ]
+
+    expected_result = {
+        "payload_search": {"key": "value"},
+        "embedding_search": "extracted_value static_value"
+    }
+
+    with patch.object(ActionUtility, "is_empty", side_effect=lambda x: x is None or x == ""):
+        result = PyscriptUtility.get_payload(payload, predefined_objects)
+
+    assert result == expected_result
+
+def test_get_payload_empty_slot(predefined_objects):
+    payload = [{"type": "from_slot", "value": "non_existent_key", "query_type": "payload_search"}]
+
+    expected_result = {"payload_search": None}
+
+    with patch.object(ActionUtility, "is_empty", return_value=True):
+        result = PyscriptUtility.get_payload(payload, predefined_objects)
+
+    assert result == expected_result
+
+def test_get_payload_empty_user_message(predefined_objects):
+    predefined_objects["latest_message"]["text"] = ""
+
+    payload = [{"type": "from_user_message", "value": "ignored", "query_type": "embedding_search"}]
+
+    expected_result = {"embedding_search": ""}  # Expecting empty string, not None
+
+    with patch.object(ActionUtility, "is_empty", return_value=True):
+        result = PyscriptUtility.get_payload(payload, predefined_objects)
+
+    assert result == expected_result
+
+def test_get_payload_with_json_parsing_error(predefined_objects):
+    predefined_objects["slot"]["invalid_json"] = "{invalid_json}"
+
+    payload = [{"type": "from_slot", "value": "invalid_json", "query_type": "payload_search"}]
+
+    with patch.object(ActionUtility, "is_empty", return_value=False):
+        with pytest.raises(Exception, match=r"Error converting payload to JSON: {invalid_json}"):
+            PyscriptUtility.get_payload(payload, predefined_objects)
+
+def test_get_payload_user_message_with_command(predefined_objects):
+    payload = [{"type": "from_user_message", "value": "ignored", "query_type": "embedding_search"}]
+
+    expected_result = {"embedding_search": "extracted_value"}
+
+    with patch.object(ActionUtility, "is_empty", side_effect=lambda x: x is None or x == ""):
+        result = PyscriptUtility.get_payload(payload, predefined_objects)
+
+    assert result == expected_result
+
+def test_get_payload_without_kairon_user_msg(predefined_objects):
+    predefined_objects["latest_message"]["entities"] = []  # No kairon_user_msg entity
+
+    payload = [{"type": "from_user_message", "value": "ignored", "query_type": "embedding_search"}]
+
+    expected_result = {"embedding_search": "/user_command"}  # Falls back to text value
+
+    with patch.object(ActionUtility, "is_empty", side_effect=lambda x: x is None or x == ""):
+        result = PyscriptUtility.get_payload(payload, predefined_objects)
+
+    assert result == expected_result
+
+def test_get_payload_multiple_embedding_search(predefined_objects):
+    payload = [
+        {"type": "static", "value": "value1", "query_type": "embedding_search"},
+        {"type": "static", "value": "value2", "query_type": "embedding_search"},
+    ]
+
+    expected_result = {"embedding_search": "value1 value2"}
+
+    result = PyscriptUtility.get_payload(payload, predefined_objects)
+
+    assert result == expected_result

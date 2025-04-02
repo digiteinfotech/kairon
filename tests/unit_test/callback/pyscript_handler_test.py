@@ -6,11 +6,18 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 import responses
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.util import obj_to_ref
 from deepdiff import DeepDiff
 from mongoengine import connect
+from pymongo import MongoClient
 
 from kairon import Utility
+from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.actions.data_objects import EmailActionConfig
+from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.callback.data_objects import CallbackConfig
+from kairon.shared.concurrency.actors.utils import PyscriptUtility
 from kairon.shared.utils import MailUtility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -1122,25 +1129,76 @@ def test_get_data_success(mock_fetch):
 
     assert result == {"data": [{"dummy": "data"}]}
 
-@patch.object(CallbackUtility, "fetch_collection_data", return_value=[{"dummy": "data"}])
-def test_fetch_data_success(mock_fetch):
-    collection_name = "testcollection"
-    user = "user1"
-    data_filter = {"field": "value"}
-    bot = "TestBot"
-    query = {"bot": bot, "collection_name": collection_name}
 
-    query.update({f"data__{key}": value for key, value in data_filter.items()})
-    result=CallbackUtility.fetch_collection_data(query)
-    expected_query = {
-        "bot": bot,
-        "collection_name": collection_name.lower(),
-        "data__field": "value"
+def test_fetch_collection_data_success():
+    """Test fetch_collection_data with valid query returning data."""
+
+    mock_data = {
+        "_id": "12345",
+        "collection_name": "test_collection",
+        "is_secure": True,
+        "data": "encrypted_data"
     }
 
-    mock_fetch.assert_called_once_with(expected_query)
+    mock_object = MagicMock()
+    mock_object.to_mongo.return_value.to_dict.return_value = mock_data
 
-    assert result ==  [{"dummy": "data"}]
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]), \
+            patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data", return_value="decrypted_data"):
+        results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
+
+    assert len(results) == 1
+    assert results[0] == {
+        "_id": "12345",
+        "collection_name": "test_collection",
+        "is_secure": True,
+        "data": "decrypted_data"
+    }
+
+
+def test_fetch_collection_data_empty_result():
+    """Test fetch_collection_data when no matching documents exist."""
+
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[]):
+        results = list(CallbackUtility.fetch_collection_data({"some_field": "no_match"}))
+
+    assert results == []
+
+
+def test_fetch_collection_data_without_collection_name():
+    """Test fetch_collection_data when collection_name is missing in the document."""
+
+    mock_data = {
+        "_id": "67890",
+        "is_secure": False,
+        "data": "encrypted_data"
+    }
+
+    mock_object = MagicMock()
+    mock_object.to_mongo.return_value.to_dict.return_value = mock_data
+
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]), \
+            patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data", return_value="decrypted_data"):
+        results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
+
+    assert len(results) == 1
+    assert results[0] == {
+        "_id": "67890",
+        "collection_name": None,  # collection_name is missing
+        "is_secure": False,
+        "data": "decrypted_data"
+    }
+
+
+def test_fetch_collection_data_handles_exceptions():
+    """Test fetch_collection_data when an exception occurs during iteration."""
+
+    mock_object = MagicMock()
+    mock_object.to_mongo.side_effect = Exception("Database error")
+
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]):
+        with pytest.raises(Exception, match="Database error"):
+            list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
 
 def test_add_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
@@ -1260,3 +1318,193 @@ def test_send_email_missing_bot_direct():
             body="Test Body",
             bot=""
         )
+
+def dummy_uuid7():
+    return type("DummyUUID", (), {"hex": "fixed_uuid"})
+
+def dummy_execute_task(*args, **kwargs):
+    return "executed"
+
+class DummyDateTrigger:
+    def __init__(self, run_date, timezone):
+        self.run_date = run_date
+        self.timezone = timezone
+
+    def get_next_fire_time(self, prev_fire_time, now):
+        return datetime(2025, 1, 2, tzinfo=timezone.utc)
+
+class DummyCollection:
+    def __init__(self):
+        self.inserted = None
+
+    def insert_one(self, doc):
+        self.inserted = doc
+
+class DummyDB:
+    def __init__(self, collection):
+        self._collection = collection
+
+    def get_collection(self, name):
+        return self._collection
+
+class DummyMongoClient:
+    def __init__(self, url):
+        self.url = url
+
+    def get_database(self, name):
+        return DummyDB(DummyCollection())
+
+def test_add_schedule_job_missing_bot():
+
+    with pytest.raises(Exception, match="Missing bot id"):
+        CallbackUtility.add_schedule_job(
+            schedule_action="test_action",
+            date_time=datetime.now(timezone.utc),
+            data={},
+            timezone="UTC",
+            _id="any_id",
+            bot=None,
+        )
+def test_add_schedule_job_http_failure(monkeypatch):
+
+    schedule_action = "test_action"
+    date_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    data = {"initial": "value"}
+    tz = "UTC"
+    _id = "provided_id"
+    bot = "test_bot"
+    kwargs_in = {"extra": "info"}
+
+    monkeypatch.setattr("kairon.async_callback.utils.uuid7", dummy_uuid7)
+
+    monkeypatch.setattr(CallbackConfig, "get_entry", lambda bot, name: {"pyscript_code": "dummy_code"})
+
+    dummy_executor = type("DummyExecutor", (), {"execute_task": dummy_execute_task})
+    monkeypatch.setattr(ExecutorFactory, "get_executor", lambda: dummy_executor)
+
+    monkeypatch.setattr(obj_to_ref, "__call__", lambda self, func: func)
+
+    monkeyatch_target = "apscheduler.util.obj_to_ref"
+    monkeypatch.setattr(monkeyatch_target, lambda x: x)
+
+    monkeypatch.setattr(DateTrigger, "__init__", lambda self, run_date, **kwargs: setattr(self, "run_date", run_date))
+    monkeypatch.setattr(DateTrigger, "get_next_fire_time", lambda self, a, b: datetime(2025, 1, 2, tzinfo=timezone.utc))
+
+    monkeypatch.setattr(Utility, "environment", {
+        'database': {'url': 'mongodb://dummy'},
+        'events': {
+            'queue': {'name': 'dummy_db'},
+            'scheduler': {'collection': 'dummy_collection'},
+            'server_url': 'http://dummy_server'
+        }
+    })
+
+    monkeypatch.setattr(MongoClient, "__init__", lambda self, url: None)
+    monkeypatch.setattr(MongoClient, "get_database", lambda self, name: DummyDB(DummyCollection()))
+
+    monkeypatch.setattr(ActionUtility, "execute_http_request", lambda url, method: {"success": False, "error": "error message"})
+
+    monkeypatch.setattr(CallbackUtility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
+
+    with pytest.raises(Exception) as exc_info:
+        CallbackUtility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
+    assert "error message" in str(exc_info.value)
+
+
+def test_add_schedule_job_success(monkeypatch):
+    schedule_action = "test_action"
+    date_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    data = None
+    tz = "UTC"
+    _id = None
+    bot = "test_bot"
+    kwargs_in = None
+    monkeypatch.setattr("kairon.async_callback.utils.uuid7", dummy_uuid7)
+
+    monkeypatch.setattr(CallbackConfig, "get_entry", lambda bot, name: {"pyscript_code": "dummy_code"})
+
+    dummy_executor = type("DummyExecutor", (), {"execute_task": dummy_execute_task})
+    monkeypatch.setattr(ExecutorFactory, "get_executor", lambda: dummy_executor)
+
+    monkeypatch.setattr(obj_to_ref, "__call__", lambda self, func: func)
+
+    monkeyatch_target = "apscheduler.util.obj_to_ref"
+    monkeypatch.setattr(monkeyatch_target, lambda x: x)
+
+    monkeypatch.setattr(DateTrigger, "__init__", lambda self, run_date, **kwargs: setattr(self, "run_date", run_date))
+    fixed_next_run_time = datetime(2025, 1, 2, tzinfo=timezone.utc)
+    monkeypatch.setattr(DateTrigger, "get_next_fire_time", lambda self, a, b: fixed_next_run_time)
+
+    monkeypatch.setattr(Utility, "environment", {
+        'database': {'url': 'mongodb://dummy'},
+        'events': {
+            'queue': {'name': 'dummy_db'},
+            'scheduler': {'collection': 'dummy_collection'},
+            'server_url': 'http://dummy_server'
+        }
+    })
+
+    dummy_collection = DummyCollection()
+    dummy_db = DummyDB(dummy_collection)
+
+    monkeypatch.setattr(MongoClient, "__init__", lambda self, url: None)
+    monkeypatch.setattr(MongoClient, "get_database", lambda self, name: dummy_db)
+
+    monkeypatch.setattr(ActionUtility, "execute_http_request", lambda url, method: {"success": True})
+
+    monkeypatch.setattr(CallbackUtility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
+
+    result = CallbackUtility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
+
+    inserted_doc = dummy_collection.inserted
+    assert inserted_doc is not None
+    assert inserted_doc['_id'] == "fixed_uuid"
+    assert inserted_doc['next_run_time'] == 1234567890
+
+
+def test_delete_schedule_job_success(monkeypatch):
+    event_id = "test_event"
+    bot = "test_bot"
+
+    mock_execute_http_request = MagicMock(return_value={"success": True})
+    monkeypatch.setattr(ActionUtility, "execute_http_request", mock_execute_http_request)
+
+    mock_env = {"events": {"server_url": "http://mockserver.com"}}
+    monkeypatch.setattr(Utility, "environment", mock_env)
+
+    CallbackUtility.delete_schedule_job(event_id, bot)
+
+    mock_execute_http_request.assert_called_once_with("http://mockserver.com/api/events/test_event", "DELETE")
+
+
+def test_delete_schedule_job_missing_bot():
+    event_id = "test_event"
+    bot = ""
+
+    with pytest.raises(Exception, match="Missing bot id"):
+        CallbackUtility.delete_schedule_job(event_id, bot)
+
+
+def test_delete_schedule_job_missing_event():
+    event_id = ""
+    bot = "test_bot"
+
+    with pytest.raises(Exception, match="Missing event id"):
+        CallbackUtility.delete_schedule_job(event_id, bot)
+
+
+def test_delete_schedule_job_failure(monkeypatch):
+    event_id = "test_event"
+    bot = "test_bot"
+
+    mock_execute_http_request = MagicMock(return_value={"success": False, "error": "Failed to delete"})
+    monkeypatch.setattr(ActionUtility, "execute_http_request", mock_execute_http_request)
+
+    mock_env = {"events": {"server_url": "http://mockserver.com"}}
+    monkeypatch.setattr(Utility, "environment", mock_env)
+
+    with pytest.raises(Exception, match="{'success': False, 'error': 'Failed to delete'}"):
+        CallbackUtility.delete_schedule_job(event_id, bot)
+
+    mock_execute_http_request.assert_called_once_with("http://mockserver.com/api/events/test_event", "DELETE")
