@@ -15,7 +15,7 @@ import pytest
 import responses
 from fastapi import HTTPException
 from fastapi_sso.sso.base import OpenID
-from mongoengine import connect
+from mongoengine import connect, disconnect
 from mongoengine.errors import ValidationError, DoesNotExist
 from mongomock.object_id import ObjectId
 from pydantic import SecretStr
@@ -58,6 +58,11 @@ class TestAccountProcessor:
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         AccountProcessor.load_system_properties()
+
+    @pytest.fixture(scope='function')
+    def delete_default_account(self):
+        User.objects(email="test@demo.in").delete()
+        Account.objects(name="DemoAccount", user="test@demo.in").delete()
 
     def test_add_account(self):
         account_response = AccountProcessor.add_account("paypal", "testAdmin")
@@ -1140,7 +1145,7 @@ class TestAccountProcessor:
         assert actual["first_name"]
         assert len(list(AccountProcessor.list_bots(actual['account']))) == 0
 
-    def test_default_account_setup(self):
+    def test_default_account_setup(self, delete_default_account):
         loop = asyncio.new_event_loop()
         actual, mail, link = loop.run_until_complete(AccountProcessor.default_account_setup())
         assert actual

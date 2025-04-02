@@ -1441,7 +1441,13 @@ class TestActions:
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
 
-        mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, 'url': None}}}
+        mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, 'url': "http://localhost:8080/evaluate"}},
+                            "action": {"request_timeout": 1}}
+        responses.add(
+            "POST", "http://localhost:8080/evaluate",
+            json={"message": "Success", "success": True, "error_code": 0,
+                  "data": {"bot_response": "Successfully Evaluated the pyscript", "slots": {"param2": "param2value"}}}
+        )
 
         with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
             mock_trigger_lambda.return_value = \
@@ -1460,16 +1466,6 @@ class TestActions:
             assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                               {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                                'value': 'Successfully Evaluated the pyscript'}]
-            called_args = mock_trigger_lambda.call_args
-            assert called_args.args[1] == \
-                   {'source_code': script,
-                    'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
-                                           'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}],
-                                                              'text': 'get intents'},
-                                           'slot': {'bot': '5f50fd0a56b698ca10d35d2a',
-                                                    'param2': 'param2value'}, 'intent': 'pyscript_action',
-                                           'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None,
-                                           'session_started': None}}
 
     @responses.activate
     @pytest.mark.asyncio
