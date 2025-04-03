@@ -1508,3 +1508,262 @@ def test_delete_schedule_job_failure(monkeypatch):
         CallbackUtility.delete_schedule_job(event_id, bot)
 
     mock_execute_http_request.assert_called_once_with("http://mockserver.com/api/events/test_event", "DELETE")
+
+
+def test_pyscript_handler_for_decrypt_request_success():
+    source_code = '''
+        request_body = {
+            "encrypted_flow_data":"frFiM1lZY7G1Z8mWfNyOGiMlKWNchq2enKn7dh5AEG8O+ehfOomnri3ETNumsW/16ExT8V+6FSWAAtHJtWSN6cJWLMDuqYxHwde9RYAzIHhmhqt8b0X28MGowIGc3/PTj5cuFoxtxZgh6+4i/+2/eX4f8Zul0z4n41BqPOHzDrGaHxJpdytjLGfgWwcg38GxRpU7DKTvJxrGnNmpzqaV1FWFR+J0iXBi+NW5gdBKi3SGq3ScFkE89Trx/ZZGWuy/XW7I24PiL0I0cbGhh4UtBegJlblmA44lOM/CMMswIb6G4Yk9WjsCKddVxz6LeCJx5bUSrEGzcDM/A8FrnDrrfiY8j8SSLJMCfixW",
+            "encrypted_aes_key": "EspHuQs4dUOGh++ZoLRM54yRf2eghH2kPyI6YT8U8WgPP8L7eYZxZOVN2O6LAglGlt6yi8jGaDgdIKwmtNbr7ceaQiwHE+hxpiG6xzLiceSonn0ZSx2GVRHp6kvkn4kADWQypvfmOPizvJ5saGf7Lsep0Krh50vJ//HuYNK7MQUz7B2wpSRa+iI1/TaHjZMFHF1Fo31YHDXwdwb3A+7hToIfYy9mdqycPvbqqgVBxJ8WvgUzz/+Am05URQaUfw+jxxqonIYjZrmbCO4zkmAVO9EYQ/Xtli0e0iZtabqy7ePO2mSt8qgkyRrAgFkrSRobq7vxuOOmgAcYm498JKScAw==",
+            "initial_vector": "Gi/cmYgQJXQ0AWpo0M5X5w=="
+        }
+
+        private_key_pem = """-----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEAtABM+j40C3PwaKKrOScmbzkXs30OcACwlEP916N3gnQScFsH
+        xbyKUP8xUd+KxvzljpXUwNcL8qLBPsgkXxS5jhe58tW9QV4dgddt7HBTMh3Qiv9y
+        4h8Yp/gAEU/g0R1LSeNgm800vGrmeSe1TpciNoMMoAsAKosTcGNJ+ISh2WZk4NK+
+        s9o/Dt6X1Ww51LX2NvTzsgGlNNb5iIqQbFQhGD9LnJfYbqkuEDukaBKoEVM8857E
+        YugyJvq+pjVtg46p75wKZBUaAUxLyAp7NQiTZfPt2nWuRTa0xTKYaqV3fsWKNSJa
+        w8iWt9v0TZV0WPfk3AybzGDKrU5UkDftlNw13QIDAQABAoIBAB1TYDcz66xDARO3
+        DuDSm00rFsywDupZ/mrFcgWQFRAso3VpK0jAqSM9lFYzrosxWCAFEqKxVnm7IPM+
+        zcgs2vdGr82bm4gbEoEdLUREX5WObHO83wVujgiNm8s2QZkoJeQ9lneDtPgOjYqH
+        GN+bOWB6tNOdPzNvMaVRk9NYnnrJ0O3FzBOhYw3cl3sfXXLOHvP/cEHqRySX2NJE
+        /wdM3C4CcsKvMh1GRiJzJXI+d4yAwJ9lmer3A4vK5cU1bOIRrzvU/JHddF76e0Q5
+        8Hmm/CIrEAxFFf1v3JdHgyKyOe0KexDb09VFwnZTinHFHy/mMSpH5nFArHX8sO1d
+        jcSrZBECgYEA6SBxp8POQH29k78soHPLkV7HewUeO09JuvSmh4SN4imn6o5zLPIm
+        GT5M//85OCIfqHkKcpnSUyFDZy6BeyI2mARjY6mqU4mY5PY7cESwEOjC4OanzC6O
+        KGXYQ1XQnq+qP0Oe38dpYgMSE4N36Dqgj68FNZDgVNKG3/jzsVwf4XECgYEAxal5
+        /53W29NOSW1NwunM1MAk4byS7JN8xlux5LTHmE/8UYiRG2uHDryZP1iyjYQIV4WP
+        pH7vROt80HFpFDFdsngZqIxGN8ZXHgjoOxxhBsMZ/gZy0j7k3y7UGoO07Pdy5jYR
+        9FbKOuVgVZUJV6h3Ciq+XMnDCYUuLv4Z2RxQZS0CgYEAuFqxxktvpUxKSLZboh8w
+        EitzcHNhruFKmw+xSWWnlfv/D9vKdPag7kF4PtEj/KHvixj9DBdcXeTmGoiKWEd8
+        CMcfmcaoLRuYzydxZZzL5vNKePOuKid+v6+aT9Vi/rpH1XOyBaD6U0m+V7QVdI44
+        PqfXZL7GyA0cH64NeGozw+ECgYEAvqAnjCHI6M/snFvRtryMUlHMP/gBKi9DEnm0
+        IoFGTNo22NsANpWI9ulkUfdUm65N7TpdwaK5VppVESGO2W6Skl/JPwepYHjj449r
+        iDZiTIc0Ngw6CBGn4KXk4H1Mq4wpP2O+BQr+lbZJJcBJ9kP+Kcv3Mr1SX4gVdjSQ
+        8RWhYzECgYAkv/C9mw8Cpxiymut3pvFkG+23ajlLXUa8xtHHcS1VO3JJX9MHPmzU
+        XXKh1F2rEYtq6DIU8Y9ppbLZC9mh2T9VNL/Zxz8VoSQb6gampPoig0CFNvhTszhw
+        f3KNyeUpI8pQXdf8MbjeluH9Zrto/HlxAYROVwhHmRCfTecWrwasXA==
+        -----END RSA PRIVATE KEY-----
+        """
+
+        resp = decrypt_request(request_body, private_key_pem)
+        bot_response = resp
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    bot_response = data['body']['bot_response']
+    assert data['statusCode'] == 200
+    assert data['statusDescription'] == '200 OK'
+    assert bot_response == {
+            'decryptedBody': {
+                'data': {
+                    'department': 'home',
+                    'location': '3',
+                    'date': '2024-01-03',
+                    'time': '11:30',
+                    'name': 'dsa',
+                    'email': 'fsd@fsd.cds',
+                    'phone': '84512',
+                    'more_details': 'sdfa'
+                },
+                'flow_token': 'flows-builder-f174c96d',
+                'screen': 'SUMMARY',
+                'action': 'data_exchange',
+                'version': '3.0'
+            },
+            'aesKeyBuffer': b'\xbb\xccV\x98\xb2\xe8A\xb2\xe6j\xd8ob\x17\xa6\xeb',
+            'initialVectorBuffer': b'\x1a/\xdc\x99\x88\x10%t4\x01jh\xd0\xceW\xe7'
+        }
+
+
+def test_pyscript_handler_for_decrypt_request_missing_fields():
+    source_code = '''
+        request_body = {
+            "encrypted_flow_data":"frFiM1lZY7G1Z8mWfNyOGiMlKWNchq2enKn7dh5AEG8O+ehfOomnri3ETNumsW/16ExT8V+6FSWAAtHJtWSN6cJWLMDuqYxHwde9RYAzIHhmhqt8b0X28MGowIGc3/PTj5cuFoxtxZgh6+4i/+2/eX4f8Zul0z4n41BqPOHzDrGaHxJpdytjLGfgWwcg38GxRpU7DKTvJxrGnNmpzqaV1FWFR+J0iXBi+NW5gdBKi3SGq3ScFkE89Trx/ZZGWuy/XW7I24PiL0I0cbGhh4UtBegJlblmA44lOM/CMMswIb6G4Yk9WjsCKddVxz6LeCJx5bUSrEGzcDM/A8FrnDrrfiY8j8SSLJMCfixW",
+            "encrypted_aes_key": "EspHuQs4dUOGh++ZoLRM54yRf2eghH2kPyI6YT8U8WgPP8L7eYZxZOVN2O6LAglGlt6yi8jGaDgdIKwmtNbr7ceaQiwHE+hxpiG6xzLiceSonn0ZSx2GVRHp6kvkn4kADWQypvfmOPizvJ5saGf7Lsep0Krh50vJ//HuYNK7MQUz7B2wpSRa+iI1/TaHjZMFHF1Fo31YHDXwdwb3A+7hToIfYy9mdqycPvbqqgVBxJ8WvgUzz/+Am05URQaUfw+jxxqonIYjZrmbCO4zkmAVO9EYQ/Xtli0e0iZtabqy7ePO2mSt8qgkyRrAgFkrSRobq7vxuOOmgAcYm498JKScAw==",
+        }
+
+        private_key_pem = """-----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEAtABM+j40C3PwaKKrOScmbzkXs30OcACwlEP916N3gnQScFsH
+        xbyKUP8xUd+KxvzljpXUwNcL8qLBPsgkXxS5jhe58tW9QV4dgddt7HBTMh3Qiv9y
+        4h8Yp/gAEU/g0R1LSeNgm800vGrmeSe1TpciNoMMoAsAKosTcGNJ+ISh2WZk4NK+
+        s9o/Dt6X1Ww51LX2NvTzsgGlNNb5iIqQbFQhGD9LnJfYbqkuEDukaBKoEVM8857E
+        YugyJvq+pjVtg46p75wKZBUaAUxLyAp7NQiTZfPt2nWuRTa0xTKYaqV3fsWKNSJa
+        w8iWt9v0TZV0WPfk3AybzGDKrU5UkDftlNw13QIDAQABAoIBAB1TYDcz66xDARO3
+        DuDSm00rFsywDupZ/mrFcgWQFRAso3VpK0jAqSM9lFYzrosxWCAFEqKxVnm7IPM+
+        zcgs2vdGr82bm4gbEoEdLUREX5WObHO83wVujgiNm8s2QZkoJeQ9lneDtPgOjYqH
+        GN+bOWB6tNOdPzNvMaVRk9NYnnrJ0O3FzBOhYw3cl3sfXXLOHvP/cEHqRySX2NJE
+        /wdM3C4CcsKvMh1GRiJzJXI+d4yAwJ9lmer3A4vK5cU1bOIRrzvU/JHddF76e0Q5
+        8Hmm/CIrEAxFFf1v3JdHgyKyOe0KexDb09VFwnZTinHFHy/mMSpH5nFArHX8sO1d
+        jcSrZBECgYEA6SBxp8POQH29k78soHPLkV7HewUeO09JuvSmh4SN4imn6o5zLPIm
+        GT5M//85OCIfqHkKcpnSUyFDZy6BeyI2mARjY6mqU4mY5PY7cESwEOjC4OanzC6O
+        KGXYQ1XQnq+qP0Oe38dpYgMSE4N36Dqgj68FNZDgVNKG3/jzsVwf4XECgYEAxal5
+        /53W29NOSW1NwunM1MAk4byS7JN8xlux5LTHmE/8UYiRG2uHDryZP1iyjYQIV4WP
+        pH7vROt80HFpFDFdsngZqIxGN8ZXHgjoOxxhBsMZ/gZy0j7k3y7UGoO07Pdy5jYR
+        9FbKOuVgVZUJV6h3Ciq+XMnDCYUuLv4Z2RxQZS0CgYEAuFqxxktvpUxKSLZboh8w
+        EitzcHNhruFKmw+xSWWnlfv/D9vKdPag7kF4PtEj/KHvixj9DBdcXeTmGoiKWEd8
+        CMcfmcaoLRuYzydxZZzL5vNKePOuKid+v6+aT9Vi/rpH1XOyBaD6U0m+V7QVdI44
+        PqfXZL7GyA0cH64NeGozw+ECgYEAvqAnjCHI6M/snFvRtryMUlHMP/gBKi9DEnm0
+        IoFGTNo22NsANpWI9ulkUfdUm65N7TpdwaK5VppVESGO2W6Skl/JPwepYHjj449r
+        iDZiTIc0Ngw6CBGn4KXk4H1Mq4wpP2O+BQr+lbZJJcBJ9kP+Kcv3Mr1SX4gVdjSQ
+        8RWhYzECgYAkv/C9mw8Cpxiymut3pvFkG+23ajlLXUa8xtHHcS1VO3JJX9MHPmzU
+        XXKh1F2rEYtq6DIU8Y9ppbLZC9mh2T9VNL/Zxz8VoSQb6gampPoig0CFNvhTszhw
+        f3KNyeUpI8pQXdf8MbjeluH9Zrto/HlxAYROVwhHmRCfTecWrwasXA==
+        -----END RSA PRIVATE KEY-----
+        """
+
+        resp = decrypt_request(request_body, private_key_pem)
+        bot_response = resp
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data == {
+        'statusCode': 422,
+        'statusDescription': '200 OK',
+        'isBase64Encoded': False,
+        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'body': 'Script execution error: decryption failed-Missing required encrypted data fields'
+    }
+
+def test_pyscript_handler_for_encrypt_response_success():
+    source_code = '''
+        response_body = {
+            "APPOINTMENT": {
+                "screen": "APPOINTMENT",
+                "data": {
+                    "department": [
+                        {"id": "shopping", "title": "Shopping & Groceries"},
+                        {"id": "clothing", "title": "Clothing & Apparel"},
+                        {"id": "home", "title": "Home Goods & Decor"},
+                        {"id": "electronics", "title": "Electronics & Appliances"},
+                        {"id": "beauty", "title": "Beauty & Personal Care"},
+                    ]
+                }
+            }
+        }        
+        aes_key_buffer = bytes.fromhex("bbcc5698b2e841b2e66ad86f6217a6eb")
+        initial_vector_buffer = bytes.fromhex("1a2fdc998810257434016a68d0ce57e7")
+
+        encrypted_data = encrypt_response(response_body, aes_key_buffer, initial_vector_buffer)
+        bot_response = encrypted_data
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data["statusCode"] == 200
+    assert data["statusDescription"] == "200 OK"
+    assert data["isBase64Encoded"] is False
+    assert data["headers"]["Content-Type"] == "text/html; charset=utf-8"
+
+    assert data["body"]["aes_key_buffer"] == b'\xbb\xccV\x98\xb2\xe8A\xb2\xe6j\xd8ob\x17\xa6\xeb'
+    assert data["body"]["initial_vector_buffer"] == b'\x1a/\xdc\x99\x88\x10%t4\x01jh\xd0\xceW\xe7'
+
+    assert "encrypted_data" in data["body"]
+    assert "bot_response" in data["body"]
+    assert data["body"]["encrypted_data"] == data["body"]["bot_response"]
+
+
+def test_pyscript_handler_for_encrypt_response_missing_aes_key_buffer():
+    source_code = '''
+        response_body = {
+            "APPOINTMENT": {
+                "screen": "APPOINTMENT",
+                "data": {
+                    "department": [
+                        {"id": "shopping", "title": "Shopping & Groceries"},
+                        {"id": "clothing", "title": "Clothing & Apparel"},
+                        {"id": "home", "title": "Home Goods & Decor"},
+                        {"id": "electronics", "title": "Electronics & Appliances"},
+                        {"id": "beauty", "title": "Beauty & Personal Care"},
+                    ]
+                }
+            }
+        }        
+        aes_key_buffer = None
+        initial_vector_buffer = bytes.fromhex("1a2fdc998810257434016a68d0ce57e7")
+
+        encrypted_data = encrypt_response(response_body, aes_key_buffer, initial_vector_buffer)
+        bot_response = encrypted_data
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data == {
+        'statusCode': 422,
+        'statusDescription': '200 OK',
+        'isBase64Encoded': False,
+        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'body': 'Script execution error: encryption failed-AES key cannot be None'
+    }
+
+
+def test_pyscript_handler_for_encrypt_response_missing_initial_vector_buffer():
+    source_code = '''
+        response_body = {
+            "APPOINTMENT": {
+                "screen": "APPOINTMENT",
+                "data": {
+                    "department": [
+                        {"id": "shopping", "title": "Shopping & Groceries"},
+                        {"id": "clothing", "title": "Clothing & Apparel"},
+                        {"id": "home", "title": "Home Goods & Decor"},
+                        {"id": "electronics", "title": "Electronics & Appliances"},
+                        {"id": "beauty", "title": "Beauty & Personal Care"},
+                    ]
+                }
+            }
+        }
+        aes_key_buffer = bytes.fromhex("bbcc5698b2e841b2e66ad86f6217a6eb")
+        initial_vector_buffer = None
+
+        encrypted_data = encrypt_response(response_body, aes_key_buffer, initial_vector_buffer)
+        bot_response = encrypted_data
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data == {
+        'statusCode': 422,
+        'statusDescription': '200 OK',
+        'isBase64Encoded': False,
+        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'body': 'Script execution error: encryption failed-Initialization vector (IV) cannot be None'
+    }

@@ -29,6 +29,13 @@ from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
 from kairon.shared.utils import MailUtility
 
+import json
+import base64
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
 allow_module("datetime")
 allow_module("time")
 allow_module("requests")
@@ -218,6 +225,8 @@ class CallbackUtility:
         predefined_objects['update_data'] = partial(CallbackUtility.update_data, bot=bot)
         predefined_objects["generate_id"] = CallbackUtility.generate_id
         predefined_objects["datetime_to_utc_timestamp"]=CallbackUtility.datetime_to_utc_timestamp
+        predefined_objects['decrypt_request'] = CallbackUtility.decrypt_request
+        predefined_objects['encrypt_response'] = CallbackUtility.encrypt_response
 
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
@@ -316,5 +325,80 @@ class CallbackUtility:
             "message": f"Collection with ID {collection_id} has been successfully deleted.",
             "data": {"_id": collection_id}
         }
+
+    @staticmethod
+    def decrypt_request(request_body, private_key_pem):
+        try:
+            encrypted_data_b64 = request_body.get("encrypted_flow_data")
+            encrypted_aes_key_b64 = request_body.get("encrypted_aes_key")
+            iv_b64 = request_body.get("initial_vector")
+
+            if not (encrypted_data_b64 and encrypted_aes_key_b64 and iv_b64):
+                raise ValueError("Missing required encrypted data fields")
+
+            # Decode base64 inputs
+            encrypted_aes_key = base64.b64decode(encrypted_aes_key_b64)
+            encrypted_data = base64.b64decode(encrypted_data_b64)
+            iv = base64.b64decode(iv_b64)[:16]  # Ensure IV is exactly 16 bytes
+
+            private_key = load_pem_private_key(private_key_pem.encode(), password=None)
+
+            # Decrypt AES key using RSA and OAEP padding
+            aes_key = private_key.decrypt(
+                encrypted_aes_key,
+                asym_padding.OAEP(
+                    mgf=asym_padding.MGF1(algorithm=hashes.SHA256()),
+                    algorithm=hashes.SHA256(),
+                    label=None,
+                ),
+            )
+
+            if len(aes_key) not in (16, 24, 32):
+                raise ValueError(f"Invalid AES key size: {len(aes_key)} bytes")
+
+            # Extract GCM tag (last 16 bytes)
+            encrypted_body = encrypted_data[:-16]
+            tag = encrypted_data[-16:]
+
+            # Decrypt AES-GCM
+            cipher = Cipher(algorithms.AES(aes_key), modes.GCM(iv, tag))
+            decryptor = cipher.decryptor()
+            decrypted_bytes = decryptor.update(encrypted_body) + decryptor.finalize()
+            decrypted_data = json.loads(decrypted_bytes.decode("utf-8"))
+
+            response_dict = {
+                "decryptedBody": decrypted_data,
+                "aesKeyBuffer": aes_key,
+                "initialVectorBuffer": iv,
+            }
+
+            return response_dict
+
+        except Exception as e:
+            raise Exception(f"decryption failed-{str(e)}")
+
+    @staticmethod
+    def encrypt_response(response_body, aes_key_buffer, initial_vector_buffer):
+        try:
+            if aes_key_buffer is None:
+                raise ValueError("AES key cannot be None")
+
+            if initial_vector_buffer is None:
+                raise ValueError("Initialization vector (IV) cannot be None")
+
+            # Flip the IV
+            flipped_iv = bytes(byte ^ 0xFF for byte in initial_vector_buffer)
+
+            # Encrypt using AES-GCM
+            encryptor = Cipher(algorithms.AES(aes_key_buffer), modes.GCM(flipped_iv)).encryptor()
+            encrypted_bytes = encryptor.update(json.dumps(response_body).encode("utf-8")) + encryptor.finalize()
+            encrypted_data_with_tag = encrypted_bytes + encryptor.tag
+
+            # Encode result as base64
+            encoded_data = base64.b64encode(encrypted_data_with_tag).decode("utf-8")
+            return encoded_data
+        except Exception as e:
+            raise Exception(f"encryption failed-{str(e)}")
+
 
 
