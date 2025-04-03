@@ -230,6 +230,8 @@ DEFAULT_SYSTEM_PROMPT = (
 )
 DEFAULT_LLM = "openai"
 
+QDRANT_SUFFIX = "_faq_embd"
+
 
 class AuditlogActions(str, Enum):
     SAVE = "save"

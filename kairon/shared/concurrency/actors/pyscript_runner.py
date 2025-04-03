@@ -1,3 +1,4 @@
+from functools import partial
 from types import ModuleType
 from typing import Text, Dict, Optional, Callable
 from datetime import datetime, date
@@ -11,14 +12,21 @@ from timeout_decorator import timeout_decorator
 from kairon.exceptions import AppException
 from ..actors.base import BaseActor
 from AccessControl.SecurityInfo import allow_module
+from kairon.shared.concurrency.actors.utils import PyscriptUtility
+
 
 allow_module("datetime")
 allow_module("time")
-
+allow_module("googlemaps")
+allow_module("decimal")
+allow_module("_strptime")
 
 global_safe = _safe_globals
 global_safe['_getattr_'] = safer_getattr
 global_safe['json'] = json
+global_safe['srtp_time'] = PyscriptUtility.srtptime
+global_safe['srtf_time'] = PyscriptUtility.srtftime
+global_safe['url_parse'] = PyscriptUtility.url_parse_quote_plus
 
 
 class PyScriptRunner(BaseActor):
@@ -29,10 +37,24 @@ class PyScriptRunner(BaseActor):
         present as local variables and callables in the script. Any variable defined in the script
         will also be present in local dict which is returned as is from this method.
         """
+        from kairon.async_callback.utils import CallbackUtility
+
         local_vars = {}
         script_timeout = kwargs.get("timeout")
         if predefined_objects:
             local_vars = predefined_objects.copy()
+
+        bot = predefined_objects.get("slot", {}).get("bot")
+
+        global_safe['add_data'] = partial(CallbackUtility.add_data, bot=bot)
+        global_safe['get_data'] = partial(CallbackUtility.get_data, bot=bot)
+        global_safe['delete_data'] = partial(CallbackUtility.delete_data, bot=bot)
+        global_safe['update_data'] = partial(CallbackUtility.update_data, bot=bot)
+        global_safe['delete_schedule_job'] = partial(CallbackUtility.delete_schedule_job, bot=bot)
+        global_safe['get_db_action_data'] = partial(PyscriptUtility.get_db_action_data, bot=bot,
+                                                    predefined_objects=predefined_objects)
+        global_safe['api_call'] = partial(PyscriptUtility.api_call, bot=bot,
+                                          predefined_objects=predefined_objects)
 
         @timeout_decorator.timeout(script_timeout, use_signals=False)
         def execute_script_with_timeout(src_code: Text, local: Optional[Dict] = None):

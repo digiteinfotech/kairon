@@ -2,13 +2,15 @@ import os
 import shutil
 import tempfile
 import uuid
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 
 import pytest
 from mongoengine import connect
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.domain import Domain
 from rasa.shared.core.training_data.story_reader.yaml_story_reader import KEY_STORIES, KEY_RULES, KEY_RULE_CONDITION, \
-    KEY_RULE_FOR_CONVERSATION_START
+    KEY_RULE_FOR_CONVERSATION_START, KEY_ACTIVE_LOOP, KEY_USER_INTENT, KEY_USER_MESSAGE, KEY_OR, KEY_ACTION, \
+    KEY_BOT_END_TO_END_MESSAGE, KEY_CHECKPOINT, KEY_SLOT_NAME, KEY_METADATA
 from rasa.shared.core.training_data.structures import StoryStep
 
 from kairon.exceptions import AppException
@@ -513,3 +515,87 @@ def test_krasa_file_importer_exclusion(monkeypatch):
     )
     steps = KRasaFileImporter.load_data_from_files(story_files, dummy_domain, exclusion_percentage=50)
     assert len(steps) == 10
+
+
+
+def test_kyamlstoryreader_parse_step():
+    from rasa.shared.utils import io as io_module
+
+    reader = KYAMLStoryReader(source_name="test_source.yml")
+
+    reader._get_item_title = lambda: "dummy_item"
+    reader._get_docs_link = lambda: "http://dummy.docs.link"
+
+    reader._parse_user_utterance = MagicMock()
+    reader._parse_or_statement = MagicMock()
+    reader._parse_action = MagicMock()
+    reader._parse_bot_message = MagicMock()
+    reader._parse_checkpoint = MagicMock()
+    reader._parse_slot = MagicMock()
+    reader._parse_active_loop = MagicMock()
+    reader._parse_metadata = MagicMock()
+
+    original_raise_warning = io_module.raise_warning
+    io_module.raise_warning = MagicMock()
+
+    test_cases = [
+        ("string step", "unexpected string", "warning_str"),
+        ("user intent", {KEY_USER_INTENT: "greet"}, "user_utterance"),
+        ("user message", {KEY_USER_MESSAGE: "hello"}, "user_utterance"),
+        ("or statement", {KEY_OR: ["option1", "option2"]}, "or_statement"),
+        ("action", {KEY_ACTION: "utter_greet"}, "action"),
+        ("bot message", {KEY_BOT_END_TO_END_MESSAGE: "Hi there!"}, "bot_message"),
+        ("checkpoint", {KEY_CHECKPOINT: "checkpoint_1"}, "checkpoint"),
+        ("slot", {KEY_SLOT_NAME: "requested_slot"}, "slot"),
+        ("active loop", {KEY_ACTIVE_LOOP: "loop_name"}, "active_loop"),
+        ("metadata", {KEY_METADATA: {"flow_tags": ["tag1", "tag2"]}}, "metadata"),
+        ("unexpected dict", {"unknown_key": "value"}, "warning_dict"),
+    ]
+
+    for desc, step, expected in test_cases:
+        reader._parse_user_utterance.reset_mock()
+        reader._parse_or_statement.reset_mock()
+        reader._parse_action.reset_mock()
+        reader._parse_bot_message.reset_mock()
+        reader._parse_checkpoint.reset_mock()
+        reader._parse_slot.reset_mock()
+        reader._parse_active_loop.reset_mock()
+        reader._parse_metadata.reset_mock()
+        io_module.raise_warning.reset_mock()
+
+        reader._parse_step(step)
+
+        if expected == "warning_str":
+            expected_msg = (
+                f"Issue found in '{reader.source_name}':\n"
+                f"Found an unexpected step in the dummy_item description:\n"
+                f"{step}\nThe step is of type `str` which is only allowed for the rule snippet action "
+                f"'{RULE_SNIPPET_ACTION_NAME}'. It will be skipped."
+            )
+            io_module.raise_warning.assert_called_once_with(expected_msg, docs="http://dummy.docs.link")
+        elif expected == "user_utterance":
+            reader._parse_user_utterance.assert_called_once_with(step)
+        elif expected == "or_statement":
+            reader._parse_or_statement.assert_called_once_with(step)
+        elif expected == "action":
+            reader._parse_action.assert_called_once_with(step)
+        elif expected == "bot_message":
+            reader._parse_bot_message.assert_called_once_with(step)
+        elif expected == "checkpoint":
+            reader._parse_checkpoint.assert_called_once_with(step)
+        elif expected == "slot":
+            reader._parse_slot.assert_called_once_with(step)
+        elif expected == "active_loop":
+            reader._parse_active_loop.assert_called_once_with(step[KEY_ACTIVE_LOOP])
+        elif expected == "metadata":
+            reader._parse_metadata.assert_called_once_with(step)
+        elif expected == "warning_dict":
+            expected_msg = (
+                f"Issue found in '{reader.source_name}':\n"
+                f"Found an unexpected step in the dummy_item description:\n"
+                f"{step}\nIt will be skipped."
+            )
+            io_module.raise_warning.assert_called_once_with(expected_msg, docs="http://dummy.docs.link")
+
+    # Restore the original io.raise_warning.
+    io_module.raise_warning = original_raise_warning
