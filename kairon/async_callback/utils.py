@@ -29,7 +29,7 @@ from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
 from kairon.shared.utils import MailUtility
 
-import json
+import json as jsond
 import base64
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -364,7 +364,7 @@ class CallbackUtility:
             cipher = Cipher(algorithms.AES(aes_key), modes.GCM(iv, tag))
             decryptor = cipher.decryptor()
             decrypted_bytes = decryptor.update(encrypted_body) + decryptor.finalize()
-            decrypted_data = json.loads(decrypted_bytes.decode("utf-8"))
+            decrypted_data = jsond.loads(decrypted_bytes.decode("utf-8"))
 
             response_dict = {
                 "decryptedBody": decrypted_data,
@@ -391,7 +391,7 @@ class CallbackUtility:
 
             # Encrypt using AES-GCM
             encryptor = Cipher(algorithms.AES(aes_key_buffer), modes.GCM(flipped_iv)).encryptor()
-            encrypted_bytes = encryptor.update(json.dumps(response_body).encode("utf-8")) + encryptor.finalize()
+            encrypted_bytes = encryptor.update(jsond.dumps(response_body).encode("utf-8")) + encryptor.finalize()
             encrypted_data_with_tag = encrypted_bytes + encryptor.tag
 
             # Encode result as base64
