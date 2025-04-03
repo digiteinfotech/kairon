@@ -212,7 +212,7 @@ class RegisterAccount(RecaptchaVerifiedRequest):
             raise ValueError("First name cannot be empty or blank spaces")
 
         if not Utility.special_match(v, RE_ALPHA_NUM):
-            raise ValueError("First name can only contain letters.")
+            raise ValueError("First name can only contain letters,numbers, spaces and underscore.")
 
         return v
 
@@ -224,7 +224,7 @@ class RegisterAccount(RecaptchaVerifiedRequest):
             raise ValueError("Last name cannot be empty or blank spaces")
 
         if not Utility.special_match(v, RE_ALPHA_NUM):
-            raise ValueError("Last name can only contain letters.")
+            raise ValueError("Last name can only contain letters,numbers, spaces and underscore.")
 
         return v
 
