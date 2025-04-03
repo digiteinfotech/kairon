@@ -23,7 +23,7 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.data_objects import EmailActionConfig
-from kairon.shared.callback.data_objects import CallbackConfig
+from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
@@ -71,8 +71,6 @@ class CallbackUtility:
 
         if not _id:
             _id = uuid7().hex
-
-        print(f"bot: {bot}, name: {schedule_action}")
 
         if not data:
             data = {}
@@ -211,6 +209,8 @@ class CallbackUtility:
             predefined_objects = {}
 
         bot = predefined_objects.get("bot")
+        channel = predefined_objects.get("channel")
+        sender_id = predefined_objects.get("sender_id")
 
         predefined_objects['_getattr_'] = safer_getattr
         predefined_objects['requests']=requests
@@ -227,7 +227,10 @@ class CallbackUtility:
         predefined_objects["datetime_to_utc_timestamp"]=CallbackUtility.datetime_to_utc_timestamp
         predefined_objects['decrypt_request'] = CallbackUtility.decrypt_request
         predefined_objects['encrypt_response'] = CallbackUtility.encrypt_response
-
+        predefined_objects['create_callback'] = partial(CallbackUtility.create_callback,
+                                                            bot=bot,
+                                                            sender_id=sender_id,
+                                                           channel=channel)
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
             predefined_objects=predefined_objects
@@ -236,7 +239,6 @@ class CallbackUtility:
 
     @staticmethod
     def pyscript_handler(event, context):
-        print(event)
         output = {
             "statusCode": 200,
             "statusDescription": "200 OK",
@@ -401,4 +403,17 @@ class CallbackUtility:
             raise Exception(f"encryption failed-{str(e)}")
 
 
-
+    @staticmethod
+    def create_callback(callback_name: str, metadata: dict, bot: str, sender_id: str, channel: str, name: str='callback_pyscript'):
+        callback_url, identifier, standalone = CallbackData.create_entry(
+            name=name,
+            callback_config_name=callback_name,
+            bot=bot,
+            sender_id=sender_id,
+            channel=channel,
+            metadata=metadata,
+        )
+        if standalone:
+            return identifier
+        else:
+            return callback_url
