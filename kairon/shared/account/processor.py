@@ -697,10 +697,10 @@ class AccountProcessor:
             )
 
         if not Utility.special_match(first_name, search=RE_ALPHA_NUM):
-            raise AppException("First name can only contain letters and numbers.")
+            raise AppException("First name can only contain letters, numbers, spaces and underscores.")
 
         if not Utility.special_match(last_name, search=RE_ALPHA_NUM):
-            raise AppException("Last name can only contain letters and numbers.")
+            raise AppException("Last name can only contain letters, numbers, spaces and underscores.")
 
         Utility.is_exist(
             User,
