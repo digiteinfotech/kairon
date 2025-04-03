@@ -498,6 +498,10 @@ class TestAccountProcessor:
         with pytest.raises(AppException):
             AccountProcessor.update_bot(' ', '5f256412f98b97335c168ef0')
 
+    def test_update_bot_invalid_name(self):
+        with pytest.raises(AppException):
+            AccountProcessor.update_bot('Test@bot', '5f256412f98b97335c168ef0')
+
     def test_delete_bot(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
         pytest.deleted_bot = bot[1]['_id']
@@ -854,6 +858,29 @@ class TestAccountProcessor:
                 user="testAdmin",
             )
 
+    def test_add_user_invalid_firstname(self):
+        with pytest.raises(AppException):
+            AccountProcessor.add_user(
+                email="demo@demo.ai",
+                first_name="Gurs@g@r",
+                last_name="Sandhu",
+                password="Welcome@1",
+                account=1,
+                user="testAdmin",
+            )
+
+    def test_add_user_valid_firstname(self):
+        user = AccountProcessor.add_user(
+            email="demo@demo.ai",
+            first_name="Gursagar",
+            last_name="Sandhu",
+            password="Welcome@1",
+            account=1,
+            user="testAdmin",
+        )
+        assert user
+
+
     def test_add_user_empty_lastname(self):
         with pytest.raises(AppException):
             AccountProcessor.add_user(
@@ -886,6 +913,28 @@ class TestAccountProcessor:
                 account=1,
                 user="testAdmin",
             )
+
+    def test_add_user_invalid_lastname(self):
+        with pytest.raises(AppException):
+            AccountProcessor.add_user(
+                email="demo@demo.ai",
+                first_name="Gursagar",
+                last_name="S@ndhu",
+                password="Welcome@1",
+                account=1,
+                user="testAdmin",
+            )
+
+    def test_add_user_valid_lastname(self):
+        user = AccountProcessor.add_user(
+            email="yoyodemo@yo.ai",
+            first_name="Gursagar",
+            last_name="Sandhu",
+            password="Welcome@1",
+            account=1,
+            user="test1Admin",
+        )
+        assert user
 
     def test_add_user_empty_password(self):
         with pytest.raises(AppException):
@@ -2762,6 +2811,25 @@ class TestAccountProcessor:
         with pytest.raises(ValueError, match="Password length must be 10\n"
                                              "Missing 1 number\nMissing 1 special letter"):
             Password.validate_password(SecretStr(None), {})
+
+    def test_validate_first_name(cls):
+        with pytest.raises(ValueError, match="First name cannot be empty or blank spaces"):
+            RegisterAccount.validate_first_name("")
+
+        with pytest.raises(ValueError, match="First name can only contain letters,numbers, spaces and underscore."):
+            RegisterAccount.validate_first_name("Invalid@Name")
+
+        assert RegisterAccount.validate_first_name("ValidName_123") == "ValidName_123"
+
+    def test_validate_last_name(cls):
+        with pytest.raises(ValueError, match="Last name cannot be empty or blank spaces"):
+            RegisterAccount.validate_last_name("")
+
+        with pytest.raises(ValueError, match="Last name can only contain letters,numbers, spaces and underscore."):
+            RegisterAccount.validate_last_name("Invalid@Name")
+
+        assert RegisterAccount.validate_last_name("ValidName_123") == "ValidName_123"
+
 
     def test_check(cls):
         with pytest.raises(ValueError, match="Provide key from key vault as value"):
