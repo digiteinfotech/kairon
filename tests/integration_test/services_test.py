@@ -1395,7 +1395,6 @@ def test_api_login_enabled_sso_only(monkeypatch):
     assert not actual["success"]
     assert actual["error_code"] == 422
 
-
 def test_add_bot():
     response = client.post(
         "/api/account/bot",
@@ -12178,7 +12177,6 @@ def test_update_multiflow_story_with_tag():
     assert actual["error_code"] == 0
 
 
-
 def test_update_multiflow_story():
     response = client.put(
         f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
@@ -20948,7 +20946,7 @@ def test_create_stories_with_form():
         {"name": "utter_submit", "type": "BOT"},
     ]
     story_dict = {
-        "name": "stop form + continue",
+        "name": "stop form - continue",
         "steps": steps,
         "type": "STORY",
         "template_type": "CUSTOM",
