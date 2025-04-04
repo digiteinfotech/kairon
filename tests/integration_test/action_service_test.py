@@ -1485,8 +1485,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exceptio
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': "I have failed to process your request"}]
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-        assert log['exception'] == "Pyscript evaluation failed: {'message': 'Failed to evaluated the pyscript', 'success': False, 'error_code': 422, 'data': None}"
-
+        assert log['exception'] =="Failed to evaluated the pyscript"
 
 @responses.activate
 def test_pyscript_action_execution_with_error():
