@@ -1,4 +1,5 @@
 import os
+import re
 import textwrap
 from calendar import timegm
 from datetime import datetime, timezone, date
@@ -17,7 +18,6 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
-from kairon.shared.concurrency.actors.utils import PyscriptUtility
 from kairon.shared.utils import MailUtility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -1767,3 +1767,93 @@ def test_pyscript_handler_for_encrypt_response_missing_initial_vector_buffer():
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
         'body': 'Script execution error: encryption failed-Initialization vector (IV) cannot be None'
     }
+
+
+@patch("kairon.shared.callback.data_objects.CallbackData.save", MagicMock())
+@patch("kairon.shared.callback.data_objects.CallbackConfig.get_auth_token", MagicMock(return_value=("auth_token", False)))
+def test_pyscript_handler_create_callback():
+    data = {
+        "name": "test_action",
+        "callback_name": "test_callback",
+        "bot": "test_bot",
+        "sender_id": "sender_123",
+        "channel": "test_channel",
+        "metadata": {}
+    }
+    url = CallbackUtility.create_callback(**data)
+    assert "/callback/d" in url
+    assert "/auth_token" in url
+
+@patch("kairon.shared.callback.data_objects.CallbackData.save", MagicMock())
+@patch("kairon.shared.callback.data_objects.CallbackConfig.get_auth_token", MagicMock(return_value=("auth_token", True)))
+def test_pyscript_handler_create_callback_standalone():
+    data = {
+        "name": "test_action",
+        "callback_name": "test_callback",
+        "bot": "test_bot",
+        "sender_id": "sender_123",
+        "channel": "test_channel",
+        "metadata": {}
+    }
+    identifier = CallbackUtility.create_callback(**data)
+    assert bool(re.fullmatch(r"[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}", identifier, re.IGNORECASE))
+    assert len(identifier) == 32
+    assert not "/callback/d" in identifier
+
+def test_pyscript_handler_create_callback_in_pyscript():
+    CallbackConfig.create_entry(bot='test_bot', name='callback_py_1', pyscript_code = 'bot_response="hello world"')
+    source_code = '''
+    bot_response = create_callback('callback_py_1', {'name': 'spandan', 'age': 20})
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot',
+                  'sender_id': '917506075263',
+                  'channel': 'whatsapp',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data['statusCode'] == 200
+    bot_response = data['body']['bot_response']
+    assert "/callback/d" in bot_response
+    assert len(bot_response) > 32
+    CallbackConfig.objects(bot='test_bot', name='callback_py_1').delete()
+
+def test_pyscript_handler_create_callback_in_pyscript_standalone():
+    CallbackConfig.create_entry(bot='test_bot',
+                                name='callback_py_1',
+                                pyscript_code = 'bot_response="hello world"',
+                                standalone=True,
+                                standalone_id_path='id')
+    source_code = '''
+    bot_response = create_callback('callback_py_1', {'name': 'spandan', 'age': 20})
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot',
+                  'sender_id': '917506075263',
+                  'channel': 'whatsapp',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data['statusCode'] == 200
+    bot_response = data['body']['bot_response']
+    assert not "/callback/d" in bot_response
+    assert len(bot_response) == 32
+    def is_hex(s: str) -> bool:
+        try:
+            int(s, 16)
+            return True
+        except ValueError:
+            return False
+    assert is_hex(bot_response)
+    CallbackConfig.objects(bot='test_bot', name='callback_py_1').delete()
+
