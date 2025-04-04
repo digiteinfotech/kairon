@@ -683,10 +683,18 @@ class ActionUtility:
         pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
         request_body = {"source_code": source_code, "predefined_objects": context}
 
-        resp = ActionUtility.execute_http_request(pyscript_evaluator_url, "POST", request_body)
-        if resp.get('error_code') != 0:
-            raise ActionFailure(f'Pyscript evaluation failed: {resp}')
-        result = resp.get('data')
+        if trigger_task:
+            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body,
+                                                          task_type=TASK_TYPE.ACTION.value)
+            if CloudUtility.lambda_execution_failed(lambda_response):
+                err = lambda_response['Payload'].get('body') or lambda_response
+                raise ActionFailure(f"{err}")
+            result = lambda_response["Payload"].get('body')
+        else:
+            resp = ActionUtility.execute_http_request(pyscript_evaluator_url, "POST", request_body)
+            if resp.get('error_code') != 0:
+                raise ActionFailure(f'Pyscript evaluation failed: {resp}')
+            result = resp.get('data')
 
         return result
 
