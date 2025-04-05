@@ -40,6 +40,7 @@ class Messenger:
         self.client = MessengerClient(page_access_token)
         self.last_message: Dict[Text, Any] = {}
         self.is_instagram = is_instagram
+        self.allowed_users = []
 
     def get_user_id(self) -> Text:
         sender_id = self.last_message.get("sender", {}).get("id", "")
@@ -171,6 +172,10 @@ class Messenger:
             user = message["value"]["from"]["username"]
             metadata["comment_id"] = comment_id
             metadata["static_comment_reply"] = f"@{user} {static_comment_reply}"
+            if media := message["value"].get("media"):
+                metadata["media_id"] = media.get("id")
+                metadata["media_product_type"] = media.get("media_product_type")
+
             if not parent_id:
                 await self._handle_user_message(text, self.get_user_id(), metadata, bot)
 
@@ -178,8 +183,12 @@ class Messenger:
             self, text: Text, sender_id: Text, metadata: Optional[Dict[Text, Any]], bot: str
     ) -> None:
         """Pass on the text to the dialogue engine for processing."""
-
         out_channel = MessengerBot(self.client)
+        if self.is_instagram and self.allowed_users:
+            username = await out_channel.get_username_for_id(sender_id)
+            if username and (username not in self.allowed_users):
+                return
+
         await out_channel.send_action(sender_id, sender_action="mark_seen")
         input_channel_name = self.name() if not self.is_instagram else "instagram"
         user_msg = UserMessage(
@@ -187,7 +196,7 @@ class Messenger:
         )
         await out_channel.send_action(sender_id, sender_action="typing_on")
 
-        if metadata.get("comment_id"):
+        if metadata.get("comment_id") and metadata.get('static_comment_reply'):
             await out_channel.reply_on_comment(**metadata)
         # noinspection PyBroadException
         try:
@@ -244,6 +253,13 @@ class MessengerBot(OutputChannel):
             params=self.messenger_client.auth_args,
             json=body
         )
+
+    async def get_username_for_id(self, sender_id: str) -> str:
+        params = f"fields=username&access_token={self.messenger_client.auth_args['access_token']}"
+        resp = self.messenger_client.session.get(
+            f"{self.messenger_client.graph_url}/{sender_id}?{params}"
+        )
+        return resp.json().get('username')
 
     async def send_image_url(
             self, recipient_id: Text, image: Text, **kwargs: Any
@@ -512,6 +528,12 @@ class InstagramHandler(MessengerHandler):
             return "not validated"
 
         messenger = Messenger(page_access_token, is_instagram=True)
+
+        if messenger_conf["config"].get("is_dev"):
+            allowed_users_str = messenger_conf["config"].get("allowed_users", "")
+            messenger.allowed_users = Utility.string_to_list(allowed_users_str)
+
+
 
         metadata = self.get_metadata(self.request) or {}
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "instagram", "tabname": "default"})

@@ -1064,3 +1064,157 @@ async def test_process_messages_via_bot(mock_get_metadata, mock_get_agent_withou
     mock_get_metadata.assert_called_once_with(account, bot, is_integration_user, metadata)
     mock_get_agent_without_cache.assert_called_once_with(bot, False)
     assert mock_model.handle_message.call_count == 2
+
+
+
+@pytest.mark.asyncio
+async def test_handle_user_message_disallowed(monkeypatch):
+    class DummyClient:
+        pass
+
+    Utility.environment['model'] = {
+        'cache_size': 20
+    }
+    from kairon.chat.handlers.channels.messenger import Messenger, MessengerBot
+    messenger = Messenger(page_access_token="dummy_token", is_instagram=True)
+    messenger.allowed_users = ["allowed_user"]
+    messenger.client = DummyClient()
+
+    async def fake_get_username_for_id(self, sender_id):
+        return "disallowed_user"
+
+    monkeypatch.setattr(MessengerBot, "get_username_for_id", fake_get_username_for_id)
+
+    process_called = False
+
+    async def fake_process_message(bot, user_message):
+        nonlocal process_called
+        process_called = True
+
+    monkeypatch.setattr(Messenger, "process_message", fake_process_message)
+
+    await messenger._handle_user_message("test text", "sender1", {}, "testbot")
+
+    assert not process_called
+    del Utility.environment['model']
+
+
+
+
+@pytest.mark.asyncio
+async def test_get_username_for_id(monkeypatch):
+    class DummyResponse:
+        def __init__(self, json_data):
+            self._json_data = json_data
+
+        def json(self):
+            return self._json_data
+
+    class DummySession:
+        def get(self, url):
+            return DummyResponse({"username": "testuser"})
+
+    class DummyClient:
+        auth_args = {"access_token": "dummy_access_token"}
+        graph_url = "http://dummy_graph_url"
+        session = DummySession()
+    Utility.environment['model'] = {
+        'cache_size': 20
+    }
+    from kairon.chat.handlers.channels.messenger import MessengerBot
+    messenger_bot = MessengerBot(DummyClient())
+
+    async def fake_get_username_for_id(self, sender_id: str) -> str:
+        params = f"fields=username&access_token={self.messenger_client.auth_args['access_token']}"
+        url = f"{self.messenger_client.graph_url}/{sender_id}?{params}"
+        assert "12345" in url
+        resp = self.messenger_client.session.get(url)
+        return resp.json().get('username')
+    monkeypatch.setattr(MessengerBot, "get_username_for_id", fake_get_username_for_id)
+    username = await messenger_bot.get_username_for_id("12345")
+
+    assert username == "testuser"
+
+
+
+
+@pytest.mark.asyncio
+async def test_allowed_users_set_in_dev(monkeypatch):
+    class DummyRequest:
+        def __init__(self):
+            self.headers = {"X-Hub-Signature": "dummy_signature"}
+            self._body = b'{}'
+            self.query_params = {"hub.verify_token": "dummy_verify_token", "hub.challenge": "123"}
+
+        async def body(self):
+            return self._body
+
+        async def json(self):
+            return {}
+
+    class DummyUser:
+        account = "dummy_account"
+
+    class DummyActor:
+        def execute(self, func, payload, metadata, bot):
+            pass
+
+    Utility.environment['model'] = {
+        'cache_size': 20
+    }
+    from kairon.shared.concurrency.actors.factory import ActorFactory
+    from kairon.chat.handlers.channels.messenger import InstagramHandler, Messenger
+
+    dummy_config = {
+        "config": {
+            "is_dev": True,
+            "allowed_users": "user1,user2",
+            "app_secret": "dummy_secret",
+            "page_access_token": "dummy_page_token",
+            "verify_token": "dummy_verify_token",
+        }
+    }
+
+    monkeypatch.setattr(
+        ChatDataProcessor,
+        "get_channel_config",
+        lambda channel, bot, mask_characters: dummy_config
+    )
+
+    monkeypatch.setattr(
+        InstagramHandler,
+        "validate_hub_signature",
+        lambda self, secret, payload, signature: True
+    )
+
+    monkeypatch.setattr(
+        ActorFactory,
+        "get_instance",
+        lambda actor_type: DummyActor()
+    )
+
+    captured_messenger = None
+
+    original_init = Messenger.__init__
+
+    def fake_messenger_init(self, page_access_token, is_instagram=False):
+        original_init(self, page_access_token, is_instagram)
+        nonlocal captured_messenger
+        captured_messenger = self
+
+    monkeypatch.setattr(Messenger, "__init__", fake_messenger_init)
+
+    # Create a dummy InstagramHandler instance with our dummy request, bot, and user.
+    dummy_request = DummyRequest()
+    dummy_bot = "dummy_bot"
+    dummy_user = DummyUser()
+
+    handler = InstagramHandler(dummy_bot, dummy_user, dummy_request)
+
+    result = await handler.handle_message()
+    assert result == "success", "handle_message should return 'success'"
+
+    assert captured_messenger is not None, "Messenger instance should be created"
+    assert captured_messenger.allowed_users == ["user1", "user2"], (
+        "allowed_users should be set to ['user1', 'user2']"
+    )
