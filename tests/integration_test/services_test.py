@@ -4958,6 +4958,7 @@ def test_callback_config_add():
     assert actual == {'success': True, 'message': 'Callback added successfully!',
                       'data': {'name': 'callback_1',
                                'pyscript_code': "bot_response = 'Hello World!'",
+                               'response_type': 'kairon_json',
                                 'expire_in': 0,
                                'shorten_token': False,
                                'standalone': False,
@@ -4987,6 +4988,7 @@ def test_callback_config_add_standalone():
     assert actual == {'success': True, 'message': 'Callback added successfully!',
                       'data': {'name': 'callback_2',
                                'pyscript_code': "bot_response = 'Hello World!'",
+                               'response_type': 'kairon_json',
                                'expire_in': 0,
                                'shorten_token': False,
                                'standalone': True,
@@ -5068,6 +5070,7 @@ def test_callback_config_edit():
     actual['data'].pop('bot')
     assert actual == {'success': True, 'message': 'Callback updated successfully!',
                       'data': {'name': 'callback_1', 'pyscript_code': "bot_response = 'Hello World2!'",
+                               'response_type': 'kairon_json',
                                'expire_in': 0,
                                'shorten_token': False,
                                'standalone': False,

@@ -76,6 +76,11 @@ class CallbackExecutionMode(Enum):
     ASYNC = "async"
     SYNC = "sync"
 
+class CallbackResponseType(Enum):
+    KAIRON_JSON = "kairon_json"
+    JSON = "json"
+    TEXT = "text"
+
 
 @push_notification.apply
 class CallbackConfig(Auditlog):
@@ -90,6 +95,8 @@ class CallbackConfig(Auditlog):
     token_value = StringField()
     standalone = BooleanField(default=False)
     standalone_id_path = StringField(default='')
+    response_type = StringField(default=CallbackResponseType.KAIRON_JSON.value,
+                                choices=[v.value for v in CallbackResponseType.__members__.values()])
     bot = StringField(required=True)
     meta = {"indexes": [{"fields": ["bot", "name"]}]}
 
@@ -116,6 +123,7 @@ class CallbackConfig(Auditlog):
                      shorten_token: bool = False,
                      standalone: bool = False,
                      standalone_id_path: str = '',
+                     response_type: str = CallbackResponseType.KAIRON_JSON.value,
                      **kwargs):
         check_nonempty_string(name)
         if standalone and not standalone_id_path:
@@ -142,6 +150,7 @@ class CallbackConfig(Auditlog):
                                 token_hash=token_hash,
                                 standalone=standalone,
                                 standalone_id_path=standalone_id_path,
+                                response_type=response_type,
                                 **kwargs)
         config.save()
         return config.to_mongo().to_dict()
