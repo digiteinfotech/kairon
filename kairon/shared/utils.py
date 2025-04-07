@@ -2498,6 +2498,9 @@ class MailUtility:
     async def format_and_send_mail(
         mail_type: str, email: str, first_name: str, url: str = None, **kwargs
     ):
+        if not Utility.special_match(first_name, search=re.compile(r"^[a-zA-Z0-9 _]+$").search):
+            raise AppException("First name can only contain letters, numbers, spaces and underscores.")
+
         mail_actions_dict = {
             "password_reset": MailUtility.__handle_password_reset,
             "password_reset_confirmation": MailUtility.__handle_password_reset_confirmation,
