@@ -1204,7 +1204,6 @@ async def test_allowed_users_set_in_dev(monkeypatch):
 
     monkeypatch.setattr(Messenger, "__init__", fake_messenger_init)
 
-    # Create a dummy InstagramHandler instance with our dummy request, bot, and user.
     dummy_request = DummyRequest()
     dummy_bot = "dummy_bot"
     dummy_user = DummyUser()
@@ -1217,4 +1216,72 @@ async def test_allowed_users_set_in_dev(monkeypatch):
     assert captured_messenger is not None, "Messenger instance should be created"
     assert captured_messenger.allowed_users == ["user1", "user2"], (
         "allowed_users should be set to ['user1', 'user2']"
+    )
+
+
+@pytest.mark.asyncio
+async def test_comment_with_static_comment_reply(monkeypatch):
+    from kairon.chat.handlers.channels.messenger import Messenger, ChatDataProcessor
+    message = {
+        "field": "comments",
+        "value": {
+            "id": "comment123",
+            "text": "This is a test comment",
+            "from": {"username": "test_user"},
+            "media": {
+                "id": "media456",
+                "media_product_type": "STORY"
+            }
+        }
+    }
+    metadata = {}
+    bot = "test_bot"
+
+    messenger = Messenger(page_access_token="dummy_token")
+
+    monkeypatch.setattr(messenger, "_is_comment", lambda msg: True)
+    monkeypatch.setattr(ChatDataProcessor, "get_instagram_static_comment", lambda bot: "Thanks for commenting!")
+    monkeypatch.setattr(messenger, "get_user_id", lambda: "sender123")
+    messenger._handle_user_message = AsyncMock()
+
+    await messenger.comment(message, metadata, bot)
+
+    assert metadata["comment_id"] == "comment123"
+    assert metadata["static_comment_reply"] == "@test_user Thanks for commenting!"
+    assert metadata["media_id"] == "media456"
+    assert metadata["media_product_type"] == "STORY"
+
+    messenger._handle_user_message.assert_awaited_once_with(
+        "This is a test comment", "sender123", metadata, bot
+    )
+
+@pytest.mark.asyncio
+async def test_comment_without_static_comment_reply(monkeypatch):
+    from kairon.chat.handlers.channels.messenger import Messenger, ChatDataProcessor
+    message = {
+        "field": "comments",
+        "value": {
+            "id": "comment789",
+            "text": "Another test comment",
+            "from": {"username": "ghost_user"}
+        }
+    }
+    metadata = {}
+    bot = "test_bot"
+
+    messenger = Messenger(page_access_token="dummy_token")
+
+    monkeypatch.setattr(messenger, "_is_comment", lambda msg: True)
+    monkeypatch.setattr(ChatDataProcessor, "get_instagram_static_comment", lambda bot: None)
+    monkeypatch.setattr(messenger, "get_user_id", lambda: "sender789")
+
+    messenger._handle_user_message = AsyncMock()
+
+    await messenger.comment(message, metadata, bot)
+
+    assert metadata["comment_id"] == "comment789"
+    assert "static_comment_reply" not in metadata
+
+    messenger._handle_user_message.assert_awaited_once_with(
+        "Another test comment", "sender789", metadata, bot
     )

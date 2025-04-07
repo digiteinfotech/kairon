@@ -171,7 +171,8 @@ class Messenger:
             comment_id = message["value"]["id"]
             user = message["value"]["from"]["username"]
             metadata["comment_id"] = comment_id
-            metadata["static_comment_reply"] = f"@{user} {static_comment_reply}"
+            if static_comment_reply:
+                metadata["static_comment_reply"] = f"@{user} {static_comment_reply}"
             if media := message["value"].get("media"):
                 metadata["media_id"] = media.get("id")
                 metadata["media_product_type"] = media.get("media_product_type")
@@ -533,10 +534,14 @@ class InstagramHandler(MessengerHandler):
             allowed_users_str = messenger_conf["config"].get("allowed_users", "")
             messenger.allowed_users = Utility.string_to_list(allowed_users_str)
 
-
-
         metadata = self.get_metadata(self.request) or {}
-        metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "instagram", "tabname": "default"})
+        metadata.update({
+            "is_integration_user": True,
+            "bot": self.bot,
+            "account": self.user.account,
+            "channel_type": "instagram",
+            "tabname": "default"
+        })
         actor = ActorFactory.get_instance(ActorType.callable_runner.value)
         actor.execute(messenger.handle, await self.request.json(), metadata, self.bot)
         return msg
