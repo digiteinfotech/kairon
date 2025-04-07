@@ -6030,6 +6030,14 @@ class MongoProcessor:
 
     @staticmethod
     def add_demo_request(**kwargs):
+        first_name = kwargs.get("first_name")
+        last_name = kwargs.get("last_name")
+
+        if not Utility.special_match(first_name, search=re.compile(r"^[a-zA-Z0-9 _]+$").search):
+            raise AppException("First name can only contain letters, numbers, spaces and underscores.")
+
+        if not Utility.special_match(last_name, search=re.compile(r"^[a-zA-Z0-9 _]+$").search):
+            raise AppException("Last name can only contain letters, numbers, spaces and underscores.")
         try:
             logs = DemoRequestLogs(
                 first_name=kwargs.get("first_name"),
