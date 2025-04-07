@@ -48,6 +48,8 @@ channels:
       - verify_token
     optional_fields:
       - static_comment_reply
+      - is_dev
+      - allowed_users
   whatsapp:
     required_fields:
       - app_secret
