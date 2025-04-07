@@ -163,7 +163,7 @@ from .action_serializer import ActionSerializer
 from .data_validation import DataValidation
 from .model_data_imporer import KRasaFileImporter, CustomRuleStep
 from .utils import DataUtility
-from ..callback.data_objects import CallbackConfig, CallbackLog
+from ..callback.data_objects import CallbackConfig, CallbackLog, CallbackResponseType
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
 from ..constants import KaironSystemSlots, PluginTypes, EventClass
@@ -8451,6 +8451,7 @@ class MongoProcessor:
         standalone = request_data.get("standalone")
         expire_in = request_data.get("expire_in")
         standalone_id_path = request_data.get("standalone_id_path")
+        response_type = request_data.get("response_type", CallbackResponseType.KAIRON_JSON.value)
         if standalone and not standalone_id_path:
             raise AppException("Standalone id path is required!")
         if compile_error := DataValidation.validate_python_script_compile_time(pyscript_code):
@@ -8462,7 +8463,8 @@ class MongoProcessor:
                                              expire_in,
                                              shorten_token,
                                              standalone,
-                                             standalone_id_path)
+                                             standalone_id_path,
+                                             response_type)
         config.pop('_id')
         return config
 

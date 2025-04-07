@@ -8,7 +8,7 @@ from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
 from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
-from kairon.shared.callback.data_objects import CallbackData, CallbackLog, CallbackExecutionMode
+from kairon.shared.callback.data_objects import CallbackData, CallbackLog, CallbackExecutionMode, CallbackResponseType
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE
@@ -140,6 +140,7 @@ class CallbackProcessor:
         predefined_objects.update(entry)
         bot = entry.get("bot")
         execution_mode = callback.get("execution_mode")
+        response_type = callback.get("response_type", CallbackResponseType.KAIRON_JSON.value)
         try:
             if execution_mode == CallbackExecutionMode.ASYNC.value:
                 logger.info(f"Executing async callback. Identifier: {entry.get('identifier')}")
@@ -188,4 +189,4 @@ class CallbackProcessor:
                                              callback_url=entry.get("callback_url"),
                                              callback_source=callback_source)
 
-        return data, message, error_code
+        return data, message, error_code, response_type
