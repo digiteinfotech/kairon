@@ -1,4 +1,3 @@
-from kairon.shared.data.data_objects import BotSettings
 import ujson as json
 import uuid
 from datetime import datetime
