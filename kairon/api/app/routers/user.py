@@ -80,6 +80,7 @@ async def book_a_demo(
             raise AppException("Last name can only contain letters, numbers, spaces and underscores.")
 
     validate_data()
+
     background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='book_a_demo', email=support_mail,
                               first_name=form_data.data['first_name'], request=request, **form_data.dict())
     return {"message": "Thank You for your interest in Kairon. We will reach out to you soon."}
