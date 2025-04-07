@@ -218,13 +218,42 @@ async def test_get_callback(mock_dispatch_message):
     response = await client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
     assert response.status == 200
     json_response = await response.json()
-    print(json_response)
     assert json_response["success"]
     assert json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
     assert json_response == {"message": "success", "data": "{'type': 'GET', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
     assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "019107c7570577a6b0f279b4038c4a8f i am happy : )", "telegram")
+
+
+@pytest.mark.asyncio
+@patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
+async def test_get_callback_response_type(mock_dispatch_message):
+    await app.start()
+    client = TestClient(app)
+    callback = CallbackConfig.objects(name='callback_script2', bot='6697add6b8e47524eb983373').get()
+    callback.response_type = 'text'
+    callback.save()
+
+    response = await client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
+    assert response.status == 200
+    json_response = await response.text()
+    assert json_response == "{'type': 'GET', 'body': None, 'params': {}} i am happy : )"
+    assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "019107c7570577a6b0f279b4038c4a8f i am happy : )", "telegram")
+
+    callback.response_type = 'json'
+    callback.pyscript_code = "bot_response={'arr': [1,2,3]}"
+    callback.save()
+
+    response = await client.get(
+        '/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
+    assert response.status == 200
+    json_response = await response.json()
+    assert  json_response == {'arr': [1,2,3]}
+
+    callback.response_type = 'kairon_json'
+    callback.pyscript_code = "bot_response = f\"{req} {metadata['happy']}\""
+    callback.save()
 
 
 @pytest.mark.asyncio
@@ -335,12 +364,11 @@ async def test_request_fallback_to_text():
     mock_request.read = AsyncMock(return_value=b"test body content")
     mock_request.query = QueryParams({})
     mock_request.scope = {"client": ["127.0.0.1"]}
-    # response = await process_router_message("test_bot", "test_name", "GET", request=mock_request)
-    with patch("kairon.async_callback.processor.CallbackProcessor.process_async_callback_request", new=AsyncMock(return_value=({}, "Success", 0))):
+    with patch("kairon.async_callback.processor.CallbackProcessor.process_async_callback_request", new=AsyncMock(return_value=({}, "Success", 0, 'kairon_json'))):
         response = await process_router_message("valid_token", "test_name", "GET", request=mock_request)
     response_json = await response.json()
     assert response_json["success"] is True
-    assert response_json["message"] == "Success"
+    assert response_json["message"] == 'Success'
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript_async", new_callable=AsyncMock)

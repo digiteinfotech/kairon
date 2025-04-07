@@ -25,7 +25,7 @@ from kairon.shared.actions.models import (
     DbQueryValueType,
     DbActionOperationType, UserMessageType, HttpRequestContentType
 )
-from kairon.shared.callback.data_objects import CallbackExecutionMode
+from kairon.shared.callback.data_objects import CallbackExecutionMode, CallbackResponseType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
@@ -1332,6 +1332,7 @@ class CallbackConfigRequest(BaseModel):
     shorten_token: bool = False
     standalone_id_path: Optional[str] = None
     expire_in: int = 0
+    response_type: str = CallbackResponseType.KAIRON_JSON.value
 
 
 class CallbackActionConfigRequest(BaseModel):
