@@ -79,7 +79,7 @@ from .data.constant import (
     TOKEN_TYPE,
     KAIRON_TWO_STAGE_FALLBACK,
     SLOT_TYPE,
-    DEFAULT_LLM
+    DEFAULT_LLM, RE_ALPHA_NUM
 )
 from kairon.shared.kairon_yaml_story_writer import kaironYAMLStoryWriter
 from .data.dto import KaironStoryStep
@@ -2212,6 +2212,16 @@ class Utility:
             raise exception_class("System prompt is required!")
         if history_prompt_count > 1:
             raise exception_class("Only one history source can be present!")
+
+    @staticmethod
+    def validate_data(form_data):
+        first_name = form_data.data.get("first_name")
+        last_name = form_data.data.get("last_name")
+
+        if not Utility.special_match(first_name, search=RE_ALPHA_NUM):
+            raise AppException("First name can only contain letters, numbers, spaces and underscores.")
+        if not Utility.special_match(last_name, search=RE_ALPHA_NUM):
+            raise AppException("Last name can only contain letters, numbers, spaces and underscores.")
 
     @staticmethod
     def get_client_ip(request):
