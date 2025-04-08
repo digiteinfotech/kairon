@@ -3,6 +3,8 @@ import re
 import textwrap
 from calendar import timegm
 from datetime import datetime, timezone, date
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -272,13 +274,12 @@ def test_lambda_handler_with_response_in_event_data():
     }
 
 
-@patch("kairon.shared.utils.SMTP", autospec=True)
+@patch("kairon.async_callback.utils.SMTP", autospec=True)
 def test_lambda_handler_for_send_email(mock_smtp):
-    from kairon.shared.actions.data_objects import EmailActionConfig
     EmailActionConfig(
         action_name="email_action",
         smtp_url="smtp.gmail.com",
-        smtp_port=293,
+        smtp_port=587,
         smtp_password={"value": "test"},
         smtp_userid={"value": "abcsdsldksl"},
         from_email={"value": "testadmin@test.com", "parameter_type": "value"},
@@ -289,27 +290,31 @@ def test_lambda_handler_for_send_email(mock_smtp):
         bot="test_bot",
         user="test_user"
     ).save()
+
     source_code = '''
-    send_email("email_action",    #email action name should be same as email action
+    send_email("email_action",    # email action name should be same as email action
            "hghuge@digite.com",          # from email
            "mahesh.sattala@digite.com",  # to email
-           "New Order Placed",    #Subject
-           "THIS IS EMAIL BODY"     #body
+           "New Order Placed",    # Subject
+           "THIS IS EMAIL BODY"     # body
     )
     bot_response = "Email sent successfully!"
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'bot': 'test_bot', 'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'bot': 'test_bot',
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
+    }
     data = CallbackUtility.pyscript_handler(event, None)
+    print(data)
     assert data['body']['bot_response'] == 'Email sent successfully!'
-    assert data == {
+    expected = {
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
@@ -323,9 +328,10 @@ def test_lambda_handler_for_send_email(mock_smtp):
             'bot_response': 'Email sent successfully!'
         }
     }
+    assert data == expected
 
 
-@patch("kairon.shared.utils.SMTP", autospec=True)
+@patch("kairon.async_callback.utils.SMTP", autospec=True)
 def test_lambda_handler_for_send_email_without_bot(mock_smtp):
     source_code = '''
     send_email("email_action",    #email action name should be same as email action
@@ -357,7 +363,7 @@ def test_lambda_handler_for_send_email_without_bot(mock_smtp):
 
 
 @responses.activate
-@patch("kairon.async_callback.utils.CallbackUtility.add_schedule_job",autospec=True)
+@patch("kairon.async_callback.utils.CallbackUtility.add_schedule_job", autospec=True)
 @patch("kairon.async_callback.utils.uuid7")
 @patch("pymongo.collection.Collection.insert_one", autospec=True)
 def test_lambda_handler_with_add_schedule_job(mock_insert_one, mock_uuid7, mock_add_job):
@@ -645,9 +651,9 @@ def test_pyscript_handler_for_add_data():
                 "name": "Mahesh",
             }
         }
-        
+
     sender_id = "919876543210"
-    
+
     resp = add_data(sender_id,json_data)
     # resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"7760368805"})
     # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
@@ -866,6 +872,7 @@ def test_pyscript_handler_for_update_data():
     )
     assert bot_response == {'message': 'Record updated!', 'data': {'_id': bot_response_id}}
 
+
 def test_pyscript_handler_for_update_data_without_bot():
     json_data = {
         "collection_name": "testing_crud_api",
@@ -934,7 +941,7 @@ def test_pyscript_handler_for_get_data_after_update():
     collection_id=str(resp['data']['_id'])
     update_resp = update_data(collection_id,sender_id,update_json_data)
     resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh SV", "mobile_number":"919876543210"})
-    
+
     bot_response = resp
     '''
     source_code = textwrap.dedent(source_code)
@@ -989,6 +996,7 @@ def test_pyscript_handler_for_delete_data():
     print(bot_response)
     assert bot_response == {'message': f'Collection with ID {collection_id} has been successfully deleted.',
                             'data': {'_id': collection_id}}
+
 
 def test_pyscript_handler_for_delete_data_without_bot():
     json_data = {
@@ -1085,6 +1093,7 @@ def test_pyscript_handler_for_get_data_after_delete():
         }
     }
 
+
 def test_generate_id():
     uuid1 = CallbackUtility.generate_id()
     uuid2 = CallbackUtility.generate_id()
@@ -1095,20 +1104,22 @@ def test_generate_id():
     assert len(uuid2) == 32
     assert uuid1 != uuid2
 
+
 def test_datetime_to_utc_timestamp():
     dt = datetime(2024, 3, 27, 12, 30, 45, 123456, tzinfo=timezone.utc)
     expected_timestamp = timegm(dt.utctimetuple()) + dt.microsecond / 1000000
 
     assert CallbackUtility.datetime_to_utc_timestamp(dt) == expected_timestamp
 
-def test_datetime_to_utc_timestamp_none():
 
+def test_datetime_to_utc_timestamp_none():
     assert CallbackUtility.datetime_to_utc_timestamp(None) is None
 
-def test_get_data_missing_bot():
 
+def test_get_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
         CallbackUtility.get_data("TestCollection", "user1", {"field": "value"}, bot=None)
+
 
 @patch.object(CallbackUtility, "fetch_collection_data", return_value=[{"dummy": "data"}])
 def test_get_data_success(mock_fetch):
@@ -1144,7 +1155,8 @@ def test_fetch_collection_data_success():
     mock_object.to_mongo.return_value.to_dict.return_value = mock_data
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]), \
-            patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data", return_value="decrypted_data"):
+            patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data",
+                  return_value="decrypted_data"):
         results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
 
     assert len(results) == 1
@@ -1178,7 +1190,8 @@ def test_fetch_collection_data_without_collection_name():
     mock_object.to_mongo.return_value.to_dict.return_value = mock_data
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]), \
-            patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data", return_value="decrypted_data"):
+            patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data",
+                  return_value="decrypted_data"):
         results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
 
     assert len(results) == 1
@@ -1200,13 +1213,14 @@ def test_fetch_collection_data_handles_exceptions():
         with pytest.raises(Exception, match="Database error"):
             list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
 
+
 def test_add_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
         CallbackUtility.add_data("test_user", {"key": "value"}, bot=None)
 
+
 @patch('kairon.shared.cognition.processor.CognitionDataProcessor.save_collection_data')
 def test_add_data_success(mock_save):
-
     mock_save.return_value = "collection_id_123"
     result = CallbackUtility.add_data("test_user", {"key": "value"}, bot="test_bot")
 
@@ -1218,9 +1232,11 @@ def test_add_data_success(mock_save):
     }
     assert result == expected
 
+
 def test_update_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
         CallbackUtility.update_data("id_123", "test_user", {"key": "value"}, bot=None)
+
 
 @patch('kairon.shared.cognition.processor.CognitionDataProcessor.update_collection_data')
 def test_update_data_success(mock_update):
@@ -1235,9 +1251,11 @@ def test_update_data_success(mock_update):
     }
     assert result == expected
 
+
 def test_delete_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
         CallbackUtility.delete_data("id_123", "test_user", bot=None)
+
 
 @patch('kairon.shared.cognition.processor.CognitionDataProcessor.delete_collection_data')
 def test_delete_data_success(mock_delete):
@@ -1250,6 +1268,7 @@ def test_delete_data_success(mock_delete):
         "data": {"_id": "id_123"}
     }
     assert result == expected
+
 
 def test_perform_cleanup():
     local_vars = {
@@ -1274,6 +1293,7 @@ def test_perform_cleanup():
 
     assert result == expected
 
+
 def test_send_email_direct():
     mock_email_config = MagicMock()
     mock_email_config.to_mongo.return_value.to_dict.return_value = {
@@ -1285,7 +1305,7 @@ def test_send_email_direct():
     }
     with patch.object(EmailActionConfig, "objects",
                       return_value=MagicMock(first=MagicMock(return_value=mock_email_config))) as mock_objects, \
-            patch.object(MailUtility, "trigger_email") as mock_trigger_email:
+            patch.object(CallbackUtility, "trigger_email") as mock_trigger_email:
         CallbackUtility.send_email(
             email_action="send_mail",
             from_email="from@example.com",
@@ -1319,11 +1339,14 @@ def test_send_email_missing_bot_direct():
             bot=""
         )
 
+
 def dummy_uuid7():
     return type("DummyUUID", (), {"hex": "fixed_uuid"})
 
+
 def dummy_execute_task(*args, **kwargs):
     return "executed"
+
 
 class DummyDateTrigger:
     def __init__(self, run_date, timezone):
@@ -1333,12 +1356,14 @@ class DummyDateTrigger:
     def get_next_fire_time(self, prev_fire_time, now):
         return datetime(2025, 1, 2, tzinfo=timezone.utc)
 
+
 class DummyCollection:
     def __init__(self):
         self.inserted = None
 
     def insert_one(self, doc):
         self.inserted = doc
+
 
 class DummyDB:
     def __init__(self, collection):
@@ -1347,6 +1372,7 @@ class DummyDB:
     def get_collection(self, name):
         return self._collection
 
+
 class DummyMongoClient:
     def __init__(self, url):
         self.url = url
@@ -1354,8 +1380,8 @@ class DummyMongoClient:
     def get_database(self, name):
         return DummyDB(DummyCollection())
 
-def test_add_schedule_job_missing_bot():
 
+def test_add_schedule_job_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
         CallbackUtility.add_schedule_job(
             schedule_action="test_action",
@@ -1365,8 +1391,9 @@ def test_add_schedule_job_missing_bot():
             _id="any_id",
             bot=None,
         )
-def test_add_schedule_job_http_failure(monkeypatch):
 
+
+def test_add_schedule_job_http_failure(monkeypatch):
     schedule_action = "test_action"
     date_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
     data = {"initial": "value"}
@@ -1402,7 +1429,8 @@ def test_add_schedule_job_http_failure(monkeypatch):
     monkeypatch.setattr(MongoClient, "__init__", lambda self, url: None)
     monkeypatch.setattr(MongoClient, "get_database", lambda self, name: DummyDB(DummyCollection()))
 
-    monkeypatch.setattr(ActionUtility, "execute_http_request", lambda url, method: {"success": False, "error": "error message"})
+    monkeypatch.setattr(ActionUtility, "execute_http_request",
+                        lambda url, method: {"success": False, "error": "error message"})
 
     monkeypatch.setattr(CallbackUtility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
 
@@ -1564,25 +1592,25 @@ def test_pyscript_handler_for_decrypt_request_success():
     assert data['statusCode'] == 200
     assert data['statusDescription'] == '200 OK'
     assert bot_response == {
-            'decryptedBody': {
-                'data': {
-                    'department': 'home',
-                    'location': '3',
-                    'date': '2024-01-03',
-                    'time': '11:30',
-                    'name': 'dsa',
-                    'email': 'fsd@fsd.cds',
-                    'phone': '84512',
-                    'more_details': 'sdfa'
-                },
-                'flow_token': 'flows-builder-f174c96d',
-                'screen': 'SUMMARY',
-                'action': 'data_exchange',
-                'version': '3.0'
+        'decryptedBody': {
+            'data': {
+                'department': 'home',
+                'location': '3',
+                'date': '2024-01-03',
+                'time': '11:30',
+                'name': 'dsa',
+                'email': 'fsd@fsd.cds',
+                'phone': '84512',
+                'more_details': 'sdfa'
             },
-            'aesKeyBuffer': b'\xbb\xccV\x98\xb2\xe8A\xb2\xe6j\xd8ob\x17\xa6\xeb',
-            'initialVectorBuffer': b'\x1a/\xdc\x99\x88\x10%t4\x01jh\xd0\xceW\xe7'
-        }
+            'flow_token': 'flows-builder-f174c96d',
+            'screen': 'SUMMARY',
+            'action': 'data_exchange',
+            'version': '3.0'
+        },
+        'aesKeyBuffer': b'\xbb\xccV\x98\xb2\xe8A\xb2\xe6j\xd8ob\x17\xa6\xeb',
+        'initialVectorBuffer': b'\x1a/\xdc\x99\x88\x10%t4\x01jh\xd0\xceW\xe7'
+    }
 
 
 def test_pyscript_handler_for_decrypt_request_missing_fields():
@@ -1641,6 +1669,7 @@ def test_pyscript_handler_for_decrypt_request_missing_fields():
         'headers': {'Content-Type': 'text/html; charset=utf-8'},
         'body': 'Script execution error: decryption failed-Missing required encrypted data fields'
     }
+
 
 def test_pyscript_handler_for_encrypt_response_success():
     source_code = '''
@@ -1770,7 +1799,8 @@ def test_pyscript_handler_for_encrypt_response_missing_initial_vector_buffer():
 
 
 @patch("kairon.shared.callback.data_objects.CallbackData.save", MagicMock())
-@patch("kairon.shared.callback.data_objects.CallbackConfig.get_auth_token", MagicMock(return_value=("auth_token", False)))
+@patch("kairon.shared.callback.data_objects.CallbackConfig.get_auth_token",
+       MagicMock(return_value=("auth_token", False)))
 def test_pyscript_handler_create_callback():
     data = {
         "name": "test_action",
@@ -1784,8 +1814,10 @@ def test_pyscript_handler_create_callback():
     assert "/callback/d" in url
     assert "/auth_token" in url
 
+
 @patch("kairon.shared.callback.data_objects.CallbackData.save", MagicMock())
-@patch("kairon.shared.callback.data_objects.CallbackConfig.get_auth_token", MagicMock(return_value=("auth_token", True)))
+@patch("kairon.shared.callback.data_objects.CallbackConfig.get_auth_token",
+       MagicMock(return_value=("auth_token", True)))
 def test_pyscript_handler_create_callback_standalone():
     data = {
         "name": "test_action",
@@ -1800,8 +1832,9 @@ def test_pyscript_handler_create_callback_standalone():
     assert len(identifier) == 32
     assert not "/callback/d" in identifier
 
+
 def test_pyscript_handler_create_callback_in_pyscript():
-    CallbackConfig.create_entry(bot='test_bot', name='callback_py_1', pyscript_code = 'bot_response="hello world"')
+    CallbackConfig.create_entry(bot='test_bot', name='callback_py_1', pyscript_code='bot_response="hello world"')
     source_code = '''
     bot_response = create_callback('callback_py_1', {'name': 'spandan', 'age': 20})
     '''
@@ -1823,10 +1856,11 @@ def test_pyscript_handler_create_callback_in_pyscript():
     assert len(bot_response) > 32
     CallbackConfig.objects(bot='test_bot', name='callback_py_1').delete()
 
+
 def test_pyscript_handler_create_callback_in_pyscript_standalone():
     CallbackConfig.create_entry(bot='test_bot',
                                 name='callback_py_1',
-                                pyscript_code = 'bot_response="hello world"',
+                                pyscript_code='bot_response="hello world"',
                                 standalone=True,
                                 standalone_id_path='id')
     source_code = '''
@@ -1848,12 +1882,184 @@ def test_pyscript_handler_create_callback_in_pyscript_standalone():
     bot_response = data['body']['bot_response']
     assert not "/callback/d" in bot_response
     assert len(bot_response) == 32
+
     def is_hex(s: str) -> bool:
         try:
             int(s, 16)
             return True
         except ValueError:
             return False
+
     assert is_hex(bot_response)
     CallbackConfig.objects(bot='test_bot', name='callback_py_1').delete()
 
+
+def test_trigger_email():
+    with patch("kairon.async_callback.utils.SMTP", autospec=True) as mock:
+        content_type = "html"
+        to_email = "test@demo.com"
+        subject = "Test"
+        body = "Test"
+        smtp_url = "localhost"
+        smtp_port = 293
+        sender_email = "dummy@test.com"
+        smtp_password = "test"
+        smtp_userid = None
+        tls = False
+
+        CallbackUtility.trigger_email(
+            [to_email],
+            subject,
+            body,
+            content_type=content_type,
+            smtp_url=smtp_url,
+            smtp_port=smtp_port,
+            sender_email=sender_email,
+            smtp_userid=smtp_userid,
+            smtp_password=smtp_password,
+            tls=tls,
+        )
+
+        mbody = MIMEText(body, content_type)
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = sender_email
+        msg["To"] = to_email
+        msg.attach(mbody)
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().connect"
+        assert {} == kwargs
+
+        host, port = args
+        assert host == smtp_url
+        assert port == port
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().login"
+        assert {} == kwargs
+
+        from_email, password = args
+        assert from_email == sender_email
+        assert password == smtp_password
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().sendmail"
+        assert {} == kwargs
+
+        assert args[0] == sender_email
+        assert args[1] == [to_email]
+        assert str(args[2]).__contains__(subject)
+        assert str(args[2]).__contains__(body)
+
+
+def test_trigger_email_tls():
+    with patch("kairon.async_callback.utils.SMTP", autospec=True) as mock:
+        content_type = "html"
+        to_email = "test@demo.com"
+        subject = "Test"
+        body = "Test"
+        smtp_url = "localhost"
+        smtp_port = 293
+        sender_email = "dummy@test.com"
+        smtp_password = "test"
+        smtp_userid = None
+        tls = True
+
+        CallbackUtility.trigger_email(
+            [to_email],
+            subject,
+            body,
+            content_type=content_type,
+            smtp_url=smtp_url,
+            smtp_port=smtp_port,
+            sender_email=sender_email,
+            smtp_userid=smtp_userid,
+            smtp_password=smtp_password,
+            tls=tls,
+        )
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().connect"
+        assert {} == kwargs
+
+        host, port = args
+        assert host == smtp_url
+        assert port == port
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().starttls"
+        assert {} == kwargs
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().login"
+        assert {} == kwargs
+
+        from_email, password = args
+        assert from_email == sender_email
+        assert password == smtp_password
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().sendmail"
+        assert {} == kwargs
+
+        assert args[0] == sender_email
+        assert args[1] == [to_email]
+        assert str(args[2]).__contains__(subject)
+        assert str(args[2]).__contains__(body)
+
+
+def test_trigger_email_using_smtp_userid():
+    with patch("kairon.async_callback.utils.SMTP", autospec=True) as mock:
+        content_type = "html"
+        to_email = "test@demo.com"
+        subject = "Test"
+        body = "Test"
+        smtp_url = "localhost"
+        smtp_port = 293
+        sender_email = "dummy@test.com"
+        smtp_password = "test"
+        smtp_userid = "test_user"
+        tls = True
+
+        CallbackUtility.trigger_email(
+            [to_email],
+            subject,
+            body,
+            content_type=content_type,
+            smtp_url=smtp_url,
+            smtp_port=smtp_port,
+            sender_email=sender_email,
+            smtp_userid=smtp_userid,
+            smtp_password=smtp_password,
+            tls=tls,
+        )
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().connect"
+        assert {} == kwargs
+
+        host, port = args
+        assert host == smtp_url
+        assert port == port
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().starttls"
+        assert {} == kwargs
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().login"
+        assert {} == kwargs
+
+        from_email, password = args
+        assert from_email == smtp_userid
+        assert password == smtp_password
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().sendmail"
+        assert {} == kwargs
+
+        assert args[0] == sender_email
+        assert args[1] == [to_email]
+        assert str(args[2]).__contains__(subject)
+        assert str(args[2]).__contains__(body)
