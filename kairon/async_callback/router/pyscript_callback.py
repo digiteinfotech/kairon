@@ -4,8 +4,8 @@ from blacksheep.contents import JSONContent
 
 from loguru import logger
 from kairon.async_callback.processor import CallbackProcessor
+from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
-from kairon.shared.callback.data_objects import CallbackResponseType
 
 router = Router()
 
@@ -50,27 +50,7 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
             token, identifier, data, request_source
         )
 
-        resp_status_code = 200 if error_code == 0 else 422
-        if response_type == CallbackResponseType.KAIRON_JSON.value:
-            return BSResponse(
-                status=resp_status_code,
-                content=JSONContent({
-                    "message": message,
-                    "data": data,
-                    "error_code": error_code,
-                    "success": error_code == 0,
-                })
-            )
-        elif response_type == CallbackResponseType.JSON.value:
-            return BSResponse(
-                status=resp_status_code,
-                content=JSONContent(data)
-            )
-        elif response_type == CallbackResponseType.TEXT.value:
-            return BSResponse(
-                status=resp_status_code,
-                content=TextContent(str(data))
-            )
+        return CallbackUtility.return_response(data, message, error_code, response_type)
     except AppException as ae:
         logger.error(f"AppException: {ae}")
         return BSResponse(

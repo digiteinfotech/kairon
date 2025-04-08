@@ -1,6 +1,8 @@
 import pickle
 from calendar import timegm
 from datetime import datetime, date
+
+from blacksheep import JSONContent, TextContent, Response as BSResponse
 from requests import Response
 from functools import partial
 from types import ModuleType
@@ -23,7 +25,7 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.data_objects import EmailActionConfig
-from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
+from kairon.shared.callback.data_objects import CallbackConfig, CallbackData, CallbackResponseType
 from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
@@ -42,6 +44,8 @@ allow_module("requests")
 allow_module("googlemaps")
 allow_module("_strptime")
 cognition_processor = CognitionDataProcessor()
+
+
 
 
 class CallbackUtility:
@@ -417,3 +421,27 @@ class CallbackUtility:
             return identifier
         else:
             return callback_url
+
+    @staticmethod
+    def return_response(data: any, message : str, error_code: int, response_type: str):
+        resp_status_code = 200 if error_code == 0 else 422
+        if response_type == CallbackResponseType.KAIRON_JSON.value:
+            return BSResponse(
+                status=resp_status_code,
+                content=JSONContent({
+                    "message": message,
+                    "data": data,
+                    "error_code": error_code,
+                    "success": error_code == 0,
+                })
+            )
+        elif response_type == CallbackResponseType.JSON.value:
+            return BSResponse(
+                status=resp_status_code,
+                content=JSONContent(data)
+            )
+        elif response_type == CallbackResponseType.TEXT.value:
+            return BSResponse(
+                status=resp_status_code,
+                content=TextContent(str(data))
+            )

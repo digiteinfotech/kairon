@@ -72,11 +72,11 @@ def xor_decrypt_secret(encoded_secret: str) -> str:
         raise AppException("Invalid token!")
 
 
-class CallbackExecutionMode(Enum):
+class CallbackExecutionMode(str, Enum):
     ASYNC = "async"
     SYNC = "sync"
 
-class CallbackResponseType(Enum):
+class CallbackResponseType(str, Enum):
     KAIRON_JSON = "kairon_json"
     JSON = "json"
     TEXT = "text"
@@ -88,7 +88,7 @@ class CallbackConfig(Auditlog):
     pyscript_code = StringField(required=True)
     validation_secret = StringField(required=True)
     execution_mode = StringField(default=CallbackExecutionMode.ASYNC.value,
-                                 choices=[v.value for v in CallbackExecutionMode.__members__.values()])
+                                 choices=[v.value for v in CallbackExecutionMode])
     expire_in = IntField(default=0)
     shorten_token = BooleanField(default=False)
     token_hash = StringField()
@@ -96,7 +96,7 @@ class CallbackConfig(Auditlog):
     standalone = BooleanField(default=False)
     standalone_id_path = StringField(default='')
     response_type = StringField(default=CallbackResponseType.KAIRON_JSON.value,
-                                choices=[v.value for v in CallbackResponseType.__members__.values()])
+                                choices=[v.value for v in CallbackResponseType])
     bot = StringField(required=True)
     meta = {"indexes": [{"fields": ["bot", "name"]}]}
 
