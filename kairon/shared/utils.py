@@ -2213,6 +2213,7 @@ class Utility:
         if history_prompt_count > 1:
             raise exception_class("Only one history source can be present!")
 
+
     @staticmethod
     def validate_data(form_data):
         """
