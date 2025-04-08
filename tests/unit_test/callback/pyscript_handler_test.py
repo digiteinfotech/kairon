@@ -3,6 +3,8 @@ import re
 import textwrap
 from calendar import timegm
 from datetime import datetime, timezone, date
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -272,13 +274,14 @@ def test_lambda_handler_with_response_in_event_data():
     }
 
 
-@patch("kairon.shared.utils.SMTP", autospec=True)
+
+@patch("kairon.async_callback.utils.SMTP", autospec=True)
 def test_lambda_handler_for_send_email(mock_smtp):
-    from kairon.shared.actions.data_objects import EmailActionConfig
+    # Create a valid EmailActionConfig object using a valid SMTP port (587 for TLS).
     EmailActionConfig(
         action_name="email_action",
         smtp_url="smtp.gmail.com",
-        smtp_port=293,
+        smtp_port=587,  # Use the valid port
         smtp_password={"value": "test"},
         smtp_userid={"value": "abcsdsldksl"},
         from_email={"value": "testadmin@test.com", "parameter_type": "value"},
@@ -289,27 +292,31 @@ def test_lambda_handler_for_send_email(mock_smtp):
         bot="test_bot",
         user="test_user"
     ).save()
+
     source_code = '''
-    send_email("email_action",    #email action name should be same as email action
+    send_email("email_action",    # email action name should be same as email action
            "hghuge@digite.com",          # from email
            "mahesh.sattala@digite.com",  # to email
-           "New Order Placed",    #Subject
-           "THIS IS EMAIL BODY"     #body
+           "New Order Placed",    # Subject
+           "THIS IS EMAIL BODY"     # body
     )
     bot_response = "Email sent successfully!"
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'bot': 'test_bot', 'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'bot': 'test_bot',
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
+    }
     data = CallbackUtility.pyscript_handler(event, None)
+    print(data)
     assert data['body']['bot_response'] == 'Email sent successfully!'
-    assert data == {
+    expected = {
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
@@ -323,9 +330,9 @@ def test_lambda_handler_for_send_email(mock_smtp):
             'bot_response': 'Email sent successfully!'
         }
     }
+    assert data == expected
 
-
-@patch("kairon.shared.utils.SMTP", autospec=True)
+@patch("kairon.async_callback.utils.SMTP", autospec=True)
 def test_lambda_handler_for_send_email_without_bot(mock_smtp):
     source_code = '''
     send_email("email_action",    #email action name should be same as email action
@@ -1285,7 +1292,7 @@ def test_send_email_direct():
     }
     with patch.object(EmailActionConfig, "objects",
                       return_value=MagicMock(first=MagicMock(return_value=mock_email_config))) as mock_objects, \
-            patch.object(MailUtility, "trigger_email") as mock_trigger_email:
+            patch.object(CallbackUtility, "trigger_email") as mock_trigger_email:
         CallbackUtility.send_email(
             email_action="send_mail",
             from_email="from@example.com",
@@ -1857,3 +1864,170 @@ def test_pyscript_handler_create_callback_in_pyscript_standalone():
     assert is_hex(bot_response)
     CallbackConfig.objects(bot='test_bot', name='callback_py_1').delete()
 
+def test_trigger_email():
+    with patch("kairon.async_callback.utils.SMTP", autospec=True) as mock:
+        content_type = "html"
+        to_email = "test@demo.com"
+        subject = "Test"
+        body = "Test"
+        smtp_url = "localhost"
+        smtp_port = 293
+        sender_email = "dummy@test.com"
+        smtp_password = "test"
+        smtp_userid = None
+        tls = False
+
+        CallbackUtility.trigger_email(
+            [to_email],
+            subject,
+            body,
+            content_type=content_type,
+            smtp_url=smtp_url,
+            smtp_port=smtp_port,
+            sender_email=sender_email,
+            smtp_userid=smtp_userid,
+            smtp_password=smtp_password,
+            tls=tls,
+        )
+
+        mbody = MIMEText(body, content_type)
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = sender_email
+        msg["To"] = to_email
+        msg.attach(mbody)
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().connect"
+        assert {} == kwargs
+
+        host, port = args
+        assert host == smtp_url
+        assert port == port
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().login"
+        assert {} == kwargs
+
+        from_email, password = args
+        assert from_email == sender_email
+        assert password == smtp_password
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().sendmail"
+        assert {} == kwargs
+
+        assert args[0] == sender_email
+        assert args[1] == [to_email]
+        assert str(args[2]).__contains__(subject)
+        assert str(args[2]).__contains__(body)
+
+def test_trigger_email_tls():
+    with patch("kairon.async_callback.utils.SMTP", autospec=True) as mock:
+        content_type = "html"
+        to_email = "test@demo.com"
+        subject = "Test"
+        body = "Test"
+        smtp_url = "localhost"
+        smtp_port = 293
+        sender_email = "dummy@test.com"
+        smtp_password = "test"
+        smtp_userid = None
+        tls = True
+
+        CallbackUtility.trigger_email(
+            [to_email],
+            subject,
+            body,
+            content_type=content_type,
+            smtp_url=smtp_url,
+            smtp_port=smtp_port,
+            sender_email=sender_email,
+            smtp_userid=smtp_userid,
+            smtp_password=smtp_password,
+            tls=tls,
+        )
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().connect"
+        assert {} == kwargs
+
+        host, port = args
+        assert host == smtp_url
+        assert port == port
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().starttls"
+        assert {} == kwargs
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().login"
+        assert {} == kwargs
+
+        from_email, password = args
+        assert from_email == sender_email
+        assert password == smtp_password
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().sendmail"
+        assert {} == kwargs
+
+        assert args[0] == sender_email
+        assert args[1] == [to_email]
+        assert str(args[2]).__contains__(subject)
+        assert str(args[2]).__contains__(body)
+
+def test_trigger_email_using_smtp_userid():
+    with patch("kairon.async_callback.utils.SMTP", autospec=True) as mock:
+        content_type = "html"
+        to_email = "test@demo.com"
+        subject = "Test"
+        body = "Test"
+        smtp_url = "localhost"
+        smtp_port = 293
+        sender_email = "dummy@test.com"
+        smtp_password = "test"
+        smtp_userid = "test_user"
+        tls = True
+
+        CallbackUtility.trigger_email(
+            [to_email],
+            subject,
+            body,
+            content_type=content_type,
+            smtp_url=smtp_url,
+            smtp_port=smtp_port,
+            sender_email=sender_email,
+            smtp_userid=smtp_userid,
+            smtp_password=smtp_password,
+            tls=tls,
+        )
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().connect"
+        assert {} == kwargs
+
+        host, port = args
+        assert host == smtp_url
+        assert port == port
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().starttls"
+        assert {} == kwargs
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().login"
+        assert {} == kwargs
+
+        from_email, password = args
+        assert from_email == smtp_userid
+        assert password == smtp_password
+
+        name, args, kwargs = mock.method_calls.pop(0)
+        assert name == "().sendmail"
+        assert {} == kwargs
+
+        assert args[0] == sender_email
+        assert args[1] == [to_email]
+        assert str(args[2]).__contains__(subject)
+        assert str(args[2]).__contains__(body)
