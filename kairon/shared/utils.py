@@ -2231,6 +2231,11 @@ class Utility:
 
     @staticmethod
     def validate_data(form_data):
+        """
+        Validates the first name and last name of the user, while booking demo.
+        :param form_data: Form data containing first name and last name
+        :return: None
+        """
         first_name = form_data.data.get("first_name")
         last_name = form_data.data.get("last_name")
 
