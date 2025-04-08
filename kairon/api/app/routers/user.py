@@ -2,10 +2,8 @@
 
 from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
-
-from kairon.exceptions import AppException
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, AGENT_ACCESS
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, RE_ALPHA_NUM
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_models import ConsentRequest
 from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.utils import Utility, MailUtility
