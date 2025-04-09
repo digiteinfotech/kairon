@@ -1,5 +1,6 @@
 import csv
 import itertools
+import re
 import shutil
 
 import ujson as json
@@ -132,7 +133,7 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
-    DEMO_REQUEST_STATUS,
+    DEMO_REQUEST_STATUS, RE_VALID_NAME,
 )
 from .data_objects import (
     Responses,
@@ -3380,6 +3381,10 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("path name cannot be empty or blank spaces")
 
+        if not Utility.special_match(name, RE_VALID_NAME):
+            raise AppException("Story name can only contain letters, numbers, hyphens (-), and underscores (_)")
+
+
         if not steps:
             raise AppException("steps are required")
 
@@ -3458,6 +3463,10 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
 
+        if not Utility.special_match(name, RE_VALID_NAME):
+            raise AppException("Story name can only contain letters, numbers, hyphens (-), and underscores (_)")
+
+
         if not steps:
             raise AppException("steps are required")
         Utility.is_exist(
@@ -3524,6 +3533,9 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException("path name cannot be empty or blank spaces")
 
+        if not Utility.special_match(name, RE_VALID_NAME):
+            raise AppException("Story name can only contain letters, numbers, hyphens (-), and underscores (_)")
+
         if not steps:
             raise AppException("steps are required")
 
@@ -3586,6 +3598,9 @@ class MongoProcessor:
 
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
+
+        if not Utility.special_match(name, RE_VALID_NAME):
+            raise AppException("Story name can only contain letters, numbers, hyphens (-), and underscores (_)")
 
         if not steps:
             raise AppException("steps are required")
@@ -6015,6 +6030,15 @@ class MongoProcessor:
 
     @staticmethod
     def add_demo_request(**kwargs):
+        first_name = kwargs.get("first_name")
+        last_name = kwargs.get("last_name")
+
+        if not Utility.special_match(first_name, search=re.compile(r"^[a-zA-Z0-9 _]+$").search):
+            raise AppException("First name can only contain letters, numbers, spaces and underscores.")
+
+        if not Utility.special_match(last_name, search=re.compile(r"^[a-zA-Z0-9 _]+$").search):
+            raise AppException("Last name can only contain letters, numbers, spaces and underscores.")
+
         try:
             logs = DemoRequestLogs(
                 first_name=kwargs.get("first_name"),

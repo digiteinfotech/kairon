@@ -37,7 +37,8 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import UserActivityType, PluginTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, INTEGRATION_STATUS, ONBOARDING_STATUS
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, INTEGRATION_STATUS, ONBOARDING_STATUS, \
+    RE_ALPHA_NUM, RE_VALID_NAME
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
@@ -164,12 +165,11 @@ class AccountProcessor:
         :return: bot id
         """
         from kairon.shared.data.processor import MongoProcessor
-        from kairon.shared.data.data_objects import BotSettings
 
         if Utility.check_empty_string(name):
             raise AppException("Bot Name cannot be empty or blank spaces")
 
-        if name and Utility.contains_special_characters(name):
+        if not Utility.special_match(name, RE_VALID_NAME):
             raise AppException("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")
 
         if not Utility.check_character_limit(name):
@@ -225,7 +225,7 @@ class AccountProcessor:
         if Utility.check_empty_string(name):
             raise AppException('Name cannot be empty')
 
-        if name and Utility.contains_special_characters(name):
+        if not Utility.special_match(name, RE_VALID_NAME):
             raise AppException("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")
 
         if not Utility.check_character_limit(name):
@@ -693,6 +693,12 @@ class AccountProcessor:
             raise AppException(
                 "Email, FirstName, LastName and password cannot be empty or blank spaces"
             )
+
+        if not Utility.special_match(first_name, search=RE_ALPHA_NUM):
+            raise AppException("First name can only contain letters, numbers, spaces and underscores.")
+
+        if not Utility.special_match(last_name, search=RE_ALPHA_NUM):
+            raise AppException("Last name can only contain letters, numbers, spaces and underscores.")
 
         Utility.is_exist(
             User,
