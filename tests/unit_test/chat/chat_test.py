@@ -799,7 +799,7 @@ class TestChat:
         with pytest.raises(NotImplementedError):
             await ChannelHandlerBase().handle_message()
 
-    def test_save_channel_config_insta_with_default_comment_reply(self, monkeypatch):
+    def test_save_channel_config_insta_with_no_comment_reply(self, monkeypatch):
         bot = '5e564fbcdcf0d5fad89e3acd'
 
         def _get_integration_token(*args, **kwargs):
@@ -820,7 +820,7 @@ class TestChat:
         insta = ChatDataProcessor.get_channel_config("instagram", bot, False)
 
         static_comment_reply_actual = insta.get("config", {}).get("static_comment_reply")
-        assert "Thanks for reaching us, please check your inbox" == static_comment_reply_actual
+        assert not static_comment_reply_actual
 
     def test_save_channel_config_insta_with_custom_comment_reply(self, monkeypatch):
         bot = '5e564fbcdcf0d5fad89e3acd'

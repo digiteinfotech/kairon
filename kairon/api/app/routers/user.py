@@ -1,6 +1,7 @@
+
+
 from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
-
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, AGENT_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_models import ConsentRequest
@@ -67,6 +68,7 @@ async def book_a_demo(
     """
     Utility.validate_recaptcha_response(form_data.recaptcha_response, request=request)
     support_mail = Utility.environment["support_mail"]
+    Utility.validate_data(form_data)
     background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='book_a_demo', email=support_mail,
                               first_name=form_data.data['first_name'], request=request, **form_data.dict())
     return {"message": "Thank You for your interest in Kairon. We will reach out to you soon."}

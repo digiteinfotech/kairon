@@ -43,9 +43,9 @@ class ActionCallback(ActionsBase):
         :return: AsyncCallbackActionConfig containing configuration for the action as a dict.
         """
         try:
-            live_agent_config_dict = CallbackActionConfig.objects().get(bot=self.bot,
+            call_back_action_config_dict = CallbackActionConfig.objects().get(bot=self.bot,
                                                                         name=self.name, status=True).to_mongo().to_dict()
-            return live_agent_config_dict
+            return call_back_action_config_dict
         except DoesNotExist as e:
             logger.exception(e)
             raise ActionFailure("No Async Callback action found for given action and bot")
