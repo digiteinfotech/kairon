@@ -204,29 +204,23 @@ class RegisterAccount(RecaptchaVerifiedRequest):
             raise ValueError("Password and Confirm Password does not match")
         return v
 
-    @validator("first_name")
-    def validate_first_name(cls, v):
+    @root_validator
+    def validate_names(cls, values):
         from kairon.shared.utils import Utility
 
-        if Utility.check_empty_string(v):
-            raise ValueError("First name cannot be empty or blank spaces")
+        first_name = values.get("first_name", "").strip()
+        last_name = values.get("last_name", "").strip()
 
-        if not Utility.special_match(v, RE_ALPHA_NUM):
-            raise ValueError("First name can only contain letters,numbers, spaces and underscore.")
+        if Utility.check_empty_string(first_name) or Utility.check_empty_string(last_name):
+            raise ValueError("First name and last name cannot be empty or blank spaces.")
 
-        return v
+        first_valid = Utility.special_match(first_name, search=RE_ALPHA_NUM)
+        last_valid = Utility.special_match(last_name, search=RE_ALPHA_NUM)
 
-    @validator("last_name")
-    def validate_last_name(cls, v):
-        from kairon.shared.utils import Utility
+        if not first_valid or not last_valid:
+            raise ValueError("First name and last name can only contain letters, numbers, spaces and underscores.")
 
-        if Utility.check_empty_string(v):
-            raise ValueError("Last name cannot be empty or blank spaces")
-
-        if not Utility.special_match(v, RE_ALPHA_NUM):
-            raise ValueError("Last name can only contain letters,numbers, spaces and underscore.")
-
-        return v
+        return values
 
     @root_validator
     def validate_names(cls, values):
