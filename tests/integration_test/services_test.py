@@ -21054,7 +21054,7 @@ def test_create_stories_with_form():
         {"name": "utter_submit", "type": "BOT"},
     ]
     story_dict = {
-        "name": "stop form + continue",
+        "name": "stop form - continue",
         "steps": steps,
         "type": "STORY",
         "template_type": "CUSTOM",
