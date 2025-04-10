@@ -2829,7 +2829,6 @@ class TestAccountProcessor:
         assert result["first_name"] == "ValidName_123"
         assert result["last_name"] == "Last Name_123"
 
-
     def test_check(cls):
         with pytest.raises(ValueError, match="Provide key from key vault as value"):
             HttpActionParameters.check({"parameter_type": "key_vault", "key": "key"})
