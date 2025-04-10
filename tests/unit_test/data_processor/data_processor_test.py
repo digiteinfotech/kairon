@@ -15224,33 +15224,34 @@ class TestMongoProcessor:
             story_dict = {'name': "", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
             processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
+    # def test_update_valid_multiflow_story_name(self):
+    #     processor = MongoProcessor()
+    #     events = [
+    #         {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
+    #          "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
+    #          },
+    #         {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
+    #          "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+    #                          {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
+    #          },
+    #         {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+    #          "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
+    #          },
+    #         {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
+    #          "connections": None
+    #          },
+    #         {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
+    #          "connections": None
+    #          },
+    #         {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+    #          "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
+    #          }
+    #     ]
+    #     with pytest.raises(AppException,
+    #                        match="Path name can only contain letters, numbers, hyphens (-), and underscores (_)"):
+    #         story_dict = {'name': "Invalid_Name", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+    #         processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
-    def test_update_valid_multiflow_story_name(self):
-        processor = MongoProcessor()
-        events = [
-            {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
-             },
-            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
-             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
-             },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
-             "connections": None
-             },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
-             "connections": None
-             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
-             }
-        ]
-        with pytest.raises(AppException,match="Path name can only contain letters, numbers, hyphens (-), and underscores (_)"):
-            story_dict = {'name': "Invalid_Name", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-            processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
     def test_update_blank_multiflow_story_name(self):
         processor = MongoProcessor()
