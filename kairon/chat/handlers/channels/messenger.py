@@ -40,7 +40,7 @@ class Messenger:
         self.client = MessengerClient(page_access_token)
         self.last_message: Dict[Text, Any] = {}
         self.is_instagram = is_instagram
-        self.allowed_users = []
+        self.allowed_users = None
 
     def get_user_id(self) -> Text:
         sender_id = self.last_message.get("sender", {}).get("id", "")
@@ -185,7 +185,7 @@ class Messenger:
     ) -> None:
         """Pass on the text to the dialogue engine for processing."""
         out_channel = MessengerBot(self.client)
-        if self.is_instagram and self.allowed_users:
+        if self.is_instagram and isinstance(self.allowed_users, list):
             username = await out_channel.get_username_for_id(sender_id)
             if username and (username not in self.allowed_users):
                 return

@@ -840,7 +840,7 @@ class TestUtility:
 
     @pytest.mark.asyncio
     @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
-    async def test_handle_verification_with_invalid_first_name_special_chars(self, validate_and_send_mail_mock):
+    async def test_handle_verification_with_valid_first_name(self, validate_and_send_mail_mock):
         mail_type = "verification"
         email = "sampletest@gmail.com"
         first_name = "Sample"  # Valid first name
@@ -868,7 +868,7 @@ class TestUtility:
 
     @pytest.mark.asyncio
     @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
-    async def test_handle_verification_with_valid_first_name_no_special_chars(self, validate_and_send_mail_mock):
+    async def test_handle_verification_with_valid_first_name(self, validate_and_send_mail_mock):
         mail_type = "verification"
         email = "sampletest@gmail.com"
         first_name = "Samp#le"  # InValid first name

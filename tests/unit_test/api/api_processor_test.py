@@ -2812,24 +2812,22 @@ class TestAccountProcessor:
                                              "Missing 1 number\nMissing 1 special letter"):
             Password.validate_password(SecretStr(None), {})
 
-    def test_validate_first_name(cls):
-        with pytest.raises(ValueError, match="First name cannot be empty or blank spaces"):
-            RegisterAccount.validate_first_name("")
+    def test_validate_names_empty_fields(self):
+        values = {"first_name": "", "last_name": " "}
+        with pytest.raises(ValueError, match="First name and last name cannot be empty or blank spaces."):
+            RegisterAccount.validate_names(values)
 
-        with pytest.raises(ValueError, match="First name can only contain letters,numbers, spaces and underscore."):
-            RegisterAccount.validate_first_name("Invalid@Name")
+    def test_validate_names_invalid_chars(self):
+        values = {"first_name": "Invalid@Name", "last_name": "Last#Name"}
+        with pytest.raises(ValueError,
+                           match="First name and last name can only contain letters, numbers, spaces and underscores."):
+            RegisterAccount.validate_names(values)
 
-        assert RegisterAccount.validate_first_name("ValidName_123") == "ValidName_123"
-
-    def test_validate_last_name(cls):
-        with pytest.raises(ValueError, match="Last name cannot be empty or blank spaces"):
-            RegisterAccount.validate_last_name("")
-
-        with pytest.raises(ValueError, match="Last name can only contain letters,numbers, spaces and underscore."):
-            RegisterAccount.validate_last_name("Invalid@Name")
-
-        assert RegisterAccount.validate_last_name("ValidName_123") == "ValidName_123"
-
+    def test_validate_names_valid(self):
+        values = {"first_name": "ValidName_123", "last_name": "Last Name_123"}
+        result = RegisterAccount.validate_names(values)
+        assert result["first_name"] == "ValidName_123"
+        assert result["last_name"] == "Last Name_123"
 
     def test_check(cls):
         with pytest.raises(ValueError, match="Provide key from key vault as value"):
