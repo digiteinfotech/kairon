@@ -2213,21 +2213,21 @@ class Utility:
         if history_prompt_count > 1:
             raise exception_class("Only one history source can be present!")
 
-
     @staticmethod
     def validate_data(form_data):
         """
-        Validates the first name and last name of the user, while booking demo.
+        Validates the first name and last name of the user while booking a demo.
         :param form_data: Form data containing first name and last name
         :return: None
         """
-        first_name = form_data.data.get("first_name")
-        last_name = form_data.data.get("last_name")
+        first_name = form_data.data.get("first_name", "").strip()
+        last_name = form_data.data.get("last_name", "").strip()
 
-        if not Utility.special_match(first_name, search=RE_ALPHA_NUM):
-            raise AppException("First name can only contain letters, numbers, spaces and underscores.")
-        if not Utility.special_match(last_name, search=RE_ALPHA_NUM):
-            raise AppException("Last name can only contain letters, numbers, spaces and underscores.")
+        is_first_valid = Utility.special_match(first_name, search=RE_ALPHA_NUM)
+        is_last_valid = Utility.special_match(last_name, search=RE_ALPHA_NUM)
+
+        if not is_first_valid or not is_last_valid:
+            raise AppException("First name and last name can only contain letters, numbers, spaces and underscores.")
 
     @staticmethod
     def get_client_ip(request):
