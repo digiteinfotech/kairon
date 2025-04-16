@@ -149,7 +149,7 @@ async def media_upload(
 
 
 
-@router.get('/media/download/{sender_id}/{media_id}')
+@router.get('/media/download/{media_id}')
 async def media_download(
         bot: Text = Path(description="Bot id"),
         media_id: Text = Path(description="Id of the document"),
