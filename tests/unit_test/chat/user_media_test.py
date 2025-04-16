@@ -51,7 +51,7 @@ class DummyUserMediaData:
         }
 
         class DummyMongo:
-            def dict(inner_self):
+            def to_dict(inner_self):
                 return data
 
         return DummyMongo()

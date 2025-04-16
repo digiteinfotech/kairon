@@ -122,7 +122,7 @@ class UserMedia:
     async def get_media_content_buffer(media_id: str, base64_encode: bool = False) -> tuple[BinaryIO|str, str]:
         try:
             media_doc = UserMediaData.objects.get(media_id=media_id)
-            media_data = media_doc.to_mongo().dict()
+            media_data = media_doc.to_mongo().to_dict()
             media_data['id'] = str(media_doc.id)
             media_data.pop('bot')
             media_data.pop('sender_id')
