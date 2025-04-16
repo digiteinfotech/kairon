@@ -1,4 +1,3 @@
-import asyncio
 import pickle
 from calendar import timegm
 from datetime import datetime, date
