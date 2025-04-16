@@ -35,7 +35,10 @@ class ChatUtils:
         model = AgentProcessor.get_agent(bot)
         metadata = ChatUtils.get_metadata(account, bot, is_integration_user, metadata)
         msg = UserMessage(data, sender_id=user, metadata=metadata)
-        media_ids = await UserMedia.upload_media_contents(bot=bot, sender_id=user, files=files)
+        if files:
+            media_ids = await UserMedia.upload_media_contents(bot=bot, sender_id=user, files=files)
+        else:
+            media_ids = None
         chat_response = await AgentProcessor.handle_channel_message(bot, msg, media_ids=media_ids)
         if not chat_response:
             return {
