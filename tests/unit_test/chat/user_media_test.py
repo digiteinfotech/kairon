@@ -170,6 +170,7 @@ async def test_get_media_content_buffer(monkeypatch):
     dummy_media = DummyUserMediaData(
         media_id="m1",
         filename="test.txt",
+        output_filename="test.txt",
         extension=".txt",
         bot="bot1",
         sender_id="sender1",
@@ -263,6 +264,7 @@ async def test_get_media_content_buffer_consistency(monkeypatch):
     dummy_media = DummyUserMediaData(
         media_id="m2",
         filename="example.txt",
+        output_filename="example.txt",
         extension=".txt",
         bot="bot2",
         sender_id="sender2",
