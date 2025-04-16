@@ -72,5 +72,5 @@ python-multipart>=0.0.18
 nltk
 blacksheep==2.0.7
 fastembed==0.5.1
-weasyprint==61.1
+weasyprint==61.2
 markdown==3.7
