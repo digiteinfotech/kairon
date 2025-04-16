@@ -59,7 +59,7 @@ class UserMedia:
             url = CloudUtility.upload_file(file_path, bucket, output_filename)
             user_media_data = UserMediaData(
                 media_id=media_id,
-                s3_url=url,
+                media_url=url,
                 filename=filename,
                 extension=extension,
                 output_filename=output_filename,

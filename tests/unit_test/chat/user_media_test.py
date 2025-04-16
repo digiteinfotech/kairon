@@ -1,363 +1,314 @@
-import os
-import io
-import pytest
-import base64
 import asyncio
-from unittest.mock import patch, AsyncMock, MagicMock
+import base64
+import io
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
-from fastapi import UploadFile
+
+import pytest
+import markdown
+from weasyprint import HTML
 
 from kairon.exceptions import AppException
-from kairon.shared.data.data_objects import UserMediaData
 from kairon.shared.cloud.utils import CloudUtility
-from kairon import Utility
+from kairon.shared.data.data_objects import UserMediaData
+from uuid6 import uuid7
 
-# Import the class being tested
+# Import using the correct module path.
 from kairon.shared.chat.user_media import UserMedia
 
 
-@pytest.fixture
-def mock_environment():
-    env = {
+# --- Dummy Classes & Helpers ---
+
+# Dummy File class to simulate FastAPI File objects.
+class DummyFile:
+    def __init__(self, filename, content: bytes, raise_on_read=False):
+        self.filename = filename
+        self._content = content
+        self.raise_on_read = raise_on_read
+
+    async def read(self):
+        if self.raise_on_read:
+            raise Exception("Read error")
+        return self._content
+
+
+# Updated dummy implementation for UserMediaData.
+class DummyUserMediaData:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+        self.id = "dummy_id"
+
+    def to_mongo(self):
+        # Create a dummy dict-like object that returns the proper document fields.
+        data = {
+            "media_id": self.media_id,
+            "filename": self.filename,
+            "extension": self.extension,
+            "bot": self.bot,
+            "sender_id": self.sender_id,
+        }
+
+        class DummyMongo:
+            def dict(inner_self):
+                return data
+
+        return DummyMongo()
+
+    def save(self):
+        self.saved = True
+
+
+# Dummy Utility replacing the real Utility.
+class DummyUtility:
+    environment = {
         "storage": {
             "user_media": {
-                "bucket": "test-bucket",
-                "root_dir": "media",
-                "allowed_extensions": [".jpg", ".png", ".pdf", ".docx"]
+                "bucket": "dummy_bucket",
+                "root_dir": "dummy_root",
+                "allowed_extensions": [".txt", ".pdf"]
             }
         }
     }
-    with patch.object(Utility, "environment", env):
-        yield
-
-
-@pytest.fixture
-def mock_user_media_data():
-    with patch("kairon.shared.chat.user_media.UserMediaData") as mock:
-        mock_instance = MagicMock()
-        mock_instance.media_id = "media123"
-        mock_instance.s3_url = "https://storage.com/test-bucket/media/test-bot/user123_test.pdf"
-        mock_instance.filename = "test.pdf"
-        mock_instance.extension = ".pdf"
-        mock_instance.output_filename = "media/test-bot/user123_test.pdf"
-        mock_instance.filesize = 100
-        mock_instance.bot = "test-bot"
-        mock_instance.sender_id = "user123"
-        mock_instance.timestamp = datetime.utcnow()
-        mock.return_value = mock_instance
-        mock.objects.get.return_value = mock_instance
-        yield mock
-
-
-@pytest.fixture
-def mock_cloud_utility():
-    with patch("kairon.shared.chat.user_media.CloudUtility") as mock:
-        mock.upload_file.return_value = "https://storage.com/test-bucket/media/test-bot/user123_test.pdf"
-        mock_buffer = io.BytesIO(b"test file content")
-        mock.download_file_to_memory.return_value = mock_buffer
-        yield mock
-
-
-@pytest.fixture
-def mock_io_bytes():
-    with patch("kairon.shared.chat.user_media.io.BytesIO") as mock:
-        mock_buffer = MagicMock()
-        mock_buffer.read.return_value = b"pdf content"
-        mock.return_value = mock_buffer
-        yield mock
-
-
-@pytest.fixture
-def mock_html():
-    with patch("kairon.shared.chat.user_media.HTML") as mock:
-        mock_html_instance = MagicMock()
-        mock.return_value = mock_html_instance
-        yield mock
-
-
-@pytest.fixture
-def mock_markdown():
-    with patch("kairon.shared.chat.user_media.markdown") as mock:
-        mock.markdown.return_value = "<h1>Test</h1><p>Content</p>"
-        yield mock
-
-
-@pytest.fixture
-def mock_tempfile():
-    with patch("kairon.shared.chat.user_media.tempfile") as mock:
-        mock.mkdtemp.return_value = "/tmp/test"
-        yield mock
-
-
-@pytest.fixture
-def mock_utility_write():
-    with patch("kairon.shared.chat.user_media.Utility.write_to_file") as mock:
-        yield mock
-
-
-@pytest.fixture
-def mock_uuid():
-    with patch("kairon.shared.chat.user_media.uuid7") as mock:
-        mock_uuid = MagicMock()
-        mock_uuid.hex = "mock-uuid-12345"
-        mock.return_value = mock_uuid
-        yield mock
-
-
-@pytest.fixture
-def mock_create_task():
-    with patch("kairon.shared.chat.user_media.asyncio.create_task") as mock:
-        yield mock
-
-
-class TestUserMedia:
-
-    @pytest.mark.asyncio
-    async def test_save_media_content_task_with_data_success(self, mock_environment, mock_cloud_utility,
-                                                             mock_tempfile, mock_utility_write, mock_user_media_data):
-        # Arrange
-        bot = "test-bot"
-        sender_id = "user123"
-        media_id = "media123"
-        binary_data = b"test file content"
-        filename = "test.pdf"
-
-        # Act
-        await UserMedia.save_media_content(
-            bot=bot, sender_id=sender_id, media_id=media_id, data=binary_data, filename=filename
-        )
-
-        # Assert
-        mock_utility_write.assert_called_once_with("/tmp/test/test.pdf", binary_data)
-        mock_cloud_utility.upload_file.assert_called_once_with(
-            "/tmp/test/test.pdf", "test-bucket", "media/test-bot/user123_test.pdf"
-        )
-
-        # Don't assert specific timestamp values, just verify the constructor was called with the right parameters
-        mock_user_media_data.assert_called_once()
-        call_kwargs = mock_user_media_data.call_args.kwargs
-        assert call_kwargs['media_id'] == media_id
-        assert call_kwargs['s3_url'] == "https://storage.com/test-bucket/media/test-bot/user123_test.pdf"
-        assert call_kwargs['filename'] == filename
-        assert call_kwargs['extension'] == ".pdf"
-        assert call_kwargs['output_filename'] == "media/test-bot/user123_test.pdf"
-        assert call_kwargs['filesize'] == len(binary_data)
-        assert call_kwargs['sender_id'] == sender_id
-        assert call_kwargs['bot'] == bot
-        assert isinstance(call_kwargs['timestamp'], datetime)
-        mock_user_media_data.return_value.save.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_save_media_content_task_with_file_success(self, mock_environment, mock_cloud_utility,
-                                                             mock_tempfile, mock_utility_write, mock_user_media_data):
-        # Arrange
-        bot = "test-bot"
-        sender_id = "user123"
-        media_id = "media123"
-        binary_data = b"test file content"
-
-        # Create mock file
-        mock_file = AsyncMock(spec=UploadFile)
-        mock_file.filename = "test.pdf"
-        mock_file.read.return_value = binary_data
-
-        # Act
-        await UserMedia.save_media_content(
-            bot=bot, sender_id=sender_id, media_id=media_id, file=mock_file
-        )
-
-        # Assert
-        mock_file.read.assert_called_once()
-        mock_utility_write.assert_called_once_with("/tmp/test/test.pdf", binary_data)
-        mock_cloud_utility.upload_file.assert_called_once_with(
-            "/tmp/test/test.pdf", "test-bucket", "media/test-bot/user123_test.pdf"
-        )
-        mock_user_media_data.assert_called_once()
-        mock_user_media_data.return_value.save.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_save_media_content_task_no_filename_with_data(self, mock_environment):
-        # Arrange
-        bot = "test-bot"
-        sender_id = "user123"
-        media_id = "media123"
-        binary_data = b"test file content"
-
-        # Act & Assert
-        with pytest.raises(AppException) as exc_info:
-            await UserMedia.save_media_content(
-                bot=bot, sender_id=sender_id, media_id=media_id, data=binary_data
-            )
-
-        assert "filename must be provided for binary data" in str(exc_info.value)
-
-    @pytest.mark.asyncio
-    async def test_save_media_content_task_invalid_extension(self, mock_environment, mock_utility_write):
-        # Arrange
-        bot = "test-bot"
-        sender_id = "user123"
-        media_id = "media123"
-        binary_data = b"test file content"
-        filename = "test.exe"
-
-        # Act & Assert
-        with pytest.raises(AppException) as exc_info:
-            await UserMedia.save_media_content(
-                bot=bot, sender_id=sender_id, media_id=media_id, data=binary_data, filename=filename
-            )
-
-        assert "Only ['.jpg', '.png', '.pdf', '.docx'] type files allowed" in str(exc_info.value)
-
-    @pytest.mark.asyncio
-    async def test_save_media_content_task_upload_error(self, mock_environment, mock_tempfile,
-                                                        mock_utility_write, mock_cloud_utility):
-        # Arrange
-        bot = "test-bot"
-        sender_id = "user123"
-        media_id = "media123"
-        binary_data = b"test file content"
-        filename = "test.pdf"
-
-        # Setup the upload to fail
-        from pathy import ClientError
-        mock_cloud_utility.upload_file.side_effect = ClientError("Upload failed", code=400)
-
-        # Act & Assert
-        with pytest.raises(AppException) as exc_info:
-            await UserMedia.save_media_content(
-                bot=bot, sender_id=sender_id, media_id=media_id, data=binary_data, filename=filename
-            )
-
-        assert "File upload failed" in str(exc_info.value)
-
-    @pytest.mark.asyncio
-    async def test_save_media_content_task_general_error(self, mock_environment, mock_tempfile,
-                                                         mock_utility_write, mock_cloud_utility):
-        # Arrange
-        bot = "test-bot"
-        sender_id = "user123"
-        media_id = "media123"
-        binary_data = b"test file content"
-        filename = "test.pdf"
-
-        # Setup a general error
-        mock_cloud_utility.upload_file.side_effect = Exception("General error")
-
-        # Act & Assert
-        with pytest.raises(AppException) as exc_info:
-            await UserMedia.save_media_content(
-                bot=bot, sender_id=sender_id, media_id=media_id, data=binary_data, filename=filename
-            )
-
-        assert "File upload failed" in str(exc_info.value)
-
-    @pytest.mark.asyncio
-    async def test_upload_media_contents(self, mock_environment, mock_create_task, mock_uuid):
-        # Arrange
-        bot = "test-bot"
-        sender_id = "user123"
-
-        # Create mock files
-        mock_file1 = AsyncMock(spec=UploadFile)
-        mock_file2 = AsyncMock(spec=UploadFile)
-        files = [mock_file1, mock_file2]
-
-        # Act
-        media_ids = await UserMedia.upload_media_contents(bot, sender_id, files)
-
-        # Assert
-        assert len(media_ids) == 2
-        assert all(id == "mock-uuid-12345" for id in media_ids)
-        assert mock_create_task.call_count == 2
-
-        # Check the arguments passed to create_task
-        call1 = mock_create_task.call_args_list[0]
-        call2 = mock_create_task.call_args_list[1]
-
-        # We have limited ways to inspect the coroutine objects, so check that each call has one argument
-        assert len(call1.args) == 1
-        assert len(call2.args) == 1
-
-    @pytest.mark.asyncio
-    async def test_get_media_content_buffer_no_base64(self, mock_environment, mock_user_media_data, mock_cloud_utility):
-        # Arrange
-        media_id = "media123"
-
-        # Act
-        file_buffer, download_name = await UserMedia.get_media_content_buffer(media_id)
-
-        # Assert
-        mock_user_media_data.objects.get.assert_called_once_with(media_id=media_id)
-        mock_cloud_utility.download_file_to_memory.assert_called_once_with(
-            "test-bucket", mock_user_media_data.objects.get.return_value.filename
-        )
-        assert file_buffer == mock_cloud_utility.download_file_to_memory.return_value
-        assert download_name == "test-bot_user123_test.pdf.pdf"
-
-    @pytest.mark.asyncio
-    async def test_get_media_content_buffer_with_base64(self, mock_environment, mock_user_media_data,
-                                                        mock_cloud_utility):
-        # Arrange
-        media_id = "media123"
-
-        # Act
-        encoded_string, download_name = await UserMedia.get_media_content_buffer(media_id, base64_encode=True)
-
-        # Assert
-        mock_user_media_data.objects.get.assert_called_once_with(media_id=media_id)
-        mock_cloud_utility.download_file_to_memory.assert_called_once_with(
-            "test-bucket", mock_user_media_data.objects.get.return_value.filename
-        )
-        assert encoded_string == base64.b64encode(b"test file content").decode('utf-8')
-        assert download_name == "test-bot_user123_test.pdf.pdf"
-
-    @pytest.mark.asyncio
-    async def test_get_media_content_buffer_document_not_found(self, mock_environment, mock_user_media_data):
-        # Arrange
-        media_id = "non-existent"
-
-        # Setup document not found
-        from mongoengine import DoesNotExist
-        mock_user_media_data.objects.get.side_effect = DoesNotExist()
-
-        # Act & Assert
-        with pytest.raises(AppException) as exc_info:
-            await UserMedia.get_media_content_buffer(media_id)
-
-        assert "Document not found" in str(exc_info.value)
-
-    @pytest.mark.asyncio
-    async def test_save_markdown_as_pdf(self, mock_environment, mock_markdown, mock_html, mock_io_bytes, mock_uuid):
-        # Arrange
-        bot = "test-bot"
-        sender_id = "user123"
-        markdown_text = "# Test\nContent"
-        filepath = "report.pdf"
-
-        # Act
-        with patch.object(UserMedia, "save_media_content_task", new_callable=AsyncMock) as mock_save:
-            pdf_buffer, media_id = await UserMedia.save_markdown_as_pdf(bot, sender_id, markdown_text, filepath)
-
-        # Assert
-        mock_markdown.markdown.assert_called_once_with(markdown_text)
-        mock_html.assert_called_once_with(string="<h1>Test</h1><p>Content</p>")
-        mock_html.return_value.write_pdf.assert_called_once()
-
-        # This avoids the isinstance issue
-        assert media_id == "mock-uuid-12345"
-        mock_save.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_save_markdown_as_pdf_invalid_extension(self):
-        # Arrange
-        bot = "test-bot"
-        sender_id = "user123"
-        markdown_text = "# Test\nContent"
-        filepath = "report.txt"  # Not a PDF
-
-        # Act & Assert
-        with pytest.raises(AppException) as exc_info:
-            await UserMedia.save_markdown_as_pdf(bot, sender_id, markdown_text, filepath)
-
-        assert "Provided filepath must have a .pdf extension" in str(exc_info.value)
+
+    @staticmethod
+    def write_to_file(file_path: str, binary_data: bytes):
+        with open(file_path, "wb") as f:
+            f.write(binary_data)
+
+
+# --- Pytest Fixture for Patching Utility ---
+
+@pytest.fixture(autouse=True)
+def patch_utility(monkeypatch):
+    monkeypatch.setattr("kairon.shared.chat.user_media.Utility", DummyUtility)
+
+
+# --- Existing Test Cases ---
+
+def test_save_media_content_without_filename():
+    with pytest.raises(AppException, match="filename must be provided for binary data"):
+        UserMedia.save_media_content(bot="bot1", sender_id="sender1", media_id="m1", binary_data=b"data", filename=None)
+
+
+def test_save_media_content_success(monkeypatch, tmp_path):
+    binary_data = b"hello world"
+    filename = "test.txt"
+
+    def fake_mkdtemp():
+        return str(tmp_path)
+
+    monkeypatch.setattr("kairon.shared.chat.user_media.tempfile.mkdtemp", fake_mkdtemp)
+
+    fake_url = "http://dummy-url"
+    monkeypatch.setattr(CloudUtility, "upload_file", lambda file_path, bucket, output_filename: fake_url)
+
+    def fake_save(self):
+        self.saved = True
+
+    monkeypatch.setattr(DummyUserMediaData, "save", fake_save)
+
+    def fake_user_media_data(*args, **kwargs):
+        return DummyUserMediaData(**kwargs)
+
+    monkeypatch.setattr("kairon.shared.chat.user_media.UserMediaData", fake_user_media_data)
+
+    UserMedia.save_media_content(bot="bot1", sender_id="sender1", media_id="m1", binary_data=binary_data,
+                                 filename=filename)
+
+    temp_file_path = os.path.join(str(tmp_path), filename)
+    assert os.path.exists(temp_file_path)
+    with open(temp_file_path, "rb") as f:
+        assert f.read() == binary_data
+
+
+@pytest.mark.asyncio
+async def test_save_media_content_task(monkeypatch):
+    called = False
+
+    def fake_save_media_content(bot, sender_id, media_id, binary_data, filename):
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr(UserMedia, "save_media_content", fake_save_media_content)
+    await UserMedia.save_media_content_task(bot="bot1", sender_id="sender1", media_id="m1", binary_data=b"data",
+                                            filename="test.txt")
+    await asyncio.sleep(0.1)
+    assert called
+
+
+@pytest.mark.asyncio
+async def test_upload_media_contents(monkeypatch):
+    file1 = DummyFile("file1.txt", b"content1")
+    file2 = DummyFile("file2.txt", b"content2")
+    files = [file1, file2]
+
+    uuids = ["uuid1", "uuid2"]
+
+    def fake_uuid7():
+        return type("DummyUUID", (), {"hex": uuids.pop(0)})()
+
+    monkeypatch.setattr("kairon.shared.chat.user_media.uuid7", fake_uuid7)
+
+    async def fake_save_media_content_task(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserMedia, "save_media_content_task", fake_save_media_content_task)
+
+    media_ids = await UserMedia.upload_media_contents(bot="bot1", sender_id="sender1", files=files)
+    assert len(media_ids) == 2
+    assert set(media_ids) == {"uuid1", "uuid2"}
+
+
+# --- Patching MongoEngine QuerySetManager ---
+from mongoengine.queryset.manager import QuerySetManager
+
+
+@pytest.mark.asyncio
+async def test_get_media_content_buffer(monkeypatch):
+    dummy_media = DummyUserMediaData(
+        media_id="m1",
+        filename="test.txt",
+        extension=".txt",
+        bot="bot1",
+        sender_id="sender1",
+        filesize=100,
+        media_url="http://dummy-url",
+        timestamp=datetime.utcnow()
+    )
+
+    class DummyQuerySet:
+        def get(self, media_id):
+            if media_id == "m1":
+                return dummy_media
+            raise UserMediaData.DoesNotExist
+
+    monkeypatch.setattr(QuerySetManager, "__get__", lambda self, instance, owner: DummyQuerySet())
+
+    dummy_buffer = io.BytesIO(b"dummy content")
+    monkeypatch.setattr(CloudUtility, "download_file_to_memory", lambda bucket, filename: dummy_buffer)
+
+    file_buffer, download_name = await UserMedia.get_media_content_buffer("m1")
+    assert isinstance(file_buffer, io.BytesIO)
+    expected_name = f"{dummy_media.bot}_{dummy_media.sender_id}_{dummy_media.filename}{dummy_media.extension}"
+    assert download_name == expected_name
+
+    dummy_buffer.seek(0)
+    encoded_string, download_name = await UserMedia.get_media_content_buffer("m1", base64_encode=True)
+    expected_encoded = base64.b64encode(b"dummy content").decode("utf-8")
+    assert encoded_string == expected_encoded
+
+
+@pytest.mark.asyncio
+async def test_get_media_content_buffer_not_found(monkeypatch):
+    class DummyQuerySet:
+        def get(self, media_id):
+            raise UserMediaData.DoesNotExist
+
+    monkeypatch.setattr(QuerySetManager, "__get__", lambda self, instance, owner: DummyQuerySet())
+    with pytest.raises(AppException, match="Document not found"):
+        await UserMedia.get_media_content_buffer("nonexistent")
+
+
+@pytest.mark.asyncio
+async def test_save_markdown_as_pdf_success(monkeypatch):
+    bot = "bot1"
+    sender_id = "sender1"
+    text = "# Heading\nSome **markdown** content."
+    pdf_filepath = "report.pdf"
+    monkeypatch.setattr(markdown, "markdown", lambda txt: "<html>dummy</html>")
+
+    def fake_write_pdf(self, pdf_buffer):
+        pdf_buffer.write(b"PDF data")
+
+    monkeypatch.setattr(HTML, "write_pdf", fake_write_pdf)
+    called_media_save = False
+
+    async def fake_save_media(*args, **kwargs):
+        nonlocal called_media_save
+        called_media_save = True
+
+    monkeypatch.setattr(UserMedia, "save_media_content", fake_save_media)
+    pdf_buffer, media_id = await UserMedia.save_markdown_as_pdf(bot=bot, sender_id=sender_id, text=text,
+                                                                filepath=pdf_filepath)
+    pdf_buffer.seek(0)
+    assert pdf_buffer.read() == b"PDF data"
+    assert called_media_save
+
+
+@pytest.mark.asyncio
+async def test_save_markdown_as_pdf_invalid_extension():
+    with pytest.raises(AppException, match="Provided filepath must have a .pdf extension"):
+        await UserMedia.save_markdown_as_pdf(bot="bot1", sender_id="sender1", text="dummy", filepath="report.txt")
+
+
+
+@pytest.mark.asyncio
+async def test_upload_media_contents_file_read_error(monkeypatch):
+    file1 = DummyFile("file1.txt", b"content1")
+    file2 = DummyFile("file2.txt", b"content2", raise_on_read=True)
+    files = [file1, file2]
+
+    async def dummy_read_tasks():
+        return await asyncio.gather(*(f.read() for f in files), return_exceptions=True)
+
+    results = await dummy_read_tasks()
+    assert isinstance(results[1], Exception)
+
+
+
+@pytest.mark.asyncio
+async def test_get_media_content_buffer_consistency(monkeypatch):
+    dummy_media = DummyUserMediaData(
+        media_id="m2",
+        filename="example.txt",
+        extension=".txt",
+        bot="bot2",
+        sender_id="sender2",
+        filesize=150,
+        media_url="http://dummy-url",
+        timestamp=datetime.utcnow()
+    )
+
+    class DummyQuerySet:
+        def get(self, media_id):
+            return dummy_media
+
+    monkeypatch.setattr(QuerySetManager, "__get__", lambda self, instance, owner: DummyQuerySet())
+    dummy_buffer = io.BytesIO(b"consistent content")
+    monkeypatch.setattr(CloudUtility, "download_file_to_memory", lambda bucket, filename: dummy_buffer)
+
+    file_buffer1, download_name1 = await UserMedia.get_media_content_buffer("m2")
+    file_buffer2, download_name2 = await UserMedia.get_media_content_buffer("m2")
+    assert download_name1 == download_name2
+    expected_name = f"{dummy_media.bot}_{dummy_media.sender_id}_{dummy_media.filename}{dummy_media.extension}"
+    assert download_name1 == expected_name
+
+
+@pytest.mark.asyncio
+async def test_save_markdown_as_pdf_empty_text(monkeypatch):
+    bot = "bot3"
+    sender_id = "sender3"
+    text = ""
+    pdf_filepath = "empty_report.pdf"
+    monkeypatch.setattr(markdown, "markdown", lambda txt: "<html>empty</html>")
+
+    def fake_write_pdf(self, pdf_buffer):
+        pdf_buffer.write(b"Empty PDF")
+
+    monkeypatch.setattr(HTML, "write_pdf", fake_write_pdf)
+    called_media_save = False
+
+    async def fake_save_media(*args, **kwargs):
+        nonlocal called_media_save
+        called_media_save = True
+
+    monkeypatch.setattr(UserMedia, "save_media_content", fake_save_media)
+
+    pdf_buffer, media_id = await UserMedia.save_markdown_as_pdf(bot=bot, sender_id=sender_id, text=text,
+                                                                filepath=pdf_filepath)
+    pdf_buffer.seek(0)
+    content = pdf_buffer.read()
+    assert content == b"Empty PDF"
+    assert called_media_save

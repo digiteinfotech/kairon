@@ -1070,7 +1070,7 @@ class GlobalSlots(Auditlog):
 
 class UserMediaData(Auditlog):
     media_id = StringField(required=True)
-    s3_url = StringField(required=True)
+    media_url = StringField(required=True)
     filename = StringField(required=True)
     extension = StringField(required=True)
     output_filename = StringField(required=True)
