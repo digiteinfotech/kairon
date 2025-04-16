@@ -2,6 +2,7 @@ import datetime
 import os
 from typing import Text, Dict, List
 
+from fastapi import File
 from loguru import logger
 from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
@@ -13,6 +14,7 @@ from .. import Utility
 from ..live_agent.factory import LiveAgentFactory
 from ..shared.account.activity_log import UserActivityLogger
 from ..shared.actions.utils import ActionUtility
+from ..shared.chat.user_media import UserMedia
 from ..shared.constants import UserActivityType
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
@@ -28,11 +30,13 @@ class ChatUtils:
         user: Text,
         is_integration_user: bool = False,
         metadata: Dict = None,
+        files: list[File] = None,
     ):
         model = AgentProcessor.get_agent(bot)
         metadata = ChatUtils.get_metadata(account, bot, is_integration_user, metadata)
         msg = UserMessage(data, sender_id=user, metadata=metadata)
-        chat_response = await AgentProcessor.handle_channel_message(bot, msg)
+        media_ids = await UserMedia.upload_media_contents(bot=bot, sender_id=user, files=files)
+        chat_response = await AgentProcessor.handle_channel_message(bot, msg, media_ids=media_ids)
         if not chat_response:
             return {
                 "success": True,
@@ -312,17 +316,12 @@ class ChatUtils:
         return metadata
 
 
-
-
-
-
-
     @staticmethod
     def add_telemetry_metadata(x_telemetry_uid: Text, x_telemetry_sid: Text, metadata: Dict = None):
         if not metadata:
             metadata = {}
         if x_telemetry_uid and x_telemetry_sid:
-            #TODO: validate x_telemetry_uid and x_session_id for the botid
             metadata["telemetry-uid"] = x_telemetry_uid
             metadata["telemetry-sid"] = x_telemetry_sid
         return metadata
+

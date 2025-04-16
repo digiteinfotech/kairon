@@ -1,8 +1,10 @@
+import json
 from typing import Text, Dict
 
-from fastapi import APIRouter, Path, Security, Header
+from fastapi import APIRouter, Path, Security, Header, UploadFile, Form, File, HTTPException
 from starlette.background import BackgroundTasks
 from starlette.requests import Request
+from starlette.responses import StreamingResponse
 
 from kairon import Utility
 from kairon.api.models import Response, TextData
@@ -11,6 +13,7 @@ from kairon.live_agent.live_agent import LiveAgent
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.models import ChatRequest, AgenticFlowRequest
+from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import CHAT_ACCESS
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
@@ -32,6 +35,26 @@ async def get_agent_response_for_web_client(request: ChatRequest,
     response = await ChatUtils.chat(request.data, current_user.bot_account, current_user.get_bot(),
                                     current_user.get_user(),
                                     current_user.is_integration_user, request.metadata)
+    return {"data": response}
+
+@router.post("/chat/media", response_model=Response)
+async def get_agent_response_for_web_client2(
+                                            data: str = Form(...),
+                                            metadata: str = Form(...),
+                                            files: list[UploadFile] = File(...),
+                                            x_telemetry_uid: Text = Header(None),
+                                            x_telemetry_sid: Text = Header(None),
+                                            current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                          scopes=CHAT_ACCESS)):
+    """
+    Retrieves agent response for user message.
+    """
+    data = json.loads(data)
+    metadata = json.loads(metadata)
+    metadata = ChatUtils.add_telemetry_metadata(x_telemetry_uid, x_telemetry_sid, metadata)
+    response = await ChatUtils.chat(data, current_user.bot_account, current_user.get_bot(),
+                                    current_user.get_user(),
+                                    current_user.is_integration_user, metadata, files)
     return {"data": response}
 
 
@@ -110,3 +133,32 @@ async def execute_flow(
         },
         "message": "Rule executed successfully!"
     }
+
+@router.post('/media/upload', response_model=Response)
+async def media_upload(
+        sender_id: str = Form(...),
+        files: list[UploadFile] = File(...),
+        bot: Text = Path(description="Bot id"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
+):
+    results = await UserMedia.upload_media_contents(bot, sender_id, files)
+    return {
+        "data": results,
+        "message": 'media uploaded successfully'
+    }
+
+
+
+@router.get('/media/download/{sender_id}/{doc_id}')
+async def media_download(
+        bot: Text = Path(description="Bot id"),
+        doc_id: Text = Path(description="Id of the document"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
+):
+    try:
+        file_stream, download_name = await UserMedia.get_media_content_buffer(doc_id)
+        headers = {"Content-Disposition": f"attachment; filename={download_name}"}
+        return StreamingResponse(file_stream, media_type="application/octet-stream", headers=headers)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="File not found or error downloading file") from e
+

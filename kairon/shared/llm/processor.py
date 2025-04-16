@@ -115,9 +115,11 @@ class LLMProcessor(LLMBase):
 
             system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
             context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
+            media_ids = kwargs.pop('media_ids', None)
 
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
-            answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,llm_type = llm_type, **kwargs)
+            answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,llm_type = llm_type,
+                                             media_ids=media_ids, **kwargs)
             response = {"content": answer, "similarity_context": context}
         except Exception as e:
             logging.exception(e)
@@ -181,11 +183,15 @@ class LLMProcessor(LLMBase):
         return formatted_response
 
     async def __get_completion(self, messages, hyperparameters, user, **kwargs):
+        media_ids = kwargs.pop('media_ids')
+        if not media_ids:
+            media_ids = []
         body = {
             'messages': messages,
             'hyperparameters': hyperparameters,
             'user': user,
-            'invocation': kwargs.get("invocation")
+            'invocation': kwargs.get("invocation"),
+            'media_ids': media_ids
         }
 
         timeout = Utility.environment['llm'].get('request_timeout', 30)
@@ -207,6 +213,7 @@ class LLMProcessor(LLMBase):
         use_query_prompt = False
         query_prompt = ''
         invocation = kwargs.pop('invocation')
+        media_ids = kwargs.pop('media_ids')
         llm_type = kwargs.get('llm_type')
         if kwargs.get('query_prompt', {}):
             query_prompt_dict = kwargs.pop('query_prompt')
@@ -233,7 +240,8 @@ class LLMProcessor(LLMBase):
         completion, raw_response = await self.__get_completion(messages=messages,
                                                                hyperparameters=hyperparameters,
                                                                user=user,
-                                                               invocation=invocation)
+                                                               invocation=invocation,
+                                                               media_ids=media_ids)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'answer_query', 'hyperparameters': hyperparameters})
         return completion
