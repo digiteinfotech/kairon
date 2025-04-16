@@ -127,7 +127,7 @@ class UserMedia:
             media_data.pop('bot')
             media_data.pop('sender_id')
             bucket = Utility.environment["storage"]["user_media"].get("bucket")
-            file_buffer = CloudUtility.download_file_to_memory(bucket, media_doc.filename)
+            file_buffer = CloudUtility.download_file_to_memory(bucket, media_doc.output_filename)
             download_name = f"{media_doc.bot}_{media_doc.sender_id}_{media_doc.filename}{media_doc.extension}"
             if base64_encode:
                 file_buffer.seek(0)
