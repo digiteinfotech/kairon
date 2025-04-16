@@ -257,7 +257,8 @@ class LLMProcessor(LLMBase):
         completion, raw_response = await self.__get_completion(messages=messages,
                                                                hyperparameters=hyperparameters,
                                                                user=user,
-                                                               invocation=invocation)
+                                                               invocation=invocation,
+                                                               media_ids=None)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'rephrase_query', 'hyperparameters': hyperparameters})
         return completion
