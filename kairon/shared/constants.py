@@ -163,6 +163,7 @@ class KaironSystemSlots(str, Enum):
     mail_id = "mail_id"
     subject = "subject"
     body = "body"
+    media_ids = 'media_ids'
 
 
 

@@ -77,6 +77,7 @@ class ActionPrompt(ActionsBase):
                                                                                 user= tracker.sender_id,
                                                                                 invocation='prompt_action',
                                                                                 llm_type=llm_type,
+                                                                                media_ids=tracker.get_slot('media_ids'),
                                                                                 **llm_params)
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")

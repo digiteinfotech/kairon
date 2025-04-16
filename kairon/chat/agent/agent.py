@@ -70,7 +70,7 @@ class KaironAgent(Agent):
             self.nlg.responses = self.domain.responses if self.domain else {}
 
     async def handle_message(
-        self, message: UserMessage, enable_metering=True
+        self, message: UserMessage, enable_metering=True, media_ids: list[str] = None
     ) -> Optional[List[Dict[Text, Any]]]:
         """Handle a single message."""
         if not self.is_ready():
@@ -79,5 +79,5 @@ class KaironAgent(Agent):
 
         async with self.lock_store.lock(message.sender_id):
             return await self.processor.handle_message(  # type: ignore[union-attr]
-                message, enable_metering
+                message, enable_metering, media_ids=media_ids
             )

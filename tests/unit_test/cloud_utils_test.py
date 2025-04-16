@@ -54,6 +54,24 @@ class TestCloudUtils:
                     url = CloudUtility.upload_file('tests/testing_data/actions/actions.yml', bucket_name, 'test/actions.yml')
                     assert url == 'https://kairon.s3.amazonaws.com/test/actions.yml'
 
+    def test_download_file_to_memory(self):
+        bucket = "test-bucket"
+        file_key = "test/file.txt"
+        expected_content = b"downloaded content"
+        fake_s3_client = mock.Mock()
+        def fake_download_fileobj(bkt, key, buffer):
+            buffer.write(expected_content)
+        fake_s3_client.download_fileobj.side_effect = fake_download_fileobj
+        with mock.patch("boto3.session.Session.client") as mock_client:
+            mock_client.return_value = fake_s3_client
+            result_buffer = CloudUtility.download_file_to_memory(bucket, file_key)
+            assert isinstance(result_buffer, io.BytesIO)
+            result_buffer.seek(0)
+            content = result_buffer.read()
+            assert content == expected_content
+
+
+
     def test_file_upload_bucket_not_exists(self):
         bucket_name = 'kairon'
         head_bucket_response = {'Error': {'Code': '400', 'Message': 'Bad Request'},

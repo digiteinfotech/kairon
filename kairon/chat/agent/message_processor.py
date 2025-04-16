@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 from typing import Optional, Text, List, Dict, Tuple
-
+from rasa.shared.core.events import SlotSet
 import rasa
 import structlog
 from rasa.core.actions.action import (
@@ -155,7 +155,7 @@ class KaironMessageProcessor(MessageProcessor):
 
         return tracker, predictions
 
-    async def handle_message(self, message: UserMessage, enable_metering=True):
+    async def handle_message(self, message: UserMessage, enable_metering=True, media_ids: list[str] = None):
         """Handle a single message with this processor."""
         if message.metadata:
             tabname = message.metadata.get("tabname", "default")
@@ -186,6 +186,10 @@ class KaironMessageProcessor(MessageProcessor):
             return None
 
         tracker = await self.run_action_extract_slots(message.output_channel, tracker)
+
+        if media_ids:
+            slot_event = SlotSet(key="media_ids", value=media_ids)
+            tracker.update(slot_event)
 
         actions_predictions = await self._run_prediction_loop(
             message.output_channel, tracker

@@ -1063,3 +1063,20 @@ class GlobalSlots(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id", "entry_type")]}]}
+
+
+
+
+
+class UserMediaData(Auditlog):
+    media_id = StringField(required=True)
+    media_url = StringField(required=True)
+    filename = StringField(required=True)
+    extension = StringField(required=True)
+    output_filename = StringField(required=True)
+    filesize = IntField(default=0)
+    sender_id = StringField(required=True)
+    bot = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id")]}]}
