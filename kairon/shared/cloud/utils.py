@@ -1,4 +1,5 @@
-from typing import Any
+import io
+from typing import Any, BinaryIO
 
 import ujson as json
 import os
@@ -36,6 +37,23 @@ class CloudUtility:
             output_filename = os.path.basename(file)
         s3.upload_file(file, bucket, output_filename)
         return "https://{0}.s3.amazonaws.com/{1}".format(bucket, output_filename)
+
+    @staticmethod
+    def download_file_to_memory(bucket: str, file_key: str) -> BinaryIO:
+        """
+        Downloads a file from S3 into memory (as a BytesIO object).
+
+        :param bucket: S3 bucket name
+        :param file_key: Key/path of the file in the bucket
+        :return: BytesIO object containing the file content
+        """
+        session = Session()
+        s3 = session.client("s3")
+
+        buffer: io.BytesIO = io.BytesIO()
+        s3.download_fileobj(bucket, file_key, buffer)
+        buffer.seek(0)
+        return buffer
 
     @staticmethod
     def __check_bucket_exist(s3, bucket_name):

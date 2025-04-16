@@ -1695,10 +1695,11 @@ class MongoProcessor:
             )
 
         for slot in [s for s in KaironSystemSlots if s.value not in non_conversational_slots]:
+            slot_type = SLOT_TYPE.LIST.value if slot == KaironSystemSlots.media_ids.value else "text"
             self.add_slot(
                 {
                     "name": slot,
-                    "type": "text",
+                    "type": slot_type,
                     "initial_value": None,
                     "influence_conversation": True,
                 },

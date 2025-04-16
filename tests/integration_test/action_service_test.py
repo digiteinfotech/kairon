@@ -11977,7 +11977,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
                           'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? inurl:domain1.com|domain2.com \nA:"}],
             'hyperparameters': hyperparameters,
             'user': user,
-            'invocation': "prompt_action"
+            'invocation': "prompt_action",
+            'media_ids': []
         },
         timeout=Utility.environment['llm'].get('request_timeout', 30)
     )
