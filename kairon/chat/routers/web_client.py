@@ -149,14 +149,14 @@ async def media_upload(
 
 
 
-@router.get('/media/download/{sender_id}/{doc_id}')
+@router.get('/media/download/{sender_id}/{media_id}')
 async def media_download(
         bot: Text = Path(description="Bot id"),
-        doc_id: Text = Path(description="Id of the document"),
+        media_id: Text = Path(description="Id of the document"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     try:
-        file_stream, download_name = await UserMedia.get_media_content_buffer(doc_id)
+        file_stream, download_name = await UserMedia.get_media_content_buffer(media_id)
         headers = {"Content-Disposition": f"attachment; filename={download_name}"}
         return StreamingResponse(file_stream, media_type="application/octet-stream", headers=headers)
     except Exception as e:

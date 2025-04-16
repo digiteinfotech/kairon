@@ -225,12 +225,12 @@ async def test_save_markdown_as_pdf_success(monkeypatch):
     monkeypatch.setattr(HTML, "write_pdf", fake_write_pdf)
     called_media_save = False
 
-    async def fake_save_media(*args, **kwargs):
+    def fake_save_media(*args, **kwargs):
         nonlocal called_media_save
         called_media_save = True
 
     monkeypatch.setattr(UserMedia, "save_media_content", fake_save_media)
-    pdf_buffer, media_id = await UserMedia.save_markdown_as_pdf(bot=bot, sender_id=sender_id, text=text,
+    pdf_buffer, media_id = UserMedia.save_markdown_as_pdf(bot=bot, sender_id=sender_id, text=text,
                                                                 filepath=pdf_filepath)
     pdf_buffer.seek(0)
     assert pdf_buffer.read() == b"PDF data"
@@ -240,7 +240,7 @@ async def test_save_markdown_as_pdf_success(monkeypatch):
 @pytest.mark.asyncio
 async def test_save_markdown_as_pdf_invalid_extension():
     with pytest.raises(AppException, match="Provided filepath must have a .pdf extension"):
-        await UserMedia.save_markdown_as_pdf(bot="bot1", sender_id="sender1", text="dummy", filepath="report.txt")
+        UserMedia.save_markdown_as_pdf(bot="bot1", sender_id="sender1", text="dummy", filepath="report.txt")
 
 
 
@@ -300,13 +300,13 @@ async def test_save_markdown_as_pdf_empty_text(monkeypatch):
     monkeypatch.setattr(HTML, "write_pdf", fake_write_pdf)
     called_media_save = False
 
-    async def fake_save_media(*args, **kwargs):
+    def fake_save_media(*args, **kwargs):
         nonlocal called_media_save
         called_media_save = True
 
     monkeypatch.setattr(UserMedia, "save_media_content", fake_save_media)
 
-    pdf_buffer, media_id = await UserMedia.save_markdown_as_pdf(bot=bot, sender_id=sender_id, text=text,
+    pdf_buffer, media_id = UserMedia.save_markdown_as_pdf(bot=bot, sender_id=sender_id, text=text,
                                                                 filepath=pdf_filepath)
     pdf_buffer.seek(0)
     content = pdf_buffer.read()

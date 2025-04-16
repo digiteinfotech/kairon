@@ -139,7 +139,7 @@ class UserMedia:
 
 
     @staticmethod
-    async def save_markdown_as_pdf(bot: str, sender_id: str, text: str, filepath: str= "report.pdf"):
+    def save_markdown_as_pdf(bot: str, sender_id: str, text: str, filepath: str= "report.pdf"):
         if Path(filepath).suffix.lower() != ".pdf":
             raise AppException("Provided filepath must have a .pdf extension")
         html_content: str = markdown.markdown(text)
@@ -148,7 +148,7 @@ class UserMedia:
         pdf_buffer.seek(0)
         binary_data =  pdf_buffer.read()
         media_id = uuid7().hex
-        await UserMedia.save_media_content(
+        UserMedia.save_media_content(
                 bot=bot,
                 sender_id=sender_id,
                 media_id=media_id,
