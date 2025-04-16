@@ -101,16 +101,13 @@ class UserMedia:
             files: list[File],
     ):
         media_ids = []
-        # Read all file contents concurrently.
         read_tasks = [asyncio.create_task(file.read()) for file in files]
         binary_datas = await asyncio.gather(*read_tasks)
 
-        # Schedule saving tasks in the background.
         for file, binary_data in zip(files, binary_datas):
             filename = file.filename
             media_id = uuid7().hex
             media_ids.append(media_id)
-            # Schedule the task without awaiting (fire-and-forget)
             asyncio.create_task(UserMedia.save_media_content_task(
                 bot=bot,
                 sender_id=sender_id,
@@ -119,30 +116,6 @@ class UserMedia:
                 filename=filename
             ))
         return media_ids
-
-
-    # @staticmethod
-    # async def upload_media_contents(
-    #         bot: str,
-    #         sender_id: str,
-    #         files: list[File],
-    # ):
-    #     media_ids = []
-    #     read_tasks = [asyncio.create_task(file.read()) for file in files]
-    #     binary_datas = await asyncio.gather(*read_tasks)
-    #
-    #     for file, binary_data in zip(files, binary_datas):
-    #         filename = file.filename
-    #         media_id = uuid7().hex
-    #         media_ids.append(media_id)
-    #         asyncio.create_task(UserMedia.save_media_content(
-    #             bot=bot,
-    #             sender_id=sender_id,
-    #             media_id=media_id,
-    #             binary_data=binary_data,
-    #             filename=filename
-    #         ))
-    #     return media_ids
 
 
     @staticmethod
@@ -163,8 +136,6 @@ class UserMedia:
             return file_buffer, download_name
         except DoesNotExist:
             raise AppException("Document not found")
-
-
 
 
     @staticmethod

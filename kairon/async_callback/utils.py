@@ -1,3 +1,4 @@
+import asyncio
 import pickle
 from calendar import timegm
 from datetime import datetime, date
@@ -30,6 +31,7 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.callback.data_objects import CallbackConfig, CallbackData, CallbackResponseType
+from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
@@ -281,6 +283,8 @@ class CallbackUtility:
                                                             bot=bot,
                                                             sender_id=sender_id,
                                                            channel=channel)
+        predefined_objects['save_as_pdf'] = partial(CallbackUtility.save_as_pdf,bot=bot, sender_id=sender_id)
+
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
             predefined_objects=predefined_objects
@@ -491,3 +495,17 @@ class CallbackUtility:
                 status=resp_status_code,
                 content=TextContent(str(data))
             )
+
+    @staticmethod
+    def save_as_pdf(text: str, filename: str, bot: str, sender_id:str):
+        try:
+            _, media_id = asyncio.run(UserMedia.save_markdown_as_pdf(
+                bot=bot,
+                sender_id=sender_id,
+                text=text,
+                filepath=filename
+            ))
+            return media_id
+        except Exception as e:
+            raise Exception(f"encryption failed-{str(e)}")
+
