@@ -13,7 +13,6 @@ from fastapi import File
 from mongoengine import DoesNotExist
 from pathy import ClientError
 from uuid6 import uuid7
-from weasyprint import HTML
 
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -140,6 +139,7 @@ class UserMedia:
 
     @staticmethod
     def save_markdown_as_pdf(bot: str, sender_id: str, text: str, filepath: str= "report.pdf"):
+        from weasyprint import HTML
         if Path(filepath).suffix.lower() != ".pdf":
             raise AppException("Provided filepath must have a .pdf extension")
         html_content: str = markdown.markdown(text)
