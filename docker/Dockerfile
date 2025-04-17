@@ -6,8 +6,11 @@ ENV PATH=$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
 
 WORKDIR ${KAIRON_HOME}
 
+
 RUN yum update -y
 RUN yum install -y wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel sqlite-devel libffi-devel openblas-devel ca-certificates git ncurses-devel readline-devel xz-devel tk-devel bzip2 patch sqlite
+RUN sudo yum install pango pango-devel
+
 
 RUN curl https://pyenv.run | bash
 RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc && \
