@@ -2819,8 +2819,7 @@ class TestAccountProcessor:
 
     def test_validate_names_invalid_chars(self):
         values = {"first_name": "Invalid@Name", "last_name": "Last#Name"}
-        with pytest.raises(ValueError,
-                           match="First name and last name can only contain letters, numbers, spaces and underscores."):
+        with pytest.raises(ValueError,match="First name and last name can only contain letters, numbers, spaces and underscores."):
             RegisterAccount.validate_names(values)
 
     def test_validate_names_valid(self):
