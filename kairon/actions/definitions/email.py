@@ -91,11 +91,10 @@ class ActionEmail(ActionsBase):
         finally:
             if dispatch_response and bot_response:
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_response, bot_response)
-            else:
-                message = None
+                if message:
+                    msg_logger.append(message)
 
-            if message:
-                msg_logger.append(message)
+
             ActionServerLogs(
                 type=ActionType.email_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),

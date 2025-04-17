@@ -223,24 +223,6 @@ class RegisterAccount(RecaptchaVerifiedRequest):
         return values
 
     @root_validator
-    def validate_names(cls, values):
-        from kairon.shared.utils import Utility
-
-        first_name = values.get("first_name", "").strip()
-        last_name = values.get("last_name", "").strip()
-
-        if Utility.check_empty_string(first_name) or Utility.check_empty_string(last_name):
-            raise ValueError("First name and last name cannot be empty or blank spaces.")
-
-        first_valid = Utility.special_match(first_name, search=RE_ALPHA_NUM)
-        last_valid = Utility.special_match(last_name, search=RE_ALPHA_NUM)
-
-        if not first_valid or not last_valid:
-            raise ValueError("First name and last name can only contain letters, numbers, spaces and underscores.")
-
-        return values
-
-    @root_validator
     def validate_fingerprint(cls, values):
         from kairon.shared.utils import Utility
 
