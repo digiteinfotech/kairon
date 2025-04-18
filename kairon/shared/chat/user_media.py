@@ -38,7 +38,7 @@ class UserMedia:
 
     @staticmethod
     def mark_user_media_data_upload_done(media_id:str, media_url: str, output_filename: str, filesize: int):
-        user_media_data = UserMediaData.objects(media_id=media_id).get()
+        user_media_data = UserMediaData.objects(media_id=media_id).first()
         if user_media_data:
             user_media_data.media_url = media_url
             user_media_data.output_filename = output_filename
@@ -48,7 +48,7 @@ class UserMedia:
 
     @staticmethod
     def mark_user_media_data_upload_failed(media_id:str, reason: str):
-        user_media_data = UserMediaData.objects(media_id=media_id).get()
+        user_media_data = UserMediaData.objects(media_id=media_id).first()
         if user_media_data:
             user_media_data.upload_status = UserMediaUploadStatus.failed.value
             user_media_data.additional_log = reason
