@@ -87,8 +87,6 @@ from .data.model_data_imporer import KYAMLStoryWriter
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
 from ..exceptions import AppException
 from werkzeug.utils import secure_filename
-from kairon.shared.llm.processor import LLMProcessor
-
 
 class Utility:
     """Class contains logic for various utilities"""
@@ -2129,6 +2127,8 @@ class Utility:
     @staticmethod
     def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, bot: str, exception_class):
         from jsonschema_rs import JSONSchema, ValidationError as JValidationError
+        from kairon.shared.llm.processor import LLMProcessor
+
         schema = Utility.llm_metadata[llm_type]
         models_list = LLMProcessor.get_llm_metadata(bot, llm_type)
         schema["properties"]["model"]["enum"] = models_list
