@@ -296,7 +296,8 @@ class CognitionDataProcessor:
         collection_name = collection_name.lower()
         start_time = kwargs.pop("start_time", None)
         end_time = kwargs.pop("end_time", None)
-        data_filter = json.loads(kwargs.pop("data_filter"))
+        data_filter = kwargs.pop("data_filter", {}) if isinstance(kwargs.get("data_filter"), dict) else json.loads(
+            kwargs.pop("data_filter", "{}"))
 
         query = {"bot": bot, "collection_name": collection_name}
         if start_time:

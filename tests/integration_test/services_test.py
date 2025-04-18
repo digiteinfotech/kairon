@@ -4462,10 +4462,10 @@ def test_get_collection_data_with_collection_id():
 
 def test_get_collection_data_with_filter():
     response = client.get(
-        url=f'"/api/bot/{pytest.bot}/data/collection/user/filter?filters={"name": "Hitesh"}"',
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        url=f"/api/bot/{pytest.bot}/data/collection/user/filter",
+        params={"filters": json.dumps({"name": "Hitesh"})},
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
     )
-
     actual = response.json()
     assert actual["error_code"] == 0
     assert not actual["message"]
