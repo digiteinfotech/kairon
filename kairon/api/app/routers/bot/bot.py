@@ -1647,7 +1647,7 @@ async def get_llm_metadata(
     """
     Returns a list of LLMs and their corresponding models available for the bot.
     """
-    llm_models = LLMProcessor.fetch_llm_metadata(current_user.get_bot())
+    llm_models = LLMProcessor.fetch_llms_metadata(current_user.get_bot())
     return Response(data=llm_models)
 
 
