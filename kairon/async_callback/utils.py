@@ -343,9 +343,9 @@ class CallbackUtility:
         collection_name = collection_name.lower()
 
         query = {"bot": bot, "collection_name": collection_name}
-        start_time = kwargs.pop("start_time", None)
-        end_time = kwargs.pop("end_time", None)
 
+        start_time = kwargs.pop("start_time", None) if kwargs else None
+        end_time = kwargs.pop("end_time", None) if kwargs else None
         if start_time:
             query["timestamp__gte"] = start_time
         if end_time:

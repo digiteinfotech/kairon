@@ -745,7 +745,6 @@ def test_pyscript_handler_for_get_data():
         }
 
     sender_id = "919876543210"
-
     resp = add_data(sender_id,json_data)
     resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
     # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
@@ -1147,6 +1146,7 @@ def test_fetch_collection_data_success():
     mock_data = {
         "_id": "12345",
         "collection_name": "test_collection",
+        "timestamp": "2024-08-07T07:03:06.905+00:00",
         "is_secure": True,
         "data": "encrypted_data"
     }
@@ -1160,10 +1160,10 @@ def test_fetch_collection_data_success():
         results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
 
     assert len(results) == 1
-    assert results[0].pop("timestamp")
     assert results[0] == {
         "_id": "12345",
         "collection_name": "test_collection",
+        "timestamp": "2024-08-07T07:03:06.905+00:00",
         "is_secure": True,
         "data": "decrypted_data"
     }
@@ -1184,6 +1184,7 @@ def test_fetch_collection_data_without_collection_name():
     mock_data = {
         "_id": "67890",
         "is_secure": False,
+        "timestamp": "2024-08-07T07:03:06.905+00:00",
         "data": "encrypted_data"
     }
 
@@ -1196,11 +1197,11 @@ def test_fetch_collection_data_without_collection_name():
         results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
 
     assert len(results) == 1
-    assert results[0].pop("timestamp")
     assert results[0] == {
         "_id": "67890",
         "collection_name": None,  # collection_name is missing
         "is_secure": False,
+        "timestamp": "2024-08-07T07:03:06.905+00:00",
         "data": "decrypted_data"
     }
 
