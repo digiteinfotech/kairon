@@ -72,4 +72,4 @@ python-multipart>=0.0.18
 nltk
 blacksheep==2.0.7
 fastembed==0.5.1
-markdown-pdf==1.7
+markdown-pdf==1.6
