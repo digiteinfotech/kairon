@@ -1160,6 +1160,7 @@ def test_fetch_collection_data_success():
         results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
 
     assert len(results) == 1
+    assert results[0].pop("timestamp")
     assert results[0] == {
         "_id": "12345",
         "collection_name": "test_collection",
@@ -1195,6 +1196,7 @@ def test_fetch_collection_data_without_collection_name():
         results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
 
     assert len(results) == 1
+    assert results[0].pop("timestamp")
     assert results[0] == {
         "_id": "67890",
         "collection_name": None,  # collection_name is missing

@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Text, Dict, Any, List
-
+import json
 from loguru import logger
 from mongoengine import DoesNotExist, Q
 from pydantic import constr, create_model, ValidationError
@@ -270,6 +270,42 @@ class CognitionDataProcessor:
         query = {"bot": bot, "collection_name": collection_name}
         query.update({
             f"data__{key}": value for key, value in zip(keys, values) if key and value
+        })
+
+        for value in CollectionData.objects(**query):
+            final_data = {}
+            item = value.to_mongo().to_dict()
+            collection_name = item.pop('collection_name', None)
+            is_secure = item.pop('is_secure')
+            data = item.pop('data')
+            data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
+            final_data["_id"] = item["_id"].__str__()
+            final_data['collection_name'] = collection_name
+            final_data['is_secure'] = is_secure
+            final_data['data'] = data
+            yield final_data
+
+    def get_collection_data_with_timestamp(self, bot: Text, collection_name: Text, **kwargs):
+        """
+        fetches collection data based on the filters provided
+
+        :param bot: bot id
+        :param collection_name: collection name
+        :return: yield dict
+        """
+        collection_name = collection_name.lower()
+        start_time = kwargs.pop("start_time", None)
+        end_time = kwargs.pop("end_time", None)
+        data_filter = json.loads(kwargs.pop("data_filter"))
+
+        query = {"bot": bot, "collection_name": collection_name}
+        if start_time:
+            query["timestamp__gte"] = start_time
+        if end_time:
+            query["timestamp__lte"] = end_time
+
+        query.update({
+            f"data__{key}": value for key, value in data_filter.items() if key and value
         })
 
         for value in CollectionData.objects(**query):
