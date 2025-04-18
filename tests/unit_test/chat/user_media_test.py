@@ -175,7 +175,7 @@ async def test_get_media_content_buffer_without_base64(mock_utility, mock_downlo
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
 def test_mark_user_media_data_upload_done(mock_objects):
     mock_doc = MagicMock()
-    mock_objects.return_value.get.return_value = mock_doc
+    mock_objects.return_value.first.return_value = mock_doc
 
     UserMedia.mark_user_media_data_upload_done("media123", "url", "filename", 123)
 
@@ -189,7 +189,7 @@ def test_mark_user_media_data_upload_done(mock_objects):
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
 def test_mark_user_media_data_upload_failed(mock_objects):
     mock_doc = MagicMock()
-    mock_objects.return_value.get.return_value = mock_doc
+    mock_objects.return_value.first.return_value = mock_doc
 
     UserMedia.mark_user_media_data_upload_failed("media123", "some error")
 
