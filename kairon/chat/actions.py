@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-ACTION_SERVER_REQUEST_TIMEOUT = 90  # seconds
+ACTION_SERVER_REQUEST_TIMEOUT = 60  # seconds
 
 
 class KRemoteAction(Action):
