@@ -86,7 +86,7 @@ model:
 
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
-  request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:90}
+  request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:60}
 
 web_search:
   trigger_task: ${WEB_SEARCH_TRIGGER_TASK:false}
