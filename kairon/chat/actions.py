@@ -39,13 +39,15 @@ from rasa.utils.common import get_bool_env_variable
 from rasa.utils.endpoints import EndpointConfig, ClientResponseError, concat_url
 from rasa.core.actions.action import Action, ActionExecutionRejection, create_bot_utterance
 
+from kairon import Utility
+
 if TYPE_CHECKING:
     from rasa.core.nlg import NaturalLanguageGenerator
     from rasa.core.channels.channel import OutputChannel
 
 logger = logging.getLogger(__name__)
 
-ACTION_SERVER_REQUEST_TIMEOUT = 30  # seconds
+ACTION_SERVER_REQUEST_TIMEOUT = 60  # seconds
 
 
 class KRemoteAction(Action):
@@ -189,7 +191,7 @@ class KRemoteAction(Action):
                 endpoint_config=self.action_endpoint,
                 json=modified_json if modified_json else json_body,
                 method="post",
-                timeout=ACTION_SERVER_REQUEST_TIMEOUT,
+                timeout=Utility.environment['action'].get('request_timeout', ACTION_SERVER_REQUEST_TIMEOUT),
                 compress=should_compress,
                 retry_attempts=self.retry_attempts
             )
@@ -295,11 +297,11 @@ class KRemoteAction(Action):
 
         retry_options = ExponentialRetry(attempts=retry_attempts)
         session = RetryClient(
-            raise_for_status=False,  # Set this to True if you want to raise an exception for non-200 responses
+            raise_for_status=False,
             retry_options=retry_options,
             headers=endpoint_config.headers,
             auth=auth,
-            timeout=aiohttp.ClientTimeout(total=ACTION_SERVER_REQUEST_TIMEOUT),
+            timeout=aiohttp.ClientTimeout(total=Utility.environment['action'].get('request_timeout', ACTION_SERVER_REQUEST_TIMEOUT)),
         )
 
         async with session:
