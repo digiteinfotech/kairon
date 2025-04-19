@@ -2,7 +2,7 @@ import io
 import ujson as json
 import os
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from mongoengine import connect
 
 import pytest
@@ -70,7 +70,69 @@ class TestCloudUtils:
             content = result_buffer.read()
             assert content == expected_content
 
+    @patch("kairon.shared.cloud.utils.Session")
+    @patch.object(CloudUtility, "_CloudUtility__check_bucket_exist", autospec=True)
+    @patch("kairon.shared.cloud.utils.Utility.check_empty_string", autospec=True)
+    def test_upload_file_bytes_bucket_exists(
+            self, mock_check_empty, mock_check_bucket_exist, mock_session_class
+    ):
+        file_bytes = b"hello world"
+        bucket = "my-bucket"
+        key = "folder/file.txt"
+        mock_s3 = MagicMock()
+        mock_session_class.return_value.client.return_value = mock_s3
 
+        mock_check_bucket_exist.return_value = True
+        mock_check_empty.return_value = False
+
+        url = CloudUtility.upload_file_bytes(file_bytes, bucket, key)
+
+        mock_s3.create_bucket.assert_not_called()
+        args, kwargs = mock_s3.upload_fileobj.call_args
+        bio_passed, bucket_passed, key_passed = args
+        assert isinstance(bio_passed, io.BytesIO)
+        assert bucket_passed == bucket
+        assert key_passed == key
+
+        assert url == f"https://{bucket}.s3.amazonaws.com/{key}"
+
+    @patch("kairon.shared.cloud.utils.Session")
+    @patch.object(CloudUtility, "_CloudUtility__check_bucket_exist", autospec=True)
+    @patch("kairon.shared.cloud.utils.Utility.check_empty_string", autospec=True)
+    def test_upload_file_bytes_bucket_not_exists(
+            self, mock_check_empty, mock_check_bucket_exist, mock_session_class
+    ):
+        file_bytes = b"data"
+        bucket = "new-bucket"
+        key = "file.bin"
+        mock_s3 = MagicMock()
+        mock_session_class.return_value.client.return_value = mock_s3
+
+        mock_check_bucket_exist.return_value = False
+        mock_check_empty.return_value = False
+
+        url = CloudUtility.upload_file_bytes(file_bytes, bucket, key)
+
+        mock_s3.create_bucket.assert_called_once_with(Bucket=bucket)
+        mock_s3.upload_fileobj.assert_called_once()
+        assert url == f"https://{bucket}.s3.amazonaws.com/{key}"
+
+    @patch("kairon.shared.cloud.utils.Session")
+    @patch.object(CloudUtility, "_CloudUtility__check_bucket_exist", autospec=True)
+    @patch("kairon.shared.cloud.utils.Utility.check_empty_string", autospec=True)
+    def test_upload_file_bytes_empty_filename_raises(
+            self, mock_check_empty, mock_check_bucket_exist, mock_session_class
+    ):
+        file_bytes = b"bytes"
+        bucket = "bucket"
+        mock_check_bucket_exist.return_value = True
+        mock_check_empty.return_value = True
+        mock_session_class.return_value.client.return_value = MagicMock()
+
+        with pytest.raises(AppException) as excinfo:
+            CloudUtility.upload_file_bytes(file_bytes, bucket, output_filename="")
+
+        assert "Output filename must be provided" in str(excinfo.value)
 
     def test_file_upload_bucket_not_exists(self):
         bucket_name = 'kairon'

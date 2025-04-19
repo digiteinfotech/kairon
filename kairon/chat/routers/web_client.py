@@ -149,15 +149,19 @@ async def media_upload(
 
 
 
-@router.get('/media/download/{media_id}')
+@router.get('/media/download/{media_id}', response_class=StreamingResponse)
 async def media_download(
         bot: Text = Path(description="Bot id"),
         media_id: Text = Path(description="Id of the document"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     try:
-        file_stream, download_name = await UserMedia.get_media_content_buffer(media_id)
-        headers = {"Content-Disposition": f"attachment; filename={download_name}"}
+        file_stream, download_name, extension = await UserMedia.get_media_content_buffer(media_id)
+        headers = {
+            "Content-Disposition": f"attachment; filename={download_name}",
+            "X-Content-Name": download_name,
+            "X-Content-Extension": extension
+        }
         return StreamingResponse(file_stream, media_type="application/octet-stream", headers=headers)
     except Exception as e:
         raise HTTPException(status_code=404, detail="File not found or error downloading file") from e

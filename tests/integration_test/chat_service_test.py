@@ -1,4 +1,5 @@
 import asyncio
+from io import BytesIO
 
 import bson.int64
 import ujson as json
@@ -9,7 +10,6 @@ from unittest import mock
 from urllib.parse import urlencode, quote_plus
 
 from rasa.utils.endpoints import EndpointConfig
-
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -22,7 +22,7 @@ from kairon.shared.live_agent.live_agent import LiveAgentHandler
 
 import pytest
 import responses
-from unittest.mock import patch, Mock, AsyncMock
+from unittest.mock import patch, Mock, AsyncMock, MagicMock
 from mongoengine import connect
 from slack_sdk.web.slack_response import SlackResponse
 from starlette.exceptions import HTTPException
@@ -4072,3 +4072,90 @@ async def test_agentic_flow_api_call(mock_exec_rule, mock_init):
     assert actual["data"]
     assert actual["message"] == "Rule executed successfully!"
     assert actual["data"]["responses"] == [{'text': 'Hi'}]
+
+
+
+@pytest.mark.asyncio
+async def test_media_download_success():
+    from starlette.responses import StreamingResponse
+
+    from kairon.chat.routers.web_client import media_download
+    from kairon.shared.chat.user_media import UserMedia
+
+    fake_buffer = BytesIO(b"hello world")
+    download_name = "media_123.txt"
+    extension = ".txt"
+
+    with patch.object(
+        UserMedia,
+        "get_media_content_buffer",
+        new_callable=AsyncMock,
+    ) as mock_get:
+        mock_get.return_value = (fake_buffer, download_name, extension)
+
+        dummy_user = MagicMock()
+        response = await media_download(
+            bot="bot1",
+            media_id="123",
+            current_user=dummy_user
+        )
+
+    assert isinstance(response, StreamingResponse)
+
+    hdr = response.headers
+    assert hdr["content-disposition"] == f"attachment; filename={download_name}"
+    assert hdr["X-Content-Name"] == download_name
+    assert hdr["X-Content-Extension"] == extension
+
+    chunks = []
+    async for chunk in response.body_iterator:
+        chunks.append(chunk)
+    body = b"".join(chunks)
+    assert body == b"hello world"
+
+@pytest.mark.asyncio
+async def test_media_download_not_found():
+
+    from kairon.chat.routers.web_client import media_download
+    from kairon.shared.chat.user_media import UserMedia
+    with patch.object(
+        UserMedia,
+        "get_media_content_buffer",
+        new_callable=AsyncMock,
+    ) as mock_get:
+
+        mock_get.side_effect = Exception("oops")
+
+        dummy_user = MagicMock()
+        with pytest.raises(HTTPException) as excinfo:
+            await media_download(
+                bot="bot1",
+                media_id="does_not_exist",
+                current_user=dummy_user
+            )
+
+    exc = excinfo.value
+    assert exc.status_code == 404
+    assert exc.detail == "File not found or error downloading file"
+
+
+
+@patch("kairon.shared.chat.user_media.UserMedia.upload_media_contents", new_callable=AsyncMock)
+def test_chat_media(mock_upload_media):
+    mock_upload_media.return_value = ['12342']
+    data_field = json.dumps('hi')
+    metadata_field = json.dumps({"foo": "bar"})
+    files = [("files", ("dummy.txt", b"", "text/plain"))]
+
+    response = client.post(
+        f"/api/bot/{bot}/chat/media",
+        data={"data": data_field, "metadata": metadata_field},
+        files=files,
+        headers={"Authorization": f"{token_type} {token}"},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+    assert mock_upload_media.called_once()

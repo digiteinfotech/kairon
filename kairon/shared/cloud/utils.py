@@ -19,7 +19,7 @@ from kairon.shared.data.constant import EVENT_STATUS, TASK_TYPE
 class CloudUtility:
 
     @staticmethod
-    def upload_file(file, bucket, output_filename=None):
+    def upload_file(file, bucket: str, output_filename=None):
         """
         Uploads the selected file to a specific bucket in Amazon Simple Storage Service
 
@@ -36,6 +36,26 @@ class CloudUtility:
         if Utility.check_empty_string(output_filename):
             output_filename = os.path.basename(file)
         s3.upload_file(file, bucket, output_filename)
+        return "https://{0}.s3.amazonaws.com/{1}".format(bucket, output_filename)
+
+    @staticmethod
+    def upload_file_bytes(file_bytes: bytes, bucket: str, output_filename=None):
+        """
+        Uploads the selected file to a specific bucket in Amazon Simple Storage Service
+
+        :param file_bytes: bytes
+        :param bucket: s3 bucket
+        :param output_filename: file name (can contain sub directories in bucket)
+        :return: None
+        """
+        session = Session()
+        s3 = session.client("s3")
+        if not CloudUtility.__check_bucket_exist(s3, bucket):
+            s3.create_bucket(Bucket=bucket)
+        if Utility.check_empty_string(output_filename):
+            raise AppException('Output filename must be provided')
+        bio = io.BytesIO(file_bytes)
+        s3.upload_fileobj(bio, bucket, output_filename)
         return "https://{0}.s3.amazonaws.com/{1}".format(bucket, output_filename)
 
     @staticmethod

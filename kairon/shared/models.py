@@ -128,3 +128,14 @@ class FlowTagType(str, Enum):
     agentic_flow = "agentic_flow"
     chatbot_flow = "chatbot_flow"
 
+
+class UserMediaUploadType(str, Enum):
+    user_uploaded = "user_uploaded"
+    system_uploaded = "system_uploaded"
+
+
+class UserMediaUploadStatus(str, Enum):
+    processing = "processing"
+    completed = "completed"
+    failed = "failed"
+

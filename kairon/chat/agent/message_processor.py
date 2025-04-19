@@ -188,6 +188,9 @@ class KaironMessageProcessor(MessageProcessor):
         tracker = await self.run_action_extract_slots(message.output_channel, tracker)
 
         if media_ids:
+            if current_media_ids := tracker.get_slot("media_ids"):
+                current_media_ids.extend(media_ids)
+                media_ids = current_media_ids
             slot_event = SlotSet(key="media_ids", value=media_ids)
             tracker.update(slot_event)
 

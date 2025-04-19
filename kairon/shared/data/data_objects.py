@@ -36,7 +36,7 @@ from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import (
     TemplateType,
     StoryStepType,
-    StoryType, GlobalSlotsEntryType, FlowTagType,
+    StoryType, GlobalSlotsEntryType, FlowTagType, UserMediaUploadStatus, UserMediaUploadType,
 )
 from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, DEMO_REQUEST_STATUS
@@ -1070,13 +1070,19 @@ class GlobalSlots(Auditlog):
 
 class UserMediaData(Auditlog):
     media_id = StringField(required=True)
-    media_url = StringField(required=True)
+    media_url = StringField()
     filename = StringField(required=True)
     extension = StringField(required=True)
-    output_filename = StringField(required=True)
+    output_filename = StringField()
+    upload_status = StringField(default=UserMediaUploadStatus.processing.value,
+                                choices=[e.value for e in UserMediaUploadStatus])
+    upload_type = StringField(default=UserMediaUploadType.user_uploaded.value,
+                              choices=[e.value for e in UserMediaUploadType])
     filesize = IntField(default=0)
+    additional_log = StringField()
     sender_id = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id")]}]}
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id"), "media_id"]}]}

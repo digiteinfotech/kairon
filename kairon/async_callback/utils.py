@@ -496,13 +496,13 @@ class CallbackUtility:
             )
 
     @staticmethod
-    def save_as_pdf(text: str, filename: str, bot: str, sender_id:str):
+    def save_as_pdf(text: str, bot: str, sender_id:str):
         try:
             _, media_id = UserMedia.save_markdown_as_pdf(
                 bot=bot,
                 sender_id=sender_id,
                 text=text,
-                filepath=filename
+                filepath="report.pdf"
             )
             return media_id
         except Exception as e:
