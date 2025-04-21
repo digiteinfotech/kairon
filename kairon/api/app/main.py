@@ -98,6 +98,11 @@ async def add_secure_headers(request: Request, call_next):
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
     requested_origin = request.headers.get("origin")
     response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else allowed_origins[0]
+
+    if request.url.path == "/redoc":
+        secure_headers.csp.worker_src("blob:")
+        secure_headers.framework.fastapi(response)
+
     return response
 
 
