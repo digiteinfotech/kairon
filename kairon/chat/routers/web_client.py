@@ -134,22 +134,8 @@ async def execute_flow(
         "message": "Rule executed successfully!"
     }
 
-@router.post('/media/upload', response_model=Response)
-async def media_upload(
-        sender_id: str = Form(...),
-        files: list[UploadFile] = File(...),
-        bot: Text = Path(description="Bot id"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
-):
-    results = await UserMedia.upload_media_contents(bot, sender_id, files)
-    return {
-        "data": results,
-        "message": 'media uploaded successfully'
-    }
 
-
-
-@router.get('/media/download/{media_id}', response_class=StreamingResponse)
+@router.get('/chat/media/download/{media_id}', response_class=StreamingResponse)
 async def media_download(
         bot: Text = Path(description="Bot id"),
         media_id: Text = Path(description="Id of the document"),
