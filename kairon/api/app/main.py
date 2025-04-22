@@ -44,6 +44,7 @@ csp = (
         .style_src("'self'", "https:", "'unsafe-inline'")
         .img_src("'self'", "https:")
         .script_src("'self'", "https:", "'unsafe-inline'")
+        .worker_src("'self'", "blob:")
 )
 cache_value = CacheControl().must_revalidate()
 content = XContentTypeOptions()
