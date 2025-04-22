@@ -223,6 +223,7 @@ async def test_get_callback(mock_dispatch_message):
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
     assert mock_dispatch_message.called_once()
+    
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
