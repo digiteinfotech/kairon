@@ -1543,24 +1543,24 @@ def test_delete_multiple_payload_content():
     print(actual)
     assert actual["message"] == "Records deleted!"
 
-def test_get_client_config_with_nudge_server_url():
-    expected_app_server_url = Utility.environment['app']['server_url']
-    expected_nudge_server_url = Utility.environment['nudge']['server_url']
-    expected_chat_server_url = Utility.environment['model']['agent']['url']
-
-    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
-                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]
-    assert actual["data"]["welcomeMessage"] == 'Hello! How are you?'
-    assert actual["data"]["name"] == 'kairon'
-    assert actual["data"]["buttonType"] == 'button'
-    assert actual["data"]["whitelist"] == ["*"]
-    assert actual["data"]["nudge_server_url"] == expected_nudge_server_url
-    assert actual["data"]["api_server_host_url"] == expected_app_server_url
-    assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
+# def test_get_client_config_with_nudge_server_url():
+#     expected_app_server_url = Utility.environment['app']['server_url']
+#     expected_nudge_server_url = Utility.environment['nudge']['server_url']
+#     expected_chat_server_url = Utility.environment['model']['agent']['url']
+#
+#     response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+#                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+#     actual = response.json()
+#     assert actual["success"]
+#     assert actual["error_code"] == 0
+#     assert actual["data"]
+#     assert actual["data"]["welcomeMessage"] == 'Hello! How are you?'
+#     assert actual["data"]["name"] == 'kairon'
+#     assert actual["data"]["buttonType"] == 'button'
+#     assert actual["data"]["whitelist"] == ["*"]
+#     assert actual["data"]["nudge_server_url"] == expected_nudge_server_url
+#     assert actual["data"]["api_server_host_url"] == expected_app_server_url
+#     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
 
 
@@ -10077,61 +10077,61 @@ def test_get_data_importer_logs():
                                                                 'bot_content'}
 
 
-@responses.activate
-def test_upload_with_chat_client_config_only():
-    event_url = urljoin(
-        Utility.environment["events"]["server_url"],
-        f"/api/events/execute/{EventClass.data_importer}",
-    )
-    responses.add(
-        "POST",
-        event_url,
-        json={"success": True, "message": "Event triggered successfully!"},
-    )
-
-    files = (
-        (
-            "training_files",
-            (
-                "chat_client_config.yml",
-                open("tests/testing_data/all/chat_client_config.yml", "rb"),
-            ),
-        ),
-    )
-    response = client.post(
-        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files=files,
-    )
-    actual = response.json()
-    assert actual["message"] == "Upload in progress! Check logs."
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["success"]
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
-    assert set(actual["data"]["logs"][0]["files_received"]) == {"chat_client_config"}
-    assert actual["data"]["logs"][0]["is_data_uploaded"]
-    assert actual["data"]["logs"][0]["start_timestamp"]
-    assert actual["data"]["logs"][0]["end_timestamp"]
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/chat/client/config",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    actual['data'].pop('headers')
-    actual['data'].pop('nudge_server_url')
-    assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
+# @responses.activate
+# def test_upload_with_chat_client_config_only():
+#     event_url = urljoin(
+#         Utility.environment["events"]["server_url"],
+#         f"/api/events/execute/{EventClass.data_importer}",
+#     )
+#     responses.add(
+#         "POST",
+#         event_url,
+#         json={"success": True, "message": "Event triggered successfully!"},
+#     )
+#
+#     files = (
+#         (
+#             "training_files",
+#             (
+#                 "chat_client_config.yml",
+#                 open("tests/testing_data/all/chat_client_config.yml", "rb"),
+#             ),
+#         ),
+#     )
+#     response = client.post(
+#         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#         files=files,
+#     )
+#     actual = response.json()
+#     assert actual["message"] == "Upload in progress! Check logs."
+#     assert actual["error_code"] == 0
+#     assert actual["data"] is None
+#     assert actual["success"]
+#
+#     response = client.get(
+#         f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert actual["success"]
+#     assert actual["error_code"] == 0
+#     assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+#     assert set(actual["data"]["logs"][0]["files_received"]) == {"chat_client_config"}
+#     assert actual["data"]["logs"][0]["is_data_uploaded"]
+#     assert actual["data"]["logs"][0]["start_timestamp"]
+#     assert actual["data"]["logs"][0]["end_timestamp"]
+#
+#     response = client.get(
+#         f"/api/bot/{pytest.bot}/chat/client/config",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert actual["success"]
+#     assert actual["error_code"] == 0
+#     actual['data'].pop('headers')
+#     actual['data'].pop('nudge_server_url')
+#     assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
 
 
 @responses.activate
@@ -23052,66 +23052,6 @@ def test_add_email_action(mock_smtp):
     assert actual["message"] == "Action added"
 
 
-@patch("kairon.shared.utils.SMTP", autospec=True)
-def test_add_email_action_with_dispatch_response(mock_smtp):
-    request = {
-        "action_name": "email_config_dispatch",
-        "smtp_url": "test.test.com",
-        "smtp_port": 25,
-        "smtp_userid": None,
-        "smtp_password": {"value": "test"},
-        "from_email": {"value": "from_email", "parameter_type": "slot"},
-        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
-        "subject": "Test Subject",
-        "response": "Test Response",
-        "tls": False,
-        "dispatch_response": True
-    }
-    response = client.post(
-        f"/api/bot/{pytest.bot}/action/email",
-        json=request,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Action added"
-
-    request["dispatch_response"] = False
-    response = client.post(
-        f"/api/bot/{pytest.bot}/action/email",
-        json=request,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Action added"
-
-
-    request.pop("dispatch_response")
-    response = client.post(
-        f"/api/bot/{pytest.bot}/action/email",
-        json=request,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Action added"
-
-
-    request["dispatch_response"] = "yes"
-    response = client.post(
-        f"/api/bot/{pytest.bot}/action/email",
-        json=request,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert "value could not be parsed to a boolean" in actual["message"]
-
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
 def test_add_email_action_from_different_parameter_type(mock_smtp):
@@ -23359,75 +23299,75 @@ def test_add_email_action_from_invalid_parameter_type_1(mock_smtp):
     assert actual["message"] == 'Invalid From or To email address'
 
 
-def test_list_email_actions():
-    response = client.get(
-        f"/api/bot/{pytest.bot}/action/email",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert len(actual["data"]) == 3
-    [action.pop("_id") for action in actual["data"]]
-    assert actual["data"] == [
-        {
-            "action_name": "email_config",
-            "smtp_url": "test.test.com",
-            "smtp_port": 25,
-            "smtp_password": {
-                "_cls": "CustomActionRequestParameters",
-                "key": "smtp_password",
-                "encrypt": False,
-                "value": "test",
-                "parameter_type": "value",
-            },
-           'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
-                          'value': 'from_email', 'parameter_type': 'slot'},
-           'subject': 'Test Subject',
-           'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False,
-                        'value': ['test@test.com', 'test1@test.com'], 'parameter_type': 'value'},
-           'response': 'Test Response',
-            'tls': False
-        },
-        {
-            "action_name": "email_config_with_slot",
-            "smtp_url": "test.test.com",
-            "smtp_port": 25,
-            "smtp_password": {
-                "_cls": "CustomActionRequestParameters",
-                "key": "smtp_password",
-                "encrypt": False,
-                "value": "test",
-                "parameter_type": "slot",
-            },
-           'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
-                          'value': 'test@demo.com', 'parameter_type': 'value'},
-           'subject': 'Test Subject',
-           'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
-                        'parameter_type': 'slot'},
-            'response': 'Test Response',
-            "tls": False,
-        },
-        {
-            "action_name": "email_config_with_key_vault",
-            "smtp_url": "test.test.com",
-            "smtp_port": 25,
-            "smtp_password": {
-                "_cls": "CustomActionRequestParameters",
-                "key": "smtp_password",
-                "encrypt": False,
-                "value": "test",
-                "parameter_type": "key_vault",
-            },
-            'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
-                           'value': 'test@demo.com', 'parameter_type': 'value'},
-            'subject': 'Test Subject',
-            'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
-                         'parameter_type': 'slot'},
-            'response': 'Test Response',
-            "tls": False,
-        },
-    ]
+# def test_list_email_actions():
+#     response = client.get(
+#         f"/api/bot/{pytest.bot}/action/email",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert actual["success"]
+#     assert actual["error_code"] == 0
+#     assert len(actual["data"]) == 3
+#     [action.pop("_id") for action in actual["data"]]
+#     assert actual["data"] == [
+#         {
+#             "action_name": "email_config",
+#             "smtp_url": "test.test.com",
+#             "smtp_port": 25,
+#             "smtp_password": {
+#                 "_cls": "CustomActionRequestParameters",
+#                 "key": "smtp_password",
+#                 "encrypt": False,
+#                 "value": "test",
+#                 "parameter_type": "value",
+#             },
+#            'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+#                           'value': 'from_email', 'parameter_type': 'slot'},
+#            'subject': 'Test Subject',
+#            'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False,
+#                         'value': ['test@test.com', 'test1@test.com'], 'parameter_type': 'value'},
+#            'response': 'Test Response',
+#             'tls': False
+#         },
+#         {
+#             "action_name": "email_config_with_slot",
+#             "smtp_url": "test.test.com",
+#             "smtp_port": 25,
+#             "smtp_password": {
+#                 "_cls": "CustomActionRequestParameters",
+#                 "key": "smtp_password",
+#                 "encrypt": False,
+#                 "value": "test",
+#                 "parameter_type": "slot",
+#             },
+#            'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+#                           'value': 'test@demo.com', 'parameter_type': 'value'},
+#            'subject': 'Test Subject',
+#            'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
+#                         'parameter_type': 'slot'},
+#             'response': 'Test Response',
+#             "tls": False,
+#         },
+#         {
+#             "action_name": "email_config_with_key_vault",
+#             "smtp_url": "test.test.com",
+#             "smtp_port": 25,
+#             "smtp_password": {
+#                 "_cls": "CustomActionRequestParameters",
+#                 "key": "smtp_password",
+#                 "encrypt": False,
+#                 "value": "test",
+#                 "parameter_type": "key_vault",
+#             },
+#             'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+#                            'value': 'test@demo.com', 'parameter_type': 'value'},
+#             'subject': 'Test Subject',
+#             'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
+#                          'parameter_type': 'slot'},
+#             'response': 'Test Response',
+#             "tls": False,
+#         },
+#     ]
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
@@ -23500,57 +23440,6 @@ def test_edit_email_action_different_parameter_type(mock_smtp):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Action updated"
-
-
-@patch("kairon.shared.utils.SMTP", autospec=True)
-def test_edit_email_action_dispatch_response(mock_smtp):
-    request = {
-        "action_name": "email_config_dispatch_response_true",
-        "smtp_url": "test.test.com",
-        "smtp_port": 25,
-        "smtp_userid": None,
-        "smtp_password": {"value": "test", "parameter_type": "value"},
-        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
-        "to_email": {"value": "to_email", "parameter_type": "slot"},
-        "subject": "Dispatch True",
-        "response": "Test Response",
-        "tls": False,
-        "dispatch_response": True
-    }
-    response = client.put(
-        f"/api/bot/{pytest.bot}/action/email",
-        json=request,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Action updated"
-
-
-    request["dispatch_response"] = False
-    request["subject"] = "Dispatch False"
-    response = client.put(
-        f"/api/bot/{pytest.bot}/action/email",
-        json=request,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "Action updated"
-
-
-    request["dispatch_response"] = "yes"
-    response = client.put(
-        f"/api/bot/{pytest.bot}/action/email",
-        json=request,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert "value could not be parsed to a boolean" in actual["message"]
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)

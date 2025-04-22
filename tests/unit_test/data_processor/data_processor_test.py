@@ -16069,13 +16069,13 @@ class TestMongoProcessor:
             "action_name": "email_action_positive_dispatch",
             "smtp_url": "test.test.com",
             "smtp_port": 587,
-            "smtp_userid": {"value": "valid_user", "parameter_type": "value"},
-            "smtp_password": {"value": "valid_pass", "parameter_type": "value"},
-            "from_email": {"value": "from@valid.com", "parameter_type": "value"},
-            "to_email": {"value": "to@valid.com", "parameter_type": "value"},
+            "smtp_userid": None,
+            "smtp_password": {'value': "test"},
+            "from_email":  {"value": "test@demo.com", "parameter_type": "value"},
+            "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
             "subject": "Test Email",
             "response": "Email sent",
-            "tls": True
+            "tls": False
         }
 
 
@@ -16100,15 +16100,15 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         base_config = {
             "action_name": "email_action_invalid_dispatch",
-            "smtp_url": "smtp.invalid.com",
+            "smtp_url": "test.test.com",
             "smtp_port": 465,
-            "smtp_userid": {"value": "invalid_user", "parameter_type": "value"},
-            "smtp_password": {"value": "invalid_pass", "parameter_type": "value"},
-            "from_email": {"value": "from@invalid.com", "parameter_type": "value"},
-            "to_email": {"value": "to@invalid.com", "parameter_type": "value"},
-            "subject": "Invalid Dispatch",
-            "response": "Invalid email",
-            "tls": False,
+            "smtp_userid": None,
+            "smtp_password": {'value': "test"},
+            "from_email":  {"value": "test@demo.com", "parameter_type": "value"},
+            "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+             "subject": "Test Email",
+            "response": "Email sent",
+            "tls": False
         }
 
 
