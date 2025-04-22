@@ -1002,6 +1002,7 @@ class EmailActionRequest(BaseModel):
     to_email: CustomActionParameterModel
     response: str
     tls: bool = False
+    dispatch_response: bool = True
 
 
 class JiraActionRequest(BaseModel):

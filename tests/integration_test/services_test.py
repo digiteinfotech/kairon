@@ -23053,6 +23053,67 @@ def test_add_email_action(mock_smtp):
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
+def test_add_email_action_with_dispatch_response(mock_smtp):
+    request = {
+        "action_name": "email_config_dispatch",
+        "smtp_url": "test.test.com",
+        "smtp_port": 25,
+        "smtp_userid": None,
+        "smtp_password": {"value": "test"},
+        "from_email": {"value": "from_email", "parameter_type": "slot"},
+        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+        "subject": "Test Subject",
+        "response": "Test Response",
+        "tls": False,
+        "dispatch_response": True
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+    request["dispatch_response"] = False
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+    request.pop("dispatch_response")
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+    request["dispatch_response"] = "yes"
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "value could not be parsed to a boolean" in actual["message"]
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
 def test_add_email_action_from_different_parameter_type(mock_smtp):
     request = {
         "action_name": "email_config_with_slot",
@@ -23439,6 +23500,57 @@ def test_edit_email_action_different_parameter_type(mock_smtp):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Action updated"
+
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_edit_email_action_dispatch_response(mock_smtp):
+    request = {
+        "action_name": "email_config_dispatch_response_true",
+        "smtp_url": "test.test.com",
+        "smtp_port": 25,
+        "smtp_userid": None,
+        "smtp_password": {"value": "test", "parameter_type": "value"},
+        "from_email": {"value": "test@demo.com", "parameter_type": "value"},
+        "to_email": {"value": "to_email", "parameter_type": "slot"},
+        "subject": "Dispatch True",
+        "response": "Test Response",
+        "tls": False,
+        "dispatch_response": True
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+
+    request["dispatch_response"] = False
+    request["subject"] = "Dispatch False"
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+
+    request["dispatch_response"] = "yes"
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/email",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "value could not be parsed to a boolean" in actual["message"]
 
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
