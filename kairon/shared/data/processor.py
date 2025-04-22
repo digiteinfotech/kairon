@@ -7095,6 +7095,7 @@ class MongoProcessor:
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
         Utility.is_valid_action_name(action.get("action_name"), bot, EmailActionConfig)
+        action["dispatch_response"] = action.get("dispatch_response", True)
         email = EmailActionConfig(**action).save().id.__str__()
         self.add_action(
             action["action_name"],
@@ -7126,6 +7127,7 @@ class MongoProcessor:
             raise AppException(
                 f'Action with name "{action.get("action_name")}" not found'
             )
+        action["dispatch_response"] = action.get("dispatch_response", True)
         email_action = EmailActionConfig.objects(
             action_name=action.get("action_name"), bot=bot, status=True
         ).get()
