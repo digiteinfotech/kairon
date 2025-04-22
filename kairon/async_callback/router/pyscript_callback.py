@@ -19,10 +19,16 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         'type': req_type,
         'body': None,
         'params': {},
+        'headers': {}
     }
 
     if request.query:
         data['params'].update({key: request.query.get(key) for key in request.query.keys()})
+
+    try:
+        data['headers'] = {key.decode(): value.decode() for key, value in request.headers.items()}
+    except Exception as e:
+        logger.exception('could not parse headers')
 
     try:
         req_data = None
