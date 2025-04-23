@@ -16043,23 +16043,6 @@ class TestMongoProcessor:
             with pytest.raises(ValidationError, match="custom_text can only be of type value or slot!"):
                 processor.add_email_action(email_config, "TEST", "tests")
 
-        def test_add_email_action_duplicate(self):
-        processor = MongoProcessor()
-        email_config = {"action_name": "email_config",
-                        "smtp_url": "test.test.com",
-                        "smtp_port": 25,
-                        "smtp_userid": None,
-                        "smtp_password": {'value': "test"},
-                        "from_email": {"value": "from_email", "parameter_type": "slot"},
-                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
-                        "subject": "Test Subject",
-                        "response": "Test Response",
-                        "tls": False
-                        }
-        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
-            with pytest.raises(AppException, match="Action exists!"):
-                processor.add_email_action(email_config, "TEST", "tests")
-
     def test_add_email_action_existing_name(self):
         processor = MongoProcessor()
         email_config = {"action_name": "test_action",
