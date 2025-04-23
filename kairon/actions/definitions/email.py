@@ -46,7 +46,7 @@ class ActionEmail(ActionsBase):
         Information regarding the execution is logged in ActionServerLogs.
 
         @param dispatcher: Client to send messages back to the user.
-        @param tracker: Tracker object to retrieve slots, events, messages and other contextual informIn office Meetings / Dation.
+        @param tracker: Tracker object to retrieve slots, events, messages and other contextual information.
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """

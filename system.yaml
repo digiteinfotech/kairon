@@ -125,7 +125,7 @@ notifications:
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5056"}
   executor:
-    type: ${EVENTS_EXECUTOR_TYPE:"standalone"}
+    type: ${EVENTS_EXECUTOR_TYPE}
     region: ${EVENTS_EXECUTOR_REGION}
     timeout: ${EVENTS_EXECUTOR_TIMEOUT_MINUTES:60}
   queue:

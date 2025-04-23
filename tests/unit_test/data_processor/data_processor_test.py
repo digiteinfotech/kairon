@@ -135,25 +135,6 @@ class TestMongoProcessor:
 
         return _read_and_get_data
 
-    # def test_add_schedule_action_a(self):
-    #     bot = "test"
-    #     user = "test"
-    #     expected_data = {
-    #         "name": "test_schedule_action",
-    #         "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
-    #         "timezone": None,
-    #         "schedule_action": "test_pyscript",
-    #         "response_text": "action scheduled",
-    #         "params_list": [],
-    #         "dispatch_bot_response": True
-    #     }
-    #
-    #     processor = MongoProcessor()
-    #     processor.add_schedule_action(expected_data, bot, user)
-    #
-    #     actual_data = list(processor.list_schedule_action(bot))
-    #     assert expected_data.get("name") == actual_data[0]["name"]
-
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()
         story_name = "story with slot"
@@ -16062,74 +16043,7 @@ class TestMongoProcessor:
             with pytest.raises(ValidationError, match="custom_text can only be of type value or slot!"):
                 processor.add_email_action(email_config, "TEST", "tests")
 
-    # def test_add_email_action_dispatch_response_valid_cases(monkeypatch):
-    #     monkeypatch.setattr("kairon.shared.utils.Utility.environment", {
-    #         "app": {"server_url": "http://localhost:5000"},
-    #         "nudge": {"server_url": "http://localhost:5050"},
-    #         "model": {"agent": {"url": "http://localhost:8080"}}
-    #     })
-    #
-    #     processor = MongoProcessor()
-    #
-    #     base_config = {
-    #         "action_name": "email_config1",
-    #         "smtp_url": "test.test.com",
-    #         "smtp_port": 587,
-    #         "smtp_userid": None,
-    #         "smtp_password": {'value': "test"},
-    #         "from_email": {"value": "test@demo.com", "parameter_type": "value"},
-    #         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
-    #         "subject": "Test Email",
-    #         "response": "Email sent",
-    #         "tls": False
-    #     }
-    #
-    #     config_true = {**base_config, "action_name": "dispatch_true", "dispatch_response": True}
-    #     processor.add_email_action(config_true, "test_bot", "test_user")
-    #     saved = EmailActionConfig.objects(bot="test_bot", action_name="dispatch_true").get()
-    #     assert saved.dispatch_response is True
-    #
-    #     config_false = {**base_config, "action_name": "dispatch_false", "dispatch_response": False}
-    #     processor.add_email_action(config_false, "test_bot", "test_user")
-    #     saved = EmailActionConfig.objects(bot="test_bot", action_name="dispatch_false").get()
-    #     assert saved.dispatch_response is False
-    #
-    #     config_default = {**base_config, "action_name": "dispatch_default"}
-    #     processor.add_email_action(config_default, "test_bot", "test_user")
-    #     saved = EmailActionConfig.objects(bot="test_bot", action_name="dispatch_default").get()
-    #     assert saved.dispatch_response is True
-    #
-    # def test_add_email_action_invalid_dispatch_response_values(self):
-    #     processor = MongoProcessor()
-    #     base_config = {
-    #         "action_name": "email_config1",
-    #         "smtp_url": "test.test.com",
-    #         "smtp_port": 465,
-    #         "smtp_userid": None,
-    #         "smtp_password": {'value': "test"},
-    #         "from_email":  {"value": "test@demo.com", "parameter_type": "value"},
-    #         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
-    #          "subject": "Test Email",
-    #         "response": "Email sent",
-    #         "tls": False
-    #     }
-    #
-    #
-    #     config_string = {**base_config, "dispatch_response": "yes"}
-    #     with pytest.raises(ValidationError):
-    #         processor.add_email_action(config_string, "test_bot", "test_user")
-    #
-    #
-    #     config_integer = {**base_config, "dispatch_response": 1}
-    #     with pytest.raises(ValidationError):
-    #         processor.add_email_action(config_integer, "test_bot", "test_user")
-    #
-    #
-    #     config_list = {**base_config, "dispatch_response": [True]}
-    #     with pytest.raises(ValidationError):
-    #         processor.add_email_action(config_list, "test_bot", "test_user")
-
-    def test_add_email_action_duplicate(self):
+        def test_add_email_action_duplicate(self):
         processor = MongoProcessor()
         email_config = {"action_name": "email_config",
                         "smtp_url": "test.test.com",
