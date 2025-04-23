@@ -1,3 +1,4 @@
+import copy
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -100,9 +101,11 @@ async def add_secure_headers(request: Request, call_next):
     response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else allowed_origins[0]
 
     if request.url.path == "/redoc":
-        secure_headers.csp.worker_src("blob:")
+        custom_csp = copy.deepcopy(csp)
+        custom_csp.worker_src("blob:")
+        secure_headers.csp = custom_csp
         secure_headers.framework.fastapi(response)
-
+        secure_headers.csp = csp
     return response
 
 
