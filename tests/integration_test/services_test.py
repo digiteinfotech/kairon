@@ -1543,6 +1543,25 @@ def test_delete_multiple_payload_content():
     print(actual)
     assert actual["message"] == "Records deleted!"
 
+def test_get_client_config_with_nudge_server_url():
+    expected_app_server_url = Utility.environment['app']['server_url']
+    expected_nudge_server_url = Utility.environment['nudge']['server_url']
+    expected_chat_server_url = Utility.environment['model']['agent']['url']
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["data"]["welcomeMessage"] == 'Hello! How are you?'
+    assert actual["data"]["name"] == 'kairon'
+    assert actual["data"]["buttonType"] == 'button'
+    assert actual["data"]["whitelist"] == ["*"]
+    assert actual["data"]["nudge_server_url"] == expected_nudge_server_url
+    assert actual["data"]["api_server_host_url"] == expected_app_server_url
+    assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
+
 def test_get_llm_metadata():
     secrets = [
         {
@@ -10057,6 +10076,64 @@ def test_get_data_importer_logs():
 
 
 @responses.activate
+def test_upload_with_chat_client_config_only():
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/all/chat_client_config.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert set(actual["data"]["logs"][0]["files_received"]) == {"chat_client_config"}
+    assert actual["data"]["logs"][0]["is_data_uploaded"]
+    assert actual["data"]["logs"][0]["start_timestamp"]
+    assert actual["data"]["logs"][0]["end_timestamp"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/chat/client/config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual['data'].pop('headers')
+    actual['data'].pop('nudge_server_url')
+    assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
+
+
+
+@responses.activate
 def test_upload_with_chat_client_config():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.data_importer_limit_per_day = 15
@@ -12100,6 +12177,111 @@ def test_update_multiflow_story_with_tag():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
+
+def test_update_multiflow_story_invalid_name():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
+        json={
+            "name": "test_path",
+            "steps": [
+                {
+                    "step": {
+                        "name": "greeting",
+                        "type": "INTENT",
+                        "node_id": "1",
+                        "component_id": "MNbcg",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_greeting",
+                            "type": "BOT",
+                            "node_id": "2",
+                            "component_id": "MNbcZZg",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_greeting",
+                        "type": "BOT",
+                        "node_id": "2",
+                        "component_id": "MNbcZZg",
+                    },
+                    "connections": [
+                        {
+                            "name": "more_query",
+                            "type": "INTENT",
+                            "node_id": "3",
+                            "component_id": "uhsjJ",
+                        },
+                        {
+                            "name": "goodbye",
+                            "type": "INTENT",
+                            "node_id": "4",
+                            "component_id": "MgGFD",
+                        },
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "goodbye",
+                        "type": "INTENT",
+                        "node_id": "4",
+                        "component_id": "MgGFD",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_goodbye",
+                            "type": "BOT",
+                            "node_id": "5",
+                            "component_id": "MNbcg",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_goodbye",
+                        "type": "BOT",
+                        "node_id": "5",
+                        "component_id": "MNbcg",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "utter_more_query",
+                        "type": "BOT",
+                        "node_id": "6",
+                        "component_id": "IIUUUYY",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "more_query",
+                        "type": "INTENT",
+                        "node_id": "3",
+                        "component_id": "uhsjJ",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_more_query",
+                            "type": "BOT",
+                            "node_id": "6",
+                            "component_id": "IIUUUYY",
+                        }
+                    ],
+                },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "valid story name"
 
 def test_update_multiflow_story():
     response = client.put(

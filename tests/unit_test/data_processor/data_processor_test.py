@@ -135,6 +135,25 @@ class TestMongoProcessor:
 
         return _read_and_get_data
 
+    def test_add_schedule_action_a(self):
+        bot = "test"
+        user = "test"
+        expected_data = {
+            "name": "test_schedule_action",
+            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+            "timezone": None,
+            "schedule_action": "test_pyscript",
+            "response_text": "action scheduled",
+            "params_list": [],
+            "dispatch_bot_response": True
+        }
+
+        processor = MongoProcessor()
+        processor.add_schedule_action(expected_data, bot, user)
+
+        actual_data = list(processor.list_schedule_action(bot))
+        assert expected_data.get("name") == actual_data[0]["name"]
+
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()
         story_name = "story with slot"
@@ -16203,7 +16222,7 @@ class TestMongoProcessor:
 
     def test_edit_email_action_does_not_exist(self):
         processor = MongoProcessor()
-        email_config = {"action_name": "email_config1_is_not_present",
+        email_config = {"action_name": "email_config5",
                         "smtp_url": "test.test.com",
                         "smtp_port": 25,
                         "smtp_userid": None,
@@ -16215,7 +16234,7 @@ class TestMongoProcessor:
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
-            with pytest.raises(AppException, match='Action with name "email_config1_is_not_present" not found'):
+            with pytest.raises(AppException, match='Action with name "email_config5" not found'):
                 processor.edit_email_action(email_config, "TEST", "tests")
 
     def test_list_email_actions(self):
