@@ -16025,29 +16025,21 @@ class TestMongoProcessor:
 
     def test_add_email_action_validation_error(self):
         processor = MongoProcessor()
-        email_config = {
-            "action_name": "email_config1",
-            "smtp_url": "test.test.com",
-            "smtp_port": 25,
-            "smtp_userid": None,
-            "smtp_password": {"value": "test"},
-            "from_email": {"value": "from_email", "parameter_type": "slot"},
-            "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
-            "subject": "Test Subject",
-            "response": "Test Response",
-            "tls": False
-        }
-
-        # Skip SMTP validation test due to system constraints
-        pytest.skip("SMTP validation test skipped: Cannot trigger ValidationError for invalid SMTP URL without modifying system.")
-
-        # Original failing test case (kept for reference)
-        # with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
-        #     mock_smtp.side_effect = Exception("SMTP connection failed")
-        #     with pytest.raises(ValidationError, match="Invalid SMTP url"):
-        #         processor.add_email_action(email_config, "TEST", "tests")
-
-        # Rest of the test cases remain unchanged
+        email_config = {"action_name": "email_config1",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": {'value': "test"},
+                        "from_email": {"value": "from_email", "parameter_type": "slot"},
+                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            mock_smtp.return_value = Exception()
+            with pytest.raises(ValidationError, match="Invalid SMTP url"):
+                processor.add_email_action(email_config, "TEST", "tests")
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             temp = email_config['action_name']
             email_config['action_name'] = ""

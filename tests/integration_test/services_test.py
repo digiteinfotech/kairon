@@ -23296,6 +23296,77 @@ def test_add_email_action_from_invalid_parameter_type_1(mock_smtp):
     assert actual["message"] == 'Invalid From or To email address'
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
+def test_list_email_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/email",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 3
+    [action.pop("_id") for action in actual["data"]]
+    assert actual["data"] == [
+        {
+            "action_name": "email_config",
+            "smtp_url": "test.test.com",
+            "smtp_port": 25,
+            "smtp_password": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "smtp_password",
+                "encrypt": False,
+                "value": "test",
+                "parameter_type": "value",
+            },
+           'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                          'value': 'from_email', 'parameter_type': 'slot'},
+           'subject': 'Test Subject',
+           'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False,
+                        'value': ['test@test.com', 'test1@test.com'], 'parameter_type': 'value'},
+           'response': 'Test Response',
+            'tls': False
+        },
+        {
+            "action_name": "email_config_with_slot",
+            "smtp_url": "test.test.com",
+            "smtp_port": 25,
+            "smtp_password": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "smtp_password",
+                "encrypt": False,
+                "value": "test",
+                "parameter_type": "slot",
+            },
+           'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                          'value': 'test@demo.com', 'parameter_type': 'value'},
+           'subject': 'Test Subject',
+           'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
+                        'parameter_type': 'slot'},
+            'response': 'Test Response',
+            "tls": False,
+        },
+        {
+            "action_name": "email_config_with_key_vault",
+            "smtp_url": "test.test.com",
+            "smtp_port": 25,
+            "smtp_password": {
+                "_cls": "CustomActionRequestParameters",
+                "key": "smtp_password",
+                "encrypt": False,
+                "value": "test",
+                "parameter_type": "key_vault",
+            },
+            'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                           'value': 'test@demo.com', 'parameter_type': 'value'},
+            'subject': 'Test Subject',
+            'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
+                         'parameter_type': 'slot'},
+            'response': 'Test Response',
+            "tls": False,
+        },
+    ]
+
+@patch("kairon.shared.utils.SMTP", autospec=True)
 def test_edit_email_action(mock_smtp):
     request = {
         "action_name": "email_config",
