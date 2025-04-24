@@ -2,8 +2,10 @@ import base64
 import time
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 import json
+
+from pydantic import BaseModel
 from uuid6 import uuid7
 
 from mongoengine import StringField, DictField, DateTimeField, Document, DynamicField, IntField, BooleanField, \
@@ -436,3 +438,9 @@ class CallbackLog(Document):
         total = CallbackLog.objects(**query).count()
         return logs_dict_list, total
 
+class PyscriptPayload(BaseModel):
+    """
+    Incoming JSON payload for restricted-Python execution.
+    """
+    source_code: str
+    predefined_objects: Optional[Dict[str, Any]] = None

@@ -612,3 +612,47 @@ async def test_post_callback_statechange(mock_dispatch_message):
     assert json_response["error_code"] == 0
     assert json_response["data"] == 'state -> 3'
     assert json_response == {"message": "success", "data": "state -> 3", "error_code": 0, "success": True}
+
+@pytest.mark.asyncio
+@patch("kairon.async_callback.utils.CallbackUtility.main_pyscript_handler")
+async def test_execute_python_success(mock_handler):
+    await app.start()
+    client = TestClient(app)
+
+    payload = {
+        "source_code": "bot_response=100",
+        "predefined_objects": {"x": 1}
+    }
+
+    # Simulate response from handler
+    mock_handler.return_value = {"output": "Execution successful", "success": True}
+
+    response = await client.post("/main_pyscript/execute-python", content=JSONContent(payload))
+    json_response = await response.json()
+    print(json_response)
+
+    assert response.status == 200
+    assert json_response["output"] == "Execution successful"
+    assert json_response["success"] is True
+
+
+@pytest.mark.asyncio
+@patch("kairon.async_callback.utils.CallbackUtility.main_pyscript_handler")
+async def test_execute_python_failure(mock_handler):
+    await app.start()
+    client = TestClient(app)
+
+    payload = {
+        "source_code": "raise Exception('fail')",
+        "predefined_objects": {}
+    }
+
+    # Simulate exception from handler
+    mock_handler.side_effect = Exception("Restricted execution error")
+    print(app.router.routes)
+    response = await client.post("/main_pyscript/execute-python", content=JSONContent(payload))
+    json_response = await response.json()
+    print(json_response)
+
+    assert response.status == 500
+    assert json_response["success"] is False
