@@ -111,6 +111,24 @@ class EVENT_STATUS(str, Enum):
     ABORTED = "Aborted"
 
 
+class SYNC_STATUS(str, Enum):
+    INITIATED = "Initiated"
+    VALIDATING_REQUEST = "Validating request"
+    VALIDATING_REQUEST_SUCCESS = "Validating request successful"
+    VALIDATING_FAILED = "Validation Failed"
+    VALIDATING_KNOWLEDGE_VAULT_DATA = "Validating Knowledge vault processed data"
+    PREPROCESSING = "Preprocessing in progress"
+    PREPROCESSING_FAILED = "Preprocessing Failed"
+    PREPROCESSING_COMPLETED = "Preprocessing Completed"
+    SAVE = "Importing data to kairon"
+    SAVE_META = "Importing data to Meta"
+    SYNC_FAILED = "Sync Failed"
+    ENQUEUED = "Enqueued"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
+    ABORTED = "Aborted"
+
+
 class ONBOARDING_STATUS(str, Enum):
     NOT_COMPLETED = "Not Completed"
     SKIPPED = "Skipped"
@@ -185,6 +203,7 @@ class TOKEN_TYPE(str, Enum):
     DYNAMIC = "dynamic"
     CHANNEL = "channel"
     REFRESH = "refresh"
+    DATA_INTEGRATION = "data_integration"
 
 
 class ModelTestType(str, Enum):
@@ -261,6 +280,9 @@ class FeatureMappings(str, Enum):
     ONLY_SSO_LOGIN = "only_sso_login"
     CREATE_USER = "create_user"
 
+class SyncType(str, Enum):
+    push_menu = "push_menu"
+    item_toggle = "item_toggle"
 
 ORG_SETTINGS_MESSAGES = {
     "create_user": "User creation is blocked by your OrgAdmin from SSO",
