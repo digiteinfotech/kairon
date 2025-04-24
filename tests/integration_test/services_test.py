@@ -12182,7 +12182,7 @@ def test_update_multiflow_story_invalid_name():
     response = client.put(
         f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
         json={
-            "name": "test_path",
+            "name": "test_path@#",
             "steps": [
                 {
                     "step": {

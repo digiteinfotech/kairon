@@ -4514,7 +4514,7 @@ class TestMongoProcessor:
     def test_get_actions(self):
         processor = MongoProcessor()
         actual = processor.get_actions("test")
-        assert actual.__len__() == 1
+        assert actual.__len__() == 2
         assert actual[0]['name'] == 'get_priority'
 
     def test_add_action_duplicate(self):
