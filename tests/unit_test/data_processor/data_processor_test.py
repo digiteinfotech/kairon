@@ -16037,7 +16037,7 @@ class TestMongoProcessor:
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
-            mock_smtp.return_value = Exception()
+            mock_smtp.side_effect = Exception("Invalid SMTP url")
             with pytest.raises(ValidationError, match="Invalid SMTP url"):
                 processor.add_email_action(email_config, "TEST", "tests")
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:

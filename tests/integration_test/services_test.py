@@ -23296,7 +23296,7 @@ def test_add_email_action_from_invalid_parameter_type_1(mock_smtp):
     assert actual["message"] == 'Invalid From or To email address'
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
-def test_list_email_actions():
+def test_list_email_actions(mock_smtp):
     response = client.get(
         f"/api/bot/{pytest.bot}/action/email",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -23304,7 +23304,7 @@ def test_list_email_actions():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 3
+    assert len(actual["data"]) == 4
     [action.pop("_id") for action in actual["data"]]
     assert actual["data"] == [
         {
