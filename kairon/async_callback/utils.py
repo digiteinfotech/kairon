@@ -63,23 +63,23 @@ class CallbackUtility:
         predefined_objects['requests']=requests
         predefined_objects['json'] = json
         predefined_objects['datetime']= datetime
-        predefined_objects['add_schedule_job'] = partial(CallbackUtility.add_schedule_job, bot=bot)
-        predefined_objects['delete_schedule_job'] = partial(CallbackUtility.delete_schedule_job, bot=bot)
-        predefined_objects['send_email'] = partial(CallbackUtility.send_email, bot=bot)
-        predefined_objects['add_data'] = partial(CallbackUtility.add_data, bot=bot)
-        predefined_objects['get_data'] = partial(CallbackUtility.get_data, bot=bot)
-        predefined_objects['delete_data'] = partial(CallbackUtility.delete_data, bot=bot)
-        predefined_objects['update_data'] = partial(CallbackUtility.update_data, bot=bot)
-        predefined_objects["generate_id"] = CallbackUtility.generate_id
-        predefined_objects["datetime_to_utc_timestamp"]=CallbackUtility.datetime_to_utc_timestamp
-        predefined_objects['decrypt_request'] = CallbackUtility.decrypt_request
-        predefined_objects['encrypt_response'] = CallbackUtility.encrypt_response
-        predefined_objects['create_callback'] = partial(CallbackUtility.create_callback,
+        predefined_objects['add_schedule_job'] = partial(CallbackScriptUility.add_schedule_job, bot=bot)
+        predefined_objects['delete_schedule_job'] = partial(PyscriptSharedUtility.delete_schedule_job, bot=bot)
+        predefined_objects['send_email'] = partial(CallbackScriptUility.send_email, bot=bot)
+        predefined_objects['add_data'] = partial(PyscriptSharedUtility.add_data, bot=bot)
+        predefined_objects['get_data'] = partial(PyscriptSharedUtility.get_data, bot=bot)
+        predefined_objects['delete_data'] = partial(PyscriptSharedUtility.delete_data, bot=bot)
+        predefined_objects['update_data'] = partial(PyscriptSharedUtility.update_data, bot=bot)
+        predefined_objects["generate_id"] = CallbackScriptUility.generate_id
+        predefined_objects["datetime_to_utc_timestamp"]=CallbackScriptUility.datetime_to_utc_timestamp
+        predefined_objects['decrypt_request'] = CallbackScriptUility.decrypt_request
+        predefined_objects['encrypt_response'] = CallbackScriptUility.encrypt_response
+        predefined_objects['create_callback'] = partial(CallbackScriptUility.create_callback,
                                                             bot=bot,
                                                             sender_id=sender_id,
                                                            channel=channel)
-        predefined_objects['save_as_pdf'] = partial(CallbackUtility.save_as_pdf,bot=bot, sender_id=sender_id)
-
+        predefined_objects['save_as_pdf'] = partial(CallbackScriptUility.save_as_pdf,
+                                                            bot=bot, sender_id=sender_id)
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
             predefined_objects=predefined_objects
