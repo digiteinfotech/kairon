@@ -12279,7 +12279,7 @@ def test_update_multiflow_story_invalid_name():
     actual = response.json()
     print(actual)
 
-    assert actual["success"]
+    assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == "valid story name"
 
