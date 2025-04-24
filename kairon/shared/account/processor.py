@@ -959,6 +959,7 @@ class AccountProcessor:
                 ).read(),
                 button_template=open("template/emails/button.html", "r").read(),
                 leave_bot_owner_notification=open("template/emails/leaveBotOwnerNotification.html", "r").read(),
+                catalog_sync_status=open("template/emails/catalog_sync_status.html", "r").read(),
             )
             system_properties = (
                 SystemProperties(mail_templates=mail_templates)
@@ -1013,6 +1014,8 @@ class AccountProcessor:
         ]["button_template"]
         Utility.email_conf["email"]["templates"]["leave_bot_owner_notification"] = system_properties["mail_templates"][
             "leave_bot_owner_notification"]
+        Utility.email_conf["email"]["templates"]["catalog_sync_status"] = system_properties["mail_templates"][
+            "catalog_sync_status"]
 
     @staticmethod
     async def confirm_email(token: str):

@@ -1,0 +1,60 @@
+{
+  "petpooja": {
+    "meta": {
+      "name": {
+        "source": "itemname",
+        "default": "No title"
+      },
+      "description": {
+        "source": "itemdescription",
+        "default": "No description available"
+      },
+      "price": {
+        "source": "price",
+        "default": 0.0
+      },
+      "availability": {
+        "source": "in_stock",
+        "default": "out of stock"
+      },
+      "image_url": {
+        "source": "item_image_url",
+        "default": "https://www.kairon.com/default-image.jpg"
+      },
+      "url": {
+        "source": null,
+        "default": "https://www.kairon.com/"
+      },
+      "brand": {
+        "source": null,
+        "default": "Sattva"
+      },
+      "condition": {
+        "source": null,
+        "default": "new"
+      }
+    },
+    "kv": {
+      "title": {
+        "source": "itemname",
+        "default": "No title"
+      },
+      "description": {
+        "source": "itemdescription",
+        "default": "No description available"
+      },
+      "price": {
+        "source": "price",
+        "default": 0.0
+      },
+      "facebook_product_category": {
+        "source": "item_categoryid",
+        "default": "Food and drink > General"
+      },
+      "availability": {
+        "source": "in_stock",
+        "default": "out of stock"
+      }
+    }
+  }
+}
