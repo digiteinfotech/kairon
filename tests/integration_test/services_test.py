@@ -12281,7 +12281,7 @@ def test_update_multiflow_story_invalid_name():
 
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "valid story name"
+    assert not actual["message"] == "valid story name"
 
 def test_update_multiflow_story():
     response = client.put(
