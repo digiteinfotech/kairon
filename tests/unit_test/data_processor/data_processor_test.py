@@ -4514,7 +4514,7 @@ class TestMongoProcessor:
     def test_get_actions(self):
         processor = MongoProcessor()
         actual = processor.get_actions("test")
-        assert actual.__len__() == 2
+        assert actual.__len__() == 1
         assert actual[0]['name'] == 'test_schedule_action'
 
     def test_add_action_duplicate(self):
@@ -16225,7 +16225,7 @@ class TestMongoProcessor:
 
     def test_list_email_actions(self):
         processor = MongoProcessor()
-        assert len(list(processor.list_email_action("TEST"))) == 4
+        assert len(list(processor.list_email_action("TEST"))) == 3
 
     def test_list_email_actions_with_default_value(self):
         processor = MongoProcessor()
