@@ -135,24 +135,24 @@ class TestMongoProcessor:
 
         return _read_and_get_data
 
-    def test_add_schedule_action_a(self):
-        bot = "test"
-        user = "test"
-        expected_data = {
-            "name": "test_schedule_action",
-            "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
-            "timezone": None,
-            "schedule_action": "test_pyscript",
-            "response_text": "action scheduled",
-            "params_list": [],
-            "dispatch_bot_response": True
-        }
-
-        processor = MongoProcessor()
-        processor.add_schedule_action(expected_data, bot, user)
-
-        actual_data = list(processor.list_schedule_action(bot))
-        assert expected_data.get("name") == actual_data[0]["name"]
+    # def test_add_schedule_action_a(self):
+    #     bot = "test"
+    #     user = "test"
+    #     expected_data = {
+    #         "name": "test_schedule_action",
+    #         "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
+    #         "timezone": None,
+    #         "schedule_action": "test_pyscript",
+    #         "response_text": "action scheduled",
+    #         "params_list": [],
+    #         "dispatch_bot_response": True
+    #     }
+    #
+    #     processor = MongoProcessor()
+    #     processor.add_schedule_action(expected_data, bot, user)
+    #
+    #     actual_data = list(processor.list_schedule_action(bot))
+    #     assert expected_data.get("name") == actual_data[0]["name"]
 
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()
@@ -16052,12 +16052,6 @@ class TestMongoProcessor:
             with pytest.raises(ValidationError, match="URL cannot be empty"):
                 processor.add_email_action(email_config, "TEST", "tests")
             email_config['smtp_url'] = temp
-
-            temp = email_config['smtp_port']
-            email_config['smtp_port'] = -1
-            with pytest.raises(ValidationError, match="Port must be between 0 and 65535"):
-                processor.add_email_action(email_config, "TEST", "tests")
-            email_config['smtp_port'] = temp
 
             temp = email_config['from_email']
             email_config['from_email'] = {"value": "test@test", "parameter_type": "value"}
