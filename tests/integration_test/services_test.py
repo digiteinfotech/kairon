@@ -23318,13 +23318,14 @@ def test_list_email_actions(mock_smtp):
                 "value": "test",
                 "parameter_type": "value",
             },
-           'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
-                          'value': 'from_email', 'parameter_type': 'slot'},
-           'subject': 'Test Subject',
-           'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False,
-                        'value': ['test@test.com', 'test1@test.com'], 'parameter_type': 'value'},
-           'response': 'Test Response',
-            'tls': False
+            'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                           'value': 'from_email', 'parameter_type': 'slot'},
+            'subject': 'Test Subject',
+            'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False,
+                         'value': ['test@test.com', 'test1@test.com'], 'parameter_type': 'value'},
+            'response': 'Test Response',
+            'tls': False,
+            "dispatch_response": True
         },
         {
             "action_name": "email_config_with_slot",
@@ -23337,13 +23338,14 @@ def test_list_email_actions(mock_smtp):
                 "value": "test",
                 "parameter_type": "slot",
             },
-           'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
-                          'value': 'test@demo.com', 'parameter_type': 'value'},
-           'subject': 'Test Subject',
-           'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
-                        'parameter_type': 'slot'},
+            'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                           'value': 'test@demo.com', 'parameter_type': 'value'},
+            'subject': 'Test Subject',
+            'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
+                         'parameter_type': 'slot'},
             'response': 'Test Response',
             "tls": False,
+            "dispatch_response": True
         },
         {
             "action_name": "email_config_with_key_vault",
@@ -23363,8 +23365,10 @@ def test_list_email_actions(mock_smtp):
                          'parameter_type': 'slot'},
             'response': 'Test Response',
             "tls": False,
+            "dispatch_response": True
         },
     ]
+
 
 @patch("kairon.shared.utils.SMTP", autospec=True)
 def test_edit_email_action(mock_smtp):
