@@ -23304,7 +23304,7 @@ def test_list_email_actions(mock_smtp):
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 4
+    assert len(actual["data"]) == 3
     [action.pop("_id") for action in actual["data"]]
     assert actual["data"] == [
         {
