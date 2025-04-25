@@ -23295,6 +23295,7 @@ def test_add_email_action_from_invalid_parameter_type_1(mock_smtp):
     assert actual["error_code"] == 422
     assert actual["message"] == 'Invalid From or To email address'
 
+@patch("kairon.shared.utils.SMTP", autospec=True)
 def test_list_email_actions(mock_smtp):
     response = client.get(
         f"/api/bot/{pytest.bot}/action/email",
