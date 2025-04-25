@@ -16231,7 +16231,7 @@ class TestMongoProcessor:
 
     def test_list_email_actions(self):
         processor = MongoProcessor()
-        assert len(list(processor.list_email_action("TEST"))) == 3
+        assert len(list(processor.list_email_action("TEST"))) == 4
 
     def test_list_email_actions_with_default_value(self):
         processor = MongoProcessor()
