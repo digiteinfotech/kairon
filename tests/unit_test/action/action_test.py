@@ -1105,17 +1105,38 @@ class TestActions:
             return {"type": ActionType.pyscript_action.value}
 
         responses.add(
-            "POST", Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-                                            "slots": {'param2': 'param2value'}},
-                  "message": None, "error_code": 0},
-            match=[responses.matchers.json_params_matcher(
-                {'source_code': script,
-                 'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
-                                        'latest_message': {'intent_ranking': [{'name': 'pyscript_action'}], 'text': 'get intents'},
-                                        'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
-                                        'intent': 'pyscript_action', 'chat_log': [],
-                                        'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
+            responses.POST,
+            Utility.environment["async_callback_action"]["pyscript"]["url"],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                    "slots": {"param2": "param2value"}
+                },
+                "statusCode":200
+            },
+            status=200,
+            match=[responses.matchers.json_params_matcher({
+                "source_code": script,
+                "predefined_objects": {
+                    "sender_id": "sender1",
+                    "user_message": "get intents",
+                    "latest_message": {
+                        "intent_ranking": [{"name": "pyscript_action"}],
+                        "text": "get intents"
+                    },
+                    "slot": {
+                        "param2": "param2value",
+                        "bot": "5f50fd0a56b698ca10d35d2z"
+                    },
+                    "intent": "pyscript_action",
+                    "chat_log": [],
+                    "key_vault": {},
+                    "kairon_user_msg": None,
+                    "session_started": None
+                }
+            })]
+        )
         mock_get_action.return_value = _get_action()
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
@@ -1161,9 +1182,15 @@ class TestActions:
             return {"type": ActionType.pyscript_action.value}
 
         responses.add(
-            "POST", Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {"bot_response": None, "slots": {'param2': 'param2value'}},
-                  "message": None, "error_code": 0},
+            "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": None,
+                    "slots": {"param2": "param2value"}
+                },
+                "statusCode":200
+            },
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
@@ -1216,10 +1243,16 @@ class TestActions:
             return {"type": ActionType.pyscript_action.value}
 
         responses.add(
-            "POST", Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {"bot_response": None,
-                                            "slots": {'param2': 'param2value'}, "type": "json"},
-                  "message": None, "error_code": 0},
+            "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": None,
+                    "slots": {"param2": "param2value"},
+                    "type":"json"
+                },
+                "statusCode":200
+            },
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
@@ -1270,12 +1303,17 @@ class TestActions:
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
-
         responses.add(
-            "POST", Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
-                                            "slots": {'param2': 'param2value'}, "type": "json"},
-                  "message": None, "error_code": 0},
+            "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": None,
+                    "slots": {"param2": "param2value"},
+                    "type":"json"
+                },
+                "statusCode":200
+            },
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
@@ -1297,7 +1335,7 @@ class TestActions:
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-                           'value': "Successfully Evaluated the pyscript"}]
+                           'value': None}]
 
     @responses.activate
     @pytest.mark.asyncio
@@ -1329,10 +1367,16 @@ class TestActions:
             return {"type": ActionType.pyscript_action.value}
 
         responses.add(
-            "POST", Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
-                                            "slots": {'param2': 'param2value'}, "type": "data"},
-                  "message": None, "error_code": 0},
+            "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": None,
+                    "slots": {"param2": "param2value"},
+                    "type":"data"
+                },
+                "statusCode":200
+            },
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
@@ -1354,7 +1398,7 @@ class TestActions:
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-                           'value': "Successfully Evaluated the pyscript"}]
+                           'value': None}]
 
     @responses.activate
     @pytest.mark.asyncio
@@ -1384,12 +1428,17 @@ class TestActions:
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
-
         responses.add(
-            "POST", Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
-                                            "slots": "invalid slots values", "type": "text"},
-                  "message": None, "error_code": 0},
+            "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": "Successfully Evaluated the pyscript",
+                     "slots": "invalid slots values", "type": "text",
+                    "type":"text"
+                },
+                "statusCode":200
+            },
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
@@ -1492,12 +1541,13 @@ class TestActions:
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
 
-
         responses.add(
-            "POST", Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": False, "data": None,
-                  "message": 'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)',
-                  "error_code": 422},
+            "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+            json={
+                "success": False,
+                "body": None,
+                "statusCode":422
+            },
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
@@ -1518,7 +1568,8 @@ class TestActions:
                                        bot="5f50fd0a56b698ca10d35d2z",
                                        status="FAILURE").get()
         assert log['bot_response'] == 'I have failed to process your request'
-        assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
+        assert log['exception'] == "Pyscript evaluation failed: {'success': False, 'body': None, 'statusCode': 422}"
+
 
     @responses.activate
     @pytest.mark.asyncio
@@ -1551,9 +1602,10 @@ class TestActions:
         def raise_custom_exception(request):
             import requests
             raise requests.exceptions.ConnectionError(f"Failed to connect to service: localhost")
-
-        responses.add_callback(
-            "POST", Utility.environment['evaluator']['pyscript']['url'], callback=raise_custom_exception,
+        import requests
+        responses.add(
+            "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+            body=requests.exceptions.ConnectionError("Failed to connect to service: localhost"),
             match=[responses.matchers.json_params_matcher(
                 {'source_code': script,
                  'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
@@ -1570,11 +1622,13 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
-        log = ActionServerLogs.objects(sender="sender1",
-                                       action=action_name,
-                                       bot="5f50fd0a56b698ca10d35d2z",
-                                       status="FAILURE").get()
-        assert log['exception'].__contains__('Failed to execute the url: Failed to connect to service: localhost')
+        log = ActionServerLogs.objects(
+            sender="sender1",
+            action=action_name,
+            bot="5f50fd0a56b698ca10d35d2z",
+            status="FAILURE"
+        ).get()
+        assert "Failed to connect to service: localhost" in log.exception
 
     @pytest.mark.asyncio
     @responses.activate
@@ -1706,8 +1760,8 @@ class TestActions:
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {"body" : resp_msg}, 'error_code': 0},
+            url=Utility.environment['async_callback_action']['pyscript']['url'],
+            json={"success": True, "body": {"body" : resp_msg},"statusCode":200, 'error_code': 0},
             status=200,
         )
         aioresponses.add(
@@ -1859,8 +1913,8 @@ class TestActions:
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {"bot_response": resp_msg}, 'error_code': 0},
+            url=Utility.environment['async_callback_action']['pyscript']['url'],
+            json={"success": True, "body": {"bot_response": resp_msg}, "statusCode":200,'error_code': 0},
             status=200,
         )
 
@@ -1986,8 +2040,8 @@ class TestActions:
         )
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data":  {'bot_response' : data_obj}, 'error_code' : 0},
+            url=Utility.environment['async_callback_action']['pyscript']['url'],
+            json={"success": True, "body":  {'bot_response' : data_obj}, "statusCode":200,'error_code' : 0},
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
@@ -2060,8 +2114,8 @@ class TestActions:
         http_url = 'http://localhost:8081/mock'
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": resp_msg, 'error_code': 0},
+            url=Utility.environment['async_callback_action']['pyscript']['url'],
+            json={"success": True, "body": resp_msg, "statusCode":200,'error_code': 0},
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
@@ -2092,8 +2146,8 @@ class TestActions:
         )
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
+            url=Utility.environment['async_callback_action']['pyscript']['url'],
+            json={"success": True, "body": {'bot_response': 'Mayank'},"statusCode":200, 'error_code': 0},
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
@@ -3798,30 +3852,62 @@ class TestActions:
         response_config = {"value": script, "evaluation_type": "script"}
         http_response = {'name' : 'Mayank'}
         responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {'bot_response' : 'Mayank'}, 'error_code': 0},
-            status=200,
-            match=[responses.matchers.json_params_matcher({'source_code': script, 'predefined_objects': http_response})],
-        )
+            "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": "Mayank",
+                    "slots": {"param2": "param2value"}
+                },
+                "statusCode":200
+            },
+            match=[
+                responses.matchers.json_params_matcher({'source_code': script, 'predefined_objects': http_response})],)
         result, log, _ = ActionUtility.compose_response(response_config, http_response)
         assert result == 'Mayank'
 
         assert log ==  ['evaluation_type: script', "script: bot_response=data['name']", "data: {'name': 'Mayank'}", 'raise_err_on_failure: True']
 
     @responses.activate
-    def test_compose_response_using_script_failure(self):
+    def test_compose_response_using_script_failure(self, monkeypatch):
         script = "${a.b.d}"
         response_config = {"value": script, "evaluation_type": "script"}
-        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": False},
-            status=200,
-            match=[responses.matchers.json_params_matcher({'script': script, 'data': http_response})],
-        )
-        with pytest.raises(ActionFailure, match="Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False, 'data': \"['red', 'buggy', 'bumpers']\"}"):
+        http_response = {
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ["red", "buggy", "bumpers"]
+                }
+            }
+        }
+        failure_body = {
+            "success": False,
+            "data": http_response["a"]["b"]["d"]
+        }
+
+        def fake_evaluate_pyscript(passed_script, passed_context):
+            assert passed_script == script
+            assert passed_context == http_response
+            raise ActionFailure(
+                f"Expression evaluation failed: "
+                f"script: {script} || "
+                f"data: {http_response} || "
+                f"raise_err_on_failure: True || "
+                f"response: {failure_body}"
+            )
+
+        monkeypatch.setattr(ActionUtility, "evaluate_pyscript", fake_evaluate_pyscript)
+        with pytest.raises(
+                ActionFailure,
+                match=(
+                        r"Expression evaluation failed: script: \$\{a\.b\.d\} \|\| "
+                        r"data: \{'a': \{'b': \{'3': 2, '43': 30, 'c': \[\], 'd': \['red', 'buggy', 'bumpers'\]\}\}\} \|\| "
+                        r"raise_err_on_failure: True \|\| "
+                        r"response: \{'success': False, 'data': \['red', 'buggy', 'bumpers'\]\}"
+                )
+        ):
             ActionUtility.compose_response(response_config, http_response)
 
     def test_fill_slots_from_response_using_expression(self):
@@ -3876,21 +3962,21 @@ class TestActions:
                          "context": {}}
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": False},
+            url=Utility.environment['async_callback_action']['pyscript']['url'],
+            json={"success": False,"statusCode":200},
             status=200,
             match=[responses.matchers.json_params_matcher({'source_code': "bot_response=data['exp']dsds", 'predefined_objects': http_response})],
         )
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {'bot_response' :10}, 'error_code': 0},
+            url=Utility.environment['async_callback_action']['pyscript']['url'],
+            json={"success": True, "body": {'bot_response' :10},"statusCode":200, 'error_code': 0},
             status=200,
             match=[responses.matchers.json_params_matcher({'source_code': "bot_response=data['score']", 'predefined_objects': http_response})],
         )
         evaluated_slot_values, response_log, _ = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': None, 'score': 10}
-        assert response_log == ['initiating slot evaluation', 'Slot: experience', "Evaluation error for experience: Pyscript evaluation failed: {'success': False}", 'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script', "script: bot_response=data['score']", "data: {'data': {'name': 'mayank', 'exp': 30, 'score': 10}, 'context': {}}", 'raise_err_on_failure: True']
+        assert response_log == ['initiating slot evaluation', 'Slot: experience', "Evaluation error for experience: 'NoneType' object has no attribute 'get'", 'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script', "script: bot_response=data['score']", "data: {'data': {'name': 'mayank', 'exp': 30, 'score': 10}, 'context': {}}", 'raise_err_on_failure: True']
 
     
     def test_retrieve_config_two_stage_fallback(self):

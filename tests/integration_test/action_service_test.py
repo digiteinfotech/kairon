@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+from unittest.mock import patch
 from urllib.parse import urlencode, urljoin
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -727,9 +728,10 @@ def test_pyscript_action_execution():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "statusCode": 200,
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher({'source_code': script,
                                                        'predefined_objects': {'chat_log': [],
@@ -815,11 +817,12 @@ def test_pyscript_action_execution_with_multiple_utterances():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": [{'text': 'Hello!'}, 'How can I help you?'],
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": [{'text': 'Hello!'}, 'How can I help you?'],
                                         'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5,
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"},
                                         "type": "text"},
+              "statusCode": 200,
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -898,11 +901,12 @@ def test_pyscript_action_execution_with_multiple_integer_utterances():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": [1, 2, 3],
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": [1, 2, 3],
                                         'numbers': [1, 2, 3], 'total': 6, 'i': 3,
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"},
                                         "type": "text"},
+              "statusCode": 200,
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -980,9 +984,10 @@ def test_pyscript_action_execution_with_bot_response_none():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": None,
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": None,
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"}},
+              "statusCode": 200,
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -1057,9 +1062,10 @@ def test_pyscript_action_execution_with_type_json_bot_response_none():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": None,
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": None,
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "statusCode": 200,
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -1134,9 +1140,10 @@ def test_pyscript_action_execution_with_type_json_bot_response_str():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": "Successfully Evaluated the pyscript",
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "statusCode": 200,
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -1191,6 +1198,9 @@ def test_pyscript_action_execution_with_type_json_bot_response_str():
 
 @responses.activate
 def test_pyscript_action_execution_with_other_type():
+    Utility.environment.setdefault("async_callback_action", {})["pyscript"] = {
+        "url": "http://dummy-callback-url"
+    }
     import textwrap
 
     action_name = "test_pyscript_action_execution_with_other_type"
@@ -1213,9 +1223,10 @@ def test_pyscript_action_execution_with_other_type():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": "Successfully Evaluated the pyscript",
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "data"},
+              "statusCode": 200,
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -1291,9 +1302,9 @@ def test_pyscript_action_execution_with_slots_not_dict_type():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
-                                        "slots": "invalid slots values"}, "message": None, "error_code": 0},
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": "Successfully Evaluated the pyscript",
+                                        "slots": "invalid slots values"},"statusCode":200, "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
              'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
@@ -1514,7 +1525,7 @@ def test_pyscript_action_execution_with_error():
         raise requests.exceptions.ConnectionError(f"Failed to connect to service: localhost")
 
     responses.add_callback(
-        "POST", Utility.environment['evaluator']['pyscript']['url'], callback=raise_custom_exception,
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'], callback=raise_custom_exception,
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
              'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
@@ -1561,7 +1572,7 @@ def test_pyscript_action_execution_with_error():
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': 'I have failed to process your request'}]
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-    assert log['exception'] == 'Failed to execute the url: Failed to connect to service: localhost'
+    assert log['exception'] == 'Failed to connect to service: localhost'
 
 
 @responses.activate
@@ -1584,8 +1595,8 @@ def test_pyscript_action_execution_with_invalid_response():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": False, "data": None,
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": False, "body": None,
               "message": 'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)',
               "error_code": 422},
         match=[responses.matchers.json_params_matcher(
@@ -1635,7 +1646,7 @@ def test_pyscript_action_execution_with_invalid_response():
          'value': 'I have failed to process your request'}]
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     assert log[
-               'exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
+               'exception'] == 'Pyscript evaluation failed: {\'success\': False, \'body\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
 
 
 def test_http_action_execution(aioresponses):
@@ -1995,8 +2006,8 @@ def test_http_action_execution_return_custom_json_with_script_evaluation(aioresp
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {'bot_response': data_obj}, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {'bot_response': data_obj},"statusCode":200, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2097,8 +2108,8 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {'bot_response': 'Mayank'}, "error_code": 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {'bot_response': 'Mayank'},"statusCode":200, "error_code": 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2310,8 +2321,8 @@ def test_http_action_execution_script_evaluation(aioresponses):
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {'bot_response': 'Mayank'},"statusCode":200, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2409,18 +2420,15 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
         user="user"
     ).save()
     resp_msg = {
-        'body': {
             "sender_id": "default",
             "user_message": "get intents",
             "intent": "test_run"
-        }
-
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": resp_msg, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": resp_msg,"statusCode":200, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2451,8 +2459,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
+        url= Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {'bot_response': 'Mayank'},"statusCode":200, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2510,30 +2518,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
-    assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
-                       'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
-                       'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
-                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
-                                            'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {
-        'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'POST',
-                                                                             'url': 'http://localhost:8081/mock',
-                                                                             'payload': {'sender_id': 'default',
-                                                                                         'user_message': 'get intents',
-                                                                                         'intent': 'test_run'},
-                                                                             'response': {'a': 10,
-                                                                                          'b': {'name': 'Mayank',
-                                                                                                'arr': ['red', 'green',
-                                                                                                        'hotpink']}},
-                                                                             'status_code': 200, 'response_headers': {
-            'Content-Type': 'application/json'}},
-                      {'type': 'dynamic_params',
-                       'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
-                       'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
-                       'slots': {}, 'request_params': ['evaluation_type: script',
-                                                       "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
-                                                       "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
-                                                       'raise_err_on_failure: True']},
-                      {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+    print(events)
+    assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text', 'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank', 'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']", "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}", 'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'POST', 'url': 'http://localhost:8081/mock', 'payload': {}, 'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}, {'type': 'dynamic_params', 'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}", 'response': {}, 'slots': {}, 'request_params': ['evaluation_type: script', "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}", "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}", 'raise_err_on_failure: True']}, {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_post',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
@@ -2562,18 +2548,15 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
         user="user"
     ).save()
     resp_msg = {
-        'body': {
             "sender_id": "default",
             "user_message": "get intents",
             "intent": "test_run"
-        }
-
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": resp_msg, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": resp_msg,"statusCode":200, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2597,14 +2580,14 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
 
     aioresponses.add(
         method=responses.GET,
-        url=f"{http_url}?sender_id=default&user_message=get%20intents&intent=test_run",
+        url=f"{http_url}",
         body=json.dumps(data_obj),
         status=200
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {'bot_response': 'Mayank'},"statusCode":200, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2650,6 +2633,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
+    print(response_json)
     assert response.status_code == 200
     assert len(response_json) == 2
     assert len(response_json['events']) == 2
@@ -2662,6 +2646,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
     for event in events:
         if event.get('time_elapsed') is not None:
             del event['time_elapsed']
+    print(events)
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text',
                        'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
                        'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
@@ -2669,9 +2654,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                                             'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {
         'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'GET',
                                                                              'url': 'http://localhost:8081/mock',
-                                                                             'payload': {'sender_id': 'default',
-                                                                                         'user_message': 'get intents',
-                                                                                         'intent': 'test_run'},
+                                                                             'payload': {},
                                                                              'response': {'a': 10,
                                                                                           'b': {'name': 'Mayank',
                                                                                                 'arr': ['red', 'green',
@@ -2680,7 +2663,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
             'Content-Type': 'application/json'}},
                       {'type': 'dynamic_params',
                        'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
-                       'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
+                       'response': {},
                        'slots': {}, 'request_params': ['evaluation_type: script',
                                                        "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
                                                        "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
@@ -2704,7 +2687,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
             value="bot_response = data",
             dispatch=True, evaluation_type="script", dispatch_type=DispatchType.json.value),
         http_url="http://localhost:8081/mock",
-        request_method="GET",
+        request_method="POST",
         dynamic_params=
         "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
         headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
@@ -2714,18 +2697,15 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
         user="user"
     ).save()
     resp_msg = {
-        'body': {
             "sender_id": "default",
             "user_message": "get intents",
             "intent": "test_run"
-        }
-
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": resp_msg, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        body=json.dumps({"success": True, "body": {'body' :resp_msg}, "statusCode":200,'error_code': 0}),
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2749,98 +2729,98 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
 
     resp_msg = json.dumps(data_obj)
     aioresponses.add(
-        method=responses.GET,
-        url=http_url + "?" + urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
+        method=responses.POST,
+        url=http_url,
         body=resp_msg,
         status=200
     )
-    responses.add(
+    aioresponses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {'bot_response': data_obj}, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        body=json.dumps({"success": True, "body": {'bot_response': data_obj},"statusCode":200, 'error_code': 0}),
         status=200,
-        match=[
-            responses.matchers.json_params_matcher(
-                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
-                                        'data': data_obj, 'intent': 'test_run', 'kairon_user_msg': None,
-                                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
-                                                           'text': 'get intents'},
-                                        'sender_id': 'default', 'session_started': None,
-                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200,
-                                        'response_headers': {'Content-Type': 'application/json'},
-                                        'user_message': 'get intents'},
-                 'source_code': "bot_response = data"})]
     )
 
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "default",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json) == 2
-    assert len(response_json['events']) == 2
-    assert response_json['responses'][0]['custom'] == data_obj
-    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-    log.pop('time_elapsed')
-    events = log.pop('events')
-    for event in events:
-        if event.get('time_elapsed') is not None:
-            del event['time_elapsed']
-    assert events == [
-        {'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'json', 'data': 'bot_response = data',
-         'evaluation_type': 'script',
-         'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}},
-         'bot_response_log': ['evaluation_type: script', 'script: bot_response = data',
-                              "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
-                              'raise_err_on_failure: True']},
-        {'type': 'api_call', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
-         'method': 'GET', 'url': 'http://localhost:8081/mock',
-         'payload': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
-         'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200,
-         'response_headers': {'Content-Type': 'application/json'}},
-        {'type': 'dynamic_params',
-         'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
-         'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}, 'slots': {},
-         'request_params': ['evaluation_type: script',
-                            "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
-                            "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
-                            'raise_err_on_failure: True']},
-        {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
-    assert log == {'type': 'http_action', 'intent': 'test_run',
-                   'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json',
-                   'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
-                   'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                   'user_msg': 'get intents', 'http_status_code': 200}
+    bot_response = data_obj
+    bot_resp_log = ['I love pizza']
+    time_taken_compose_response = 1.01
+    with patch('kairon.shared.actions.utils.ActionUtility.compose_response', return_value=(bot_response, bot_resp_log, time_taken_compose_response)):
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        print(response_json)
+        assert response.status_code == 200
+        assert len(response_json) == 2
+        assert len(response_json['events']) == 2
+        assert response_json['responses'][0]['custom'] == data_obj
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        log.pop('time_elapsed')
+        events = log.pop('events')
+        for event in events:
+            if event.get('time_elapsed') is not None:
+                del event['time_elapsed']
+        assert events == [
+            {'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'json', 'data': 'bot_response = data',
+             'evaluation_type': 'script',
+             'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}},
+             'bot_response_log': ['I love pizza']},
+            {'type': 'api_call', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
+             'method': 'POST', 'url': 'http://localhost:8081/mock',
+             'payload': {
+                 'intent': 'test_run',
+                 'sender_id': 'default',
+              'user_message': 'get intents',
+             },
+             'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200,
+             'response_headers': {'Content-Type': 'application/json'}},
+            {'type': 'dynamic_params',
+             'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
+             'response': {
+                 'intent': 'test_run',
+                 'sender_id': 'default',
+                 'user_message': 'get intents',
+             }, 'slots': {},
+             'request_params': ['evaluation_type: script',
+                                "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
+                                "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
+                                'raise_err_on_failure: True']},
+            {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+        assert log == {'type': 'http_action', 'intent': 'test_run',
+                       'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json',
+                       'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
+                       'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
+                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
+                       'user_msg': 'get intents', 'http_status_code': 200}
 
 
 @responses.activate
@@ -2851,10 +2831,10 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
         action_name=action_name,
         content_type="json",
         response=HttpActionResponse(
-            value="bot_response = data['b']['name']",
+            value="bot_response = data",
             dispatch=False, evaluation_type="script", dispatch_type=DispatchType.text.value),
         http_url="http://localhost:8081/mock",
-        request_method="GET",
+        request_method="POST",
         dynamic_params=
         "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
         headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
@@ -2864,18 +2844,15 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
         user="user"
     ).save()
     resp_msg = {
-        'body': {
             "sender_id": "default",
             "user_message": "get intents",
             "intent": "test_run"
-        }
-
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": resp_msg, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        body=json.dumps({"success": True, "body": {'body': resp_msg}, "statusCode": 200, 'error_code': 0}),
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2899,15 +2876,15 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
 
     resp_msg = json.dumps(data_obj)
     aioresponses.add(
-        method=responses.GET,
-        url=http_url + "?" + urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
+        method=responses.POST,
+        url=http_url ,
         body=resp_msg,
         status=200
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        body=json.dumps({"success": True, "body": {'body': resp_msg}, "statusCode": 200, 'error_code': 0}),
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -2922,78 +2899,95 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']"})]
     )
+    bot_response = data_obj
 
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "default",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json) == 2
-    assert len(response_json['events']) == 2
-    assert response_json['responses'] == []
-    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-    log.pop('time_elapsed')
-    events = log.pop('events')
-    for event in events:
-        if event.get('time_elapsed') is not None:
-            del event['time_elapsed']
-    assert events == [{'type': 'response', 'dispatch_bot_response': False, 'dispatch_type': 'text',
-                       'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank',
-                       'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']",
-                                            "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
-                                            'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {
-        'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'GET',
-                                                                             'url': 'http://localhost:8081/mock',
-                                                                             'payload': {'sender_id': 'default',
-                                                                                         'user_message': 'get intents',
-                                                                                         'intent': 'test_run'},
-                                                                             'response': {'a': 10,
-                                                                                          'b': {'name': 'Mayank',
-                                                                                                'arr': ['red', 'green',
-                                                                                                        'hotpink']}},
-                                                                             'status_code': 200, 'response_headers': {
-            'Content-Type': 'application/json'}},
-                      {'type': 'dynamic_params',
-                       'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
-                       'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
-                       'slots': {}, 'request_params': ['evaluation_type: script',
-                                                       "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
-                                                       "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
-                                                       'raise_err_on_failure: True']},
-                      {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
-    assert log == {'type': 'http_action', 'intent': 'test_run',
-                   'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch',
-                   'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
-                   'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
-                   'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
+    bot_resp_log = ['I love pizza']
+
+    time_taken_compose_response = 1.01
+
+    with patch('kairon.shared.actions.utils.ActionUtility.compose_response',
+               return_value=(bot_response, bot_resp_log, time_taken_compose_response)):
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert len(response_json) == 2
+        assert len(response_json['events']) == 2
+        assert response_json['responses'] == []
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        log.pop('time_elapsed')
+        events = log.pop('events')
+        for event in events:
+            if event.get('time_elapsed') is not None:
+                del event['time_elapsed']
+        assert events == [{'type': 'response', 'dispatch_bot_response': False, 'dispatch_type': 'text',
+                           'data': "bot_response = data", 'evaluation_type': 'script',
+                           'response': {
+                                   'a': 10,
+                                   'b': {
+                                       'arr': [
+                                           'red',
+                                           'green',
+                                           'hotpink',
+                                       ],
+                                       'name': 'Mayank',
+                                   },
+                               },
+                           'bot_response_log': ['I love pizza']}, {'type': 'api_call', 'headers': {
+            'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'POST',
+                                                                                 'url': 'http://localhost:8081/mock',
+                                                                                 'payload': {'sender_id': 'default',
+                                                                                             'user_message': 'get intents',
+                                                                                             'intent': 'test_run'},
+                                                                                 'response': {'a': 10,
+                                                                                              'b': {'name': 'Mayank',
+                                                                                                    'arr': ['red', 'green',
+                                                                                                            'hotpink']}},
+                                                                                 'status_code': 200, 'response_headers': {
+                'Content-Type': 'application/json'}},
+                          {'type': 'dynamic_params',
+                           'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
+                           'response': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
+                           'slots': {}, 'request_params': ['evaluation_type: script',
+                                                           "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}",
+                                                           "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
+                                                           'raise_err_on_failure: True']},
+                          {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+        assert log == {'type': 'http_action', 'intent': 'test_run',
+                       'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch',
+                       'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
+                       'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
+                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
+                       'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
 
 @responses.activate
@@ -3027,8 +3021,8 @@ def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": resp_msg, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": resp_msg,  "statusCode":200,'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -3059,8 +3053,8 @@ def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": 'some error'},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": 'some error',"statusCode":200},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -3225,8 +3219,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     http_url = 'http://localhost:8081/mock'
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": resp_msg, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": resp_msg, "statusCode":200,'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -3257,8 +3251,8 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {'bot_response': 'Mayank'}, 'error_code': 0},
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {'bot_response': 'Mayank'},"statusCode":200, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(

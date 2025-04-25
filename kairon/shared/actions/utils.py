@@ -680,7 +680,6 @@ class ActionUtility:
     @staticmethod
     def run_pyscript(source_code: Text, context: dict):
         trigger_task = Utility.environment['evaluator']['pyscript']['trigger_task']
-        pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
         request_body = {"source_code": source_code, "predefined_objects": context}
 
         if trigger_task:
