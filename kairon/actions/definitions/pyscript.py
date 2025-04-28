@@ -66,7 +66,7 @@ class ActionPyscript(ActionsBase):
             dispatch_bot_response = pyscript_action_config['dispatch_response']
             source_code = pyscript_action_config['source_code']
             response = ActionUtility.run_pyscript(source_code, tracker_data)
-            dispatch_type = response.get('type')
+            dispatch_type = response.get('type',dispatch_type)
             bot_response = response.get('bot_response')
             slot_values = ActionUtility.filter_out_kairon_system_slots(response.get('slots', {}))
             filled_slots.update(slot_values)

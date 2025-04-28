@@ -48,6 +48,7 @@ from kairon.shared.actions.exception import ActionFailure
 from unittest.mock import patch
 from urllib.parse import urlencode
 
+
 class TestActions:
 
     @pytest.fixture(autouse=True, scope='class')
@@ -2626,10 +2627,62 @@ class TestActions:
             ActionEmail("test", "test_email_action_not_found").retrieve_config()
 
     def test_prepare_email_body(self):
-        Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html', 'rb').read().decode()
-        Utility.email_conf['email']['templates']['bot_msg_conversation'] = open('template/emails/bot_msg_conversation.html', 'rb').read().decode()
-        Utility.email_conf['email']['templates']['user_msg_conversation'] = open('template/emails/user_msg_conversation.html', 'rb').read().decode()
-        events = [{"event":"action","timestamp":1594907100.12764,"name":"action_session_start","policy":None,"confidence":None},{"event":"session_started","timestamp":1594907100.12765},{"event":"action","timestamp":1594907100.12767,"name":"action_listen","policy":None,"confidence":None},{"event":"user","timestamp":1594907100.42744,"text":"can't","parse_data":{"intent":{"name":"test intent","confidence":0.253578245639801},"entities":[],"intent_ranking":[{"name":"test intent","confidence":0.253578245639801},{"name":"goodbye","confidence":0.1504897326231},{"name":"greet","confidence":0.138640150427818},{"name":"affirm","confidence":0.0857767835259438},{"name":"smalltalk_human","confidence":0.0721133947372437},{"name":"deny","confidence":0.069614589214325},{"name":"bot_challenge","confidence":0.0664894133806229},{"name":"faq_vaccine","confidence":0.062177762389183},{"name":"faq_testing","confidence":0.0530692934989929},{"name":"out_of_scope","confidence":0.0480506233870983}],"response_selector":{"default":{"response":{"name":None,"confidence":0},"ranking":[],"full_retrieval_intent":None}},"text":"can't"},"input_channel":None,"message_id":"bbd413bf5c834bf3b98e0da2373553b2","metadata":{}},{"event":"action","timestamp":1594907100.4308,"name":"utter_test intent","policy":"policy_0_MemoizationPolicy","confidence":1},{"event":"bot","timestamp":1594907100.4308,"text":"will not = won\"t","data":{"elements":None,"quick_replies":None,"buttons":None,"attachment":None,"image":None,"custom":None},"metadata":{}},{"event":"action","timestamp":1594907100.43384,"name":"action_listen","policy":"policy_0_MemoizationPolicy","confidence":1},{"event":"user","timestamp":1594907117.04194,"text":"can\"t","parse_data":{"intent":{"name":"test intent","confidence":0.253578245639801},"entities":[],"intent_ranking":[{"name":"test intent","confidence":0.253578245639801},{"name":"goodbye","confidence":0.1504897326231},{"name":"greet","confidence":0.138640150427818},{"name":"affirm","confidence":0.0857767835259438},{"name":"smalltalk_human","confidence":0.0721133947372437},{"name":"deny","confidence":0.069614589214325},{"name":"bot_challenge","confidence":0.0664894133806229},{"name":"faq_vaccine","confidence":0.062177762389183},{"name":"faq_testing","confidence":0.0530692934989929},{"name":"out_of_scope","confidence":0.0480506233870983}],"response_selector":{"default":{"response":{"name":None,"confidence":0},"ranking":[],"full_retrieval_intent":None}},"text":"can\"t"},"input_channel":None,"message_id":"e96e2a85de0748798748385503c65fb3","metadata":{}},{"event":"action","timestamp":1594907117.04547,"name":"utter_test intent","policy":"policy_1_TEDPolicy","confidence":0.978452920913696},{"event":"bot","timestamp":1594907117.04548,"text":"can not = can't","data":{"elements":None,"quick_replies":None,"buttons":None,"attachment":None,"image":None,"custom":None},"metadata":{}}]
+        Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html',
+                                                                        'rb').read().decode()
+        Utility.email_conf['email']['templates']['bot_msg_conversation'] = open(
+            'template/emails/bot_msg_conversation.html', 'rb').read().decode()
+        Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
+            'template/emails/user_msg_conversation.html', 'rb').read().decode()
+        events = [{"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                   "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                  {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                   "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                         "parse_data": {
+                                             "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                             "entities": [], "intent_ranking": [
+                                                 {"name": "test intent", "confidence": 0.253578245639801},
+                                                 {"name": "goodbye", "confidence": 0.1504897326231},
+                                                 {"name": "greet", "confidence": 0.138640150427818},
+                                                 {"name": "affirm", "confidence": 0.0857767835259438},
+                                                 {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                 {"name": "deny", "confidence": 0.069614589214325},
+                                                 {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                 {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                 {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                 {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                             "response_selector": {
+                                                 "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                             "full_retrieval_intent": None}}, "text": "can't"},
+                                         "input_channel": None, "message_id": "bbd413bf5c834bf3b98e0da2373553b2",
+                                         "metadata": {}},
+                  {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                   "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                  {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                   "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None, "image": None,
+                            "custom": None}, "metadata": {}},
+                  {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                   "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                  {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                   "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                  "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                     {"name": "goodbye", "confidence": 0.1504897326231},
+                                                     {"name": "greet", "confidence": 0.138640150427818},
+                                                     {"name": "affirm", "confidence": 0.0857767835259438},
+                                                     {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                     {"name": "deny", "confidence": 0.069614589214325},
+                                                     {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                     {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                     {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                     {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                  "response_selector": {
+                                      "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                  "full_retrieval_intent": None}}, "text": "can\"t"},
+                   "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                  {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                   "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                  {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                   "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None, "image": None,
+                            "custom": None}, "metadata": {}}]
         actual = ActionUtility.prepare_email_body(events, "conversation history", "test@kairon.com")
         assert str(actual).__contains__("</table>")
 
@@ -2678,7 +2731,8 @@ class TestActions:
                                                   'source': 'history', 'is_enabled': True},
                                                  {'name': 'Similarity Prompt',
                                                   'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
-                                                  'data': 'default', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                                  'data': 'default',
+                                                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                                   'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
                                  'instructions': [], 'set_slots': [], 'dispatch_response': True}
         bot_settings.pop("_id")
@@ -2707,7 +2761,6 @@ class TestActions:
                                 'integrations_per_user_limit': 3,
                                 'live_agent_enabled': False,
                                 'retry_broadcasting_limit': 3}
-        LLMSecret.objects.delete()
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -2722,7 +2775,8 @@ class TestActions:
         actual = ActionUtility.get_action(bot, 'google_search_action')
         assert actual['type'] == ActionType.google_search_action.value
         actual = ActionGoogleSearch(bot, 'google_search_action').retrieve_config()
-        assert actual['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '1234567890'}
+        assert actual['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key',
+                                     'parameter_type': 'value', 'value': '1234567890'}
         assert actual['search_engine_id'] == 'asdfg::123456'
 
     def test_get_google_search_action_config_not_exists(self):
@@ -2885,7 +2939,8 @@ class TestActions:
                                                                                  'startAt': 0},
                            'worklog': {'startAt': 0, 'maxResults': 20, 'total': 0, 'worklogs': []}}}
         )
-        assert not ActionUtility.create_jira_issue(url, username, api_token, project_key, issue_type, summary, description)
+        assert not ActionUtility.create_jira_issue(url, username, api_token, project_key, issue_type, summary,
+                                                   description)
 
     def test_create_jira_issue_failure(self):
         url = 'https://test-digite.atlassian.net'
@@ -2912,7 +2967,8 @@ class TestActions:
 
         with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_response):
             JiraAction(
-                name='jira_action', bot=bot, user=user, url='https://test-digite.atlassian.net', user_name='test@digite.com',
+                name='jira_action', bot=bot, user=user, url='https://test-digite.atlassian.net',
+                user_name='test@digite.com',
                 api_token=CustomActionRequestParameters(value='ASDFGHJKL'), project_key='HEL', issue_type='Bug',
                 summary='fallback', response='Successfully created').save()
         action = ActionUtility.get_action(bot, 'jira_action')
@@ -2922,8 +2978,8 @@ class TestActions:
         action.pop('timestamp')
         assert action == {
             'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
-            'api_token':  {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'parameter_type': 'value',
-                           'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'fallback',
+            'api_token': {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'parameter_type': 'value',
+                          'value': 'ASDFGHJKL'}, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'fallback',
             'response': 'Successfully created', 'bot': 'test_action_server', 'user': 'test_user', 'status': True
         }
 
@@ -3114,10 +3170,10 @@ class TestActions:
                     "Content-Type": "text/html; charset=utf-8"
                 },
                 "body": [{
-            'title': 'Data Science Introduction - W3Schools',
-            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
-            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
-        }]
+                    'title': 'Data Science Introduction - W3Schools',
+                    'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+                    'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+                }]
             }
         }
         mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
@@ -3165,16 +3221,16 @@ class TestActions:
                 "headers": {
                     "Content-Type": "text/html; charset=utf-8"
                 },
-            "body": [{
-                "title": "Artificial intelligence - Wikipedia",
-                "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
-                "url": "https://en.wikipedia.org/wiki/Artificial_intelligence"},
-                {
-                 "title": "Artificial intelligence (AI) - Britannica",
-                 "description": "artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.",
-                "url": "https://www.britannica.com/technology/artificial-intelligence"
-                 }]
-        }
+                "body": [{
+                    "title": "Artificial intelligence - Wikipedia",
+                    "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
+                    "url": "https://en.wikipedia.org/wiki/Artificial_intelligence"},
+                    {
+                        "title": "Artificial intelligence (AI) - Britannica",
+                        "description": "artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.",
+                        "url": "https://www.britannica.com/technology/artificial-intelligence"
+                    }]
+            }
         }
 
         mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
@@ -3183,7 +3239,7 @@ class TestActions:
         assert result == [
             {'title': 'Artificial intelligence - Wikipedia',
              'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
-             'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence',},
+             'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence', },
             {'title': 'Artificial intelligence (AI) - Britannica',
              'text': 'artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.',
              'link': 'https://www.britannica.com/technology/artificial-intelligence'}
@@ -3197,22 +3253,22 @@ class TestActions:
         website = "https://www.w3schools.com/"
         topn = 1
         response = {
-  "ResponseMetadata": {
-      "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
-      "HTTPStatusCode": 404,
-      "HTTPHeaders": {
-          "date": "Thu, 24 Aug 2023 11:41:20 GMT",
-          "content-type": "application/json",
-          "content-length": "152",
-          "connection": "keep-alive",
-          "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
-          "x-amzn-remapped-content-length": "0",
-          "x-amz-executed-version": "$LATEST",
-          "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
-          "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
-      },
-      "RetryAttempts": 0
-  },
+            "ResponseMetadata": {
+                "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                "HTTPStatusCode": 404,
+                "HTTPHeaders": {
+                    "date": "Thu, 24 Aug 2023 11:41:20 GMT",
+                    "content-type": "application/json",
+                    "content-length": "152",
+                    "connection": "keep-alive",
+                    "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                    "x-amzn-remapped-content-length": "0",
+                    "x-amz-executed-version": "$LATEST",
+                    "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+                    "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
+                },
+                "RetryAttempts": 0
+            },
             "StatusCode": 404,
             "LogResult": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
             "ExecutedVersion": "$LATEST",
@@ -3238,8 +3294,10 @@ class TestActions:
         website = "www.google.com"
         topn = 1
 
-        mock_environment = {"web_search": {"trigger_task": True, 'url': None}, 'events': {'executor': {"region": "us-east-1"}, 'task_definition': {"web_search": None}}}
-        with pytest.raises(ActionFailure, match="Parameter validation failed:\nInvalid type for parameter FunctionName, value: None, type: <class 'NoneType'>, valid types: <class 'str'>"):
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None},
+                            'events': {'executor': {"region": "us-east-1"}, 'task_definition': {"web_search": None}}}
+        with pytest.raises(ActionFailure,
+                           match="Parameter validation failed:\nInvalid type for parameter FunctionName, value: None, type: <class 'NoneType'>, valid types: <class 'str'>"):
             with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
                 ActionUtility.perform_web_search(search_term, website=website, topn=topn)
 
@@ -3253,10 +3311,10 @@ class TestActions:
             method=responses.POST,
             url=search_engine_url,
             json={"success": True, "data": [{
-            "title": "Artificial intelligence - Wikipedia",
-            "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
-            "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
-        }], "error_code": 0},
+                "title": "Artificial intelligence - Wikipedia",
+                "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
+                "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+            }], "error_code": 0},
             status=200,
             match=[
                 responses.matchers.json_params_matcher({
@@ -3320,7 +3378,8 @@ class TestActions:
         )
 
         with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
-            with pytest.raises(ActionFailure, match=re.escape('Failed to execute the url: Got non-200 status code: 500 {"data": []}')):
+            with pytest.raises(ActionFailure,
+                               match=re.escape('Failed to execute the url: Got non-200 status code: 500 {"data": []}')):
                 ActionUtility.perform_web_search(search_term, topn=topn, bot=bot)
 
     @responses.activate
@@ -3399,7 +3458,8 @@ class TestActions:
         with patch('zenpy.Zenpy'):
             ZendeskAction(
                 name='zendesk_action', bot=bot, user=user, subdomain='digite751', user_name='test@digite.com',
-                api_token=CustomActionRequestParameters(value='ASDFGHJKL'), subject='new user detected', response='Successfully created').save()
+                api_token=CustomActionRequestParameters(value='ASDFGHJKL'), subject='new user detected',
+                response='Successfully created').save()
         action = ActionZendeskTicket(bot, 'zendesk_action').retrieve_config()
         action.pop('_id')
         action.pop('timestamp')
@@ -3440,7 +3500,8 @@ class TestActions:
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
             match=[responses.matchers.json_params_matcher(
-                {'ticket': {'comment': { 'html_body': 'html comment'}, 'subject': 'new ticket', 'description': 'ticket described',
+                {'ticket': {'comment': {'html_body': 'html comment'}, 'subject': 'new ticket',
+                            'description': 'ticket described',
                             'tags': ['kairon', 'bot'], }})]
         )
         ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket',
@@ -3520,18 +3581,21 @@ class TestActions:
             'api_token': {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token',
                           'parameter_type': 'value', 'value': 'ASDFGHJKL'},
             'title': 'new user detected', 'response': 'Lead successfully added', 'bot': 'test_action_server',
-            'user': 'test_user', 'status': True, 'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+            'user': 'test_user', 'status': True,
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
         }
 
     def test_prepare_pipedrive_metadata(self):
         bot = 'test_action_server'
-        slots = {"name": "udit pandey", "organization": "digite", "email": "pandey.udit867@gmail.com", 'phone': '9876543210'}
+        slots = {"name": "udit pandey", "organization": "digite", "email": "pandey.udit867@gmail.com",
+                 'phone': '9876543210'}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=None,
                           followup_action=None, active_loop=None, latest_action_name=None)
         action = ActionPipedriveLeads(bot, 'pipedrive_leads_action').retrieve_config()
         metadata = ActionUtility.prepare_pipedrive_metadata(tracker, action)
-        assert metadata == {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com', 'phone': '9876543210'}
+        assert metadata == {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com',
+                            'phone': '9876543210'}
 
     def test_prepare_message_trail_as_str(self):
         events = [{"event": "bot", 'text': 'hello'}, {"event": "user", "text": "how are you"},
@@ -3546,13 +3610,15 @@ class TestActions:
     def test_validate_pipedrive_credentials_failure(self):
         def __mock_exception(*args, **kwargs):
             raise UnauthorizedError('Invalid authentication', {'error_code': 401})
+
         with patch('pipedrive.client.Client', __mock_exception):
             with pytest.raises(ActionFailure):
                 ActionUtility.validate_pipedrive_credentials('https://digite751.pipedrive.com/', 'ASDFGHJKL')
 
     def test_create_pipedrive_lead(self):
         conversation = 'bot: hello\nuser: how are you\nbot: good\nuser: ok bye\n'
-        metadata = {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com', 'phone': '9876543210'}
+        metadata = {'name': 'udit pandey', 'org_name': 'digite', 'email': 'pandey.udit867@gmail.com',
+                    'phone': '9876543210'}
 
         def __mock_create_organization(*args, **kwargs):
             return {"success": True, "data": {"id": 2}}
@@ -3594,7 +3660,8 @@ class TestActions:
 
         with patch('pipedrive.client.Client._request', __mock_exception):
             with pytest.raises(BadRequestError):
-                ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL', 'new user detected',
+                ActionUtility.create_pipedrive_lead('https://digite751.pipedrive.com/', 'ASDFGHJKL',
+                                                    'new user detected',
                                                     conversation, **metadata)
         with patch('pipedrive.organizations.Organizations.create_organization', __mock_create_organization):
             with patch('pipedrive.persons.Persons.create_person', __mock_create_person):
@@ -3697,8 +3764,10 @@ class TestActions:
         user = 'test_user'
 
         fields = [
-            {'_cls': 'HttpActionRequestBody', 'key': 'email', 'parameter_type': 'slot', 'value': 'email_slot', 'encrypt': False},
-            {'_cls': 'HttpActionRequestBody', 'key': 'firstname', 'parameter_type': 'value', 'value': 'udit', 'encrypt': False}
+            {'_cls': 'HttpActionRequestBody', 'key': 'email', 'parameter_type': 'slot', 'value': 'email_slot',
+             'encrypt': False},
+            {'_cls': 'HttpActionRequestBody', 'key': 'firstname', 'parameter_type': 'value', 'value': 'udit',
+             'encrypt': False}
         ]
         HubspotFormsAction(
             name='hubspot_forms_action', portal_id='asdf45', form_guid='2345678gh', fields=fields, bot=bot, user=user,
@@ -3750,7 +3819,8 @@ class TestActions:
                     {'script': script,
                      'data': data})],
         )
-        with pytest.raises(ActionFailure, match="Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False, 'data': \"['red', 'buggy', 'bumpers']\"}"):
+        with pytest.raises(ActionFailure,
+                           match="Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False, 'data': \"['red', 'buggy', 'bumpers']\"}"):
             ActionUtility.evaluate_script(script, data)
 
     @responses.activate
@@ -3775,13 +3845,15 @@ class TestActions:
 
     def test_prepare_email_text(self):
         custom_text = "The user with 987654321 has message hello."
-        Utility.email_conf['email']['templates']['custom_text_mail'] = open('template/emails/custom_text_mail.html', 'rb').read().decode()
+        Utility.email_conf['email']['templates']['custom_text_mail'] = open('template/emails/custom_text_mail.html',
+                                                                            'rb').read().decode()
         actual = ActionUtility.prepare_email_text(custom_text, "test@kairon.com")
         assert str(actual).__contains__("The user with 987654321 has message hello.")
 
     def test_prepare_email_text_failure(self):
         custom_text = "The user with 987654321 has message bye."
-        Utility.email_conf['email']['templates']['custom_text_mail'] = open('template/emails/custom_text_mail.html', 'rb').read().decode()
+        Utility.email_conf['email']['templates']['custom_text_mail'] = open('template/emails/custom_text_mail.html',
+                                                                            'rb').read().decode()
         actual = ActionUtility.prepare_email_text(custom_text, subject="New user!!", user_email=None)
         assert str(actual).__contains__("The user with 987654321 has message bye.")
         assert not str(actual).__contains__("This email was sent to USER_EMAIL")
@@ -3806,32 +3878,65 @@ class TestActions:
     def test_compose_response_using_script(self):
         script = "bot_response=data['name']"
         response_config = {"value": script, "evaluation_type": "script"}
-        http_response = {'name' : 'Mayank'}
+        http_response = {'name': 'Mayank'}
         responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {'bot_response' : 'Mayank'}, 'error_code': 0},
-            status=200,
-            match=[responses.matchers.json_params_matcher({'source_code': script, 'predefined_objects': http_response})],
-        )
+            "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": "Mayank",
+                    "slots": {"param2": "param2value"}
+                },
+                "statusCode": 200
+            },
+            match=[
+                responses.matchers.json_params_matcher({'source_code': script, 'predefined_objects': http_response})], )
         result, log, _ = ActionUtility.compose_response(response_config, http_response)
         assert result == 'Mayank'
 
-        assert log ==  ['evaluation_type: script', "script: bot_response=data['name']", "data: {'name': 'Mayank'}", 'raise_err_on_failure: True']
+        assert log == ['evaluation_type: script', "script: bot_response=data['name']", "data: {'name': 'Mayank'}",
+                       'raise_err_on_failure: True']
 
     @responses.activate
-    def test_compose_response_using_script_failure(self):
+    def test_compose_response_using_script_failure(self, monkeypatch):
         script = "${a.b.d}"
         response_config = {"value": script, "evaluation_type": "script"}
-        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": False},
-            status=200,
-            match=[responses.matchers.json_params_matcher({'script': script, 'data': http_response})],
-        )
-        with pytest.raises(ActionFailure, match="Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False, 'data': \"['red', 'buggy', 'bumpers']\"}"):
+        http_response = {
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ["red", "buggy", "bumpers"]
+                }
+            }
+        }
+        failure_body = {
+            "success": False,
+            "data": http_response["a"]["b"]["d"]
+        }
+
+        def fake_evaluate_pyscript(passed_script, passed_context):
+            assert passed_script == script
+            assert passed_context == http_response
+            raise ActionFailure(
+                f"Expression evaluation failed: "
+                f"script: {script} || "
+                f"data: {http_response} || "
+                f"raise_err_on_failure: True || "
+                f"response: {failure_body}"
+            )
+
+        monkeypatch.setattr(ActionUtility, "evaluate_pyscript", fake_evaluate_pyscript)
+        with pytest.raises(
+                ActionFailure,
+                match=(
+                        r"Expression evaluation failed: script: \$\{a\.b\.d\} \|\| "
+                        r"data: \{'a': \{'b': \{'3': 2, '43': 30, 'c': \[\], 'd': \['red', 'buggy', 'bumpers'\]\}\}\} \|\| "
+                        r"raise_err_on_failure: True \|\| "
+                        r"response: \{'success': False, 'data': \['red', 'buggy', 'bumpers'\]\}"
+                )
+        ):
             ActionUtility.compose_response(response_config, http_response)
 
     def test_fill_slots_from_response_using_expression(self):
@@ -3882,25 +3987,32 @@ class TestActions:
         set_slots = [{"name": "experience", "value": "bot_response=data['exp']dsds", "evaluation_type": "script"},
                      {"name": "score", "value": "bot_response=data['score']", "evaluation_type": "script"},
                      ]
-        http_response = {"data": {'name' : 'mayank', 'exp': 30, 'score': 10},
+        http_response = {"data": {'name': 'mayank', 'exp': 30, 'score': 10},
                          "context": {}}
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": False},
+            url=Utility.environment['async_callback_action']['pyscript']['url'],
+            json={"success": False, "statusCode": 200},
             status=200,
-            match=[responses.matchers.json_params_matcher({'source_code': "bot_response=data['exp']dsds", 'predefined_objects': http_response})],
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': "bot_response=data['exp']dsds", 'predefined_objects': http_response})],
         )
         responses.add(
             method=responses.POST,
-            url=Utility.environment['evaluator']['pyscript']['url'],
-            json={"success": True, "data": {'bot_response' :10}, 'error_code': 0},
+            url=Utility.environment['async_callback_action']['pyscript']['url'],
+            json={"success": True, "body": {'bot_response': 10}, "statusCode": 200, 'error_code': 0},
             status=200,
-            match=[responses.matchers.json_params_matcher({'source_code': "bot_response=data['score']", 'predefined_objects': http_response})],
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': "bot_response=data['score']", 'predefined_objects': http_response})],
         )
         evaluated_slot_values, response_log, _ = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': None, 'score': 10}
-        assert response_log == ['initiating slot evaluation', 'Slot: experience', "Evaluation error for experience: Pyscript evaluation failed: {'success': False}", 'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script', "script: bot_response=data['score']", "data: {'data': {'name': 'mayank', 'exp': 30, 'score': 10}, 'context': {}}", 'raise_err_on_failure: True']
+        assert response_log == ['initiating slot evaluation', 'Slot: experience',
+                                "Evaluation error for experience: 'NoneType' object has no attribute 'get'",
+                                'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script',
+                                "script: bot_response=data['score']",
+                                "data: {'data': {'name': 'mayank', 'exp': 30, 'score': 10}, 'context': {}}",
+                                'raise_err_on_failure: True']
 
     
     def test_retrieve_config_two_stage_fallback(self):
@@ -3917,7 +4029,8 @@ class TestActions:
         config.pop('user')
         config.pop('timestamp')
         config.pop('status')
-        assert config == {'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, 'use_intent_ranking': False},
+        assert config == {'name': 'kairon_two_stage_fallback',
+                          'text_recommendations': {"count": 3, 'use_intent_ranking': False},
                           'trigger_rules': [{'is_dynamic_msg': False, 'text': 'Trigger', 'payload': 'set_context'},
                                             {'is_dynamic_msg': False, 'text': 'Mail me', 'payload': 'send_mail'}],
                           'fallback_message': "I could not understand you! Did you mean any of the suggestions below?"
@@ -3954,15 +4067,6 @@ class TestActions:
     def test_get_prompt_action_config_2(self):
         bot = "test_bot_action_test"
         user = "test_user_action_test"
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key='value',
-            models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                         'source': 'static', 'is_enabled': True},
                        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
@@ -3983,21 +4087,22 @@ class TestActions:
                                        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                                            'top_p': 0.0, 'n': 1, 'stop': None,
                                                            'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                                           'logit_bias': {}}, 'dispatch_response': True, 'set_slots': [],
+                                                           'logit_bias': {}}, 'dispatch_response': True,
+                                       'set_slots': [],
                                        'llm_type': 'openai',
-                                       'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                                        'type': 'system', 'source': 'static', 'is_enabled': True},
-                                                       {'name': 'History Prompt', 'type': 'user',
-                                                        'source': 'history', 'is_enabled': True},
-                                                       {'name': 'Similarity Prompt',
-                                                        'hyperparameters': {'top_results': 30,
-                                                                            'similarity_threshold': 0.3},
-                                                        'data': 'default',
-                                                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
+                                       'llm_prompts': [
+                                           {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                            'type': 'system', 'source': 'static', 'is_enabled': True},
+                                           {'name': 'History Prompt', 'type': 'user',
+                                            'source': 'history', 'is_enabled': True},
+                                           {'name': 'Similarity Prompt',
+                                            'hyperparameters': {'top_results': 30,
+                                                                'similarity_threshold': 0.3},
+                                            'data': 'default',
+                                            'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                            'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
                                        'instructions': [],
                                        'status': True}
-        LLMSecret.objects.delete()
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):
@@ -4008,7 +4113,7 @@ class TestActions:
         bot = "5f50fd0a56b698ca10d35d2e"
         user = 'test_user'
         action = GoogleSearchAction(name=action_name, api_key=CustomActionRequestParameters(value='1234567890'),
-                           search_engine_id='asdfg::123456', failure_response="", bot=bot, user=user)
+                                    search_engine_id='asdfg::123456', failure_response="", bot=bot, user=user)
         action.save()
         assert getattr(action, "failure_response") == 'I have failed to process your request.'
 
@@ -4030,7 +4135,8 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
         assert bot_responses == [{'role': 'user', 'content': 'Kairon pricing'},
-                                 {'role': 'assistant', 'content': "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information."}]
+                                 {'role': 'assistant',
+                                  'content': "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information."}]
 
     def test_if_last_n_is_less_than_or_equal_to_zero(self):
         events = Utility.read_yaml("tests/testing_data/history/bot_user_tracker_events.json")
@@ -4041,15 +4147,21 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
         assert bot_responses == [{'role': 'user', 'content': 'How can I use it?'},
-                                 {'role': 'assistant', 'content': 'It depends on what "it" refers to. Can you please provide more context or specify what you are referring to?'},
+                                 {'role': 'assistant',
+                                  'content': 'It depends on what "it" refers to. Can you please provide more context or specify what you are referring to?'},
                                  {'role': 'user', 'content': 'How can I use kairon?'},
-                                 {'role': 'assistant', 'content': "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."},
+                                 {'role': 'assistant',
+                                  'content': "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."},
                                  {'role': 'user', 'content': 'Is there any example for how can I use it?'},
-                                 {'role': 'assistant', 'content': 'Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world.'},
-                                 {'role': 'user', 'content': 'I am interested in Kairon and want to know what features it offers'},
-                                 {'role': 'assistant', 'content': 'Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more.'},
+                                 {'role': 'assistant',
+                                  'content': 'Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world.'},
+                                 {'role': 'user',
+                                  'content': 'I am interested in Kairon and want to know what features it offers'},
+                                 {'role': 'assistant',
+                                  'content': 'Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more.'},
                                  {'role': 'user', 'content': 'What is kairon simply?'},
-                                 {'role': 'assistant', 'content': 'Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise.'}
+                                 {'role': 'assistant',
+                                  'content': 'Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise.'}
                                  ]
 
     def test_prepare_bot_responses_messages_pop(self):
@@ -4076,7 +4188,6 @@ class TestActions:
                                              'feedback, analyzing customer data, and much more.'},
             {'role': 'user', 'content': 'I am interested in Kairon and want to know what features it offers'}
         ]
-
 
 
 def test_format_custom_bot_reply_indirect():

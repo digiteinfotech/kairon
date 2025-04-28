@@ -10,6 +10,7 @@ import pytest
 import requests
 import responses
 from mongoengine import connect
+from orjson import orjson
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
@@ -20,7 +21,6 @@ from kairon.shared.constants import ActorType
 from kairon.shared.concurrency.actors.utils import PyscriptUtility
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.utils import Utility
-
 
 
 class TestActors:
@@ -222,7 +222,7 @@ class TestActors:
             }
             sender_id = "919876543210"
             resp = get_db_action_data("retrieve_pop_content", sender_id, payload)
-    
+
             bot_response = resp
             """
         script = textwrap.dedent(source_code)
@@ -279,7 +279,8 @@ class TestActors:
         script = textwrap.dedent(script)
 
         with pytest.raises(AppException, match="Operation timed out: 1 seconds"):
-            ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script, predefined_objects={"time": time}, timeout=1)
+            ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script, predefined_objects={"time": time},
+                                  timeout=1)
 
     def test_actor_pyrunner_with_interpreter_error(self):
         script = """
@@ -287,7 +288,8 @@ class TestActors:
             """
         script = textwrap.dedent(script)
 
-        with pytest.raises(AppException, match=re.escape('Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)')):
+        with pytest.raises(AppException, match=re.escape(
+                'Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)')):
             ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script,
                                   predefined_objects={"slot": {}}, timeout=10)
 
@@ -376,9 +378,8 @@ def test_get_embedding():
     mock_embedding_result = {"data": [{"embedding": [0.1, 0.2, 0.3]}]}
 
     with patch("tiktoken.get_encoding") as mock_get_encoding, \
-         patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}) as mock_get_llm_secret, \
-         patch("litellm.embedding", return_value=mock_embedding_result) as mock_litellm:
-
+            patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}) as mock_get_llm_secret, \
+            patch("litellm.embedding", return_value=mock_embedding_result) as mock_litellm:
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.return_value = [1, 2, 3]
         mock_tokenizer.decode.return_value = texts[0]
@@ -425,8 +426,7 @@ def test_perform_operation_embedding_search():
     kwargs = {"collection_name": "test_collection"}
 
     with patch.object(PyscriptUtility, "get_embedding", return_value=mock_embedding) as mock_get_embedding, \
-         patch("requests.post") as mock_post:
-
+            patch("requests.post") as mock_post:
         mock_post.return_value.json.return_value = mock_response_data
 
         # Directly pass the URL instead of using Utility.environment
@@ -439,9 +439,11 @@ def test_perform_operation_embedding_search():
             "limit": 10
         }
 
-        mock_get_embedding.assert_called_once_with('test query', 'test_user', invocation='db_action_qdrant', vector_db_url=mock_vector_db_url)
+        mock_get_embedding.assert_called_once_with('test query', 'test_user', invocation='db_action_qdrant',
+                                                   vector_db_url=mock_vector_db_url)
         mock_post.assert_called_once_with(expected_url, json=expected_request)
         assert result == mock_response_data
+
 
 def test_perform_operation_payload_search():
     mock_vector_db_url = 'http://localhost:6333'
@@ -467,6 +469,7 @@ def test_perform_operation_payload_search():
         mock_post.assert_called_once_with(expected_url, json=expected_request)
         assert result == mock_response_data
 
+
 def test_perform_operation_no_operation():
     data = {}  # No valid search parameters
     user = "test_user"
@@ -475,6 +478,7 @@ def test_perform_operation_no_operation():
     with pytest.raises(Exception) as context:
         PyscriptUtility.perform_operation(data, user, **kwargs)
     assert str(context.value) == "No Operation to perform"
+
 
 def test_get_db_action_data():
     action_name = "test_action"
@@ -489,9 +493,9 @@ def test_get_db_action_data():
     }
 
     with patch.object(DatabaseAction, "objects") as mock_objects, \
-         patch.object(PyscriptUtility, "get_payload", return_value=payload_dict) as mock_get_payload, \
-         patch.object(PyscriptUtility, "perform_operation", return_value=mock_response_data) as mock_perform_operation:
-
+            patch.object(PyscriptUtility, "get_payload", return_value=payload_dict) as mock_get_payload, \
+            patch.object(PyscriptUtility, "perform_operation",
+                         return_value=mock_response_data) as mock_perform_operation:
         mock_db_action = MagicMock()
         mock_db_action.get.return_value.to_mongo.return_value.to_dict.return_value = mock_db_action_config
         mock_objects.return_value = mock_db_action
@@ -539,7 +543,9 @@ def get_dummy_objects(http_action_config_mock):
     class DummyObjects:
         def get(self, *args, **kwargs):
             return http_action_config_mock
+
     return DummyObjects()
+
 
 def test_api_call_success(monkeypatch):
     bot = "test_bot"
@@ -620,7 +626,8 @@ def test_api_call_no_headers(monkeypatch):
 
     # Provide alternate headers since none were passed
     prepared_headers = {"Authorization": "Bearer generated-token"}
-    monkeypatch.setattr(ActionUtility, "prepare_request", lambda predefined_objects, headers_config, bot: prepared_headers)
+    monkeypatch.setattr(ActionUtility, "prepare_request",
+                        lambda predefined_objects, headers_config, bot: prepared_headers)
 
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -631,6 +638,7 @@ def test_api_call_no_headers(monkeypatch):
     response = PyscriptUtility.api_call(action_name, user, payload, headers, bot, predefined_objects)
     assert response == {"success": True}
 
+
 @pytest.fixture
 def predefined_objects():
     return {
@@ -640,6 +648,7 @@ def predefined_objects():
             "entities": [{"entity": "kairon_user_msg", "value": "extracted_value"}]
         }
     }
+
 
 def test_get_payload_success(predefined_objects):
     payload = [
@@ -658,6 +667,7 @@ def test_get_payload_success(predefined_objects):
 
     assert result == expected_result
 
+
 def test_get_payload_empty_slot(predefined_objects):
     payload = [{"type": "from_slot", "value": "non_existent_key", "query_type": "payload_search"}]
 
@@ -667,6 +677,7 @@ def test_get_payload_empty_slot(predefined_objects):
         result = PyscriptUtility.get_payload(payload, predefined_objects)
 
     assert result == expected_result
+
 
 def test_get_payload_empty_user_message(predefined_objects):
     predefined_objects["latest_message"]["text"] = ""
@@ -680,6 +691,7 @@ def test_get_payload_empty_user_message(predefined_objects):
 
     assert result == expected_result
 
+
 def test_get_payload_with_json_parsing_error(predefined_objects):
     predefined_objects["slot"]["invalid_json"] = "{invalid_json}"
 
@@ -688,6 +700,7 @@ def test_get_payload_with_json_parsing_error(predefined_objects):
     with patch.object(ActionUtility, "is_empty", return_value=False):
         with pytest.raises(Exception, match=r"Error converting payload to JSON: {invalid_json}"):
             PyscriptUtility.get_payload(payload, predefined_objects)
+
 
 def test_get_payload_user_message_with_command(predefined_objects):
     payload = [{"type": "from_user_message", "value": "ignored", "query_type": "embedding_search"}]
@@ -698,6 +711,7 @@ def test_get_payload_user_message_with_command(predefined_objects):
         result = PyscriptUtility.get_payload(payload, predefined_objects)
 
     assert result == expected_result
+
 
 def test_get_payload_without_kairon_user_msg(predefined_objects):
     predefined_objects["latest_message"]["entities"] = []  # No kairon_user_msg entity
@@ -711,6 +725,7 @@ def test_get_payload_without_kairon_user_msg(predefined_objects):
 
     assert result == expected_result
 
+
 def test_get_payload_multiple_embedding_search(predefined_objects):
     payload = [
         {"type": "static", "value": "value1", "query_type": "embedding_search"},
@@ -722,3 +737,21 @@ def test_get_payload_multiple_embedding_search(predefined_objects):
     result = PyscriptUtility.get_payload(payload, predefined_objects)
 
     assert result == expected_result
+
+
+def test_send_waba_message_success():
+    payload = {"to": "12345", "type": "text", "text": {"body": "hello"}}
+    api_key = "test_api_key"
+    bot_id = "bot123"
+    predefined = {"some": "object"}
+    fake_response = MagicMock()
+    fake_response.json = {"messages": [{"id": "abc123"}]}
+    with patch("kairon.shared.concurrency.actors.utils.requests.post", return_value=fake_response) as mock_post:
+        result = PyscriptUtility.send_waba_message(payload, api_key, bot_id, predefined)
+        assert result == {"messages": [{"id": "abc123"}]}
+
+        mock_post.assert_called_once_with(
+            url="https://waba-v2.360dialog.io/messages",
+            headers={"D360-API-KEY": api_key, "Content-TYpe": "application/json"},
+            data=orjson.dumps(payload)
+        )

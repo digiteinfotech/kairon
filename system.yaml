@@ -264,6 +264,7 @@ async_callback_action:
     aes_iv: ${ASYNC_CALLBACK_AES_IV:"2f7b56a2c3e4d5f681d8ab92bc9d8f47"}
   pyscript:
     trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
+    url: ${TRIGGER_MAIN_PYSCRIPT_URL:"http://localhost:5059/main_pyscript/execute-python"}
 
 broadcast:
   whatsapp_broadcast_rate_per_second: ${WHATSAPP_BROADCAST_RATE_PER_SECOND:20}
