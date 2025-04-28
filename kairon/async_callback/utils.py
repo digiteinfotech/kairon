@@ -15,7 +15,7 @@ from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
 
 
-from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUility
+from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
 from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 
 allow_module("datetime")
@@ -63,22 +63,22 @@ class CallbackUtility:
         predefined_objects['requests']=requests
         predefined_objects['json'] = json
         predefined_objects['datetime']= datetime
-        predefined_objects['add_schedule_job'] = partial(CallbackScriptUility.add_schedule_job, bot=bot)
+        predefined_objects['add_schedule_job'] = partial(CallbackScriptUtility.add_schedule_job, bot=bot)
         predefined_objects['delete_schedule_job'] = partial(PyscriptSharedUtility.delete_schedule_job, bot=bot)
-        predefined_objects['send_email'] = partial(CallbackScriptUility.send_email, bot=bot)
+        predefined_objects['send_email'] = partial(CallbackScriptUtility.send_email, bot=bot)
         predefined_objects['add_data'] = partial(PyscriptSharedUtility.add_data, bot=bot)
         predefined_objects['get_data'] = partial(PyscriptSharedUtility.get_data, bot=bot)
         predefined_objects['delete_data'] = partial(PyscriptSharedUtility.delete_data, bot=bot)
         predefined_objects['update_data'] = partial(PyscriptSharedUtility.update_data, bot=bot)
-        predefined_objects["generate_id"] = CallbackScriptUility.generate_id
-        predefined_objects["datetime_to_utc_timestamp"]=CallbackScriptUility.datetime_to_utc_timestamp
-        predefined_objects['decrypt_request'] = CallbackScriptUility.decrypt_request
-        predefined_objects['encrypt_response'] = CallbackScriptUility.encrypt_response
-        predefined_objects['create_callback'] = partial(CallbackScriptUility.create_callback,
+        predefined_objects["generate_id"] = CallbackScriptUtility.generate_id
+        predefined_objects["datetime_to_utc_timestamp"]=CallbackScriptUtility.datetime_to_utc_timestamp
+        predefined_objects['decrypt_request'] = CallbackScriptUtility.decrypt_request
+        predefined_objects['encrypt_response'] = CallbackScriptUtility.encrypt_response
+        predefined_objects['create_callback'] = partial(CallbackScriptUtility.create_callback,
                                                             bot=bot,
                                                             sender_id=sender_id,
                                                            channel=channel)
-        predefined_objects['save_as_pdf'] = partial(CallbackScriptUility.save_as_pdf,
+        predefined_objects['save_as_pdf'] = partial(CallbackScriptUtility.save_as_pdf,
                                                             bot=bot, sender_id=sender_id)
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
@@ -93,7 +93,7 @@ class CallbackUtility:
             "statusDescription": "200 OK",
             "isBase64Encoded": False,
             "headers": {
-                "Content-Type": "text/html; charset=utf-8"
+                "Content-Type": "application/json; charset=utf-8"
             },
             "body": None
         }
@@ -133,7 +133,7 @@ class CallbackUtility:
             "statusDescription": "200 OK",
             "isBase64Encoded": False,
             "headers": {
-                "Content-Type": "text/html; charset=utf-8"
+                "Content-Type": "application/json; charset=utf-8"
             },
             "body": None
         }

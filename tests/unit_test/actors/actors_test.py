@@ -10,6 +10,7 @@ import pytest
 import requests
 import responses
 from mongoengine import connect
+from orjson import orjson
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
@@ -722,3 +723,20 @@ def test_get_payload_multiple_embedding_search(predefined_objects):
     result = PyscriptUtility.get_payload(payload, predefined_objects)
 
     assert result == expected_result
+
+def test_send_waba_message_success():
+    payload = {"to": "12345", "type": "text", "text": {"body": "hello"}}
+    api_key = "test_api_key"
+    bot_id = "bot123"
+    predefined = {"some": "object"}
+    fake_response = MagicMock()
+    fake_response.json = {"messages": [{"id": "abc123"}]}
+    with patch("kairon.shared.concurrency.actors.utils.requests.post", return_value=fake_response) as mock_post:
+        result = PyscriptUtility.send_waba_message(payload, api_key, bot_id, predefined)
+        assert result == {"messages": [{"id": "abc123"}]}
+
+        mock_post.assert_called_once_with(
+            url="https://waba-v2.360dialog.io/messages",
+            headers={"D360-API-KEY": api_key, "Content-TYpe": "application/json"},
+            data=orjson.dumps(payload)
+        )

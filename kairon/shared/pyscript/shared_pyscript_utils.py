@@ -10,8 +10,10 @@ cognition_processor = CognitionDataProcessor()
 
 class PyscriptSharedUtility:
 
+    @staticmethod
     def fetch_collection_data(query: dict):
-        collection_data = CollectionData.objects(**query)
+
+        collection_data = CollectionData.objects(__raw__= query)
 
         for value in collection_data:
             final_data = {}
@@ -35,10 +37,11 @@ class PyscriptSharedUtility:
             raise Exception("Missing bot id")
 
         collection_name = collection_name.lower()
-
         query = {"bot": bot, "collection_name": collection_name}
-
-        query.update({f"data__{key}": value for key, value in data_filter.items()})
+        if data_filter.get("raw_query"):
+            query.update(data_filter.get("raw_query"))
+        else:
+            query.update({f"data.{key}": value for key, value in data_filter.items()})
         data = list(PyscriptSharedUtility.fetch_collection_data(query))
         return {"data": data}
 

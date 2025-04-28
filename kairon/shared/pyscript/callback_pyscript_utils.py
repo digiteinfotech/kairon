@@ -30,7 +30,7 @@ import json as jsond
 from kairon.shared.chat.user_media import UserMedia
 
 
-class CallbackScriptUility:
+class CallbackScriptUtility:
 
     @staticmethod
     def generate_id():
@@ -108,7 +108,7 @@ class CallbackScriptUility:
 
         job_store_name.insert_one({
             '_id': _id,
-            'next_run_time': CallbackScriptUility.datetime_to_utc_timestamp(next_run_time),
+            'next_run_time': CallbackScriptUtility.datetime_to_utc_timestamp(next_run_time),
             'job_state': Binary(pickle.dumps(job_kwargs, pickle.HIGHEST_PROTOCOL))
         })
 
@@ -150,20 +150,33 @@ class CallbackScriptUility:
             :param content_type: "plain" or "html" content
             :return: None
             """
-            smtp = SMTP(smtp_url, port=smtp_port, timeout=10)
-            smtp.connect(smtp_url, smtp_port)
-            if tls:
-                smtp.starttls()
-            smtp.login(smtp_userid if smtp_userid else sender_email, smtp_password)
-            from_addr = sender_email
-            body = MIMEText(body, content_type)
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = from_addr
-            msg["To"] = ",".join(email)
-            msg.attach(body)
-            smtp.sendmail(from_addr, email, msg.as_string())
-            smtp.quit()
+            smtp = None
+            try:
+                smtp = SMTP(smtp_url, port=smtp_port, timeout=10)
+                smtp.connect(smtp_url, smtp_port)
+                if tls:
+                    smtp.starttls()
+                smtp.login(smtp_userid if smtp_userid else sender_email, smtp_password)
+
+                from_addr = sender_email
+                mime_body = MIMEText(body, content_type)
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = subject
+                msg["From"] = from_addr
+                msg["To"] = ",".join(email)
+                msg.attach(mime_body)
+
+                smtp.sendmail(from_addr, email, msg.as_string())
+
+            except Exception as e:
+                print(f"Failed to send email: {e}")
+                raise
+            finally:
+                if smtp:
+                    try:
+                        smtp.quit()
+                    except Exception as quit_error:
+                        print(f"Failed to quit SMTP connection cleanly: {quit_error}")
 
 
     @staticmethod
@@ -177,12 +190,14 @@ class CallbackScriptUility:
             raise AppException("Missing bot id")
 
         email_action_config = EmailActionConfig.objects(bot=bot, action_name=email_action).first()
+        if not email_action_config:
+            raise AppException(f"Email action '{email_action}' not configured for bot {bot}")
         action_config = email_action_config.to_mongo().to_dict()
 
         smtp_password = action_config.get('smtp_password').get("value")
         smtp_userid = action_config.get('smtp_userid').get("value")
 
-        CallbackScriptUility.trigger_email(
+        CallbackScriptUtility.trigger_email(
             email=[to_email],
             subject=subject,
             body=body,

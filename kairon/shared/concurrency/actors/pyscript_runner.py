@@ -55,6 +55,8 @@ class PyScriptRunner(BaseActor):
                                                     predefined_objects=predefined_objects)
         global_safe['api_call'] = partial(PyscriptUtility.api_call, bot=bot,
                                           predefined_objects=predefined_objects)
+        global_safe['send_waba_message'] = partial(PyscriptUtility.send_waba_message, bot=bot,
+                                          predefined_objects=predefined_objects)
 
         @timeout_decorator.timeout(script_timeout, use_signals=False)
         def execute_script_with_timeout(src_code: Text, global_safe:Optional[Dict], local: Optional[Dict] = None):

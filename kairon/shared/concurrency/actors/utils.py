@@ -7,6 +7,7 @@ from urllib import parse
 import litellm
 import requests
 from loguru import logger
+from orjson import orjson
 from tiktoken import get_encoding
 from urllib.parse import urljoin
 
@@ -171,3 +172,9 @@ class PyscriptUtility:
             logger.info(response)
         print(http_response)
         return response
+
+    @staticmethod
+    def send_waba_message(payload: dict, key: Text, bot: str, predefined_objects: dict):
+        waba_url = "https://waba-v2.360dialog.io/messages"
+        headers = {"D360-API-KEY": key, "Content-TYpe": "application/json"}
+        return requests.post(url=waba_url, headers=headers, data=orjson.dumps(payload)).json

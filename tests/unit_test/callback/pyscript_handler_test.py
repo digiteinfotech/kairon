@@ -19,7 +19,7 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
-from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUility
+from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
 from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 
 
@@ -363,7 +363,7 @@ def test_lambda_handler_for_send_email_without_bot(mock_smtp):
     }
 
 @responses.activate
-@patch("kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUility.add_schedule_job", autospec=True)
+@patch("kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.add_schedule_job", autospec=True)
 @patch("kairon.shared.pyscript.callback_pyscript_utils.uuid7")
 @patch("pymongo.collection.Collection.insert_one", autospec=True)
 def test_lambda_handler_with_add_schedule_job(
@@ -1081,8 +1081,8 @@ def test_pyscript_handler_for_get_data_after_delete():
 
 
 def test_generate_id():
-    uuid1 = CallbackScriptUility.generate_id()
-    uuid2 = CallbackScriptUility.generate_id()
+    uuid1 = CallbackScriptUtility.generate_id()
+    uuid2 = CallbackScriptUtility.generate_id()
 
     assert isinstance(uuid1, str)
     assert isinstance(uuid2, str)
@@ -1095,11 +1095,11 @@ def test_datetime_to_utc_timestamp():
     dt = datetime(2024, 3, 27, 12, 30, 45, 123456, tzinfo=timezone.utc)
     expected_timestamp = timegm(dt.utctimetuple()) + dt.microsecond / 1000000
 
-    assert CallbackScriptUility.datetime_to_utc_timestamp(dt) == expected_timestamp
+    assert CallbackScriptUtility.datetime_to_utc_timestamp(dt) == expected_timestamp
 
 
 def test_datetime_to_utc_timestamp_none():
-    assert CallbackScriptUility.datetime_to_utc_timestamp(None) is None
+    assert CallbackScriptUtility.datetime_to_utc_timestamp(None) is None
 
 
 def test_get_data_missing_bot():
@@ -1295,8 +1295,8 @@ def test_send_email_direct():
     }
     with patch.object(EmailActionConfig, "objects",
                       return_value=MagicMock(first=MagicMock(return_value=mock_email_config))) as mock_objects, \
-            patch.object(CallbackScriptUility, "trigger_email") as mock_trigger_email:
-        CallbackScriptUility.send_email(
+            patch.object(CallbackScriptUtility, "trigger_email") as mock_trigger_email:
+        CallbackScriptUtility.send_email(
             email_action="send_mail",
             from_email="from@example.com",
             to_email="to@example.com",
@@ -1320,7 +1320,7 @@ def test_send_email_direct():
 
 def test_send_email_missing_bot_direct():
     with pytest.raises(Exception, match="Missing bot id"):
-        CallbackScriptUility.send_email(
+        CallbackScriptUtility.send_email(
             email_action="send_mail",
             from_email="from@example.com",
             to_email="to@example.com",
@@ -1373,7 +1373,7 @@ class DummyMongoClient:
 
 def test_add_schedule_job_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
-        CallbackScriptUility.add_schedule_job(
+        CallbackScriptUtility.add_schedule_job(
             schedule_action="test_action",
             date_time=datetime.now(timezone.utc),
             data={},
@@ -1422,10 +1422,10 @@ def test_add_schedule_job_http_failure(monkeypatch):
     monkeypatch.setattr(ActionUtility, "execute_http_request",
                         lambda url, method: {"success": False, "error": "error message"})
 
-    monkeypatch.setattr(CallbackScriptUility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
+    monkeypatch.setattr(CallbackScriptUtility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
 
     with pytest.raises(Exception) as exc_info:
-        CallbackScriptUility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
+        CallbackScriptUtility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
     assert "error message" in str(exc_info.value)
 
 import kairon.shared.pyscript.callback_pyscript_utils as mod
@@ -1476,9 +1476,9 @@ def test_add_schedule_job_success(monkeypatch):
 
     monkeypatch.setattr(ActionUtility, "execute_http_request", lambda url, method: {"success": True})
 
-    monkeypatch.setattr(CallbackScriptUility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
+    monkeypatch.setattr(CallbackScriptUtility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
 
-    result = CallbackScriptUility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
+    result = CallbackScriptUtility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
 
     inserted_doc = dummy_collection.inserted
     assert inserted_doc is not None
@@ -1805,7 +1805,7 @@ def test_pyscript_handler_create_callback():
         "channel": "test_channel",
         "metadata": {}
     }
-    url = CallbackScriptUility.create_callback(**data)
+    url = CallbackScriptUtility.create_callback(**data)
     assert "/callback/d" in url
     assert "/auth_token" in url
 
@@ -1822,7 +1822,7 @@ def test_pyscript_handler_create_callback_standalone():
         "channel": "test_channel",
         "metadata": {}
     }
-    identifier = CallbackScriptUility.create_callback(**data)
+    identifier = CallbackScriptUtility.create_callback(**data)
     assert bool(re.fullmatch(r"[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}", identifier, re.IGNORECASE))
     assert len(identifier) == 32
     assert not "/callback/d" in identifier
@@ -1902,7 +1902,7 @@ def test_trigger_email():
         smtp_userid = None
         tls = False
 
-        CallbackScriptUility.trigger_email(
+        CallbackScriptUtility.trigger_email(
             [to_email],
             subject,
             body,
@@ -1961,7 +1961,7 @@ def test_trigger_email_tls():
         smtp_userid = None
         tls = True
 
-        CallbackScriptUility.trigger_email(
+        CallbackScriptUtility.trigger_email(
             [to_email],
             subject,
             body,
@@ -2017,7 +2017,7 @@ def test_trigger_email_using_smtp_userid():
         smtp_userid = "test_user"
         tls = True
 
-        CallbackScriptUility.trigger_email(
+        CallbackScriptUtility.trigger_email(
             [to_email],
             subject,
             body,
