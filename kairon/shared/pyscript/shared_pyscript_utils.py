@@ -26,18 +26,25 @@ class PyscriptSharedUtility:
             final_data["_id"] = str(item["_id"])
             final_data['collection_name'] = collection_name
             final_data['is_secure'] = is_secure
+            final_data['timestamp'] = item.get("timestamp")
             final_data['data'] = data
 
             yield final_data
 
 
     @staticmethod
-    def get_data(collection_name: str, user: str, data_filter: dict, bot: Text = None):
+    def get_data(collection_name: str, user: str, data_filter: dict, bot: Text = None,kwargs=None):
         if not bot:
             raise Exception("Missing bot id")
 
         collection_name = collection_name.lower()
         query = {"bot": bot, "collection_name": collection_name}
+        start_time = kwargs.pop("start_time", None) if kwargs else None
+        end_time = kwargs.pop("end_time", None) if kwargs else None
+        if start_time:
+            query["timestamp__gte"] = start_time
+        if end_time:
+            query["timestamp__lte"] = end_time
         if data_filter.get("raw_query"):
             query.update(data_filter.get("raw_query"))
         else:
