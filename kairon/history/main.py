@@ -35,6 +35,7 @@ csp = (
         .connect_src("'self'" "api.spam.com")
         .frame_src("'self'")
         .img_src("'self'", "static.spam.com")
+        .worker_src("'self'", "blob:")
 )
 cache_value = CacheControl().must_revalidate()
 content = XContentTypeOptions()
