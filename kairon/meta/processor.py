@@ -1,12 +1,9 @@
 import asyncio
 import json
 from typing import Text, List
-from urllib.parse import urljoin
 from loguru import logger
 import requests
-from kairon import Utility
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
-from kairon.shared.rest_client import AioRestClient
 from urllib.parse import quote
 
 

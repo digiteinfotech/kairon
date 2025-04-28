@@ -1797,7 +1797,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {
@@ -1846,7 +1846,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1854,12 +1854,12 @@ class TestMongoProcessor:
         assert validation_summary == {}
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
 
-    def test_validate_data_field_update_success(self):
+    def test_validate_data_item_toggle_success(self):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = "field_update"
+        sync_type = "item_toggle"
 
         metadata = [
             {
@@ -1940,7 +1940,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1949,20 +1949,20 @@ class TestMongoProcessor:
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
 
-    def test_validate_data_event_type_does_not_exist(self):
+    def test_validate_data_sync_type_does_not_exist(self):
         bot = 'test_bot'
         collection_name = 'groceries'
         primary_key_col = "id"
         data = [{"id": 1, "item": "Juice", "price": 2.50, "quantity": 10}]
-        event_type = 'non_existent_event_type'
+        sync_type = 'non_existent_sync_type'
 
         processor = CognitionDataProcessor()
 
-        with pytest.raises(AppException, match=f"Event type does not exist"):
+        with pytest.raises(AppException, match=f"Sync type does not exist"):
             processor.validate_data(
                 primary_key_col=primary_key_col,
                 collection_name=collection_name,
-                event_type=event_type,
+                sync_type=sync_type,
                 data=data,
                 bot=bot
             )
@@ -1972,7 +1972,7 @@ class TestMongoProcessor:
         collection_name = 'nonexistent_collection'
         primary_key_col = "id"
         data = [{"id": 1, "item": "Juice", "price": 2.50, "quantity": 10}]
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         processor = CognitionDataProcessor()
 
@@ -1980,7 +1980,7 @@ class TestMongoProcessor:
             processor.validate_data(
                 primary_key_col=primary_key_col,
                 collection_name=collection_name,
-                event_type=event_type,
+                sync_type=sync_type,
                 data=data,
                 bot=bot
             )
@@ -1990,7 +1990,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2020,7 +2020,7 @@ class TestMongoProcessor:
                 primary_key_col=primary_key_col,
                 collection_name=collection_name,
                 data=data,
-                event_type=event_type,
+                sync_type=sync_type,
                 bot=bot
             )
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
@@ -2030,7 +2030,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2057,7 +2057,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -2072,7 +2072,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2099,7 +2099,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -2114,7 +2114,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'field_update'
+        sync_type = 'item_toggle'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2157,7 +2157,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -2179,7 +2179,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = 'id'
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2241,7 +2241,7 @@ class TestMongoProcessor:
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=upsert_data,
             bot=bot,
             user=user
@@ -2273,14 +2273,14 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
     @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_field_update_success(self, mock_embedding, mock_collection_upsert,
+    async def test_upsert_data_item_toggle_success(self, mock_embedding, mock_collection_upsert,
                                                     mock_create_collection,
                                                     mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = 'id'
-        event_type = 'field_update'
+        sync_type = 'item_toggle'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2358,7 +2358,7 @@ class TestMongoProcessor:
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=upsert_data,
             bot=bot,
             user=user
@@ -2396,7 +2396,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = 'id'
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2454,7 +2454,7 @@ class TestMongoProcessor:
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=upsert_data,
             bot=bot,
             user=user
@@ -2679,16 +2679,16 @@ class TestMongoProcessor:
         with pytest.raises(ValueError, match="Unsupported data type: unknown"):
             CognitionDataProcessor.get_pydantic_type('unknown')
 
-    def test_validate_event_type_valid(self):
+    def test_validate_sync_type_valid(self):
         processor = CognitionDataProcessor()
-        valid_event_type = list(VaultSyncType.__members__.keys())[0]
-        processor._validate_sync_type(valid_event_type)
+        valid_sync_type = list(VaultSyncType.__members__.keys())[0]
+        processor._validate_sync_type(valid_sync_type)
 
-    def test_validate_event_type_invalid(self):
+    def test_validate_sync_type_invalid(self):
         processor = CognitionDataProcessor()
-        invalid_event_type = "invalid_event"
-        with pytest.raises(AppException, match="Event type does not exist"):
-            processor._validate_sync_type(invalid_event_type)
+        invalid_sync_type = "invalid_event"
+        with pytest.raises(AppException, match="Sync type does not exist"):
+            processor._validate_sync_type(invalid_sync_type)
 
     def test_validate_collection_exists_valid(self):
         bot = 'test_bot'
