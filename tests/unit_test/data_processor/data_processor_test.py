@@ -3516,6 +3516,97 @@ class TestMongoProcessor:
             }
         ]
 
+    def test_get_collection_data_with_timestamp(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        timestamp = datetime.utcnow()
+
+        processor = CognitionDataProcessor()
+
+        request_body_1 = {
+            "collection_name": "user",
+            "is_secure": [
+                "aadhar",
+                "pan"
+            ],
+            "data": {
+                "name": "User1",
+                "age": 24,
+                "mobile_number": "9876543210",
+                "location": "Bangalore",
+                "aadhar": "1234",
+                "pan": "ABCD123"
+            },
+        }
+
+        request_body_2 = {
+            "collection_name": "user",
+            "is_secure": [
+                "aadhar",
+                "pan"
+            ],
+            "data": {
+                "name": "User2",
+                "age": 24,
+                "mobile_number": "9876543211",
+                "location": "Mumbai",
+                "aadhar": "1234",
+                "pan": "ABCD123"
+            },
+        }
+
+        processor.save_collection_data(request_body_1, user, bot)
+        processor.save_collection_data(request_body_2, user, bot)
+
+        response = list(processor.get_collection_data_with_timestamp(
+            bot,
+            collection_name="user",
+            start_time=timestamp,
+            end_time=datetime.utcnow(),
+            data_filter={"name": "User1"}
+        ))
+        for coll in response:
+            coll.pop("_id")
+        assert response == [
+            {
+                'collection_name': 'user',
+                'is_secure': ["aadhar",
+                              "pan"
+                              ],
+                'data': {
+                    "name": "User1",
+                    "age": 24,
+                    "mobile_number": "9876543210",
+                    "location": "Bangalore",
+                    "aadhar": "1234",
+                    "pan": "ABCD123"
+                }
+            }
+        ]
+
+        response = list(processor.get_collection_data_with_timestamp(
+            bot,
+            collection_name="user",
+            start_time=datetime.utcnow(),
+            end_time="2027-08-06T00:00:00+00:00",
+            data_filter={"name": "User2"}
+        ))
+        for coll in response:
+            coll.pop("_id")
+        assert response == []
+
+        response = list(processor.get_collection_data_with_timestamp(
+            bot,
+            collection_name="user",
+            start_time=timestamp,
+            end_time=datetime.utcnow(),
+            data_filter={"name": "User3"}
+        ))
+        for coll in response:
+            coll.pop("_id")
+        assert response == []
+
+
     def test_add_pyscript_action_empty_name(self):
         bot = 'test_bot'
         user = 'test_user'
