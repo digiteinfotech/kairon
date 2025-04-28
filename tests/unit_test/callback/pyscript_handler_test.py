@@ -2059,6 +2059,97 @@ def test_trigger_email_using_smtp_userid():
         assert str(args[2]).__contains__(subject)
         assert str(args[2]).__contains__(body)
 
+@pytest.fixture
+def smtp_config():
+    cfg = MagicMock()
+    cfg.to_mongo.return_value.to_dict.return_value = {
+        "smtp_url": "smtp.gmail.com",
+        "smtp_port": 587,
+        "tls": True,
+        "smtp_userid": {"value": "user@example.com"},
+        "smtp_password": {"value": "password123"}
+    }
+    return cfg
+
+@responses.activate
+def test_send_email_direct(smtp_config):
+    with patch.object(
+        EmailActionConfig, "objects",
+        return_value=MagicMock(first=MagicMock(return_value=smtp_config))
+    ) as mock_objects, \
+         patch.object(CallbackScriptUtility, "trigger_email") as mock_trigger_email:
+
+        CallbackScriptUtility.send_email(
+            email_action="send_mail",
+            from_email="from@example.com",
+            to_email="to@example.com",
+            subject="Test Subject",
+            body="Test Body",
+            bot="bot123"
+        )
+
+        mock_objects.assert_called_once_with(bot="bot123", action_name="send_mail")
+        mock_trigger_email.assert_called_once_with(
+            email=["to@example.com"],
+            subject="Test Subject",
+            body="Test Body",
+            smtp_url="smtp.gmail.com",
+            smtp_port=587,
+            sender_email="from@example.com",
+            smtp_password="password123",
+            smtp_userid="user@example.com",
+            tls=True
+        )
+
+@responses.activate
+def test_send_email_trigger_email_raises(smtp_config):
+    """If trigger_email() raises, send_email should let it bubble up."""
+    with patch.object(
+        EmailActionConfig, "objects",
+        return_value=MagicMock(first=MagicMock(return_value=smtp_config))
+    ), \
+         patch.object(
+             CallbackScriptUtility, "trigger_email",
+             side_effect=Exception("SMTP down")
+         ) as mock_trigger_email:
+
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.send_email(
+                email_action="send_mail",
+                from_email="from@example.com",
+                to_email="to@example.com",
+                subject="Subject",
+                body="Body",
+                bot="bot123"
+            )
+        assert "SMTP down" in str(exc.value)
+        mock_trigger_email.assert_called_once()
+
+@responses.activate
+def test_send_email_no_config_raises_app_exception():
+    """If no EmailActionConfig is found, send_email should raise AppException."""
+    action = "nonexistent"
+    bot_id = "bot123"
+
+    with patch.object(
+        EmailActionConfig, "objects",
+        return_value=MagicMock(first=MagicMock(return_value=None))
+    ) as mock_objects:
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.send_email(
+                email_action=action,
+                from_email="from@example.com",
+                to_email="to@example.com",
+                subject="Subj",
+                body="Body",
+                bot=bot_id
+            )
+
+        # The exact message raised by your code
+        expected_msg = f"Email action '{action}' not configured for bot {bot_id}"
+        assert expected_msg == str(exc.value)
+
+        mock_objects.assert_called_once_with(bot=bot_id, action_name=action)
 
 @responses.activate
 def test_delete_schedule_job_without_bot_in_main_pyscript():
