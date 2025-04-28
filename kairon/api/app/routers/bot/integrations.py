@@ -12,7 +12,6 @@ from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import CatalogProvider
 from kairon.shared.constants import DESIGNER_ACCESS
 from kairon.shared.models import User
-from kairon.shared.utils import MailUtility
 
 router = APIRouter()
 cognition_processor = CognitionDataProcessor()
