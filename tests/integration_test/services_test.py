@@ -8709,6 +8709,9 @@ def test_metadata_upload_api(monkeypatch):
 
 
 def test_metadata_upload_api_column_limit_exceeded():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.cognition_columns_per_collection_limit = 5
+    bot_settings.save()
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
@@ -28411,6 +28414,7 @@ def test_get_bot_settings():
     assert actual["message"] is None
     actual["data"].pop("bot")
     actual["data"].pop("user")
+    actual["data"].pop("timestamp")
     actual["data"].pop("status")
     assert actual['data'] == {'is_billed': False, 'chat_token_expiry': 30,
                               'data_generation_limit_per_day': 3,
