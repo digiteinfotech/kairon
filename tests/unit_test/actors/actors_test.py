@@ -16,6 +16,7 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.concurrency.actors.factory import ActorFactory
+from kairon.shared.concurrency.actors.pyscript_runner import PyScriptRunner
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
 from kairon.shared.concurrency.actors.utils import PyscriptUtility
@@ -755,3 +756,52 @@ def test_send_waba_message_success():
             headers={"D360-API-KEY": api_key, "Content-TYpe": "application/json"},
             data=orjson.dumps(payload)
         )
+
+def test_execute_simple_assignment():
+    runner = PyScriptRunner()
+    script = "x = 10\ny = 20"
+    # Provide minimal predefined_objects with required 'bot'
+    result = runner.execute(script, predefined_objects={"slot": {"bot": "bot123"}})
+
+    assert result.get("x") == 10
+    assert result.get("y") == 20
+    # Ensure callables and modules are filtered out
+    assert "send_waba_message" not in result
+
+
+def test_execute_predefined_objects():
+    runner = PyScriptRunner()
+    predefined = {"foo": "bar", "slot": {"bot": "botid"}}
+    script = "z = foo"
+    result = runner.execute(script, predefined_objects=predefined)
+
+    assert result.get("z") == "bar"
+    # Predefined non-callable objects should remain
+    assert result.get("foo") == "bar"
+
+
+def test_datetime_and_date_cleanup():
+    runner = PyScriptRunner()
+    script = (
+        "from datetime import datetime, date\n"
+        "dt = datetime(2021, 1, 2, 3, 4, 5)\n"
+        "d = date(2020, 12, 31)\n"
+    )
+    result = runner.execute(script, predefined_objects={"slot": {"bot": "botid"}})
+
+    # datetime should be formatted as MM/DD/YYYY, HH:MM:SS
+    assert result.get("dt") == "01/02/2021, 03:04:05"
+    # date should be formatted as YYYY-MM-DD
+    assert result.get("d") == "2020-12-31"
+
+
+def test_script_exception_wrapped():
+    runner = PyScriptRunner()
+    # The script raises a ValueError, which should be caught and re-raised as AppException
+    with pytest.raises(AppException) as exc_info:
+        runner.execute(
+            "raise ValueError('oops')",
+            predefined_objects={"slot": {"bot": "botid"}},
+            timeout=5
+        )
+    assert "Script execution error" in str(exc_info.value)
