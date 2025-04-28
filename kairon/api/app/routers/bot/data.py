@@ -1,7 +1,7 @@
 import os
-from typing import List, Text
+from typing import List
 
-from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
+from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException
 from starlette.requests import Request
 from starlette.responses import FileResponse
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from mongoengine import StringField, BooleanField, DateTimeField, DynamicDocument, DictField, ListField
+from mongoengine import StringField, DateTimeField, DynamicDocument, DictField
 from kairon.shared.data.signals import push_notification, auditlogger
 
 

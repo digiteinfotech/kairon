@@ -1,18 +1,14 @@
-import json
 from datetime import datetime
-from typing import List
 
 from bson import ObjectId
 from loguru import logger
 from mongoengine import Q, DoesNotExist
 
-from kairon.shared.cognition.data_objects import CognitionSchema, ColumnMetadata, CollectionData
+from kairon.shared.cognition.data_objects import CognitionSchema, CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.constant import SYNC_STATUS, SyncType
 from kairon.shared.data.data_models import CognitionSchemaRequest
 from kairon.shared.data.data_objects import BotSettings, BotSyncConfig
-from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs, CatalogProviderMapping
 from kairon.shared.models import CognitionMetadataType
 
@@ -307,8 +303,7 @@ class CatalogSyncLogProcessor:
                 f"Global fallback image document not found in `{catalog_images_collection}`")
 
         if not document.data.get("image_url"):
-            raise Exception(
-                f"Global fallback image URL not found")
+            raise Exception("Global fallback image URL not found")
 
     @staticmethod
     def get_execution_id_for_bot(bot: str):

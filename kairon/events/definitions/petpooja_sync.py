@@ -1,17 +1,10 @@
 from typing import Text
 
-from dotenv import set_key
-
-from kairon import Utility
-from loguru import logger
-
 from kairon.catalog_sync.definitions.base import CatalogSyncBase
-from kairon.exceptions import AppException
 from kairon.meta.processor import MetaProcessor
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import SyncType, SYNC_STATUS
-from kairon.shared.data.data_objects import POSIntegrations, BotSyncConfig
+from kairon.shared.data.data_objects import POSIntegrations
 from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
 from kairon.shared.utils import MailUtility
 

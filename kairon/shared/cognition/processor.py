@@ -677,33 +677,6 @@ class CognitionDataProcessor:
     #             await self.sync_with_qdrant(llm_processor, qdrant_collection, bot, new_document, user, primary_key_col)
     #
     #     return {"message": "Upsert complete!"}
-
-    async def sync_with_qdrant(self, llm_processor, collection_name, bot, document, user, primary_key_col):
-        """
-        Syncs a document with Qdrant vector database by generating embeddings and upserting them.
-
-        Args:
-            llm_processor (LLMProcessor): Instance of LLMProcessor for embedding and Qdrant operations.
-            collection_name (str): Name of the Qdrant collection.
-            bot (str): Bot identifier.
-            document (CognitionData): Document to sync with Qdrant.
-            user (Text): User performing the operation.
-
-        Raises:
-            AppException: If Qdrant upsert operation fails.
-        """
-        try:
-            metadata = self.find_matching_metadata(bot, document['data'], document.get('collection'))
-            search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
-                document['data'], metadata)
-            embeddings = await llm_processor.get_embedding(embedding_payload, user, invocation='knowledge_vault_sync')
-            points = [{'id': document['vector_id'], 'vector': embeddings, 'payload': search_payload}]
-            await llm_processor.__collection_upsert__(collection_name, {'points': points},
-                                                      err_msg="Unable to train FAQ! Contact support")
-            logger.info(f"Row with {primary_key_col}: {document['data'].get(primary_key_col)} upserted in Qdrant.")
-        except Exception as e:
-            raise AppException(f"Failed to sync document with Qdrant: {str(e)}")
-
     def _validate_sync_type(self, sync_type: str):
         if sync_type not in VaultSyncType.__members__.keys():
             raise AppException("Sync type does not exist")
