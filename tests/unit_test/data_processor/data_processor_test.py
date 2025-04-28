@@ -2406,8 +2406,9 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+    @patch.object(LLMProcessor, "__delete_collection_points__",autospec=True)
     @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_empty_data_list(self, mock_embedding, mock_collection_upsert, mock_create_collection,
+    async def test_upsert_data_empty_data_list(self, mock_embedding, mock_delete_collection_points, mock_collection_upsert, mock_create_collection,
                                                mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
@@ -2463,6 +2464,7 @@ class TestMongoProcessor:
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
+        mock_delete_collection_points.return_value = None
 
         embedding = list(np.random.random(1532))
         mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}

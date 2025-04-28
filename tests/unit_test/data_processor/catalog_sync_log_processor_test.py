@@ -569,3 +569,4 @@ class TestCatalogSyncLogProcessor:
             CatalogSyncLogProcessor.validate_image_configurations(bot, user)
 
         BotSyncConfig.objects.delete()
+        CollectionData.objects.delete()
