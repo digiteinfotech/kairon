@@ -30574,3 +30574,28 @@ def test_leave_non_existent_bot_1():
     assert actual["message"] == "Access to bot is denied"
     assert actual["error_code"] == 422
     assert not actual["success"]
+
+
+
+def test_redoc_headers():
+    response = client.get("/redoc")
+    assert response.status_code == 200
+    assert response.headers == {
+        "content-length": "498",
+        "content-type": "text/html; charset=utf-8",
+        "content-encoding": "gzip",
+        "vary": "Accept-Encoding",
+        "server": "Secure",
+        "strict-transport-security": "includeSubDomains; preload; max-age=31536000",
+        "x-frame-options": "SAMEORIGIN",
+        "x-xss-protection": "0",
+        "x-content-type-options": "nosniff",
+        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'; worker-src blob:",
+        "referrer-policy": "no-referrer",
+        "cache-control": "must-revalidate",
+        "permissions-policy": "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
+        "cross-origin-embedder-policy": "require-corp",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "access-control-allow-origin": "*"
+    }

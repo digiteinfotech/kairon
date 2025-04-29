@@ -1,5 +1,6 @@
 from loguru import logger as logging
 from time import time
+import copy
 
 from fastapi import FastAPI
 from fastapi import Request, status
@@ -131,6 +132,13 @@ async def add_secure_headers(request: Request, call_next):
     response.headers["Access-Control-Allow-Origin"] = (
         requested_origin if requested_origin is not None else allowed_origins[0]
     )
+    if request.url.path == "/redoc":
+        custom_csp = copy.deepcopy(csp)
+        custom_csp.worker_src("blob:")
+        secure_headers.csp = custom_csp
+        secure_headers.framework.fastapi(response)
+        secure_headers.csp = csp
+
     return response
 
 

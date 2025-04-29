@@ -1,3 +1,4 @@
+import copy
 from typing import Text
 
 from fastapi import FastAPI, Request, Path, Query
@@ -86,6 +87,12 @@ async def add_secure_headers(request: Request, call_next):
     response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin else allowed_origins[0]
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
     response.headers['Content-Type'] = 'application/json'
+    if request.url.path == "/redoc":
+        custom_csp = copy.deepcopy(csp)
+        custom_csp.worker_src("blob:")
+        secure_headers.csp = custom_csp
+        secure_headers.framework.fastapi(response)
+        secure_headers.csp = csp
     return response
 
 
