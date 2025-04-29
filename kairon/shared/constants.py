@@ -83,6 +83,10 @@ class EventClass(str, Enum):
     content_importer = "content_importer"
     mail_channel_read_mails = "email_channel_read_mails"
     agentic_flow = "agentic_flow"
+    catalog_integration = "catalog_integration"
+
+class CatalogSyncClass(str, Enum):
+    petpooja = "petpooja"
 
 
 class EventRequestType(str, Enum):
@@ -119,6 +123,9 @@ class ChannelTypes(str, Enum):
     BUSINESS_MESSAGES = "business_messages"
     LINE = "line"
     MAIL = "mail"
+
+class CatalogProvider(str, Enum):
+    PETPOOJA = "petpooja"
 
 class ElementTypes(str, Enum):
     LINK = "link"

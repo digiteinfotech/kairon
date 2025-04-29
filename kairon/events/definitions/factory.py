@@ -1,4 +1,5 @@
 from kairon.events.definitions.agentic_flow import AgenticFlowEvent
+from kairon.events.definitions.catalog_sync import CatalogSync
 from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
@@ -24,7 +25,8 @@ class EventFactory:
         EventClass.message_broadcast: MessageBroadcastEvent,
         EventClass.content_importer: DocContentImporterEvent,
         EventClass.mail_channel_read_mails: MailReadEvent,
-        EventClass.agentic_flow: AgenticFlowEvent
+        EventClass.agentic_flow: AgenticFlowEvent,
+        EventClass.catalog_integration: CatalogSync
     }
 
     @staticmethod

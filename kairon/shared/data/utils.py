@@ -398,6 +398,23 @@ class DataUtility:
         return channel_endpoint
 
     @staticmethod
+    def get_integration_endpoint(integration_config: dict):
+        from kairon.shared.auth import Authentication
+
+        token, _ = Authentication.generate_integration_token(
+            integration_config['bot'], integration_config['user'], role=ACCESS_ROLES.DESIGNER.value,
+            access_limit=[
+                f"/api/bot/integration/{integration_config['provider']}/{integration_config['sync_type']}/{integration_config['bot']}/.+"],
+            token_type=TOKEN_TYPE.DATA_INTEGRATION.value
+        )
+
+        integration_endpoint = urljoin(
+            Utility.environment['model']['agent']['url'],
+            f"/api/bot/integration/{integration_config['provider']}/{integration_config['sync_type']}/{integration_config['bot']}/{token}"
+        )
+        return integration_endpoint
+
+    @staticmethod
     def save_channel_metadata(**kwargs):
         token = kwargs["token"]
         channel_config = kwargs.get("config")

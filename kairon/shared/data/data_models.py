@@ -1390,3 +1390,12 @@ class FlowTagChangeRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     tag: str
     type: str
+
+class MetaConfig(BaseModel):
+    access_token: str
+    catalog_id: str
+
+class POSIntegrationRequest(BaseModel):
+    provider: str
+    config: dict
+    meta_config: Optional[MetaConfig]

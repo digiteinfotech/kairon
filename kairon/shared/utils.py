@@ -2529,6 +2529,7 @@ class MailUtility:
             "add_trusted_device": MailUtility.__handle_add_trusted_device,
             "book_a_demo": MailUtility.__handle_book_a_demo,
             "member_left_bot": MailUtility.__handle_member_left_bot,
+            "catalog_sync_status": MailUtility.__handle_catalog_sync_status
         }
         base_url = kwargs.get("base_url")
         if not base_url:
@@ -2663,6 +2664,22 @@ class MailUtility:
         body = Utility.email_conf["email"]["templates"]["verification_confirmation"]
         body = body.replace("FIRST_NAME", first_name.capitalize())
         subject = Utility.email_conf["email"]["templates"]["confirmed_subject"]
+        return body, subject
+
+    @staticmethod
+    def __handle_catalog_sync_status(**kwargs):
+        bot = kwargs.get("bot")
+        executionID = kwargs.get("executionID")
+        sync_status = kwargs.get("sync_status")
+        message = kwargs.get("message")
+
+        body = Utility.email_conf["email"]["templates"]["catalog_sync_status"]
+
+        body = body.replace("BOT_ID", bot)
+        body = body.replace("EXECUTION_ID", executionID)
+        body = body.replace("SYNC_STATUS", sync_status)
+        body = body.replace("MESSAGE", message)
+        subject = Utility.email_conf["email"]["templates"]["catalog_sync_status_subject"]
         return body, subject
 
     @staticmethod
