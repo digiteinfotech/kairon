@@ -11836,10 +11836,6 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
         status=200
     )
 
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
-                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
     llm_secret = LLMSecret(
         llm_type=llm_type,
         api_key=value,
@@ -11848,6 +11844,11 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
         user=user
     )
     llm_secret.save()
+
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
+                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"] = {"bot": bot, "prompt_question": user_msg}
@@ -11931,11 +11932,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
     )
     hyperparameters = Utility.get_llm_hyperparameters("perplexity")
     hyperparameters['search_domain_filter'] = ["domain1.com", "domain2.com"]
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
-                 llm_type="perplexity", hyperparameters=hyperparameters,
-                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
+
     llm_secret = LLMSecret(
         llm_type=llm_type,
         api_key=value,
@@ -11953,6 +11950,13 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
         user=user
     )
     llm_secret.save()
+
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
+                 llm_type="perplexity", hyperparameters=hyperparameters,
+                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
+
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"] = {"bot": bot, "prompt_question": user_msg}
     request_object["next_action"] = action_name
@@ -12049,13 +12053,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
         method="POST",
         status=200
     )
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name,
-                 llm_type="anthropic",
-                 hyperparameters=Utility.get_llm_hyperparameters("anthropic"),
-                 bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
-                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
+
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -12073,6 +12071,14 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
         user=user
     )
     llm_secret.save()
+
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name,
+                 llm_type="anthropic",
+                 hyperparameters=Utility.get_llm_hyperparameters("anthropic"),
+                 bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
+                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"] = {"bot": bot, "prompt_question": user_msg}
@@ -12151,9 +12157,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
         method="POST",
         status=200
     )
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -12162,6 +12166,11 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
         user=user
     )
     llm_secret.save()
+
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["next_action"] = action_name
@@ -12244,10 +12253,6 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
         status=200
     )
 
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
-                 instructions=instructions).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -12256,6 +12261,11 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
         user=user
     )
     llm_secret.save()
+
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
+                 instructions=instructions).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12339,9 +12349,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
     )
 
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -12350,6 +12358,9 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
         user=user
     )
     llm_secret.save()
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12435,12 +12446,6 @@ def test_prompt_response_action(mock_embedding, aioresponses):
         body=expected_body
     )
 
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    PromptAction(name=action_name,
-                 bot=bot,
-                 user=user,
-                 llm_prompts=llm_prompts).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -12449,6 +12454,13 @@ def test_prompt_response_action(mock_embedding, aioresponses):
         user=user
     )
     llm_secret.save()
+
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    PromptAction(name=action_name,
+                 bot=bot,
+                 user=user,
+                 llm_prompts=llm_prompts).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12520,9 +12532,6 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
         status=200
     )
 
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, instructions=instructions).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -12531,6 +12540,10 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
         user=user
     )
     llm_secret.save()
+
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, instructions=instructions).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12609,7 +12622,7 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
+
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -12618,6 +12631,8 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
         user=user
     )
     llm_secret.save()
+
+    PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12792,7 +12807,6 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -12801,6 +12815,8 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
         user=user
     )
     llm_secret.save()
+
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12925,7 +12941,6 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -12934,6 +12949,8 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
         user=user
     )
     llm_secret.save()
+
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13163,7 +13180,6 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -13172,6 +13188,8 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
         user=user
     )
     llm_secret.save()
+
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13278,11 +13296,6 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
         "{\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}", log2, 0.10873)]
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False,
-                 set_slots=[
-                     SetSlotsFromResponse(name="api_type", value="${data['api_type']}", evaluation_type="script"),
-                     SetSlotsFromResponse(name="query", value="${data['filter']}",
-                                          evaluation_type="script")]).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -13291,6 +13304,12 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
         user=user
     )
     llm_secret.save()
+
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False,
+                 set_slots=[
+                     SetSlotsFromResponse(name="api_type", value="${data['api_type']}", evaluation_type="script"),
+                     SetSlotsFromResponse(name="query", value="${data['filter']}",
+                                          evaluation_type="script")]).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13409,7 +13428,6 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -13418,6 +13436,8 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
         user=user
     )
     llm_secret.save()
+
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13528,7 +13548,6 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -13537,6 +13556,8 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
         user=user
     )
     llm_secret.save()
+
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13613,7 +13634,6 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -13622,6 +13642,8 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
         user=user
     )
     llm_secret.save()
+
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13691,9 +13713,6 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
         body=expected_body
     )
 
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
     llm_secret = LLMSecret(
         llm_type=llm_type,
         api_key=value,
@@ -13702,6 +13721,10 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
         user=user
     )
     llm_secret.save()
+
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
