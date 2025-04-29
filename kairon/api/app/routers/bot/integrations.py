@@ -60,7 +60,7 @@ async def rerun_sync(
     execution_id: str = Path(description="Execution id"),
 ):
     """
-    Handles incoming data from catalog_sync (e.g., Petpooja) for processing, validation, and eventual storage.
+    Handles incoming data from catalog_sync and rerunning (e.g., Petpooja) for processing, validation, and eventual storage.
     """
     sync_log_entry = CatalogSyncLogs.objects(execution_id=execution_id).first()
     if not sync_log_entry:
