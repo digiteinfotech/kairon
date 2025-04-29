@@ -1,6 +1,7 @@
 import os
 import re
 import textwrap
+import uuid
 from calendar import timegm
 from datetime import datetime, timezone, date
 from email.mime.multipart import MIMEMultipart
@@ -19,6 +20,7 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
+from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
 from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 
@@ -2682,3 +2684,48 @@ def test_pyscript_handler_for_get_data_after_delete_in_main_pyscript():
             'resp': bot_response
         }
     }
+
+
+def test_save_as_pdf_success_returns_media_id():
+    # Arrange
+    text = "## Hello\nThis is a markdown"
+    bot_id = "bot123"
+    sender = "user@domain.com"
+    media_id = str(uuid.uuid4())
+
+    # Mock UserMedia.save_markdown_as_pdf to return (anything, media_id)
+    with patch.object(UserMedia, "save_markdown_as_pdf", return_value=("ignored", media_id)) as mock_save:
+        # Act
+        result = CallbackScriptUtility.save_as_pdf(text=text, bot=bot_id, sender_id=sender)
+
+        # Assert
+        assert result == media_id
+        mock_save.assert_called_once_with(
+            bot=bot_id,
+            sender_id=sender,
+            text=text,
+            filepath="report.pdf"
+        )
+
+
+def test_save_as_pdf_error_raises_wrapped_exception():
+    # Arrange
+    text = "bad markdown"
+    bot_id = "bot123"
+    sender = "user@domain.com"
+    inner_err = Exception("disk full")
+
+    # Mock so that save_markdown_as_pdf raises
+    with patch.object(UserMedia, "save_markdown_as_pdf", side_effect=inner_err) as mock_save:
+        # Act & Assert
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.save_as_pdf(text=text, bot=bot_id, sender_id=sender)
+
+        # it should wrap the message
+        assert str(exc.value) == f"encryption failed-{inner_err}"
+        mock_save.assert_called_once_with(
+            bot=bot_id,
+            sender_id=sender,
+            text=text,
+            filepath="report.pdf"
+        )
