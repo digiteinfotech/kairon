@@ -104,7 +104,7 @@ class MetaProcessor:
         """
         try:
             req = quote(json.dumps(delete_payload))
-            base_url = "https://graph.facebook.com/v21.0/1880697869060042/batch"
+            base_url = f"https://graph.facebook.com/v21.0/{self.catalog_id}/batch"
             url = f"{base_url}?requests={req}"
 
             data = {
@@ -115,5 +115,5 @@ class MetaProcessor:
             print("Response JSON:", response.json())
             print("Successfully deleted data from meta.")
         except Exception as e:
-            print(f"Error deleting data from meta: {e}")
+            logger.exception(f"Error deleting data from meta: {str(e)}")
             raise e
