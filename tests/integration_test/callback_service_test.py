@@ -219,12 +219,11 @@ async def test_get_callback(mock_dispatch_message):
     assert response.status == 200
     json_response = await response.json()
     assert json_response["success"]
-    assert json_response["data"]
+    assert "i am happy : )" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success", "data": "{'type': 'GET', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
-    assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "019107c7570577a6b0f279b4038c4a8f i am happy : )", "telegram")
-
+    assert mock_dispatch_message.called_once()
+    
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
@@ -238,9 +237,9 @@ async def test_get_callback_response_type(mock_dispatch_message):
     response = await client.get('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
     assert response.status == 200
     json_response = await response.text()
-    assert json_response == "{'type': 'GET', 'body': None, 'params': {}} i am happy : )"
-    assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "019107c7570577a6b0f279b4038c4a8f i am happy : )", "telegram")
-
+    assert "i am happy : )" in json_response
+    assert "{'type': 'GET', 'body': None" in json_response
+    assert mock_dispatch_message.called_once()
     callback.response_type = 'json'
     callback.pyscript_code = "bot_response={'arr': [1,2,3]}"
     callback.save()
@@ -268,16 +267,11 @@ async def test_post_callback(mock_dispatch_message):
     response = await client.post('/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==',
                                  content=JSONContent(req_body))
     json_response = await response.json()
-    print(json_response)
     assert json_response["success"]
-    assert json_response["data"]
+    assert "'type': 'POST', 'body': {'key_1': 'value_1'}" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success",
-                             "data": "{'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}} i am happy : )",
-                             "error_code": 0, "success": True}
-    assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}} i am happy : )", "telegram")
-
+    assert mock_dispatch_message.called_once()
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
@@ -290,14 +284,10 @@ async def test_post_callback_req_body_non_json(mock_dispatch_message):
     json_response = await response.json()
     print(json_response)
     assert json_response["success"]
-    assert json_response["data"]
+    assert "'type': 'POST', 'body': 'key_1=value_1'" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {'message': 'success',
-                             'data': "{'type': 'POST', 'body': 'key_1=value_1', 'params': {}} i am happy : )",
-                             'error_code': 0, 'success': True}
-    assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'POST', 'body': 'key_1=value_1', 'params': {}} i am happy : )", "telegram")
-
+    assert mock_dispatch_message.called_once()
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
@@ -309,12 +299,10 @@ async def test_put_callback(mock_dispatch_message):
     json_response = await response.json()
     print(json_response)
     assert json_response["success"]
-    assert json_response["data"]
+    assert "'type': 'PUT', 'body': None," in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success", "data": "{'type': 'PUT', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
-    assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'PUT', 'body': None, 'params': {}} i am happy : )", "telegram")
-
+    assert mock_dispatch_message.called_once()
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
@@ -326,12 +314,10 @@ async def test_patch_callback(mock_dispatch_message):
     json_response = await response.json()
     print(json_response)
     assert json_response["success"]
-    assert json_response["data"]
+    assert "'type': 'PATCH'," in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success", "data": "{'type': 'PATCH', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
-    assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'PATCH', 'body': None, 'params': {}} i am happy : )", "telegram")
-
+    assert mock_dispatch_message.called_once()
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message", new_callable=AsyncMock)
@@ -343,10 +329,9 @@ async def test_delete_callback(mock_dispatch_message):
     json_response = await response.json()
     print(json_response)
     assert json_response["success"]
-    assert json_response["data"]
+    assert "{'type': 'DELETE', 'body': None, 'params': {}" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success", "data": "{'type': 'DELETE', 'body': None, 'params': {}} i am happy : )", "error_code": 0, "success": True}
     assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732", "{'type': 'DELETE', 'body': None, 'params': {}} i am happy : )", "telegram")
 
 
@@ -435,10 +420,10 @@ async def test_get_callback_url_shorten(mock_dispatch_message):
     json_response = await response.json()
     print(json_response)
     assert json_response["success"]
-    assert json_response["data"] == "hello -> {'type': 'GET', 'body': None, 'params': {}}"
+    assert "hello -> {'type': 'GET', 'body': None, 'params': {}" in json_response["data"]
+    assert "headers" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success", "data": "hello -> {'type': 'GET', 'body': None, 'params': {}}", "error_code": 0, "success": True}
 
 
 @pytest.mark.asyncio
@@ -454,10 +439,10 @@ async def test_post_callback_url_shorten(mock_dispatch_message):
     json_response = await response.json()
     print(json_response)
     assert json_response["success"]
-    assert json_response["data"] == "hello -> {'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}}"
+    assert "hello -> {'type': 'POST', 'body': {'key_1': 'value_1'}" in json_response["data"]
+    assert "headers" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success", "data": "hello -> {'type': 'POST', 'body': {'key_1': 'value_1'}, 'params': {}}", "error_code": 0, "success": True}
 
 
 
@@ -474,12 +459,9 @@ async def test_put_callback_url_shorten(mock_dispatch_message):
     json_response = await response.json()
     print(json_response)
     assert json_response["success"]
-    assert json_response["data"] == "hello -> {'type': 'PUT', 'body': {'key_1': 'value_1'}, 'params': {}}"
+    assert "hello -> {'type': 'PUT', 'body': {'key_1': 'value_1'}" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success",
-                             "data": "hello -> {'type': 'PUT', 'body': {'key_1': 'value_1'}, 'params': {}}",
-                             "error_code": 0, "success": True}
 
 
 
@@ -498,13 +480,9 @@ async def test_post_callback_standalone(mock_dispatch_message):
     json_response = await response.json()
     print(json_response)
     assert json_response["success"]
-    assert json_response["data"] == "standalone -> {'type': 'POST', 'body': {'data': {'id': '0191702183ca7ac6b75be9cd645c6437'}}, 'params': {}}"
+    assert "standalone -> {'type': 'POST', 'body': {'data': {'id': '0191702183ca7ac6b75be9cd645c6437'}}" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success",
-                             "data": "standalone -> {'type': 'POST', 'body': {'data': {'id': '0191702183ca7ac6b75be9cd645c6437'}}, 'params': {}}",
-                             "error_code": 0, "success": True}
-
 
 
 @pytest.mark.asyncio

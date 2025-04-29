@@ -1481,8 +1481,9 @@ class MongoProcessor:
         if not story_graphs:
             return actions
 
+        validate_actions = [action for action in actions if action.startswith("validate_")]
         required_actions =MongoProcessor.extract_action_names_from_story_graph(story_graphs)
-        return [action for action in actions if action in required_actions]
+        return [action for action in actions if action in required_actions] + validate_actions
 
 
     @staticmethod

@@ -281,6 +281,24 @@ async def get_collection_data(
                                                                  key=key, value=value))}
 
 
+@router.get("/collection/{collection_name}/filter", response_model=Response)
+async def get_collection_data_with_timestamp(
+        collection_name: str,
+        filters = Query(default='{}'),
+        start_time: str = Query(default=None),
+        end_time: str = Query(default=None),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches collection data based on the multiple filters provided
+    """
+    return {"data": list(cognition_processor.get_collection_data_with_timestamp(bot=current_user.get_bot(),
+                                                                                   data_filter=filters,
+                                                                                 collection_name=collection_name,
+                                                                                   start_time=start_time,
+                                                                                   end_time=end_time))}
+
+
 @router.get("/collection/data/{collection_id}", response_model=Response)
 async def get_collection_data_with_id(
         collection_id: str,
