@@ -2709,15 +2709,14 @@ def test_save_as_pdf_success_returns_media_id():
 
 
 def test_save_as_pdf_error_raises_wrapped_exception():
-    # Arrange
+
     text = "bad markdown"
     bot_id = "bot123"
     sender = "user@domain.com"
     inner_err = Exception("disk full")
 
-    # Mock so that save_markdown_as_pdf raises
     with patch.object(UserMedia, "save_markdown_as_pdf", side_effect=inner_err) as mock_save:
-        # Act & Assert
+
         with pytest.raises(Exception) as exc:
             CallbackScriptUtility.save_as_pdf(text=text, bot=bot_id, sender_id=sender)
 
@@ -2729,3 +2728,101 @@ def test_save_as_pdf_error_raises_wrapped_exception():
             text=text,
             filepath="report.pdf"
         )
+
+def test_decrypt_request_missing_fields():
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.decrypt_request({}, "dummy_pem")
+    assert "Missing required encrypted data fields" in str(exc.value)
+
+def test_decrypt_request_success(monkeypatch):
+
+    encrypted_data_b64    = "fake_data_b64"
+    encrypted_aes_key_b64 = "fake_key_b64"
+    iv_b64                = "fake_iv_b64"
+    request_body = {
+        "encrypted_flow_data": encrypted_data_b64,
+        "encrypted_aes_key":    encrypted_aes_key_b64,
+        "initial_vector":       iv_b64
+    }
+
+    def fake_b64decode(val):
+        if val == encrypted_aes_key_b64:
+            return b'\xAA' * 32
+        if val == encrypted_data_b64:
+            return b"CIPHER_TEXT" + b"T" * 16
+        if val == iv_b64:
+            return b"\xBB" * 16
+        return b""
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.base64.b64decode", fake_b64decode)
+
+    fake_priv = MagicMock()
+    fake_aes_key = b"\x01" * 16
+    fake_priv.decrypt.return_value = fake_aes_key
+    monkeypatch.setattr(
+        "kairon.shared.pyscript.callback_pyscript_utils.load_pem_private_key",
+        lambda pem_bytes, password: fake_priv
+    )
+
+    class FakeDecryptor:
+        def update(self, data):   return b'{"hello":"world"}'
+        def finalize(self):       return b''
+    class FakeCipher:
+        def __init__(self, algo, mode): pass
+        def decryptor(self):        return FakeDecryptor()
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.Cipher", FakeCipher)
+
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.jsond.loads", lambda txt: {"hello":"world"})
+
+    result = CallbackScriptUtility.decrypt_request(request_body, "any_pem_string")
+
+    assert result["decryptedBody"]          == {"hello":"world"}
+    assert result["aesKeyBuffer"]           == fake_aes_key
+    assert result["initialVectorBuffer"]    == b"\xBB" * 16
+
+def test_decrypt_request_rsa_failure(monkeypatch):
+    request_body = {
+        "encrypted_flow_data": "d1",
+        "encrypted_aes_key":   "d2",
+        "initial_vector":      "d3"
+    }
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.base64.b64decode", lambda x: b"\x00"*16)
+    # Make load_pem_private_key().decrypt(...) throw
+    fake_priv = MagicMock()
+    fake_priv.decrypt.side_effect = Exception("RSA bad")
+    monkeypatch.setattr(
+        "kairon.shared.pyscript.callback_pyscript_utils.load_pem_private_key",
+        lambda pem_bytes, password: fake_priv
+    )
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.decrypt_request(request_body, "pem")
+    assert "decryption failed-RSA bad" in str(exc.value)
+
+def test_encrypt_response_invalid_args():
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.encrypt_response({"a":1}, None, b"iv0123456789abcd")
+    assert "AES key cannot be None" in str(exc.value)
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.encrypt_response({"a":1}, b"\x00"*16, None)
+    assert "Initialization vector (IV) cannot be None" in str(exc.value)
+
+def test_encrypt_response_success(monkeypatch):
+    response_body = {"foo":"bar"}
+    aes_key_buffer = b"\x11" * 16
+    iv_buffer      = b"\x22" * 12
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.jsond.dumps", lambda obj: "dumped_json")
+
+    class FakeEncryptor:
+        def __init__(self): self.tag = b"TAGBYTES12345678"  # 16 bytes
+        def update(self, data):    return b"ENC_BYTES"
+        def finalize(self):        return b""
+    class FakeCipher:
+        def __init__(self, algo, mode): pass
+        def encryptor(self):        return FakeEncryptor()
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.Cipher", FakeCipher)
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.base64.b64encode", lambda data: b"BASE64ENC")
+    result = CallbackScriptUtility.encrypt_response(response_body, aes_key_buffer, iv_buffer)
+    assert result == "BASE64ENC"
