@@ -1,4 +1,5 @@
 from time import time
+import copy
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -107,6 +108,12 @@ async def add_secure_headers(request: Request, call_next):
     logger.info(
         f"request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}"
     )
+    if request.url.path == "/redoc":
+        custom_csp = copy.deepcopy(csp)
+        custom_csp.worker_src("blob:")
+        secure_headers.csp = custom_csp
+        secure_headers.framework.fastapi(response)
+        secure_headers.csp = csp
     return response
 
 
