@@ -100,6 +100,24 @@ def setup():
     connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
     AccountProcessor.load_system_properties()
 
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key='value',
+        models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+        user='user'
+    )
+    llm_secret.save()
+
+    llm_secret = LLMSecret(
+        llm_type="anthropic",
+        api_key='value',
+        models=["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"],
+        user='user'
+    )
+    llm_secret.save()
+
+    yield llm_secret
+    LLMSecret.objects.delete()
 
 def pytest_configure():
     return {
@@ -321,7 +339,6 @@ def test_account_registration_without_privacy_policy_and_terms_consent(monkeypat
         },
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Should be agreed to: privacy policy, terms and conditions"
     assert not actual["success"]
     assert not actual["data"]
@@ -357,7 +374,6 @@ def test_account_registration_without_privacy_policy(monkeypatch):
         },
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Should be agreed to: privacy policy"
     assert not actual["success"]
     assert not actual["data"]
@@ -393,7 +409,6 @@ def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
         },
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Should be agreed to: terms and conditions"
     assert not actual["success"]
     assert not actual["data"]
@@ -1092,7 +1107,6 @@ def test_add_user_consent_details():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["data"]
@@ -1123,7 +1137,6 @@ def test_add_user_consent_details_without_terms():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert not actual["data"]
@@ -1140,7 +1153,6 @@ def test_add_user_consent_details_without_privacy_policy():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert not actual["data"]
@@ -1157,7 +1169,6 @@ def test_add_user_consent_details_without_both_privacy_policy_and_terms():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert not actual["data"]
@@ -1490,7 +1501,6 @@ def test_delete_multiple_payload_content_with_empty_list():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["message"][0]["msg"] == 'row_ids must be a non-empty list of valid strings'
 
 def test_delete_multiple_payload_content():
@@ -1540,7 +1550,6 @@ def test_delete_multiple_payload_content():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Records deleted!"
 
 def test_get_client_config_with_nudge_server_url():
@@ -1569,8 +1578,9 @@ def test_get_llm_metadata():
         {
             "llm_type": "openai",
             "api_key": "common_openai_key",
-            "models": ["common_openai_model1", "common_openai_model2"],
+            "models": ["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
             "user": "123",
+            "bot": pytest.bot,
             "timestamp": datetime.utcnow()
         },
     ]
@@ -1590,12 +1600,11 @@ def test_get_llm_metadata():
     assert "data" in actual
     assert "openai" in actual["data"]
     assert "model" in actual["data"]["openai"]["properties"]
-    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
+    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"]
 
-    assert "anthropic" not in actual["data"]
-    #assert "model" in actual["data"]["anthropic"]["properties"]
-    #assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == []
-    LLMSecret.objects.delete()
+    assert "anthropic" in actual["data"]
+    assert "model" in actual["data"]["anthropic"]["properties"]
+    assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == ["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"]
 
 
 def test_get_llm_metadata_bot_specific_model_exists():
@@ -1606,13 +1615,7 @@ def test_get_llm_metadata_bot_specific_model_exists():
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
-        },
-        {
-            "llm_type": "anthropic",
-            "api_key": "common_claude_key",
-            "models": ["common_claude_model1", "common_claude_model2"],
-            "user": "123",
+            "bot": pytest.bot,
             "timestamp": datetime.utcnow()
         },
         {
@@ -1666,7 +1669,6 @@ def test_add_scheduled_broadcast_with_no_template_name(mock_event_server):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', '__root__'],
@@ -1694,7 +1696,6 @@ def test_add_scheduled_broadcast_with_no_language_code(mock_event_server):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', '__root__'],
@@ -1718,7 +1719,6 @@ def test_logout():
         headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["message"] == "User Logged out!"
     assert not actual["data"]
@@ -1932,19 +1932,6 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
-    secrets = [
-        {
-            "llm_type": "openai",
-            "api_key": "common_openai_key",
-            "models": ["common_openai_model1", "common_openai_model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        },
-    ]
-
-    for secret in secrets:
-        LLMSecret(**secret).save()
-
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
@@ -2014,14 +2001,14 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
             "model": "text-embedding-3-large",
             "input": ['{"id":1,"item":"Juice","price":2.5,"quantity":10}'],  # First input
             "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
+            "api_key": "value",
             "num_retries": 3
         },
         {
             "model": "text-embedding-3-large",
             "input": ['{"id":2,"item":"Apples","price":1.2,"quantity":20}'],  # Second input
             "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
+            "api_key": "value",
             "num_retries": 3
         }
     ]
@@ -2032,7 +2019,6 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
 
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
-    LLMSecret.objects.delete()
 
 
 @pytest.mark.asyncio
@@ -2054,19 +2040,6 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
-    secrets = [
-        {
-            "llm_type": "openai",
-            "api_key": "common_openai_key",
-            "models": ["common_openai_model1", "common_openai_model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        },
-    ]
-
-    for secret in secrets:
-        LLMSecret(**secret).save()
 
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -2152,14 +2125,14 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
             "model": "text-embedding-3-large",
             "input": ['{"id":1,"item":"Juice","price":80.5,"quantity":56}'],
             "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
+            "api_key": "value",
             "num_retries": 3
         },
         {
             "model": "text-embedding-3-large",
             "input": ['{"id":2,"item":"Milk","price":27.0,"quantity":12}'],  # Second input
             "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
+            "api_key": "value",
             "num_retries": 3
         }
     ]
@@ -2275,18 +2248,6 @@ def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
     embedding = list(np.random.random(LLMProcessor.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
-    secrets = [
-        {
-            "llm_type": "openai",
-            "api_key": "common_openai_key",
-            "models": ["common_openai_model1", "common_openai_model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        }
-    ]
-    for secret in secrets:
-        LLMSecret(**secret).save()
-
     schema_response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
@@ -2317,7 +2278,6 @@ def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
     )
 
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["message"] == "Primary key 'id' must exist in each row."
     assert actual["error_code"] == 422
@@ -2341,18 +2301,6 @@ def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
-    secrets = [
-        {
-            "llm_type": "openai",
-            "api_key": "common_openai_key",
-            "models": ["common_openai_model1", "common_openai_model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        }
-    ]
-    for secret in secrets:
-        LLMSecret(**secret).save()
 
     schema_response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -2406,18 +2354,6 @@ def test_knowledge_vault_sync_invalid_columns(mock_embedding):
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
-    secrets = [
-        {
-            "llm_type": "openai",
-            "api_key": "common_openai_key",
-            "models": ["common_openai_model1", "common_openai_model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        }
-    ]
-    for secret in secrets:
-        LLMSecret(**secret).save()
 
     schema_response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -2494,18 +2430,6 @@ def test_knowledge_vault_sync_document_non_existence(mock_embedding):
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
-    secrets = [
-        {
-            "llm_type": "openai",
-            "api_key": "common_openai_key",
-            "models": ["common_openai_model1", "common_openai_model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        }
-    ]
-    for secret in secrets:
-        LLMSecret(**secret).save()
 
     schema_response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -4932,7 +4856,6 @@ def test_callback_config_add_syntax_error():
     )
 
     actual = response.json()
-    print(actual)
     assert not actual['success']
     assert actual['error_code'] == 422
     assert actual['message'] == 'source code syntax error: unterminated string literal (detected at line 1)'
@@ -5002,7 +4925,6 @@ def test_callback_get_standalone_url():
     )
     assert response.status_code == 200
     actual = response.json()
-    print(actual)
     assert actual['success']
     assert actual['error_code'] == 0
     assert isinstance(actual['data'], str)
@@ -5043,7 +4965,6 @@ def test_callback_config_edit_syntex_error():
     )
 
     actual = response.json()
-    print(actual)
 
     assert not actual['success']
     assert actual['error_code'] == 422
@@ -5064,7 +4985,6 @@ def test_callback_config_edit():
     )
 
     actual = response.json()
-    print(actual)
     actual['data'].pop('validation_secret')
     actual['data'].pop('bot')
     assert actual == {'success': True, 'message': 'Callback updated successfully!',
@@ -5162,7 +5082,6 @@ def test_callback_action_add():
     )
     
     actual = response.json()
-    print(actual)
     assert actual['success']
     assert actual['message'] == 'Callback action added successfully!'
     data = actual['data']
@@ -5187,7 +5106,6 @@ def test_callback_action_update():
     )
 
     actual = response.json()
-    print(actual)
     assert actual['success']
     assert actual['message'] == 'Callback action updated successfully!'
 
@@ -5213,7 +5131,6 @@ def test_callback_action_get_all():
     )
 
     actual = response.json()
-    print(actual)
     assert actual['success']
     assert actual['error_code'] == 0
     assert isinstance(actual['data'], list)
@@ -5345,7 +5262,6 @@ def test_add_pyscript_action_syntex_error():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 422
     assert actual["message"] == "source code syntax error: unexpected indent"
     assert not actual["success"]
@@ -5364,7 +5280,6 @@ def test_add_pyscript_action():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual["message"] == "Action added!"
     assert actual["success"]
@@ -9357,7 +9272,6 @@ def test_get_slot_actions(save_actions):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -9383,7 +9297,6 @@ def test_get_slot_actions(save_actions):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -9409,7 +9322,6 @@ def test_get_slot_actions(save_actions):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -12178,111 +12090,6 @@ def test_update_multiflow_story_with_tag():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-
-# def test_update_multiflow_story_invalid_name():
-#     response = client.put(
-#         f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
-#         json={
-#             "name": "test_path",
-#             "steps": [
-#                 {
-#                     "step": {
-#                         "name": "greeting",
-#                         "type": "INTENT",
-#                         "node_id": "1",
-#                         "component_id": "MNbcg",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "utter_greeting",
-#                             "type": "BOT",
-#                             "node_id": "2",
-#                             "component_id": "MNbcZZg",
-#                         }
-#                     ],
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "utter_greeting",
-#                         "type": "BOT",
-#                         "node_id": "2",
-#                         "component_id": "MNbcZZg",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "more_query",
-#                             "type": "INTENT",
-#                             "node_id": "3",
-#                             "component_id": "uhsjJ",
-#                         },
-#                         {
-#                             "name": "goodbye",
-#                             "type": "INTENT",
-#                             "node_id": "4",
-#                             "component_id": "MgGFD",
-#                         },
-#                     ],
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "goodbye",
-#                         "type": "INTENT",
-#                         "node_id": "4",
-#                         "component_id": "MgGFD",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "utter_goodbye",
-#                             "type": "BOT",
-#                             "node_id": "5",
-#                             "component_id": "MNbcg",
-#                         }
-#                     ],
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "utter_goodbye",
-#                         "type": "BOT",
-#                         "node_id": "5",
-#                         "component_id": "MNbcg",
-#                     },
-#                     "connections": None,
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "utter_more_query",
-#                         "type": "BOT",
-#                         "node_id": "6",
-#                         "component_id": "IIUUUYY",
-#                     },
-#                     "connections": None,
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "more_query",
-#                         "type": "INTENT",
-#                         "node_id": "3",
-#                         "component_id": "uhsjJ",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "utter_more_query",
-#                             "type": "BOT",
-#                             "node_id": "6",
-#                             "component_id": "IIUUUYY",
-#                         }
-#                     ],
-#                 },
-#             ],
-#         },
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#     actual = response.json()
-#     print(actual)
-#
-#     assert actual["success"]
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "valid story name"
 
 
 def test_update_multiflow_story():
@@ -18865,7 +18672,6 @@ def test_upload_actions_and_config():
         files=files,
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Upload in progress! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -18876,7 +18682,6 @@ def test_upload_actions_and_config():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 5
@@ -29353,7 +29158,6 @@ def test_get_llm_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 1
