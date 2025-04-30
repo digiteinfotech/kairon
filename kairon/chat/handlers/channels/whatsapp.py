@@ -12,6 +12,7 @@ import logging
 
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
+from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.models import User
@@ -38,6 +39,7 @@ class Whatsapp:
 
         # quick reply and user message both share 'text' attribute
         # so quick reply should be checked first
+        media_ids = None
         if message.get("type") == "interactive":
             interactive_type = message.get("interactive").get("type")
             if interactive_type == "nfm_reply":
@@ -59,6 +61,12 @@ class Whatsapp:
             if message['type'] == "voice":
                 message['type'] = "audio"
             text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
+            media_ids = UserMedia.save_whatsapp_media_content(
+                bot=bot,
+                sender_id=message["from"],
+                whatsapp_media_id=message[message['type']]['id'],
+                config=self.config
+            )
         elif message.get("type") == "location":
             logger.debug(message['location'])
             text = f"/k_multimedia_msg{{\"latitude\": \"{message['location']['latitude']}\", \"longitude\": \"{message['location']['longitude']}\"}}"
@@ -74,7 +82,7 @@ class Whatsapp:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
         message.update(metadata)
-        await self._handle_user_message(text, message["from"], message, bot)
+        await self._handle_user_message(text, message["from"], message, bot, media_ids)
 
     async def handle_meta_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
         provider = self.config.get("bsp_type", "meta")
@@ -154,7 +162,7 @@ class Whatsapp:
         return self.last_message.get("value", {}).get("metadata", {}).get("phone_number_id", "")
 
     async def _handle_user_message(
-            self, text: Text, sender_id: Text, metadata: Optional[Dict[Text, Any]], bot: str
+            self, text: Text, sender_id: Text, metadata: Optional[Dict[Text, Any]], bot: str, media_ids: list[str] = None
     ) -> None:
         """Pass on the text to the dialogue engine for processing."""
         out_channel = WhatsappBot(self.client)
@@ -164,14 +172,14 @@ class Whatsapp:
             text, out_channel, sender_id, input_channel=self.name(), metadata=metadata
         )
         try:
-            await self.process_message(bot, user_msg)
+            await self.process_message(bot, user_msg, media_ids)
         except Exception as e:
             logger.exception("Exception when trying to handle webhook for whatsapp message.")
             logger.exception(e)
 
     @staticmethod
-    async def process_message(bot: str, user_message: UserMessage):
-        await AgentProcessor.handle_channel_message(bot, user_message)
+    async def process_message(bot: str, user_message: UserMessage, media_ids: list[str] = None):
+        await AgentProcessor.handle_channel_message(bot, user_message, media_ids=media_ids)
 
     def __get_access_token(self):
         provider = self.config.get("bsp_type", "meta")
