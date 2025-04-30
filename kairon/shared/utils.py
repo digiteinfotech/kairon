@@ -2117,15 +2117,10 @@ class Utility:
 
     @staticmethod
     def get_llm_hyperparameters(llm_type):
-        from kairon.shared.llm.processor import LLMProcessor
-
-        #models_list = LLMProcessor.get_llm_metadata_default(llm_type)
         hyperparameters = {}
         if llm_type in Utility.llm_metadata.keys():
             for key, value in Utility.llm_metadata[llm_type]['properties'].items():
                 hyperparameters[key] = value["default"]
-            #if models_list:
-            #    hyperparameters["model"]["enum"] = models_list
             return hyperparameters
         raise AppException(f"Could not find any hyperparameters for {llm_type} LLM.")
 
