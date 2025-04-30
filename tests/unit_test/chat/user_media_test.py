@@ -364,6 +364,7 @@ async def test_save_whatsapp_media_content_360dialog_success(mock_get, mock_uuid
     )
     assert len(created) == 1
 
+
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
 @patch("kairon.shared.chat.user_media.uuid7")
