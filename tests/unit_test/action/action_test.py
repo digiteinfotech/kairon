@@ -5,6 +5,8 @@ from unittest import mock
 
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
+
+from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.utils import Utility
 Utility.load_system_metadata()
 
@@ -45,7 +47,6 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
 from unittest.mock import patch
 from urllib.parse import urlencode
-
 
 class TestActions:
 
@@ -2637,6 +2638,14 @@ class TestActions:
         user = 'test_user'
         Actions(name='kairon_faq_action', type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                         'source': 'static', 'is_enabled': True},
@@ -2658,7 +2667,7 @@ class TestActions:
         assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5,
                                  'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                  'user_question': {'type': 'from_user_message'}, 'bot': 'test_action_server',
-                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                                      'top_p': 0.0, 'n': 1, 'stop': None,
                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                                      'logit_bias': {}},
@@ -2698,6 +2707,7 @@ class TestActions:
                                 'integrations_per_user_limit': 3,
                                 'live_agent_enabled': False,
                                 'retry_broadcasting_limit': 3}
+        LLMSecret.objects.delete()
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3944,6 +3954,15 @@ class TestActions:
     def test_get_prompt_action_config_2(self):
         bot = "test_bot_action_test"
         user = "test_user_action_test"
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                         'source': 'static', 'is_enabled': True},
                        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
@@ -3961,7 +3980,7 @@ class TestActions:
                                        'user_question': {'type': 'from_user_message'},
                                        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                        'bot': 'test_bot_action_test', 'user': 'test_user_action_test',
-                                       'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                                       'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                                            'top_p': 0.0, 'n': 1, 'stop': None,
                                                            'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                                            'logit_bias': {}}, 'dispatch_response': True, 'set_slots': [],
@@ -3978,6 +3997,7 @@ class TestActions:
                                                         'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
                                        'instructions': [],
                                        'status': True}
+        LLMSecret.objects.delete()
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

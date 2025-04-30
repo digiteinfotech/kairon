@@ -750,7 +750,7 @@ def test_get_model_llm_type_map():
     result = DataValidation.get_model_llm_type_map()
     print(result)
     expected = {'gpt-3.5-turbo': 'openai',
-                'gpt-4o-mini': 'openai',
+                'gpt-4.1-mini': 'openai',
                 'claude-3-opus-20240229': 'anthropic',
                 'claude-3-5-sonnet-20240620': 'anthropic',
                 'claude-3-sonnet-20240229': 'anthropic',
@@ -795,7 +795,7 @@ def test_add_llm_type_based_on_model():
         "hyperparameters": {
             "similarity_threshold": 0.5,
             "top_results": 5,
-            "model": "gpt-4o-mini",
+            "model": "gpt-4.1-mini",
         },
     }
     assert not DataValidation.validate_prompt_action(bot, data)
