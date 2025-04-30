@@ -440,8 +440,9 @@ class TestWhatsappHandler:
                                                    "tabname": "default"},
                                                   bot)
 
+    @patch('kairon.shared.chat.user_media.UserMedia.save_whatsapp_media_content', return_value=['cbeuoaincpiac'])
     @pytest.mark.asyncio
-    async def test_valid_order_message_request(self):
+    async def test_valid_order_message_request(self, wp):
         from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
         with patch.object(WhatsappBot, "mark_as_read"):
             with patch.object(Whatsapp, "process_message") as mock_message:
@@ -520,8 +521,9 @@ class TestWhatsappHandler:
 
                 assert user_message.text == '/k_order_msg{"order": {"catalog_id": "538971028364699", "product_items": [{"product_retailer_id": "akuba13e44", "quantity": 1, "item_price": 200, "currency": "INR"}, {"product_retailer_id": "0z10aj0bmq", "quantity": 1, "item_price": 600, "currency": "INR"}]}}'
 
+    @patch('kairon.shared.chat.user_media.UserMedia.save_whatsapp_media_content', return_value=['cbeuoaincpiac'])
     @pytest.mark.asyncio
-    async def test_valid_attachment_message_request(self):
+    async def test_valid_attachment_message_request(self, wp):
         from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
         with patch.object(WhatsappBot, "mark_as_read"):
             with patch.object(Whatsapp, "process_message") as mock_message:
