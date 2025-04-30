@@ -358,7 +358,7 @@ async def test_save_whatsapp_media_content_360dialog_success(mock_get, mock_uuid
     mock_create.assert_called_once_with(
         bot=bot,
         media_id="uuid123",
-        filename="whataspp_360_media123.jpg",
+        filename="whatsapp_360_media123.jpg",
         sender_id=sender_id,
         upload_type=UserMediaUploadType.user_uploaded.value
     )

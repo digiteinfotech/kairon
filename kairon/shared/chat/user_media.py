@@ -143,7 +143,7 @@ class UserMedia:
             download_url = download_url.replace('https://lookaside.fbsbx.com', 'https://waba-v2.360dialog.io')
             mime_type = json_resp.get("mime_type")
             extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whataspp_360_{whatsapp_media_id}{extension}"
+            file_path = f"whatsapp_360_{whatsapp_media_id}{extension}"
         elif provider == 'meta':
             endpoint = f'https://graph.facebook.com/v22.0/{whatsapp_media_id}'
             access_token = config.get('access_token')
@@ -159,7 +159,7 @@ class UserMedia:
             download_url = json_resp.get("url")
             mime_type = json_resp.get("mime_type")
             extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whataspp_meta_{whatsapp_media_id}{extension}"
+            file_path = f"whatsapp_meta_{whatsapp_media_id}{extension}"
 
         media_resp = requests.get(
             download_url,
