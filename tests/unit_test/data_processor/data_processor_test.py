@@ -186,20 +186,40 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='keyvalue',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_slots(self):
         processor = MongoProcessor()
         bot = 'testing_bot'
         user = 'testing_user'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         request = {'name': 'test_add_prompt_action_with_invalid_slots', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -220,14 +240,24 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Slot with name info not found!"):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_http_action(self):
         processor = MongoProcessor()
         bot = 'testt_bot'
         user = 'testt_user'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         request = {'name': 'test_add_prompt_action_with_invalid_http_action', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -249,14 +279,24 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Action with name test_http_action not found!"):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_similarity_threshold(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         request = {'name': 'test_prompt_action_similarity', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -280,13 +320,16 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="similarity_threshold should be within 0.3 and 1"):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_top_results(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
         request = {'name': 'test_prompt_action_invalid_top_results', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -325,6 +368,14 @@ class TestMongoProcessor:
         bot = 'bot'
         user = 'user'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         request = {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
@@ -350,7 +401,7 @@ class TestMongoProcessor:
              'num_bot_responses': 5,
              'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
              'user_question': {'type': 'from_user_message'},
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0,
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
                                  'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                  'frequency_penalty': 0.0, 'logit_bias': {}},
              'llm_type': 'openai',
@@ -366,10 +417,20 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
              'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}], ignore_order=True)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_bot_content_prompt(self):
         processor = MongoProcessor()
         bot = 'bot'
         user = 'user'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         request = {'name': 'test_add_prompt_action_with_bot_content_prompt',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
@@ -395,7 +456,7 @@ class TestMongoProcessor:
             'num_bot_responses': 5,
             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
             'user_question': {'type': 'from_user_message'},
-            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0,
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
                                 'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                 'frequency_penalty': 0.0, 'logit_bias': {}},
             'llm_type': 'openai',
@@ -410,6 +471,8 @@ class TestMongoProcessor:
                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}, ignore_order=True)
+
+        LLMSecret.objects.delete()
 
     def test_add_prompt_action_with_invalid_query_prompt(self):
         processor = MongoProcessor()
@@ -480,6 +543,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
         request = {'name': 'test_add_prompt_action_with_multiple_system_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -528,6 +592,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
         request = {'name': 'test_add_prompt_action_with_empty_data_for_static_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -549,6 +614,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
         request = {'name': 'test_add_prompt_action_with_multiple_history_source_prompts',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -574,6 +640,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
         request = {'name': 'test_add_prompt_action_with_no_system_prompts',
                    'llm_prompts': [
                        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
@@ -592,9 +659,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompts', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -606,6 +674,14 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         request = {'name': 'test_add_prompt_action_faq_action_with_default_values',
                    'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -622,7 +698,7 @@ class TestMongoProcessor:
         assert not DeepDiff(action, [{'name': 'test_add_prompt_action_faq_action_with_default_values', 'num_bot_responses': 5,
                            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                                'top_p': 0.0, 'n': 1, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_type': 'openai',
@@ -634,15 +710,25 @@ class TestMongoProcessor:
                            'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
                                          {'name': 'gpt_result_type', 'value': '${data.type}',
                                           'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}], ignore_order=True)
+        LLMSecret.objects.delete()
 
     def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_one'
         user = 'test_user_one'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_temperature_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -652,14 +738,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['temperature']: 3.0 is greater than the maximum of 2.0")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_stop_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_two'
         user = 'test_user_two'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_stop_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': ["\n", ".", "?", "!", ";"],
                                        'presence_penalty': 0.0,
@@ -671,15 +767,25 @@ class TestMongoProcessor:
                            match=re.escape('[\'stop\']: ["\\n",".","?","!",";"] is not valid under any of the schemas listed in the \'anyOf\' keyword')):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_presence_penalty_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_three'
         user = 'test_user_three'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': -3.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -689,15 +795,25 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['presence_penalty']: -3.0 is less than the minimum of -2.0")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_four'
         user = 'test_user_four'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 3.0, 'logit_bias': {}},
@@ -707,14 +823,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['frequency_penalty']: 3.0 is greater than the maximum of 2.0")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_max_tokens_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_five'
         user = 'test_user_five'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -724,14 +850,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['max_tokens']: 2 is less than the minimum of 5")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_zero_max_tokens_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_six'
         user = 'test_user_six'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -741,14 +877,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['max_tokens']: 0 is less than the minimum of 5")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_top_p_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_seven'
         user = 'test_user_seven'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_top_p_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt-4.1-mini',
                                        'top_p': 3.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -758,14 +904,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['top_p']: 3.0 is greater than the maximum of 1.0")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_n_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_eight'
         user = 'test_user_eight'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 7, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -775,14 +931,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['n']: 7 is greater than the maximum of 5")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_zero_n_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_nine'
         user = 'test_user_nine'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 0, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -792,14 +958,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['n']: 0 is less than the minimum of 1")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_logit_bias_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_ten'
         user = 'test_user_ten'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_logit_bias_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 2, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': 'a'},
@@ -809,16 +985,28 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape('[\'logit_bias\']: "a" is not of type "object"')):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_faq_action_already_exist(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         request = {'name': 'test_add_prompt_action_faq_action_with_default_values',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(AppException, match='Action exists!'):
             processor.add_prompt_action(request, bot, user)
+
+        LLMSecret.objects.delete()
 
     def test_edit_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -848,6 +1036,16 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         request = {'name': 'test_edit_prompt_action_faq_action',
                    'user_question': {'type': 'from_user_message'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -875,7 +1073,7 @@ class TestMongoProcessor:
         action[0].pop("_id")
         assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message', 'user_question': {'type': 'from_user_message'},
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                                'top_p': 0.0, 'n': 1, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_type': 'openai',
@@ -910,7 +1108,7 @@ class TestMongoProcessor:
                            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                            'llm_type': 'openai',
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                                'top_p': 0.0, 'n': 1, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_prompts': [
@@ -919,10 +1117,22 @@ class TestMongoProcessor:
                            'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
                            'dispatch_response': True, 'status': True}], ignore_order=True)
 
+        LLMSecret.objects.delete()
+
     def test_edit_prompt_action_faq_action_llm_type_and_hyperparameters(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
+        llm_secret = LLMSecret(
+            llm_type="anthropic",
+            api_key='value',
+            models=["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         request = {'name': 'test_edit_prompt_action_faq_action',
                    'user_question': {'type': 'from_user_message'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -950,11 +1160,10 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
         assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
                                       'failure_message': 'updated_failure_message',
                                       'user_question': {'type': 'from_user_message'},
-                                      'hyperparameters': {'max_tokens': 1024, 'model': 'claude-3-haiku-20240307'},
+                                      'hyperparameters': {'max_tokens': 1024, 'model': 'claude-3-5-sonnet-20240620'},
                                       'llm_type': 'anthropic',
                                       'llm_prompts': [
                                           {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -979,11 +1188,22 @@ class TestMongoProcessor:
                                           {'name': 'gpt_result_type', 'value': '${data.type}',
                                            'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}],
                             ignore_order=True)
+        LLMSecret.objects.delete()
 
     def test_edit_prompt_action_with_less_hyperparameters(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         request = {'name': 'test_edit_prompt_action_with_less_hyperparameters',
                    'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                    'llm_prompts': [
@@ -1004,7 +1224,7 @@ class TestMongoProcessor:
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
                    "num_bot_responses": 5, "hyperparameters": {"temperature": 0.0,
                                                                "max_tokens": 300,
-                                                               "model": "gpt-4o-mini",
+                                                               "model": "gpt-4.1-mini",
                                                                "top_p": 0.0,
                                                                "n": 1}}
 
@@ -1014,7 +1234,7 @@ class TestMongoProcessor:
         assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message',
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                                'top_p': 0.0, 'n': 1, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_type': 'openai',
@@ -1034,6 +1254,8 @@ class TestMongoProcessor:
                                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                                 'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
                            'status': True}], ignore_order=True)
+
+        LLMSecret.objects.delete()
 
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -1044,12 +1266,22 @@ class TestMongoProcessor:
     def test_get_prompt_faq_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
+        user = "test+user"
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
         assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
                            'failure_message': 'updated_failure_message',
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                                'top_p': 0.0, 'n': 1, 'stop': None,
                                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                            'llm_type': 'openai',
@@ -1069,6 +1301,8 @@ class TestMongoProcessor:
                                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
                                 'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
                            'status': True}], ignore_order=True)
+        LLMSecret.objects.delete()
+
     def test_delete_prompt_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -1756,6 +1990,16 @@ class TestMongoProcessor:
         primary_key_col = 'id'
         event_type = 'push_menu'
 
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+
+        llm_secret.save()
+
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
             {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
@@ -1793,16 +2037,6 @@ class TestMongoProcessor:
             {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},  # New entry
             {"id": 2, "item": "Milk", "price": 3.00, "quantity": 5}  # Existing entry to be updated
         ]
-
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key="openai_key",
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
 
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
@@ -1856,6 +2090,15 @@ class TestMongoProcessor:
         collection_name = 'groceries'
         primary_key_col = 'id'
         event_type = 'field_update'
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1911,16 +2154,6 @@ class TestMongoProcessor:
             {"id": 2, "price": 27.00}
         ]
 
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key="openai_key",
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
@@ -1973,6 +2206,16 @@ class TestMongoProcessor:
         primary_key_col = 'id'
         event_type = 'push_menu'
 
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+
+        llm_secret.save()
+
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
             {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
@@ -2007,16 +2250,6 @@ class TestMongoProcessor:
         existing_document.save()
 
         upsert_data = []
-
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key="openai_key",
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
 
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
@@ -2058,6 +2291,16 @@ class TestMongoProcessor:
         user = "test_user"
         collection_name = "groceries"
         primary_key_col = "id"
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+
+        llm_secret.save()
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2109,16 +2352,6 @@ class TestMongoProcessor:
 
         mock_collection_upsert.return_value = None
 
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key="openai_key",
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
         processor = CognitionDataProcessor()
         llm_processor = LLMProcessor(bot, DEFAULT_LLM)
         await processor.sync_with_qdrant(
@@ -2134,7 +2367,7 @@ class TestMongoProcessor:
             model="text-embedding-3-large",
             input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
             metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="openai_key",
+            api_key="value",
             num_retries=3
         )
         mock_collection_upsert.assert_called_once_with(
@@ -2164,6 +2397,16 @@ class TestMongoProcessor:
         user = "test_user"
         collection_name = "groceries"
         primary_key_col = "id"
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+
+        llm_secret.save()
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2205,16 +2448,6 @@ class TestMongoProcessor:
 
         mock_request.side_effect = ConnectionError("Failed to connect to Qdrant")
 
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key="openai_key",
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
         processor = CognitionDataProcessor()
         llm_processor = LLMProcessor(bot, DEFAULT_LLM)
 
@@ -2232,7 +2465,7 @@ class TestMongoProcessor:
             model="text-embedding-3-large",
             input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
             metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="openai_key",
+            api_key="value",
             num_retries=3
         )
 
@@ -2593,6 +2826,22 @@ class TestMongoProcessor:
         from unittest import mock
         import textwrap
         from kairon.shared.actions.data_objects import SetSlots, CustomActionParameters
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            user='test-user',
+        )
+        llm_secret.save()
+
+        llm_secret = LLMSecret(
+            llm_type="anthropic",
+            api_key='value',
+            models=["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"],
+            user='test-user'
+        )
+        llm_secret.save()
 
         HttpActionConfig(
             action_name="http_action_1",
@@ -3076,8 +3325,17 @@ class TestMongoProcessor:
 
     def test_get_slot_actions(self, save_actions):
         processor = MongoProcessor()
+        bot = 'testing_bot'
+        user = 'test_user'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            user=user,
+            bot=bot
+        )
+        llm_secret.save()
         actions = processor.get_slot_mapped_actions('testing_bot', 'name')
-        print(actions)
         assert actions == {
             'http_action': ['http_action_1', 'http_action_2'],
             'email_action': ['email_action_1', 'email_action_3', 'email_action_4', 'email_action_5', 'email_action_6'],
@@ -3096,7 +3354,6 @@ class TestMongoProcessor:
         }
 
         actions = processor.get_slot_mapped_actions('testing_bot', 'bot')
-        print(actions)
         assert actions == {
             'http_action': ['http_action_1', 'http_action_2'],
             'email_action': ['email_action_6'],
@@ -3115,7 +3372,6 @@ class TestMongoProcessor:
         }
 
         actions = processor.get_slot_mapped_actions('testing_bot', 'location')
-        print(actions)
         assert actions == {
             'http_action': ['http_action_2'],
             'email_action': [],
@@ -3132,6 +3388,7 @@ class TestMongoProcessor:
             'callback_action': ['callback_action1'],
             'schedule_action': ['schedule_action_2']
         }
+        LLMSecret.objects.delete()
 
     def test_get_collection_data_with_no_collection_data(self):
         bot = 'test_bot'
@@ -5048,6 +5305,8 @@ class TestMongoProcessor:
             StoryEvents(name='utter_please_rephrase', type=ActionExecuted.type_name)
         ]
 
+        LLMSecret.objects.delete()
+
     def test_add_endpoints(self):
         processor = MongoProcessor()
         config = {}
@@ -5399,6 +5658,14 @@ class TestMongoProcessor:
 
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot='tests_download_prompt',
+            user='user@integration.com'
+        )
+        llm_secret.save()
         BotSettings(bot="tests_download_prompt", user="user@integration.com",
                     llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'prompt_action_with_default_values',
@@ -5424,6 +5691,8 @@ class TestMongoProcessor:
         expected_content = b"name: System Prompt\n    source: static\n    type: system\n  - is_enabled: true"
         assert file_content_actions.__contains__(expected_content)
         zip_file.close()
+
+        LLMSecret.objects.delete()
 
     def test_download_data_files_empty_data(self, monkeypatch):
         from zipfile import ZipFile
@@ -8198,26 +8467,34 @@ class TestMongoProcessor:
 
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_all_actions(self):
+        bot = 'test_validate_and_prepare_data_all_actions'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user='test'
+        )
+        llm_secret.save()
         with patch('kairon.shared.utils.SMTP'):
             with patch('kairon.shared.actions.data_objects.ZendeskAction.validate'):
                 with patch('kairon.shared.actions.data_objects.JiraAction.validate'):
                     with patch('pipedrive.client.Client'):
                         processor = MongoProcessor()
-                        BotSettings(bot='test_validate_and_prepare_data_all_actions', user='test',
+                        BotSettings(bot=bot, user='test',
                                     llm_settings=LLMSettings(enable_faq=True)).save()
                         actions = UploadFile(filename="actions.yml",
                                              file=BytesIO(open('tests/testing_data/actions/actions.yml', 'rb').read()))
                         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
-                            'test_validate_and_prepare_data_all_actions', 'test', [actions], True)
-                        assert non_event_validation_summary['summary'] == {
+                            bot, 'test', [actions], True)
+                        assert not DeepDiff(non_event_validation_summary['summary'], {
                             'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
                             'email_action': [],
                             'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
                             'pipedrive_leads_action': [], 'prompt_action': [], 'razorpay_action': [],
                             'pyscript_action': [], 'database_action': [], 'callback_action': [], 'callbackconfig': [],
                             'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': []
-                        }
-                        print(non_event_validation_summary)
+                        }, ignore_order=True)
                         assert non_event_validation_summary['component_count']['http_action'] == 4
                         assert non_event_validation_summary['component_count']['jira_action'] == 2
                         assert non_event_validation_summary['component_count']['google_search_action'] == 2
@@ -8231,7 +8508,7 @@ class TestMongoProcessor:
                         assert files_received == {'actions'}
                         assert not is_event_data
                         saved_actions = processor.load_action_configurations(
-                            'test_validate_and_prepare_data_all_actions')
+                            bot)
                         assert len(saved_actions['http_action']) == 4
                         assert len(saved_actions['slot_set_action']) == 3
                         assert len(saved_actions['form_validation_action']) == 4
@@ -8250,6 +8527,7 @@ class TestMongoProcessor:
                         assert saved_actions['two_stage_fallback'][0]['fallback_message'] \
                                == "I could not understand you! Did you mean any of the suggestions below? " \
                                   "Or else please rephrase your question."
+        LLMSecret.objects.delete()
 
     @pytest.mark.asyncio
     async def test_load_action_configurations_with_two_stage_fallback(self):
@@ -10977,8 +11255,18 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         with pytest.raises(AppException, match=f'Action with name "action_custom" not found'):
             processor.delete_action('action_custom', bot, user)
+
+        LLMSecret.objects.delete()
 
     def test_delete_action_with_attached_http_action(self):
         processor = MongoProcessor()
@@ -10989,6 +11277,13 @@ class TestMongoProcessor:
         response = "json"
         request_method = 'GET'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            user=user
+        )
+        llm_secret.save()
         http_params_list: List[HttpActionParameters] = [
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
@@ -11020,6 +11315,8 @@ class TestMongoProcessor:
         processor.add_prompt_action(prompt_action_config.dict(), bot, user)
         with pytest.raises(AppException, match=f'Action with name tester_action is attached with PromptAction!'):
             processor.delete_action('tester_action', bot, user)
+
+        LLMSecret.objects.delete()
 
     @responses.activate
     def test_push_notifications_enabled_create_type_event(self):
@@ -17000,6 +17297,14 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         processor.add_prompt_action(request, bot, user)
 
         story_dict = {'name': "activate kairon faq action", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
@@ -17015,6 +17320,8 @@ class TestMongoProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "kairon_faq_action", "type": "PROMPT_ACTION"}
         ]
+
+        LLMSecret.objects.delete()
 
     def test_add_secret(self):
         processor = MongoProcessor()
@@ -17820,6 +18127,16 @@ class TestMongoProcessor:
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         schema = {
             "metadata": None,
             "collection_name": "Python",
@@ -17853,6 +18170,7 @@ class TestMongoProcessor:
             processor.delete_cognition_schema(pytest.delete_schema_id, bot, user=user)
         processor_two.delete_action('test_delete_schema_attached_to_prompt_action', bot, user)
         processor.delete_cognition_schema(pytest.delete_schema_id, bot, user=user)
+        LLMSecret.objects.delete()
 
     def test_save_content_with_gpt_feature_disabled(self):
         processor = CognitionDataProcessor()

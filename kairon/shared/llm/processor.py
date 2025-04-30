@@ -463,6 +463,22 @@ class LLMProcessor(LLMBase):
         return models
 
     @staticmethod
+    def get_llm_metadata_default(llm_type):
+        """
+        Fetches the llm_type and corresponding models for a particular bot.
+        :param bot: bot id
+        :return: dictionary where each key is a llm_type and the value is a list of models.
+        """
+        secret = LLMSecret.objects(llm_type=llm_type, bot__exists=False).first()
+
+        if secret:
+            models = list(secret.models) if isinstance(secret.models, BaseList) else secret.models
+        else:
+            models = []
+
+        return models
+
+    @staticmethod
     def modify_user_message_for_perplexity(user_msg: str, llm_type: str, hyperparameters: Dict) -> str:
         """
         Modify the user message if the LLM type is 'perplexity' and a search domain filter is provided.

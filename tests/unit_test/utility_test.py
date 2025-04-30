@@ -3087,7 +3087,7 @@ class TestUtility:
         assert hyperparameters == {
             "temperature": 0.0,
             "max_tokens": 300,
-            "model": "gpt-4o-mini",
+            "model": "gpt-4.1-mini",
             "top_p": 0.0,
             "n": 1,
             "stop": None,
@@ -3098,9 +3098,9 @@ class TestUtility:
 
     def test_get_llm_hyperparameters_not_found(self, monkeypatch):
         with pytest.raises(
-            AppException, match="Could not find any hyperparameters for gemini LLM."
+            AppException, match="Could not find any hyperparameters for cohere LLM."
         ):
-            Utility.get_llm_hyperparameters("gemini")
+            Utility.get_llm_hyperparameters("cohere")
 
     def test_get_client_ip_with_request_client(self):
         request = MagicMock()

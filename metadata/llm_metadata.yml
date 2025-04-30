@@ -17,8 +17,8 @@ openai:
       description: "The max_tokens hyperparameter limits the length of generated responses in chat completion using ChatGPT."
     model:
       type: "string"
-      default: "gpt-4o-mini"
-      enum: ["gpt-3.5-turbo", "gpt-4o-mini"]
+      default: "gpt-4.1-mini"
+      enum: ["gpt-3.5-turbo", "gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1"]
       description: "The model hyperparameter is the ID of the model to use such as gpt-2, gpt-3, or a custom model that you have trained or fine-tuned."
     top_p:
       type: "number"
@@ -77,8 +77,8 @@ anthropic:
       description: "The max_tokens hyperparameter limits the length of generated responses in chat completion using ChatGPT."
     model:
       type: "string"
-      default: "claude-3-haiku-20240307"
-      enum: ["claude-3-opus-20240229", "claude-3-5-sonnet-20240620", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]
+      default: "claude-3-5-sonnet-20240620"
+      enum: ["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"]
       description: "The model hyperparameter is the ID of the Anthropic model or a custom model that you have trained or fine-tuned."
 gemini:
   $schema: "https://json-schema.org/draft/2020-12/schema"

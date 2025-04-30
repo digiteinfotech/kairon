@@ -11816,7 +11816,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
         'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l', 'invocation': 'prompt_action'},
         'api_key': 'keyvalue',
-        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
+        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0, 'n': 1,
         'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
 
     aioresponses.add(
@@ -11839,7 +11839,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
     llm_secret = LLMSecret(
         llm_type=llm_type,
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -11913,7 +11913,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
         'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l', 'invocation': 'prompt_action'},
         'api_key': 'keyvalue',
-        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
+        'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0, 'n': 1,
         'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -11945,7 +11945,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key="api_key",
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12057,7 +12057,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12066,7 +12066,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     llm_secret = LLMSecret(
         llm_type="anthropic",
         api_key=value,
-        models=["claude-3-sonnet-20240229", "claude-3-haiku-20240307"],
+        models=["claude-3-sonnet-20240229", "claude-3-haiku-20240307", "claude-3-5-sonnet-20240620"],
         bot=bot,
         user=user
     )
@@ -12161,7 +12161,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12256,7 +12256,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12353,7 +12353,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12449,7 +12449,7 @@ def test_prompt_response_action(mock_embedding, aioresponses):
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12535,7 +12535,7 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12574,7 +12574,7 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = {'temperature': 0.0, 'max_tokens': 300,
-                       'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
+                       'model': 'gpt-4.1-mini', 'top_p': 0.0, 'n': 1,
                        'stream': True,
                        'stop': None,
                        'presence_penalty': 0.0,
@@ -12626,7 +12626,7 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12810,7 +12810,7 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12944,7 +12944,7 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -12980,7 +12980,7 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
                  'raw_completion_response': {'choices': [{'message': {
                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0,
+                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     excludedRegex = [
@@ -13013,7 +13013,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -13084,7 +13084,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                  'raw_completion_response': {'choices': [{'message': {
                      'content': 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0,
+                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
@@ -13183,7 +13183,7 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -13233,7 +13233,7 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
                  'raw_completion_response': {'choices': [{'message': {
                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0,
+                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     excludedRegex = [
@@ -13299,7 +13299,7 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -13363,7 +13363,7 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
                  'raw_completion_response': {'choices': [{'message': {
                      'content': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0,
+                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     excludedRegex = [
@@ -13431,7 +13431,7 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -13485,7 +13485,7 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
                  'raw_completion_response': {'choices': [{'message': {
                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
                      'role': 'assistant'}}]}, 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0,
+                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
                                      'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                      'frequency_penalty': 0.0, 'logit_bias': {}}}]
     excludedRegex = [
@@ -13551,7 +13551,7 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -13637,7 +13637,7 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
@@ -13716,7 +13716,7 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     llm_secret = LLMSecret(
         llm_type=llm_type,
         api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4o-mini"],
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
         bot=bot,
         user=user
     )
