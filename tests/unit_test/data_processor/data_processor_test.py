@@ -16328,10 +16328,29 @@ class TestMongoProcessor:
                         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             assert processor.add_email_action(email_config, "TEST", "tests") is not None
+
+    def test_add_email_action_dispatch_false(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "email_config_disp_false",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": {'value': "test"},
+                        "from_email": {"value": "from_email", "parameter_type": "slot"},
+                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "dispatch_bot_response": False,
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            assert processor.add_email_action(email_config, "TEST", "tests") is not None
+            EmailActionConfig.objects(action_name="email_config_disp_false").delete()
 
     def test_add_email_action_with_custom_text(self):
         processor = MongoProcessor()
@@ -16344,6 +16363,8 @@ class TestMongoProcessor:
                         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
+
                         "tls": False,
                         "custom_text": {"value": "Hello from kairon!"}
                         }
@@ -16382,6 +16403,8 @@ class TestMongoProcessor:
                         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
+
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
@@ -16442,6 +16465,8 @@ class TestMongoProcessor:
                         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
+
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
@@ -16459,6 +16484,8 @@ class TestMongoProcessor:
                         "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
+
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
@@ -16476,12 +16503,14 @@ class TestMongoProcessor:
                         "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": False,
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             assert processor.edit_email_action(email_config, "TEST", "tests") is None
 
         email_config["custom_text"] = {"value": "custom_text_slot", "parameter_type": "slot"}
+        email_config["dispatch_bot_response"] = True
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             assert processor.edit_email_action(email_config, "TEST", "tests") is None
 
@@ -16496,6 +16525,7 @@ class TestMongoProcessor:
                         "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
