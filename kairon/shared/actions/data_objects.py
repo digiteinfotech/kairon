@@ -444,6 +444,7 @@ class EmailActionConfig(Auditlog):
     subject = StringField(required=True)
     to_email = EmbeddedDocumentField(CustomActionParameters)
     response = StringField(required=True)
+    dispatch_bot_response = BooleanField(default=True)
     custom_text = EmbeddedDocumentField(CustomActionRequestParameters)
     tls = BooleanField(default=False)
     bot = StringField(required=True)

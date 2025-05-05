@@ -7149,6 +7149,7 @@ class MongoProcessor:
         email_action.subject = action["subject"]
         email_action.to_email = CustomActionParameters(**action['to_email']) if action.get('to_email') else None
         email_action.response = action["response"]
+        email_action.dispatch_bot_response = action["dispatch_bot_response"]
         email_action.tls = action["tls"]
         email_action.user = user
         email_action.timestamp = datetime.utcnow()
