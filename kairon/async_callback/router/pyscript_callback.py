@@ -1,11 +1,12 @@
 from typing import Optional
-from blacksheep import Router, Request, Response as BSResponse, TextContent
+from blacksheep import Router, Request, Response as BSResponse, json
 from blacksheep.contents import JSONContent
 
 from loguru import logger
 from kairon.async_callback.processor import CallbackProcessor
 from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
+from kairon.shared.callback.data_objects import PyscriptPayload
 
 router = Router()
 
@@ -89,3 +90,14 @@ async def execute_async_action(request: Request, identifier: str, token: str) ->
 @router.route("/callback/s/{token}", methods=["POST", "PUT", "PATCH"])
 async def execute_async_action_standalone(request: Request, token: str) -> BSResponse:
     return await process_router_message(token, None, request.method, request)
+
+@router.post("/main_pyscript/execute-python")
+async def trigger_restricted_python(payload: PyscriptPayload):
+    try:
+        result = CallbackUtility.main_pyscript_handler({
+            "source_code": payload.source_code,
+            "predefined_objects": payload.predefined_objects or {}
+        }, None)
+        return {"success": True, **result}
+    except Exception as e:
+        return json({"success": False, "error": str(e)}, status=500)

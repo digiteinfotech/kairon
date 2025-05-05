@@ -37,7 +37,7 @@ class PyScriptRunner(BaseActor):
         present as local variables and callables in the script. Any variable defined in the script
         will also be present in local dict which is returned as is from this method.
         """
-        from kairon.async_callback.utils import CallbackUtility
+        from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 
         local_vars = {}
         script_timeout = kwargs.get("timeout")
@@ -46,18 +46,20 @@ class PyScriptRunner(BaseActor):
 
         bot = predefined_objects.get("slot", {}).get("bot")
 
-        global_safe['add_data'] = partial(CallbackUtility.add_data, bot=bot)
-        global_safe['get_data'] = partial(CallbackUtility.get_data, bot=bot)
-        global_safe['delete_data'] = partial(CallbackUtility.delete_data, bot=bot)
-        global_safe['update_data'] = partial(CallbackUtility.update_data, bot=bot)
-        global_safe['delete_schedule_job'] = partial(CallbackUtility.delete_schedule_job, bot=bot)
+        global_safe['add_data'] = partial(PyscriptSharedUtility.add_data, bot=bot)
+        global_safe['get_data'] = partial(PyscriptSharedUtility.get_data, bot=bot)
+        global_safe['delete_data'] = partial(PyscriptSharedUtility.delete_data, bot=bot)
+        global_safe['update_data'] = partial(PyscriptSharedUtility.update_data, bot=bot)
+        global_safe['delete_schedule_job'] = partial(PyscriptSharedUtility.delete_schedule_job, bot=bot)
         global_safe['get_db_action_data'] = partial(PyscriptUtility.get_db_action_data, bot=bot,
                                                     predefined_objects=predefined_objects)
         global_safe['api_call'] = partial(PyscriptUtility.api_call, bot=bot,
                                           predefined_objects=predefined_objects)
+        global_safe['send_waba_message'] = partial(PyscriptUtility.send_waba_message, bot=bot,
+                                          predefined_objects=predefined_objects)
 
         @timeout_decorator.timeout(script_timeout, use_signals=False)
-        def execute_script_with_timeout(src_code: Text, local: Optional[Dict] = None):
+        def execute_script_with_timeout(src_code: Text, global_safe:Optional[Dict], local: Optional[Dict] = None):
             try:
                 byte_code = compile_restricted(
                     src_code,
@@ -72,7 +74,7 @@ class PyScriptRunner(BaseActor):
                 logger.exception(e)
                 raise AppException(f"Script execution error: {e}")
 
-        return execute_script_with_timeout(source_code, local_vars)
+        return execute_script_with_timeout(source_code, global_safe, local_vars)
 
     def __perform_cleanup(self, local_vars: Dict):
         filtered_locals = {}

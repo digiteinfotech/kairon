@@ -680,7 +680,6 @@ class ActionUtility:
     @staticmethod
     def run_pyscript(source_code: Text, context: dict):
         trigger_task = Utility.environment['evaluator']['pyscript']['trigger_task']
-        pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
         request_body = {"source_code": source_code, "predefined_objects": context}
 
         if trigger_task:
@@ -691,10 +690,19 @@ class ActionUtility:
                 raise ActionFailure(f"{err}")
             result = lambda_response["Payload"].get('body')
         else:
-            resp = ActionUtility.execute_http_request(pyscript_evaluator_url, "POST", request_body)
-            if resp.get('error_code') != 0:
+            callback_url=Utility.environment['async_callback_action']['pyscript']['url']
+            resp = Utility.execute_http_request(
+                "POST",
+                http_url=callback_url,
+                request_body={
+                    "source_code": source_code,
+                    "predefined_objects": context
+                },
+                headers={"Content-Type": "application/json"}
+            )
+            if resp.get('statusCode') != 200:
                 raise ActionFailure(f'Pyscript evaluation failed: {resp}')
-            result = resp.get('data')
+            result = resp.get('body')
 
         return result
 
