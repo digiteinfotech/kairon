@@ -1001,6 +1001,7 @@ class EmailActionRequest(BaseModel):
     custom_text: CustomActionParameter = None
     to_email: CustomActionParameterModel
     response: str
+    dispatch_bot_response: bool = True
     tls: bool = False
 
 
