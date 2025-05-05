@@ -1,3 +1,4 @@
+import responses
 from mock import patch
 import pytest
 import os
@@ -521,8 +522,18 @@ class TestWhatsappHandler:
                 assert user_message.text == '/k_order_msg{"order": {"catalog_id": "538971028364699", "product_items": [{"product_retailer_id": "akuba13e44", "quantity": 1, "item_price": 200, "currency": "INR"}, {"product_retailer_id": "0z10aj0bmq", "quantity": 1, "item_price": 600, "currency": "INR"}]}}'
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_valid_attachment_message_request(self):
+        document_id = "sdfghj567"
+        access_token = 'ERTYUIEFDGHGFHJKLFGHJKGHJ'
         from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with open("./tests/testing_data/sample.pdf", 'rb') as file:
+            body_bytes = file.read()
+
+        responses.get(url=f'https://graph.facebook.com/v22.0/{document_id}?fields=url',
+                      json={'url': 'https://test.com/download', 'mime_type': 'application/pdf'})
+        responses.get(url=f'https://test.com/download',
+                      body=body_bytes)
         with patch.object(WhatsappBot, "mark_as_read"):
             with patch.object(Whatsapp, "process_message") as mock_message:
                 mock_message.return_value = "Hi, How may i help you!"
@@ -530,7 +541,7 @@ class TestWhatsappHandler:
                     "connector_type": "whatsapp",
                     "config": {
                         "app_secret": "jagbd34567890",
-                        "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                        "access_token": access_token,
                         "verify_token": "valid",
                         "phone_number": "1234567890",
                     }
@@ -582,7 +593,7 @@ class TestWhatsappHandler:
                 assert args[0] == bot
                 user_message = args[1]
 
-                assert user_message.text == '/k_multimedia_msg{"document": "sdfghj567"}'
+                assert user_message.text == '/k_multimedia_msg{"document": "'+document_id+'"}'
 
     @pytest.mark.asyncio
     async def test_payment_message_request(self):
