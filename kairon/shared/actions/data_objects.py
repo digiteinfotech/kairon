@@ -450,6 +450,7 @@ class EmailActionConfig(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    dispatch_response = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "action_name", "status")]}]}
 

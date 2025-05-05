@@ -54,6 +54,7 @@ class ActionEmail(ActionsBase):
         exception = None
         action_config = self.retrieve_config()
         bot_response = action_config.get("response")
+        dispatch_response = action_config.get("dispatch_response")
         smtp_password = action_config.get('smtp_password')
         smtp_userid = action_config.get('smtp_userid')
         custom_text = action_config.get('custom_text')
@@ -87,6 +88,9 @@ class ActionEmail(ActionsBase):
             bot_response = "I have failed to process your request"
             status = "FAILURE"
         finally:
+            if dispatch_response and bot_response:
+                dispatcher.utter_message(bot_response)
+
             ActionServerLogs(
                 type=ActionType.email_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -98,7 +102,8 @@ class ActionEmail(ActionsBase):
                 status=status,
                 user_msg=tracker.latest_message.get('text')
             ).save()
-        dispatcher.utter_message(bot_response)
+
+
         return {KaironSystemSlots.kairon_action_response.value: bot_response}
 
     @staticmethod

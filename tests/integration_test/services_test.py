@@ -1562,8 +1562,6 @@ def test_get_client_config_with_nudge_server_url():
     assert actual["data"]["api_server_host_url"] == expected_app_server_url
     assert actual["data"]["chat_server_base_url"] == expected_chat_server_url
 
-
-
 def test_get_llm_metadata():
     secrets = [
         {
@@ -10159,6 +10157,7 @@ def test_upload_with_chat_client_config_only():
     assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
 
 
+
 @responses.activate
 def test_upload_with_chat_client_config():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -12204,111 +12203,110 @@ def test_update_multiflow_story_with_tag():
     assert actual["success"]
     assert actual["error_code"] == 0
 
-# def test_update_multiflow_story_invalid_name():
-#     response = client.put(
-#         f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
-#         json={
-#             "name": "test_path",
-#             "steps": [
-#                 {
-#                     "step": {
-#                         "name": "greeting",
-#                         "type": "INTENT",
-#                         "node_id": "1",
-#                         "component_id": "MNbcg",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "utter_greeting",
-#                             "type": "BOT",
-#                             "node_id": "2",
-#                             "component_id": "MNbcZZg",
-#                         }
-#                     ],
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "utter_greeting",
-#                         "type": "BOT",
-#                         "node_id": "2",
-#                         "component_id": "MNbcZZg",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "more_query",
-#                             "type": "INTENT",
-#                             "node_id": "3",
-#                             "component_id": "uhsjJ",
-#                         },
-#                         {
-#                             "name": "goodbye",
-#                             "type": "INTENT",
-#                             "node_id": "4",
-#                             "component_id": "MgGFD",
-#                         },
-#                     ],
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "goodbye",
-#                         "type": "INTENT",
-#                         "node_id": "4",
-#                         "component_id": "MgGFD",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "utter_goodbye",
-#                             "type": "BOT",
-#                             "node_id": "5",
-#                             "component_id": "MNbcg",
-#                         }
-#                     ],
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "utter_goodbye",
-#                         "type": "BOT",
-#                         "node_id": "5",
-#                         "component_id": "MNbcg",
-#                     },
-#                     "connections": None,
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "utter_more_query",
-#                         "type": "BOT",
-#                         "node_id": "6",
-#                         "component_id": "IIUUUYY",
-#                     },
-#                     "connections": None,
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "more_query",
-#                         "type": "INTENT",
-#                         "node_id": "3",
-#                         "component_id": "uhsjJ",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "utter_more_query",
-#                             "type": "BOT",
-#                             "node_id": "6",
-#                             "component_id": "IIUUUYY",
-#                         }
-#                     ],
-#                 },
-#             ],
-#         },
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#     actual = response.json()
-#     print(actual)
-#
-#     assert actual["success"]
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "valid story name"
+def test_update_multiflow_story_invalid_name():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
+        json={
+            "name": "test_path@#",
+            "steps": [
+                {
+                    "step": {
+                        "name": "greeting",
+                        "type": "INTENT",
+                        "node_id": "1",
+                        "component_id": "MNbcg",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_greeting",
+                            "type": "BOT",
+                            "node_id": "2",
+                            "component_id": "MNbcZZg",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_greeting",
+                        "type": "BOT",
+                        "node_id": "2",
+                        "component_id": "MNbcZZg",
+                    },
+                    "connections": [
+                        {
+                            "name": "more_query",
+                            "type": "INTENT",
+                            "node_id": "3",
+                            "component_id": "uhsjJ",
+                        },
+                        {
+                            "name": "goodbye",
+                            "type": "INTENT",
+                            "node_id": "4",
+                            "component_id": "MgGFD",
+                        },
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "goodbye",
+                        "type": "INTENT",
+                        "node_id": "4",
+                        "component_id": "MgGFD",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_goodbye",
+                            "type": "BOT",
+                            "node_id": "5",
+                            "component_id": "MNbcg",
+                        }
+                    ],
+                },
+                {
+                    "step": {
+                        "name": "utter_goodbye",
+                        "type": "BOT",
+                        "node_id": "5",
+                        "component_id": "MNbcg",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "utter_more_query",
+                        "type": "BOT",
+                        "node_id": "6",
+                        "component_id": "IIUUUYY",
+                    },
+                    "connections": None,
+                },
+                {
+                    "step": {
+                        "name": "more_query",
+                        "type": "INTENT",
+                        "node_id": "3",
+                        "component_id": "uhsjJ",
+                    },
+                    "connections": [
+                        {
+                            "name": "utter_more_query",
+                            "type": "BOT",
+                            "node_id": "6",
+                            "component_id": "IIUUUYY",
+                        }
+                    ],
+                },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
 
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["message"] == "valid story name"
 
 def test_update_multiflow_story():
     response = client.put(
@@ -23076,6 +23074,7 @@ def test_add_email_action(mock_smtp):
     assert actual["message"] == "Action added"
 
 
+
 @patch("kairon.shared.utils.SMTP", autospec=True)
 def test_add_email_action_from_different_parameter_type(mock_smtp):
     request = {
@@ -23321,8 +23320,8 @@ def test_add_email_action_from_invalid_parameter_type_1(mock_smtp):
     assert actual["error_code"] == 422
     assert actual["message"] == 'Invalid From or To email address'
 
-
-def test_list_email_actions():
+@patch("kairon.shared.utils.SMTP", autospec=True)
+def test_list_email_actions(mock_smtp):
     response = client.get(
         f"/api/bot/{pytest.bot}/action/email",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -23344,13 +23343,14 @@ def test_list_email_actions():
                 "value": "test",
                 "parameter_type": "value",
             },
-           'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
-                          'value': 'from_email', 'parameter_type': 'slot'},
-           'subject': 'Test Subject',
-           'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False,
-                        'value': ['test@test.com', 'test1@test.com'], 'parameter_type': 'value'},
-           'response': 'Test Response',
-            'tls': False
+            'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                           'value': 'from_email', 'parameter_type': 'slot'},
+            'subject': 'Test Subject',
+            'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False,
+                         'value': ['test@test.com', 'test1@test.com'], 'parameter_type': 'value'},
+            'response': 'Test Response',
+            'tls': False,
+            "dispatch_response": True
         },
         {
             "action_name": "email_config_with_slot",
@@ -23363,13 +23363,14 @@ def test_list_email_actions():
                 "value": "test",
                 "parameter_type": "slot",
             },
-           'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
-                          'value': 'test@demo.com', 'parameter_type': 'value'},
-           'subject': 'Test Subject',
-           'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
-                        'parameter_type': 'slot'},
+            'from_email': {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                           'value': 'test@demo.com', 'parameter_type': 'value'},
+            'subject': 'Test Subject',
+            'to_email': {'_cls': 'CustomActionParameters', 'encrypt': False, 'value': 'to_email',
+                         'parameter_type': 'slot'},
             'response': 'Test Response',
             "tls": False,
+            "dispatch_response": True
         },
         {
             "action_name": "email_config_with_key_vault",
@@ -23389,6 +23390,7 @@ def test_list_email_actions():
                          'parameter_type': 'slot'},
             'response': 'Test Response',
             "tls": False,
+            "dispatch_response": True
         },
     ]
 
@@ -30496,7 +30498,7 @@ def test_leave_bot_owner_forbidden():
     assert "access_token" in actual["data"]
     assert actual["success"]
 
-    # Step 2: Attempt to leave the bot
+
     response = client.delete(
         f"/api/user/{pytest.mayank_bot}/leave",
         headers={
@@ -30504,7 +30506,7 @@ def test_leave_bot_owner_forbidden():
         },
     ).json()
 
-    # Step 3: Validate response
+
     assert response["message"] == "Owner cannot leave the bot"
     assert response["error_code"] == 422
     assert not response["success"]
