@@ -23308,6 +23308,7 @@ def test_list_email_actions():
             "action_name": "email_config",
             "smtp_url": "test.test.com",
             "smtp_port": 25,
+            'dispatch_bot_response': True,
             "smtp_password": {
                 "_cls": "CustomActionRequestParameters",
                 "key": "smtp_password",
@@ -23327,6 +23328,7 @@ def test_list_email_actions():
             "action_name": "email_config_with_slot",
             "smtp_url": "test.test.com",
             "smtp_port": 25,
+            'dispatch_bot_response': True,
             "smtp_password": {
                 "_cls": "CustomActionRequestParameters",
                 "key": "smtp_password",
@@ -23346,6 +23348,7 @@ def test_list_email_actions():
             "action_name": "email_config_with_key_vault",
             "smtp_url": "test.test.com",
             "smtp_port": 25,
+            'dispatch_bot_response': True,
             "smtp_password": {
                 "_cls": "CustomActionRequestParameters",
                 "key": "smtp_password",
