@@ -2,6 +2,7 @@ from typing import Text
 
 from kairon.actions.definitions.callback_action import ActionCallback
 from kairon.actions.definitions.bot_response import ActionKaironBotResponse
+from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.form_validation import ActionFormValidation
 from kairon.actions.definitions.google import ActionGoogleSearch
@@ -45,7 +46,8 @@ class ActionFactory:
         ActionType.web_search_action.value: ActionWebSearch,
         ActionType.live_agent_action.value: ActionLiveAgent,
         ActionType.callback_action.value: ActionCallback,
-        ActionType.schedule_action.value: ActionSchedule
+        ActionType.schedule_action.value: ActionSchedule,
+        ActionType.parallel_action.value: ActionParallel
     }
 
     @staticmethod

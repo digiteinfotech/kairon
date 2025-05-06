@@ -8,14 +8,14 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, KaironTwoStageFallbackAction, EmailActionConfig, \
     ZendeskAction, JiraAction, FormValidationAction, SlotSetAction, GoogleSearchAction, PipedriveLeadsAction, \
     PromptAction, WebSearchAction, RazorpayAction, PyscriptActionConfig, DatabaseAction, LiveAgentActionConfig, \
-    CallbackActionConfig, ScheduleAction, Actions
+    CallbackActionConfig, ScheduleAction, Actions, ParallelActionConfig
 from kairon.shared.actions.models import ActionType
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.data.data_models import HttpActionConfigRequest, TwoStageFallbackConfigRequest, EmailActionRequest, \
     JiraActionRequest, ZendeskActionRequest, SlotSetActionRequest, GoogleSearchActionRequest, PipedriveActionRequest, \
     RazorpayActionRequest, PyscriptActionRequest, DatabaseActionRequest, \
     LiveAgentActionRequest, CallbackActionConfigRequest, ScheduleActionRequest, WebSearchActionRequest, \
-    CallbackConfigRequest, PromptActionConfigUploadValidation
+    CallbackConfigRequest, PromptActionConfigUploadValidation, ParallelActionRequest
 from kairon.shared.data.data_objects import Forms
 from kairon.shared.data.data_validation import DataValidation
 from pydantic import ValidationError as PValidationError
@@ -116,6 +116,10 @@ class ActionSerializer:
         ActionType.schedule_action.value: {
             "db_model": ScheduleAction,
             "validation_model": ScheduleActionRequest,
+        },
+        ActionType.parallel_action.value:{
+            "db_model": ParallelActionConfig,
+            "validation_model": ParallelActionRequest,
         },
         str(CallbackConfig.__name__).lower(): {
             "db_model": CallbackConfig,
