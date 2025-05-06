@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Path, Security, Depends, Request
 
 from kairon.shared.callback.data_objects import CallbackConfig
+from kairon.shared.data.data_models import ParallelActionRequest
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
@@ -781,3 +782,45 @@ async def list_schedule_actions(current_user: User = Security(Authentication.get
     """
     actions = list(mongo_processor.list_schedule_action(current_user.get_bot()))
     return Response(data=actions)
+
+
+@router.post("/parallel", response_model=Response)
+async def add_parallel_actions(
+        request_data: ParallelActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Add the parallel action
+    """
+    action_id = mongo_processor.add_parallel_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action added!")
+
+
+@router.put("/parallel", response_model=Response)
+async def update_parallel_actions(
+        request_data: ParallelActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Update the parallel action
+    """
+    action_id = mongo_processor.update_parallel_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action updated!")
+
+
+@router.get("/parallel", response_model=Response)
+async def list_parallel_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of parallel actions for bot.
+    """
+    actions = list(mongo_processor.list_parallel_action(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.delete("/callback/action/{name}", response_model=Response)
+async def delete_callback_action(
+        name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    mongo_processor.delete_callback_action(current_user.get_bot(), name)
+    return Response(message="Callback action deleted successfully!")
