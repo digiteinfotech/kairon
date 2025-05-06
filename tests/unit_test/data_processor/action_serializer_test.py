@@ -7,6 +7,7 @@ from mongoengine import connect
 from kairon import Utility
 from kairon.shared.actions.data_objects import Actions, HttpActionConfig, PyscriptActionConfig, LiveAgentActionConfig
 from kairon.shared.actions.models import ActionType, ActionParameterType, DbActionOperationType
+from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.data.data_validation import DataValidation
 
@@ -402,6 +403,15 @@ def test_modify_callback_config():
 def test_validate_prompt_action():
     bot = "my_test_bot"
 
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key='value',
+        models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+        bot=bot,
+        user='user'
+    )
+    llm_secret.save()
+
     # Test case 1: Valid prompt action
     data = {
         "num_bot_responses": 3,
@@ -441,6 +451,7 @@ def test_validate_prompt_action():
     data["hyperparameters"]["similarity_threshold"] = 0.2
     assert DataValidation.validate_prompt_action(bot, data) == ["similarity_threshold should be within 0.3 and 1.0 and of type int or float!"]
 
+    LLMSecret.objects.delete()
 
 def test_action_serializer_validate():
     bot = "my_test_bot"
@@ -748,21 +759,8 @@ def test_prompt_action_validation_missing_model():
 
 def test_get_model_llm_type_map():
     result = DataValidation.get_model_llm_type_map()
-    print(result)
-    expected = {'gpt-3.5-turbo': 'openai',
-                'gpt-4o-mini': 'openai',
-                'claude-3-opus-20240229': 'anthropic',
-                'claude-3-5-sonnet-20240620': 'anthropic',
-                'claude-3-sonnet-20240229': 'anthropic',
-                'claude-3-haiku-20240307': 'anthropic',
-                'gemini/gemini-1.5-flash': 'gemini',
-                'gemini/gemini-pro': 'gemini',
-                'perplexity/llama-3.1-sonar-small-128k-online': 'perplexity',
-                'perplexity/llama-3.1-sonar-large-128k-online': 'perplexity',
-                'perplexity/llama-3.1-sonar-huge-128k-online': 'perplexity',
-                'bedrock/converse/us.amazon.nova-micro-v1:0': 'aws-nova',
-                'bedrock/converse/us.amazon.nova-lite-v1:0': 'aws-nova',
-                'bedrock/converse/us.amazon.nova-pro-v1:0': 'aws-nova'}
+
+    expected = {'gpt-3.5-turbo': 'openai', 'gpt-4.1-nano': 'openai', 'gpt-4.1-mini': 'openai', 'gpt-4.1': 'openai', 'claude-3-5-sonnet-20240620': 'anthropic', 'claude-3-7-sonnet-20250219': 'anthropic', 'gemini/gemini-1.5-flash': 'gemini', 'gemini/gemini-pro': 'gemini', 'perplexity/llama-3.1-sonar-small-128k-online': 'perplexity', 'perplexity/llama-3.1-sonar-large-128k-online': 'perplexity', 'perplexity/llama-3.1-sonar-huge-128k-online': 'perplexity', 'bedrock/converse/us.amazon.nova-micro-v1:0': 'aws-nova', 'bedrock/converse/us.amazon.nova-lite-v1:0': 'aws-nova', 'bedrock/converse/us.amazon.nova-pro-v1:0': 'aws-nova'}
 
     assert not DeepDiff(result, expected, ignore_order=True)
 
@@ -778,6 +776,16 @@ def test_get_model_llm_type_map():
 
 def test_add_llm_type_based_on_model():
     bot = "my_test_bot"
+
+    llm_secret = LLMSecret(
+        llm_type="openai",
+        api_key='value',
+        models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+        bot=bot,
+        user='user'
+    )
+    llm_secret.save()
+
     data = {
         "num_bot_responses": 3,
         "llm_prompts": [
@@ -795,8 +803,10 @@ def test_add_llm_type_based_on_model():
         "hyperparameters": {
             "similarity_threshold": 0.5,
             "top_results": 5,
-            "model": "gpt-4o-mini",
+            "model": "gpt-4.1-mini",
         },
     }
     assert not DataValidation.validate_prompt_action(bot, data)
     assert data['llm_type'] == 'openai'
+
+    LLMSecret.objects.delete()

@@ -426,7 +426,7 @@ class LLMProcessor(LLMBase):
         return LLMLogs.objects(metadata__bot=bot).count()
 
     @staticmethod
-    def fetch_llm_metadata(bot: str):
+    def fetch_llms_metadata(bot: str):
         """
         Fetches the llm_type and corresponding models for a particular bot.
         :param bot: bot id
@@ -436,20 +436,47 @@ class LLMProcessor(LLMBase):
         llm_types = metadata.keys()
         final_metadata = {}
         for llm_type in llm_types:
-            secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
-            if not secret:
-                secret = LLMSecret.objects(llm_type=llm_type, bot__exists=False).first()
-
-            if secret:
-                models = list(secret.models) if isinstance(secret.models, BaseList) else secret.models
-            else:
-                models = []
+            models = LLMProcessor.get_llm_metadata(bot, llm_type)
 
             if models:
                 metadata[llm_type]['properties']['model']['enum'] = models
                 final_metadata[llm_type] = metadata[llm_type]
 
         return final_metadata
+
+    @staticmethod
+    def get_llm_metadata(bot: str, llm_type):
+        """
+        Fetches the llm_type and corresponding models for a particular bot.
+        :param bot: bot id
+        :return: dictionary where each key is a llm_type and the value is a list of models.
+        """
+        secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
+        if not secret:
+            secret = LLMSecret.objects(llm_type=llm_type, bot__exists=False).first()
+
+        if secret:
+            models = list(secret.models) if isinstance(secret.models, BaseList) else secret.models
+        else:
+            models = []
+
+        return models
+
+    @staticmethod
+    def get_llm_metadata_default(llm_type):
+        """
+        Fetches the llm_type and corresponding models for a particular bot.
+        :param bot: bot id
+        :return: dictionary where each key is a llm_type and the value is a list of models.
+        """
+        secret = LLMSecret.objects(llm_type=llm_type, bot__exists=False).first()
+
+        if secret:
+            models = list(secret.models) if isinstance(secret.models, BaseList) else secret.models
+        else:
+            models = []
+
+        return models
 
     @staticmethod
     def modify_user_message_for_perplexity(user_msg: str, llm_type: str, hyperparameters: Dict) -> str:
