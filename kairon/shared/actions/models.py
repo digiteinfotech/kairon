@@ -50,6 +50,7 @@ class ActionType(str, Enum):
     live_agent_action = "live_agent_action"
     callback_action = "callback_action"
     schedule_action = "schedule_action"
+    parallel_action = "parallel_action"
 
 
 class HttpRequestContentType(str, Enum):

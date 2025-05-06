@@ -36,7 +36,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
     DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig, \
-    CustomActionParameters, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType
+    CustomActionParameters, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType, \
+    ParallelActionConfig
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
@@ -704,6 +705,102 @@ def test_process_razorpay_action_with_notes():
                                             'elements': [], 'image': None, 'response': None,
                                             'template': None, 'text': 'https://rzp.io/i/nxrHnLJ'}]}
 
+@responses.activate
+def test_parallel_action_execution():
+    import textwrap
+    name = "test_parallel_action_execution"
+    Actions(name=name, type=ActionType.parallel_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+
+    ParallelActionConfig(
+        name=name,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user",
+        actions=["test_pyscript_action_execution"],
+        response_text="Parallel Action Executed"
+    ).save()
+
+    action_name = "test_pyscript_action_execution"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher({'source_code': script,
+                                                       'predefined_objects': {'chat_log': [],
+                                                                              'intent': 'pyscript_action',
+                                                                              'kairon_user_msg': None, 'key_vault': {},
+                                                                              'latest_message': {'intent_ranking': [
+                                                                                  {'name': 'pyscript_action'}],
+                                                                                  'text': 'get intents'},
+                                                                              'sender_id': 'default',
+                                                                              'session_started': None,
+                                                                              'slot': {
+                                                                                  'bot': '5f50fd0a56b698ca10d35d2z',
+                                                                                  'langauge': 'Kannada',
+                                                                                  'location': 'Bangalore'},
+                                                                              'user_message': 'get intents'}
+
+                                                       })]
+    )
+
+    request_object = {
+        "next_action": name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}]
+    assert response_json['responses'][0]['custom'] == {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}
 
 @responses.activate
 def test_pyscript_action_execution():

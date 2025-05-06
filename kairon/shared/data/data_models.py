@@ -1392,3 +1392,13 @@ class FlowTagChangeRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     tag: str
     type: str
+
+
+class ParallelActionRequest(BaseModel):
+    """
+    Model to store the configuration for parallel actions.
+    """
+    name: constr(to_lower=True, strip_whitespace=True)
+    dispatch_response_text: bool = False
+    response_text: Optional[str]
+    actions: List[str]

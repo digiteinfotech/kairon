@@ -87,6 +87,7 @@ from kairon.shared.actions.data_objects import (
     WebSearchAction,
     UserQuestion, CustomActionParameters,
     LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType,
+    ParallelActionConfig,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -7078,6 +7079,10 @@ class MongoProcessor:
                 Utility.hard_delete_document(
                     [ScheduleAction], name__iexact=name, bot=bot
                 )
+            elif action.type == ActionType.parallel_action.value:
+                Utility.hard_delete_document(
+                    [ParallelActionConfig], name__iexact=name, bot=bot
+                )
             action.delete()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
@@ -8996,6 +9001,30 @@ class MongoProcessor:
 
         return file_path
 
+    def add_parallel_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Add Parallel Action
+        :param request_data: data object for parallel action
+        :param bot: bot id
+        :param user: user
+        """
+        if request_data.get("name") and Utility.special_match(request_data.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+
+        Utility.is_exist(
+            Actions,
+            exp_message="Action exists!",
+            name__iexact=request_data.get("name"),
+            bot=bot,
+            status=True,
+        )
+        Utility.is_exist(
+            ParallelActionConfig,
+            exp_message="Action exists!",
+            name__iexact=request_data.get("name"),
+            bot=bot,
+            status=True,
+        )
 
     @staticmethod
     def get_flows_by_tag(bot: str, tag: str):
@@ -9015,4 +9044,71 @@ class MongoProcessor:
         return data
 
 
+        for action in request_data.get("actions"):
+            if not Actions.objects(name__iexact=action, bot=bot, status=True).first():
+                raise AppException(f"Action with name {action} does not exist!")
+
+
+        request_data["bot"] = bot
+        request_data["user"] = user
+        action_id = ParallelActionConfig(**request_data).save().id.__str__()
+        self.add_action(
+            request_data["name"],
+            bot,
+            user,
+            raise_exception=False,
+            action_type=ActionType.parallel_action,
+        )
+        return action_id
+
+
+    def update_parallel_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Update Parallel Action
+        :param request_data: data object for parallel action
+        :param bot: bot id
+        :param user: user who edit/update this
+        """
+        if request_data.get("name") and Utility.special_match(request_data.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+
+        if not Utility.is_exist(
+                ParallelActionConfig,
+                raise_error=False,
+                name__iexact=request_data["name"],
+                bot=bot,
+                status=True,
+        ):
+            parallel_action_name = request_data["name"]
+            raise AppException(f"Parallel Action with name '{parallel_action_name}' not found!")
+
+        for action in request_data.get("actions"):
+            if not Actions.objects(name__iexact=action, bot=bot, status=True).first():
+                raise AppException(f"Action with name {action} does not exist!")
+
+        parallel_action = ParallelActionConfig.objects(bot=bot, name=request_data["name"], status=True).get()
+        parallel_action.response_text = request_data.get("response_text")
+        parallel_action.actions = request_data.get("actions")
+        parallel_action.user = user
+        parallel_action.timestamp = datetime.utcnow()
+        parallel_action.save()
+        return parallel_action.id.__str__()
+
+    def list_parallel_action(self, bot: Text, with_doc_id: bool = True):
+        """
+        List Parallel Action
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        """
+        for action in ParallelActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
 
