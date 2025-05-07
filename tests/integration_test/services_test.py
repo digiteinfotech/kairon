@@ -1916,214 +1916,6 @@ def test_default_values():
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
 
 
-# def test_add_parallel_action_missing_existing_action(monkeypatch):
-#     script = "bot_response='hello world'"
-#     request_body = {
-#         "name": "pyscript_action",
-#         "source_code": script,
-#         "dispatch_response": False,
-#     }
-#     response = client.post(
-#         url=f"/api/bot/{pytest.bot}/action/pyscript",
-#         json=request_body,
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#
-#     actual = response.json()
-#     print(actual)
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "Action added!"
-#     assert actual["success"]
-#
-#     parallel_action_request_body = {
-#         "name": "parallel_action_test",
-#         "response_text": "Parallel Action Success",
-#         "dispatch_response_text": False,
-#         "actions": ["pyscript_action", "prompt_action"]
-#     }
-#
-#     response = client.post(
-#         url=f"/api/bot/{pytest.bot}/action/parallel",
-#         json=parallel_action_request_body,
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#
-#     actual = response.json()
-#     print(actual)
-#     assert actual["error_code"] == 422
-#     assert actual["message"] == "Action with name prompt_action does not exist!"
-#     assert not actual["success"]
-#     Actions.objects(name="parallel_action_test").delete()
-#     Actions.objects(name="pyscript_action").delete()
-#     ParallelActionConfig.objects(name="parallel_action_test").delete()
-#     PyscriptActionConfig.objects(name="pyscript_action").delete()
-#
-# def test_add_parallel_action(monkeypatch):
-#     script= "bot_response='hello world'"
-#     request_body = {
-#         "name": "pyscript_action",
-#         "source_code": script,
-#         "dispatch_response": False,
-#     }
-#     response = client.post(
-#         url=f"/api/bot/{pytest.bot}/action/pyscript",
-#         json=request_body,
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#
-#     actual = response.json()
-#     print(actual)
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "Action added!"
-#     assert actual["success"]
-#
-#     def _mock_get_bot_settings(*args, **kwargs):
-#         return BotSettings(
-#             bot=pytest.bot,
-#             user="integration@demo.ai",
-#             llm_settings=LLMSettings(enable_faq=True),
-#         )
-#
-#     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
-#     action = {
-#         "name": "prompt_action", 'user_question': {'type': 'from_user_message'},
-#         "llm_prompts": [
-#             {
-#                 "name": "System Prompt",
-#                 "data": "You are a personal assistant.",
-#                 "type": "system",
-#                 "source": "static",
-#                 "is_enabled": True,
-#             },
-#             {
-#                 "name": "Similarity Prompt",
-#                 "data": "Bot_collection",
-#                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
-#                 "type": "user",
-#                 "source": "bot_content",
-#                 "is_enabled": True,
-#             },
-#             {
-#                 "name": "Query Prompt",
-#                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-#                 "instructions": "Answer according to the context",
-#                 "type": "query",
-#                 "source": "static",
-#                 "is_enabled": True,
-#             },
-#             {
-#                 "name": "Query Prompt",
-#                 "data": "If there is no specific query, assume that user is aking about java programming.",
-#                 "instructions": "Answer according to the context",
-#                 "type": "query",
-#                 "source": "static",
-#                 "is_enabled": True,
-#             },
-#         ],
-#         "instructions": ["Answer in a short manner.", "Keep it simple."],
-#         "num_bot_responses": 5,
-#         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-#         "llm_type": DEFAULT_LLM,
-#         "hyperparameters": Utility.get_default_llm_hyperparameters()
-#     }
-#     response = client.post(
-#         f"/api/bot/{pytest.bot}/action/prompt",
-#         json=action,
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#     actual = response.json()
-#     assert actual["message"] == "Action Added Successfully"
-#     assert actual["data"]["_id"]
-#     pytest.action_id = actual["data"]["_id"]
-#     assert actual["success"]
-#     assert actual["error_code"] == 0
-#
-#     parallel_action_request_body = {
-#         "name": "parallel_action_test",
-#         "response_text": "Parallel Action Success",
-#         "dispatch_response_text": False,
-#         "actions": ["pyscript_action", "prompt_action"]
-#     }
-#
-#     response = client.post(
-#         url=f"/api/bot/{pytest.bot}/action/parallel",
-#         json=parallel_action_request_body,
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#
-#     actual = response.json()
-#     print(actual)
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "Action added!"
-#     assert actual["success"]
-#
-#
-# def test_update_parallel_action(monkeypatch):
-#     script = "bot_response='hello world'"
-#     request_body = {
-#         "name": "pyscript_action_2",
-#         "source_code": script,
-#         "dispatch_response": False,
-#     }
-#     response = client.post(
-#         url=f"/api/bot/{pytest.bot}/action/pyscript",
-#         json=request_body,
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#
-#     actual = response.json()
-#     print(actual)
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "Action added!"
-#     assert actual["success"]
-#
-#     parallel_action_request_body = {
-#         "name": "parallel_action_test",
-#         "response_text": "Parallel Action Success",
-#         "dispatch_response_text": False,
-#         "actions": ["pyscript_action", "prompt_action", "pyscript_action_2"]
-#     }
-#
-#     response = client.put(
-#         url=f"/api/bot/{pytest.bot}/action/parallel",
-#         json=parallel_action_request_body,
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#
-#     actual = response.json()
-#     print(actual)
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "Action updated!"
-#     assert actual["success"]
-#
-# def test_delete_parallel_action_not_exists():
-#     response = client.delete(
-#         f"/api/bot/{pytest.bot}/action/parallel_action_test_not_existing",
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#     actual = response.json()
-#     assert not actual["success"]
-#     assert actual["error_code"] == 422
-#     assert (
-#             actual["message"]
-#             == 'Action with name "parallel_action_test_not_existing" not found'
-#     )
-#
-# def test_delete_parallel_action():
-#     response = client.delete(
-#         f"/api/bot/{pytest.bot}/action/parallel_action_test",
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#     actual = response.json()
-#     print(actual)
-#     assert actual["success"]
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "Action deleted"
-#     parallel_action_count = ParallelActionConfig.objects().count()
-#     assert parallel_action_count == 0
-#     Actions.objects(name__in=["pyscript_action", "pyscript_action_2", "prompt_action"]).delete()
-#     PyscriptActionConfig.objects(name__in=["pyscript_action", "pyscript_action_2"]).delete()
-#     PromptAction.objects(name="prompt_action").delete()
 
 
 @pytest.mark.asyncio
@@ -30938,3 +30730,213 @@ def test_redoc_headers():
         "cross-origin-resource-policy": "same-origin",
         "access-control-allow-origin": "*"
     }
+
+
+def test_add_parallel_action_missing_existing_action(monkeypatch):
+    script = "bot_response='hello world'"
+    request_body = {
+        "name": "pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action", "prompt_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action with name prompt_action does not exist!"
+    assert not actual["success"]
+    Actions.objects(name="parallel_action_test").delete()
+    Actions.objects(name="pyscript_action").delete()
+    ParallelActionConfig.objects(name="parallel_action_test").delete()
+    PyscriptActionConfig.objects(name="pyscript_action").delete()
+
+def test_add_parallel_action(monkeypatch):
+    script= "bot_response='hello world'"
+    request_body = {
+        "name": "pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    action = {
+        "name": "prompt_action", 'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Similarity Prompt",
+                "data": "Bot_collection",
+                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                "type": "user",
+                "source": "bot_content",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "If there is no specific query, assume that user is aking about java programming.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action", "prompt_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+
+def test_update_parallel_action(monkeypatch):
+    script = "bot_response='hello world'"
+    request_body = {
+        "name": "pyscript_action_2",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action", "prompt_action", "pyscript_action_2"]
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated!"
+    assert actual["success"]
+
+def test_delete_parallel_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/parallel_action_test_not_existing",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == 'Action with name "parallel_action_test_not_existing" not found'
+    )
+
+def test_delete_parallel_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/parallel_action_test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action deleted"
+    parallel_action_count = ParallelActionConfig.objects().count()
+    assert parallel_action_count == 0
+    Actions.objects(name__in=["pyscript_action", "pyscript_action_2", "prompt_action"]).delete()
+    PyscriptActionConfig.objects(name__in=["pyscript_action", "pyscript_action_2"]).delete()
+    PromptAction.objects(name="prompt_action").delete()
