@@ -45,7 +45,7 @@ from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction, Actions, ParallelActionConfig, \
-    PyscriptActionConfig
+    PyscriptActionConfig, PromptAction
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
@@ -2119,6 +2119,10 @@ def test_delete_parallel_action():
     assert actual["message"] == "Action deleted"
     parallel_action_count = ParallelActionConfig.objects().count()
     assert parallel_action_count == 0
+    Actions.objects(name__in=["pyscript_action", "pyscript_action_2", "prompt_action"]).delete()
+    PyscriptActionConfig.objects(name__in=["pyscript_action", "pyscript_action_2"]).delete()
+    PromptAction.objects(name="prompt_action").delete()
+
 
 @pytest.mark.asyncio
 @responses.activate
@@ -10162,7 +10166,8 @@ def test_get_data_importer_logs():
                                                      {'type': 'database_actions', 'count': 0, 'data': []},
                                                      {'type': 'live_agent_actions', 'count': 0, 'data': []},
                                                      {'type': 'callback_actions', 'count': 0, 'data': []},
-                                                     {'type': 'schedule_actions', 'count': 0, 'data': []}],
+                                                     {'type': 'schedule_actions', 'count': 0, 'data': []},
+                                                     {'type': 'parallel_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'bot_content': {'count': 0, 'data': []},
                                          'user_actions': {'count': 9, 'data': []},
@@ -18028,7 +18033,8 @@ def test_list_actions():
                               'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
                               'prompt_action': [], 'callback_action': [], 'schedule_action': [],
-                              'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []}, ignore_order=True)
+                              'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
+                                         'parallel_actions':[]}, ignore_order=True)
 
     assert actual["success"]
 
@@ -18941,7 +18947,8 @@ def test_upload_actions_and_config():
                                                     {'type': 'database_actions', 'count': 0, 'data': []},
                                                     {'type': 'live_agent_actions', 'count': 0, 'data': []},
                                                     {'type': 'callback_actions', 'count': 0, 'data': []},
-                                                    {'type': 'schedule_actions', 'count': 0, 'data': []}]
+                                                    {'type': 'schedule_actions', 'count': 0, 'data': []},
+                                                    {'type': 'parallel_actions', 'count': 0, 'data': []}]
     assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
@@ -24791,7 +24798,8 @@ def test_add_bot_with_template_name(monkeypatch):
             "pyscript_action": [],
             "live_agent_action": [],
             "callback_action": [],
-            "schedule_action": []
+            "schedule_action": [],
+            "parallel_action": []
         },
         ignore_order=True,
     )

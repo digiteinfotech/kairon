@@ -801,6 +801,8 @@ def test_parallel_action_execution():
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}]
     assert response_json['responses'][0]['custom'] == {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}
+    PyscriptActionConfig.objects(name="test_pyscript_action_execution").delete()
+    Actions.objects(name="test_pyscript_action_execution").delete()
 
 @responses.activate
 def test_pyscript_action_execution():
