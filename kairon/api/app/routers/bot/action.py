@@ -815,12 +815,3 @@ async def list_parallel_actions(current_user: User = Security(Authentication.get
     """
     actions = list(mongo_processor.list_parallel_action(current_user.get_bot()))
     return Response(data=actions)
-
-
-@router.delete("/callback/action/{name}", response_model=Response)
-async def delete_callback_action(
-        name: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    mongo_processor.delete_callback_action(current_user.get_bot(), name)
-    return Response(message="Callback action deleted successfully!")
