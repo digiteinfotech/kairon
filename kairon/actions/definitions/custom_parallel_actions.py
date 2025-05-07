@@ -9,6 +9,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs, ParallelActionC
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.constants import KaironSystemSlots
 
 
 class ActionParallel(ActionsBase):
@@ -58,6 +59,7 @@ class ActionParallel(ActionsBase):
         status = "SUCCESS"
         dispatch_bot_response = False
         dispatch_type = DispatchType.text.value
+        response_text = ""
         try:
             action_config = self.retrieve_config()
             action_names = action_config['actions']
@@ -92,6 +94,7 @@ class ActionParallel(ActionsBase):
         finally:
             if dispatch_bot_response:
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, response_text)
+                filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
                 if message:
                     logger.exception(message)
             ActionServerLogs(
@@ -100,6 +103,7 @@ class ActionParallel(ActionsBase):
                 action=self.name,
                 sender=tracker.sender_id,
                 exception=str(exception) if exception else None,
+                bot_response=str(bot_response) if bot_response else None,
                 bot=self.bot,
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
