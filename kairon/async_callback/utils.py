@@ -128,14 +128,8 @@ class CallbackUtility:
 
     @staticmethod
     def main_pyscript_handler(event, context):
-        output = {
-            "statusCode": 200,
-            "statusDescription": "200 OK",
-            "isBase64Encoded": False,
-            "headers": {
-                "Content-Type": "application/json; charset=utf-8"
-            },
-            "body": None
+        output={
+            "statusCode":200
         }
         data = event
         if isinstance(data, list):

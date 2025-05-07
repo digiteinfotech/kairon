@@ -2183,9 +2183,6 @@ def test_delete_schedule_job_without_bot_in_main_pyscript():
     assert data['body'] == 'Script execution error: Missing bot id'
     assert data == {
         'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -2219,9 +2216,6 @@ def test_delete_schedule_job_in_main_pyscript():
     assert data['body']['bot_response'] == 'deleted successfully!'
     assert data == {
         'statusCode': 200,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': 'test_bot',
             'sender_id': '917506075263',
@@ -2268,9 +2262,6 @@ def test_pyscript_handler_for_add_data_in_main_pyscript():
     pytest.collection_id = bot_response['data']['_id']
     assert data == {
         'statusCode': 200,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': 'test_bot',
             'sender_id': '919876543210',
@@ -2318,9 +2309,6 @@ def test_pyscript_handler_for_add_data_without_bot_in_main_pyscript():
     print(data)
     assert data == {
         'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -2363,9 +2351,6 @@ def test_pyscript_handler_for_get_data_in_main_pyscript():
     assert bot_response['data'][0]['data'] == {'mobile_number': '919876543210', 'name': 'Mahesh'}
     assert data == {
         'statusCode': 200,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': 'test_bot',
             'sender_id': '919876543210',
@@ -2413,9 +2398,6 @@ def test_pyscript_handler_for_get_data_without_bot_in_main_pyscript():
     print(data)
     assert data == {
         'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -2505,9 +2487,6 @@ def test_pyscript_handler_for_update_data_without_bot_in_main_pyscript():
     print(data)
     assert data == {
         'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -2626,9 +2605,6 @@ def test_pyscript_handler_for_delete_data_without_bot_in_main_pyscript():
     print(data)
     assert data == {
         'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -2669,9 +2645,6 @@ def test_pyscript_handler_for_get_data_after_delete_in_main_pyscript():
     assert bot_response == {'data': []}
     assert data == {
         'statusCode': 200,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': 'test_bot',
             'sender_id': '919876543210',

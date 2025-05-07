@@ -100,4 +100,4 @@ async def trigger_restricted_python(payload: PyscriptPayload):
         }, None)
         return {"success": True, **result}
     except Exception as e:
-        return json({"success": False, "error": str(e)}, status=500)
+        return json({"success": False, "error": str(e)}, status=422)

@@ -692,5 +692,5 @@ async def test_execute_python_failure(mock_handler):
     json_response = await response.json()
     print(json_response)
 
-    assert response.status == 500
+    assert response.status == 422
     assert json_response["success"] is False
