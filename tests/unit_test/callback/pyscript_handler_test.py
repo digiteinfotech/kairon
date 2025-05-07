@@ -1,6 +1,7 @@
 import os
 import re
 import textwrap
+import uuid
 from calendar import timegm
 from datetime import datetime, timezone, date
 from email.mime.multipart import MIMEMultipart
@@ -11,7 +12,6 @@ import pytest
 import responses
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref
-from deepdiff import DeepDiff
 from mongoengine import connect
 from pymongo import MongoClient
 
@@ -19,8 +19,11 @@ from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.callback.data_objects import CallbackConfig
-from kairon.shared.utils import MailUtility
+from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
+from kairon.shared.chat.user_media import UserMedia
+from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
+from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
+
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -65,7 +68,7 @@ def test_lambda_handler_with_simple_pyscript():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': '6744733ec16e7cda801e9783',
             'sender_id': '917506075263',
@@ -90,7 +93,7 @@ def test_lambda_handler_without_predefined_objects():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {'bot_response': 'This is testing pyscript without predefined objects'}
     }
 
@@ -116,7 +119,7 @@ def test_lambda_handler_with_invalid_import():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': "Script execution error: import of 'numpy' is unauthorized"
     }
 
@@ -142,7 +145,7 @@ def test_lambda_handler_list_of_event_data():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': '6744733ec16e7cda801e9783',
             'sender_id': '917506075263',
@@ -179,7 +182,7 @@ def test_lambda_handler_with_datetime_in_event_data():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': '6744733ec16e7cda801e9783',
             'sender_id': '917506075263',
@@ -217,7 +220,7 @@ def test_lambda_handler_with_date_in_event_data():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': '6744733ec16e7cda801e9783',
             'sender_id': '917506075263',
@@ -261,7 +264,7 @@ def test_lambda_handler_with_response_in_event_data():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': '6744733ec16e7cda801e9783',
             'sender_id': '917506075263',
@@ -274,7 +277,7 @@ def test_lambda_handler_with_response_in_event_data():
     }
 
 
-@patch("kairon.async_callback.utils.SMTP", autospec=True)
+@patch("kairon.shared.pyscript.callback_pyscript_utils.SMTP", autospec=True)
 def test_lambda_handler_for_send_email(mock_smtp):
     EmailActionConfig(
         action_name="email_action",
@@ -318,7 +321,7 @@ def test_lambda_handler_for_send_email(mock_smtp):
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': 'test_bot',
             'sender_id': '917506075263',
@@ -331,7 +334,7 @@ def test_lambda_handler_for_send_email(mock_smtp):
     assert data == expected
 
 
-@patch("kairon.async_callback.utils.SMTP", autospec=True)
+@patch("kairon.shared.pyscript.callback_pyscript_utils.SMTP", autospec=True)
 def test_lambda_handler_for_send_email_without_bot(mock_smtp):
     source_code = '''
     send_email("email_action",    #email action name should be same as email action
@@ -357,18 +360,19 @@ def test_lambda_handler_for_send_email_without_bot(mock_smtp):
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
-
 @responses.activate
-@patch("kairon.async_callback.utils.CallbackUtility.add_schedule_job", autospec=True)
-@patch("kairon.async_callback.utils.uuid7")
+@patch("kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.add_schedule_job", autospec=True)
+@patch("kairon.shared.pyscript.callback_pyscript_utils.uuid7")
 @patch("pymongo.collection.Collection.insert_one", autospec=True)
-def test_lambda_handler_with_add_schedule_job(mock_insert_one, mock_uuid7, mock_add_job):
-    from kairon.shared.callback.data_objects import CallbackConfig
-    from kairon.shared.callback.data_objects import encrypt_secret
+def test_lambda_handler_with_add_schedule_job(
+    mock_insert_one,
+    mock_uuid7,
+    mock_add_job
+):
     from uuid6 import uuid7
 
     with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
@@ -386,63 +390,48 @@ def test_lambda_handler_with_add_schedule_job(mock_insert_one, mock_uuid7, mock_
             token_value="gAAAAABmxKl5tT0UKwkqYi2n9yV1lFAAJKsZEM0G9w7kmN8NIYR9JKF1F9ecZoUY6P9kClUC_QnLXXGLa3T4Xugdry84ioaDtGF9laXcQl_82Fvs9KmKX8xfa4-rJs1cto1Jd6fqeGIT7mR3kn56_EliP83aGoCl_sk9B0-2gPDgt-EJZQ20l-3OaT-rhFoFanjKvRiE8e4xp9sdxxjgDWLbCF3kCtTqTtg6Wovw3mXZoVzxzNEUmd2OGZiO6IsIJJaU202w3CZ2rPnmK8I2aRGg8tMi_-ObOg=="
         ).save()
 
-        test_generate_id = uuid7()
-        mock_uuid7.return_value = test_generate_id
+        fake_uuid = uuid7()
+        mock_uuid7.return_value = fake_uuid
+        pytest.test_generate_id = fake_uuid.hex
         server_url = Utility.environment["events"]["server_url"]
-        pytest.test_generate_id = test_generate_id.hex
         http_url = f"{server_url}/api/events/dispatch/{pytest.test_generate_id}"
         responses.add(
-            method=responses.GET,
-            url=http_url,
+            responses.GET,
+            http_url,
             json={"data": "state -> 1", "message": "OK", "success": True, "error_code": 0},
             status=200
         )
 
-        source_code = '''
-        from datetime import datetime, timedelta
+        source_code = textwrap.dedent("""
+            from datetime import datetime
 
-        # Calculate the job trigger time 5 minutes from now
-        trigger_time1 = datetime.utcnow() + timedelta(minutes=30)
-        trigger_time2 = datetime.utcnow() + timedelta(minutes=2)
+            # fixed trigger time
+            trigger_time1 = datetime(2025, 2, 4, 15, 30, 0)
 
-        id = generate_id()
+            id = generate_id()
+            add_schedule_job('mng2', trigger_time1, {'user': 'test user sep 12'}, 'UTC', id)
+            bot_response = "scheduled successfully!"
+        """)
 
-        # Function to add the scheduled job (with the adjusted trigger time)
-        # add_schedule_job('mng2', trigger_time1, {'user_rajan': 'test rajan sep 12'}, 'UTC', id, kwargs={'task_type': 'Callback'})
-        # add_schedule_job('del_job1', trigger_time2, {'event_id': id}, 'UTC', kwargs={'task_type': 'Callback'})
+        event = {
+            'source_code': source_code,
+            'predefined_objects': {
+                'bot': 'test_bot',
+                'sender_id': '917506075263',
+                'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                'slot': {},
+                'intent': 'k_multimedia_msg'
+            }
+        }
 
-        add_schedule_job('mng2', trigger_time1, {'user_rajan': 'test rajan sep 12'}, 'UTC', id)
-        add_schedule_job('del_job1', trigger_time2, {'event_id': id}, 'UTC')
-        '''
-        source_code = '''
-        from datetime import datetime, timedelta
-
-        # Calculate the job trigger time 5 minutes from now
-        trigger_time1 = datetime(2025, 2, 4, 15, 30, 0)
-
-        id = generate_id()
-
-        # Function to add the scheduled job (with the adjusted trigger time)
-        add_schedule_job('mng2', trigger_time1, {'user': 'test user sep 12'}, 'UTC', id)
-        bot_response = "scheduled successfully!"
-        '''
-        source_code = textwrap.dedent(source_code)
-        event = {'source_code': source_code,
-                 'predefined_objects':
-                     {'bot': 'test_bot', 'sender_id': '917506075263',
-                      'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                      'slot': {},
-                      'intent': 'k_multimedia_msg'
-                      }
-                 }
         data = CallbackUtility.pyscript_handler(event, None)
-        print(data)
+
         assert data['body']['bot_response'] == 'scheduled successfully!'
         assert data == {
             'statusCode': 200,
             'statusDescription': '200 OK',
             'isBase64Encoded': False,
-            'headers': {'Content-Type': 'text/html; charset=utf-8'},
+            'headers': {'Content-Type': 'application/json; charset=utf-8'},
             'body': {
                 'bot': 'test_bot',
                 'sender_id': '917506075263',
@@ -457,7 +446,7 @@ def test_lambda_handler_with_add_schedule_job(mock_insert_one, mock_uuid7, mock_
 
 
 @responses.activate
-@patch("kairon.async_callback.utils.uuid7")
+@patch("kairon.shared.pyscript.callback_pyscript_utils.uuid7")
 def test_lambda_handler_with_add_schedule_job_without_bot(mock_uuid7):
     from uuid6 import uuid7
 
@@ -517,7 +506,7 @@ def test_lambda_handler_with_add_schedule_job_without_bot(mock_uuid7):
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -554,7 +543,7 @@ def test_lambda_handler_with_delete_schedule_job_without_bot():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -591,7 +580,7 @@ def test_lambda_handler_with_delete_schedule_job_without_event_id():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing event id'
     }
 
@@ -628,7 +617,7 @@ def test_lambda_handler_with_delete_schedule_job():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': 'test_bot',
             'sender_id': '917506075263',
@@ -677,7 +666,7 @@ def test_pyscript_handler_for_add_data():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': 'test_bot',
             'sender_id': '919876543210',
@@ -727,7 +716,7 @@ def test_pyscript_handler_for_add_data_without_bot():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -771,7 +760,7 @@ def test_pyscript_handler_for_get_data():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': 'test_bot',
             'sender_id': '919876543210',
@@ -821,7 +810,7 @@ def test_pyscript_handler_for_get_data_without_bot():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -910,7 +899,7 @@ def test_pyscript_handler_for_update_data_without_bot():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -1035,7 +1024,7 @@ def test_pyscript_handler_for_delete_data_without_bot():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: Missing bot id'
     }
 
@@ -1078,7 +1067,7 @@ def test_pyscript_handler_for_get_data_after_delete():
         'statusCode': 200,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': {
             'bot': 'test_bot',
             'sender_id': '919876543210',
@@ -1094,8 +1083,8 @@ def test_pyscript_handler_for_get_data_after_delete():
 
 
 def test_generate_id():
-    uuid1 = CallbackUtility.generate_id()
-    uuid2 = CallbackUtility.generate_id()
+    uuid1 = CallbackScriptUtility.generate_id()
+    uuid2 = CallbackScriptUtility.generate_id()
 
     assert isinstance(uuid1, str)
     assert isinstance(uuid2, str)
@@ -1108,31 +1097,31 @@ def test_datetime_to_utc_timestamp():
     dt = datetime(2024, 3, 27, 12, 30, 45, 123456, tzinfo=timezone.utc)
     expected_timestamp = timegm(dt.utctimetuple()) + dt.microsecond / 1000000
 
-    assert CallbackUtility.datetime_to_utc_timestamp(dt) == expected_timestamp
+    assert CallbackScriptUtility.datetime_to_utc_timestamp(dt) == expected_timestamp
 
 
 def test_datetime_to_utc_timestamp_none():
-    assert CallbackUtility.datetime_to_utc_timestamp(None) is None
+    assert CallbackScriptUtility.datetime_to_utc_timestamp(None) is None
 
 
 def test_get_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
-        CallbackUtility.get_data("TestCollection", "user1", {"field": "value"}, bot=None)
+        PyscriptSharedUtility.get_data("TestCollection", "user1", {"field": "value"}, bot=None)
 
 
-@patch.object(CallbackUtility, "fetch_collection_data", return_value=[{"dummy": "data"}])
+@patch.object(PyscriptSharedUtility, "fetch_collection_data", return_value=[{"dummy": "data"}])
 def test_get_data_success(mock_fetch):
     collection_name = "TestCollection"
     user = "user1"
     data_filter = {"field": "value"}
     bot = "TestBot"
 
-    result = CallbackUtility.get_data(collection_name, user, data_filter, bot=bot)
+    result = PyscriptSharedUtility.get_data(collection_name, user, data_filter, bot=bot)
 
     expected_query = {
         "bot": bot,
         "collection_name": collection_name.lower(),
-        "data__field": "value"
+        "data.field": "value"
     }
 
     mock_fetch.assert_called_once_with(expected_query)
@@ -1157,7 +1146,7 @@ def test_fetch_collection_data_success():
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]), \
             patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data",
                   return_value="decrypted_data"):
-        results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
+        results = list(PyscriptSharedUtility.fetch_collection_data({"some_field": "some_value"}))
 
     assert len(results) == 1
     assert results[0] == {
@@ -1173,7 +1162,7 @@ def test_fetch_collection_data_empty_result():
     """Test fetch_collection_data when no matching documents exist."""
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[]):
-        results = list(CallbackUtility.fetch_collection_data({"some_field": "no_match"}))
+        results = list(PyscriptSharedUtility.fetch_collection_data({"some_field": "no_match"}))
 
     assert results == []
 
@@ -1194,7 +1183,7 @@ def test_fetch_collection_data_without_collection_name():
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]), \
             patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data",
                   return_value="decrypted_data"):
-        results = list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
+        results = list(PyscriptSharedUtility.fetch_collection_data({"some_field": "some_value"}))
 
     assert len(results) == 1
     assert results[0] == {
@@ -1214,18 +1203,18 @@ def test_fetch_collection_data_handles_exceptions():
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]):
         with pytest.raises(Exception, match="Database error"):
-            list(CallbackUtility.fetch_collection_data({"some_field": "some_value"}))
+            list(PyscriptSharedUtility.fetch_collection_data({"some_field": "some_value"}))
 
 
 def test_add_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
-        CallbackUtility.add_data("test_user", {"key": "value"}, bot=None)
+        PyscriptSharedUtility.add_data("test_user", {"key": "value"}, bot=None)
 
 
 @patch('kairon.shared.cognition.processor.CognitionDataProcessor.save_collection_data')
 def test_add_data_success(mock_save):
     mock_save.return_value = "collection_id_123"
-    result = CallbackUtility.add_data("test_user", {"key": "value"}, bot="test_bot")
+    result = PyscriptSharedUtility.add_data("test_user", {"key": "value"}, bot="test_bot")
 
     mock_save.assert_called_once_with({"key": "value"}, "test_user", "test_bot")
 
@@ -1238,13 +1227,13 @@ def test_add_data_success(mock_save):
 
 def test_update_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
-        CallbackUtility.update_data("id_123", "test_user", {"key": "value"}, bot=None)
+        PyscriptSharedUtility.update_data("id_123", "test_user", {"key": "value"}, bot=None)
 
 
 @patch('kairon.shared.cognition.processor.CognitionDataProcessor.update_collection_data')
 def test_update_data_success(mock_update):
     mock_update.return_value = "updated_id_123"
-    result = CallbackUtility.update_data("id_123", "test_user", {"key": "value"}, bot="test_bot")
+    result = PyscriptSharedUtility.update_data("id_123", "test_user", {"key": "value"}, bot="test_bot")
 
     mock_update.assert_called_once_with("id_123", {"key": "value"}, "test_user", "test_bot")
 
@@ -1257,12 +1246,12 @@ def test_update_data_success(mock_update):
 
 def test_delete_data_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
-        CallbackUtility.delete_data("id_123", "test_user", bot=None)
+        PyscriptSharedUtility.delete_data("id_123", "test_user", bot=None)
 
 
 @patch('kairon.shared.cognition.processor.CognitionDataProcessor.delete_collection_data')
 def test_delete_data_success(mock_delete):
-    result = CallbackUtility.delete_data("id_123", "test_user", bot="test_bot")
+    result = PyscriptSharedUtility.delete_data("id_123", "test_user", bot="test_bot")
 
     mock_delete.assert_called_once_with("id_123", "test_bot", "test_user")
 
@@ -1308,8 +1297,8 @@ def test_send_email_direct():
     }
     with patch.object(EmailActionConfig, "objects",
                       return_value=MagicMock(first=MagicMock(return_value=mock_email_config))) as mock_objects, \
-            patch.object(CallbackUtility, "trigger_email") as mock_trigger_email:
-        CallbackUtility.send_email(
+            patch.object(CallbackScriptUtility, "trigger_email") as mock_trigger_email:
+        CallbackScriptUtility.send_email(
             email_action="send_mail",
             from_email="from@example.com",
             to_email="to@example.com",
@@ -1333,7 +1322,7 @@ def test_send_email_direct():
 
 def test_send_email_missing_bot_direct():
     with pytest.raises(Exception, match="Missing bot id"):
-        CallbackUtility.send_email(
+        CallbackScriptUtility.send_email(
             email_action="send_mail",
             from_email="from@example.com",
             to_email="to@example.com",
@@ -1386,7 +1375,7 @@ class DummyMongoClient:
 
 def test_add_schedule_job_missing_bot():
     with pytest.raises(Exception, match="Missing bot id"):
-        CallbackUtility.add_schedule_job(
+        CallbackScriptUtility.add_schedule_job(
             schedule_action="test_action",
             date_time=datetime.now(timezone.utc),
             data={},
@@ -1405,7 +1394,7 @@ def test_add_schedule_job_http_failure(monkeypatch):
     bot = "test_bot"
     kwargs_in = {"extra": "info"}
 
-    monkeypatch.setattr("kairon.async_callback.utils.uuid7", dummy_uuid7)
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.uuid7", dummy_uuid7)
 
     monkeypatch.setattr(CallbackConfig, "get_entry", lambda bot, name: {"pyscript_code": "dummy_code"})
 
@@ -1435,13 +1424,18 @@ def test_add_schedule_job_http_failure(monkeypatch):
     monkeypatch.setattr(ActionUtility, "execute_http_request",
                         lambda url, method: {"success": False, "error": "error message"})
 
-    monkeypatch.setattr(CallbackUtility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
+    monkeypatch.setattr(CallbackScriptUtility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
 
     with pytest.raises(Exception) as exc_info:
-        CallbackUtility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
+        CallbackScriptUtility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
     assert "error message" in str(exc_info.value)
 
+import kairon.shared.pyscript.callback_pyscript_utils as mod
 
+def dummy_uuid7():
+    class FakeUUID:
+        hex = "fixed_uuid"
+    return FakeUUID()
 def test_add_schedule_job_success(monkeypatch):
     schedule_action = "test_action"
     date_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
@@ -1451,7 +1445,7 @@ def test_add_schedule_job_success(monkeypatch):
     _id = None
     bot = "test_bot"
     kwargs_in = None
-    monkeypatch.setattr("kairon.async_callback.utils.uuid7", dummy_uuid7)
+    monkeypatch.setattr(mod, "uuid7", dummy_uuid7)
 
     monkeypatch.setattr(CallbackConfig, "get_entry", lambda bot, name: {"pyscript_code": "dummy_code"})
 
@@ -1484,9 +1478,9 @@ def test_add_schedule_job_success(monkeypatch):
 
     monkeypatch.setattr(ActionUtility, "execute_http_request", lambda url, method: {"success": True})
 
-    monkeypatch.setattr(CallbackUtility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
+    monkeypatch.setattr(CallbackScriptUtility, "datetime_to_utc_timestamp", lambda dt: 1234567890)
 
-    result = CallbackUtility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
+    result = CallbackScriptUtility.add_schedule_job(schedule_action, date_time, data, tz, _id=_id, bot=bot, kwargs=kwargs_in)
 
     inserted_doc = dummy_collection.inserted
     assert inserted_doc is not None
@@ -1504,7 +1498,7 @@ def test_delete_schedule_job_success(monkeypatch):
     mock_env = {"events": {"server_url": "http://mockserver.com"}}
     monkeypatch.setattr(Utility, "environment", mock_env)
 
-    CallbackUtility.delete_schedule_job(event_id, bot)
+    PyscriptSharedUtility.delete_schedule_job(event_id, bot)
 
     mock_execute_http_request.assert_called_once_with("http://mockserver.com/api/events/test_event", "DELETE")
 
@@ -1514,7 +1508,7 @@ def test_delete_schedule_job_missing_bot():
     bot = ""
 
     with pytest.raises(Exception, match="Missing bot id"):
-        CallbackUtility.delete_schedule_job(event_id, bot)
+        PyscriptSharedUtility.delete_schedule_job(event_id, bot)
 
 
 def test_delete_schedule_job_missing_event():
@@ -1522,7 +1516,7 @@ def test_delete_schedule_job_missing_event():
     bot = "test_bot"
 
     with pytest.raises(Exception, match="Missing event id"):
-        CallbackUtility.delete_schedule_job(event_id, bot)
+        PyscriptSharedUtility.delete_schedule_job(event_id, bot)
 
 
 def test_delete_schedule_job_failure(monkeypatch):
@@ -1536,7 +1530,7 @@ def test_delete_schedule_job_failure(monkeypatch):
     monkeypatch.setattr(Utility, "environment", mock_env)
 
     with pytest.raises(Exception, match="{'success': False, 'error': 'Failed to delete'}"):
-        CallbackUtility.delete_schedule_job(event_id, bot)
+        PyscriptSharedUtility.delete_schedule_job(event_id, bot)
 
     mock_execute_http_request.assert_called_once_with("http://mockserver.com/api/events/test_event", "DELETE")
 
@@ -1669,7 +1663,7 @@ def test_pyscript_handler_for_decrypt_request_missing_fields():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: decryption failed-Missing required encrypted data fields'
     }
 
@@ -1709,7 +1703,7 @@ def test_pyscript_handler_for_encrypt_response_success():
     assert data["statusCode"] == 200
     assert data["statusDescription"] == "200 OK"
     assert data["isBase64Encoded"] is False
-    assert data["headers"]["Content-Type"] == "text/html; charset=utf-8"
+    assert data["headers"]["Content-Type"] == "application/json; charset=utf-8"
 
     assert data["body"]["aes_key_buffer"] == b'\xbb\xccV\x98\xb2\xe8A\xb2\xe6j\xd8ob\x17\xa6\xeb'
     assert data["body"]["initial_vector_buffer"] == b'\x1a/\xdc\x99\x88\x10%t4\x01jh\xd0\xceW\xe7'
@@ -1755,7 +1749,7 @@ def test_pyscript_handler_for_encrypt_response_missing_aes_key_buffer():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: encryption failed-AES key cannot be None'
     }
 
@@ -1796,7 +1790,7 @@ def test_pyscript_handler_for_encrypt_response_missing_initial_vector_buffer():
         'statusCode': 422,
         'statusDescription': '200 OK',
         'isBase64Encoded': False,
-        'headers': {'Content-Type': 'text/html; charset=utf-8'},
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
         'body': 'Script execution error: encryption failed-Initialization vector (IV) cannot be None'
     }
 
@@ -1813,7 +1807,7 @@ def test_pyscript_handler_create_callback():
         "channel": "test_channel",
         "metadata": {}
     }
-    url = CallbackUtility.create_callback(**data)
+    url = CallbackScriptUtility.create_callback(**data)
     assert "/callback/d" in url
     assert "/auth_token" in url
 
@@ -1830,7 +1824,7 @@ def test_pyscript_handler_create_callback_standalone():
         "channel": "test_channel",
         "metadata": {}
     }
-    identifier = CallbackUtility.create_callback(**data)
+    identifier = CallbackScriptUtility.create_callback(**data)
     assert bool(re.fullmatch(r"[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}", identifier, re.IGNORECASE))
     assert len(identifier) == 32
     assert not "/callback/d" in identifier
@@ -1898,7 +1892,7 @@ def test_pyscript_handler_create_callback_in_pyscript_standalone():
 
 
 def test_trigger_email():
-    with patch("kairon.async_callback.utils.SMTP", autospec=True) as mock:
+    with patch("kairon.shared.pyscript.callback_pyscript_utils.SMTP", autospec=True) as mock:
         content_type = "html"
         to_email = "test@demo.com"
         subject = "Test"
@@ -1910,7 +1904,7 @@ def test_trigger_email():
         smtp_userid = None
         tls = False
 
-        CallbackUtility.trigger_email(
+        CallbackScriptUtility.trigger_email(
             [to_email],
             subject,
             body,
@@ -1957,7 +1951,7 @@ def test_trigger_email():
 
 
 def test_trigger_email_tls():
-    with patch("kairon.async_callback.utils.SMTP", autospec=True) as mock:
+    with patch("kairon.shared.pyscript.callback_pyscript_utils.SMTP", autospec=True) as mock:
         content_type = "html"
         to_email = "test@demo.com"
         subject = "Test"
@@ -1969,7 +1963,7 @@ def test_trigger_email_tls():
         smtp_userid = None
         tls = True
 
-        CallbackUtility.trigger_email(
+        CallbackScriptUtility.trigger_email(
             [to_email],
             subject,
             body,
@@ -2013,7 +2007,7 @@ def test_trigger_email_tls():
 
 
 def test_trigger_email_using_smtp_userid():
-    with patch("kairon.async_callback.utils.SMTP", autospec=True) as mock:
+    with patch("kairon.shared.pyscript.callback_pyscript_utils.SMTP", autospec=True) as mock:
         content_type = "html"
         to_email = "test@demo.com"
         subject = "Test"
@@ -2025,7 +2019,7 @@ def test_trigger_email_using_smtp_userid():
         smtp_userid = "test_user"
         tls = True
 
-        CallbackUtility.trigger_email(
+        CallbackScriptUtility.trigger_email(
             [to_email],
             subject,
             body,
@@ -2066,3 +2060,742 @@ def test_trigger_email_using_smtp_userid():
         assert args[1] == [to_email]
         assert str(args[2]).__contains__(subject)
         assert str(args[2]).__contains__(body)
+
+@pytest.fixture
+def smtp_config():
+    cfg = MagicMock()
+    cfg.to_mongo.return_value.to_dict.return_value = {
+        "smtp_url": "smtp.gmail.com",
+        "smtp_port": 587,
+        "tls": True,
+        "smtp_userid": {"value": "user@example.com"},
+        "smtp_password": {"value": "password123"}
+    }
+    return cfg
+
+@responses.activate
+def test_send_email_direct(smtp_config):
+    with patch.object(
+        EmailActionConfig, "objects",
+        return_value=MagicMock(first=MagicMock(return_value=smtp_config))
+    ) as mock_objects, \
+         patch.object(CallbackScriptUtility, "trigger_email") as mock_trigger_email:
+
+        CallbackScriptUtility.send_email(
+            email_action="send_mail",
+            from_email="from@example.com",
+            to_email="to@example.com",
+            subject="Test Subject",
+            body="Test Body",
+            bot="bot123"
+        )
+
+        mock_objects.assert_called_once_with(bot="bot123", action_name="send_mail")
+        mock_trigger_email.assert_called_once_with(
+            email=["to@example.com"],
+            subject="Test Subject",
+            body="Test Body",
+            smtp_url="smtp.gmail.com",
+            smtp_port=587,
+            sender_email="from@example.com",
+            smtp_password="password123",
+            smtp_userid="user@example.com",
+            tls=True
+        )
+
+@responses.activate
+def test_send_email_trigger_email_raises(smtp_config):
+    """If trigger_email() raises, send_email should let it bubble up."""
+    with patch.object(
+        EmailActionConfig, "objects",
+        return_value=MagicMock(first=MagicMock(return_value=smtp_config))
+    ), \
+         patch.object(
+             CallbackScriptUtility, "trigger_email",
+             side_effect=Exception("SMTP down")
+         ) as mock_trigger_email:
+
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.send_email(
+                email_action="send_mail",
+                from_email="from@example.com",
+                to_email="to@example.com",
+                subject="Subject",
+                body="Body",
+                bot="bot123"
+            )
+        assert "SMTP down" in str(exc.value)
+        mock_trigger_email.assert_called_once()
+
+@responses.activate
+def test_send_email_no_config_raises_app_exception():
+    """If no EmailActionConfig is found, send_email should raise AppException."""
+    action = "nonexistent"
+    bot_id = "bot123"
+
+    with patch.object(
+        EmailActionConfig, "objects",
+        return_value=MagicMock(first=MagicMock(return_value=None))
+    ) as mock_objects:
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.send_email(
+                email_action=action,
+                from_email="from@example.com",
+                to_email="to@example.com",
+                subject="Subj",
+                body="Body",
+                bot=bot_id
+            )
+
+        # The exact message raised by your code
+        expected_msg = f"Email action '{action}' not configured for bot {bot_id}"
+        assert expected_msg == str(exc.value)
+
+        mock_objects.assert_called_once_with(bot=bot_id, action_name=action)
+
+@responses.activate
+def test_delete_schedule_job_without_bot_in_main_pyscript():
+    server_url = Utility.environment["events"]["server_url"]
+    http_url = f"{server_url}/api/events/e8b5a51d4c8a4e6db26e290e5d1d6f94"
+    responses.add(
+        method=responses.DELETE,
+        url=http_url,
+        json={"data": "Deleted Successfully", "message": "OK", "success": True, "error_code": 0},
+        status=200
+    )
+
+    source_code = '''
+    # Function to delete the scheduled job (with the adjusted trigger time)
+    delete_schedule_job('e8b5a51d4c8a4e6db26e290e5d1d6f94')
+    bot_response = "deleted successfully!"
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    assert data['body'] == 'Script execution error: Missing bot id'
+    assert data == {
+        'statusCode': 422,
+        'body': 'Script execution error: Missing bot id'
+    }
+
+@responses.activate
+def test_delete_schedule_job_in_main_pyscript():
+    server_url = Utility.environment["events"]["server_url"]
+    http_url = f"{server_url}/api/events/e8b5a51d4c8a4e6db26e290e5d1d6f94"
+    responses.add(
+        method=responses.DELETE,
+        url=http_url,
+        json={"data": "Deleted Successfully", "message": "OK", "success": True, "error_code": 0},
+        status=200
+    )
+
+    source_code = '''
+    # Function to delete the scheduled job (with the adjusted trigger time)
+    delete_schedule_job('e8b5a51d4c8a4e6db26e290e5d1d6f94')
+    bot_response = "deleted successfully!"
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {'bot': 'test_bot'},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    assert data['body']['bot_response'] == 'deleted successfully!'
+    assert data == {
+        'statusCode': 200,
+        'body': {
+            'bot': 'test_bot',
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {'bot': 'test_bot'},
+            'intent': 'k_multimedia_msg',
+            'bot_response': 'deleted successfully!',
+        }
+    }
+
+
+def test_pyscript_handler_for_add_data_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    # resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"7760368805"})
+    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {'bot': 'test_bot'},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    bot_response = data['body']['bot_response']
+    pytest.collection_id = bot_response['data']['_id']
+    assert data == {
+        'statusCode': 200,
+        'body': {
+            'bot': 'test_bot',
+            'sender_id': '919876543210',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {'bot': 'test_bot'},
+            'intent': 'k_multimedia_msg',
+            'bot_response': bot_response,
+            'json_data': {'collection_name': 'testing_crud_api', 'is_secure': [],
+                          'data': {'mobile_number': '919876543210', 'name': 'Mahesh'}},
+            'resp': bot_response
+        }
+    }
+
+
+def test_pyscript_handler_for_add_data_without_bot_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    # resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"7760368805"})
+    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    assert data == {
+        'statusCode': 422,
+        'body': 'Script execution error: Missing bot id'
+    }
+
+
+def test_pyscript_handler_for_get_data_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
+    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {'bot': 'test_bot'},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    bot_response = data['body']['bot_response']
+    print(bot_response)
+    assert bot_response['data'][0]['collection_name'] == 'testing_crud_api'
+    assert bot_response['data'][0]['is_secure'] == []
+    assert bot_response['data'][0]['data'] == {'mobile_number': '919876543210', 'name': 'Mahesh'}
+    assert data == {
+        'statusCode': 200,
+        'body': {
+            'bot': 'test_bot',
+            'sender_id': '919876543210',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {'bot': 'test_bot'},
+            'intent': 'k_multimedia_msg',
+            'bot_response': bot_response,
+            'json_data': {'collection_name': 'testing_crud_api', 'is_secure': [],
+                          'data': {'mobile_number': '919876543210', 'name': 'Mahesh'}},
+            'resp': bot_response
+        }
+    }
+
+
+def test_pyscript_handler_for_get_data_without_bot_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+
+    sender_id = "919876543210"
+
+    # resp = add_data(sender_id,json_data)
+    resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
+    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    assert data == {
+        'statusCode': 422,
+        'body': 'Script execution error: Missing bot id'
+    }
+
+
+def test_pyscript_handler_for_update_data_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+    update_json_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh SV",
+        }
+    }
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    collection_id=str(resp['data']['_id'])
+    resp = update_data(collection_id, sender_id, update_json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {'bot': 'test_bot'},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    bot_response = data['body']['bot_response']
+    print(data)
+    bot_response_id = (
+        data['body']['bot_response']['data']['_id']
+        if data.get('body', {}).get('bot_response', {}).get('data')
+        else None
+    )
+    assert bot_response == {'message': 'Record updated!', 'data': {'_id': bot_response_id}}
+
+
+def test_pyscript_handler_for_update_data_without_bot_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+    update_json_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh SV",
+        }
+    }
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    collection_id=str(resp['data']['_id'])
+    resp = update_data(collection_id, sender_id, update_json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    assert data == {
+        'statusCode': 422,
+        'body': 'Script execution error: Missing bot id'
+    }
+
+
+def test_pyscript_handler_for_get_data_after_update_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+    update_json_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh SV",
+        }
+    }
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    collection_id=str(resp['data']['_id'])
+    update_resp = update_data(collection_id,sender_id,update_json_data)
+    resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh SV", "mobile_number":"919876543210"})
+
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {'bot': 'test_bot'},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    bot_response = data['body']['bot_response']
+    print(bot_response)
+    assert bot_response['data'][0]['collection_name'] == 'testing_crud_api'
+    assert bot_response['data'][0]['is_secure'] == []
+    assert bot_response['data'][0]['data'] == {'mobile_number': '919876543210', 'name': 'Mahesh SV'}
+
+
+def test_pyscript_handler_for_delete_data_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api1",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    collection_id=str(resp['data']['_id'])
+    resp = delete_data(collection_id,sender_id) 
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {'bot': 'test_bot'},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    bot_response = data['body']['bot_response']
+    collection_id = bot_response['data']['_id']
+    print(bot_response)
+    assert bot_response == {'message': f'Collection with ID {collection_id} has been successfully deleted.',
+                            'data': {'_id': collection_id}}
+
+
+def test_pyscript_handler_for_delete_data_without_bot_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api1",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    collection_id=str(resp['data']['_id'])
+    resp = delete_data(collection_id,sender_id) 
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    assert data == {
+        'statusCode': 422,
+        'body': 'Script execution error: Missing bot id'
+    }
+
+
+def test_pyscript_handler_for_get_data_after_delete_in_main_pyscript():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+            }
+        }
+
+    sender_id = "919876543210"
+
+    # resp = add_data(sender_id,json_data)
+    resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh SV", "mobile_number":"919876543210"})
+    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {'bot': 'test_bot'},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    bot_response = data['body']['bot_response']
+    print(bot_response)
+    assert bot_response == {'data': []}
+    assert data == {
+        'statusCode': 200,
+        'body': {
+            'bot': 'test_bot',
+            'sender_id': '919876543210',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {'bot': 'test_bot'},
+            'intent': 'k_multimedia_msg',
+            'bot_response': bot_response,
+            'json_data': {'collection_name': 'testing_crud_api', 'is_secure': [],
+                          'data': {'mobile_number': '919876543210', 'name': 'Mahesh'}},
+            'resp': bot_response
+        }
+    }
+
+
+def test_save_as_pdf_success_returns_media_id():
+    # Arrange
+    text = "## Hello\nThis is a markdown"
+    bot_id = "bot123"
+    sender = "user@domain.com"
+    media_id = str(uuid.uuid4())
+
+    # Mock UserMedia.save_markdown_as_pdf to return (anything, media_id)
+    with patch.object(UserMedia, "save_markdown_as_pdf", return_value=("ignored", media_id)) as mock_save:
+        # Act
+        result = CallbackScriptUtility.save_as_pdf(text=text, bot=bot_id, sender_id=sender)
+
+        # Assert
+        assert result == media_id
+        mock_save.assert_called_once_with(
+            bot=bot_id,
+            sender_id=sender,
+            text=text,
+            filepath="report.pdf"
+        )
+
+
+def test_save_as_pdf_error_raises_wrapped_exception():
+
+    text = "bad markdown"
+    bot_id = "bot123"
+    sender = "user@domain.com"
+    inner_err = Exception("disk full")
+
+    with patch.object(UserMedia, "save_markdown_as_pdf", side_effect=inner_err) as mock_save:
+
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.save_as_pdf(text=text, bot=bot_id, sender_id=sender)
+
+        # it should wrap the message
+        assert str(exc.value) == f"encryption failed-{inner_err}"
+        mock_save.assert_called_once_with(
+            bot=bot_id,
+            sender_id=sender,
+            text=text,
+            filepath="report.pdf"
+        )
+
+def test_decrypt_request_missing_fields():
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.decrypt_request({}, "dummy_pem")
+    assert "Missing required encrypted data fields" in str(exc.value)
+
+def test_decrypt_request_success(monkeypatch):
+
+    encrypted_data_b64    = "fake_data_b64"
+    encrypted_aes_key_b64 = "fake_key_b64"
+    iv_b64                = "fake_iv_b64"
+    request_body = {
+        "encrypted_flow_data": encrypted_data_b64,
+        "encrypted_aes_key":    encrypted_aes_key_b64,
+        "initial_vector":       iv_b64
+    }
+
+    def fake_b64decode(val):
+        if val == encrypted_aes_key_b64:
+            return b'\xAA' * 32
+        if val == encrypted_data_b64:
+            return b"CIPHER_TEXT" + b"T" * 16
+        if val == iv_b64:
+            return b"\xBB" * 16
+        return b""
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.base64.b64decode", fake_b64decode)
+
+    fake_priv = MagicMock()
+    fake_aes_key = b"\x01" * 16
+    fake_priv.decrypt.return_value = fake_aes_key
+    monkeypatch.setattr(
+        "kairon.shared.pyscript.callback_pyscript_utils.load_pem_private_key",
+        lambda pem_bytes, password: fake_priv
+    )
+
+    class FakeDecryptor:
+        def update(self, data):   return b'{"hello":"world"}'
+        def finalize(self):       return b''
+    class FakeCipher:
+        def __init__(self, algo, mode): pass
+        def decryptor(self):        return FakeDecryptor()
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.Cipher", FakeCipher)
+
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.jsond.loads", lambda txt: {"hello":"world"})
+
+    result = CallbackScriptUtility.decrypt_request(request_body, "any_pem_string")
+
+    assert result["decryptedBody"]          == {"hello":"world"}
+    assert result["aesKeyBuffer"]           == fake_aes_key
+    assert result["initialVectorBuffer"]    == b"\xBB" * 16
+
+def test_decrypt_request_rsa_failure(monkeypatch):
+    request_body = {
+        "encrypted_flow_data": "d1",
+        "encrypted_aes_key":   "d2",
+        "initial_vector":      "d3"
+    }
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.base64.b64decode", lambda x: b"\x00"*16)
+    # Make load_pem_private_key().decrypt(...) throw
+    fake_priv = MagicMock()
+    fake_priv.decrypt.side_effect = Exception("RSA bad")
+    monkeypatch.setattr(
+        "kairon.shared.pyscript.callback_pyscript_utils.load_pem_private_key",
+        lambda pem_bytes, password: fake_priv
+    )
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.decrypt_request(request_body, "pem")
+    assert "decryption failed-RSA bad" in str(exc.value)
+
+def test_encrypt_response_invalid_args():
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.encrypt_response({"a":1}, None, b"iv0123456789abcd")
+    assert "AES key cannot be None" in str(exc.value)
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.encrypt_response({"a":1}, b"\x00"*16, None)
+    assert "Initialization vector (IV) cannot be None" in str(exc.value)
+
+def test_encrypt_response_success(monkeypatch):
+    response_body = {"foo":"bar"}
+    aes_key_buffer = b"\x11" * 16
+    iv_buffer      = b"\x22" * 12
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.jsond.dumps", lambda obj: "dumped_json")
+
+    class FakeEncryptor:
+        def __init__(self): self.tag = b"TAGBYTES12345678"  # 16 bytes
+        def update(self, data):    return b"ENC_BYTES"
+        def finalize(self):        return b""
+    class FakeCipher:
+        def __init__(self, algo, mode): pass
+        def encryptor(self):        return FakeEncryptor()
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.Cipher", FakeCipher)
+    monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.base64.b64encode", lambda data: b"BASE64ENC")
+    result = CallbackScriptUtility.encrypt_response(response_body, aes_key_buffer, iv_buffer)
+    assert result == "BASE64ENC"
