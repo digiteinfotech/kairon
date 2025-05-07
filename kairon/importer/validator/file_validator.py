@@ -333,7 +333,7 @@ class TrainingDataValidator(Validator):
 
         parallel_actions = set()
         all_actions = self.actions
-        if 'parallel_action' in all_actions:
+        if all_actions and 'parallel_action' in all_actions:
             for action in all_actions['parallel_action']:
                 parallel_actions.update(action['actions'])
 

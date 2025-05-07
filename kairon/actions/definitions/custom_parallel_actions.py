@@ -60,6 +60,7 @@ class ActionParallel(ActionsBase):
         dispatch_bot_response = False
         dispatch_type = DispatchType.text.value
         response_text = ""
+        bot_response = None
         try:
             action_config = self.retrieve_config()
             action_names = action_config['actions']
