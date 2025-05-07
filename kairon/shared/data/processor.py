@@ -9024,24 +9024,6 @@ class MongoProcessor:
             status=True,
         )
 
-    @staticmethod
-    def get_flows_by_tag(bot: str, tag: str):
-        data = {
-            'rule': [],
-            'multiflow': []
-        }
-
-        rules = Rules.objects(bot=bot, flow_tags__in=[tag])
-        for rule in rules:
-            data['rule'].append(rule.block_name)
-
-        multiflows = MultiflowStories.objects(bot=bot, flow_tags__in=[tag])
-        for multiflow in multiflows:
-            data['multiflow'].append(multiflow.block_name)
-
-        return data
-
-
         for action in request_data.get("actions"):
             if not Actions.objects(name__iexact=action, bot=bot, status=True).first():
                 raise AppException(f"Action with name {action} does not exist!")
@@ -9058,6 +9040,23 @@ class MongoProcessor:
             action_type=ActionType.parallel_action,
         )
         return action_id
+
+    @staticmethod
+    def get_flows_by_tag(bot: str, tag: str):
+        data = {
+            'rule': [],
+            'multiflow': []
+        }
+
+        rules = Rules.objects(bot=bot, flow_tags__in=[tag])
+        for rule in rules:
+            data['rule'].append(rule.block_name)
+
+        multiflows = MultiflowStories.objects(bot=bot, flow_tags__in=[tag])
+        for multiflow in multiflows:
+            data['multiflow'].append(multiflow.block_name)
+
+        return data
 
 
     def update_parallel_action(self, request_data: dict, bot: Text, user: Text):
