@@ -40,7 +40,7 @@ class ActionParallel(ActionsBase):
             return p_action_config_dict
         except DoesNotExist as e:
             logger.exception(e)
-            raise ActionFailure("No Async Callback action found for given action and bot")
+            raise ActionFailure("No parallel action found for given action and bot")
 
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         """

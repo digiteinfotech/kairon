@@ -45,7 +45,7 @@ from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction, Actions, ParallelActionConfig, \
-    PyscriptActionConfig, PromptAction
+    PyscriptActionConfig, PromptAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
@@ -29753,6 +29753,169 @@ def test_add_parallel_action(monkeypatch):
     pytest.action_id = actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action", "prompt_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+
+def test_update_parallel_action(monkeypatch):
+    script = "bot_response='hello world'"
+    request_body = {
+        "name": "pyscript_action_2",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action", "prompt_action", "pyscript_action_2"]
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated!"
+    assert actual["success"]
+
+def test_delete_parallel_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/parallel_action_test_not_existing",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == 'Action with name "parallel_action_test_not_existing" not found'
+    )
+
+def test_delete_parallel_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/parallel_action_test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action deleted"
+    parallel_action_count = ParallelActionConfig.objects().count()
+    assert parallel_action_count == 0
+    Actions.objects(name__in=["pyscript_action", "pyscript_action_2", "prompt_action"]).delete()
+    PyscriptActionConfig.objects(name__in=["pyscript_action", "pyscript_action_2"]).delete()
+    PromptAction.objects(name="prompt_action").delete()
+
+
+@responses.activate
+def test_upload_with_parallel_action():
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("tests/testing_data/parallel_action/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("tests/testing_data/parallel_action/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("tests/testing_data/parallel_action/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("rules.yml", open("tests/testing_data/parallel_action/data/rules.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("multiflow_stories.yml", open("tests/testing_data/parallel_action/multiflow_stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("actions.yml", open("tests/testing_data/parallel_action/actions.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("tests/testing_data/parallel_action/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/all/chat_client_config.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    Actions.objects(name__in=["api1", "api2", "py1", "py2", "parallel_action"]).delete()
+    PyscriptActionConfig.objects(name__in=["py1", "py2"]).delete()
+    HttpActionConfig.objects(action_name__in=["api1", "api2"]).delete()
+    ParallelActionConfig.objects(name="parallel_action").delete()
 
 
 @responses.activate
