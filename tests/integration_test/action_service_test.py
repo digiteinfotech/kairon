@@ -724,12 +724,12 @@ def test_parallel_action_execution():
     Actions(name=action_name, type=ActionType.pyscript_action.value,
             bot="5f50fd0a56b698ca10d35d2z", user="user").save()
     script = """
-    numbers = [1, 2, 3, 4, 5]
-    total = 0
-    for i in numbers:
-        total += i
-    print(total)
-    """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
     script = textwrap.dedent(script)
     PyscriptActionConfig(
         name=action_name,
@@ -739,9 +739,10 @@ def test_parallel_action_execution():
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['pyscript']['url'],
-        json={"success": True, "data": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
                                         "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "statusCode": 200,
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher({'source_code': script,
                                                        'predefined_objects': {'chat_log': [],
@@ -791,7 +792,6 @@ def test_parallel_action_execution():
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response.status_code == 200
     assert len(response_json['events']) == 3
     assert len(response_json['responses']) == 1
