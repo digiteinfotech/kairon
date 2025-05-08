@@ -1,0 +1,193 @@
+version: "3.1"
+intents:
+- bye:
+    use_entities: []
+- greet:
+    use_entities: []
+- parallel_test:
+    use_entities: []
+actions:
+- api1
+- api2
+- py1
+- py2
+- parallel_action
+slots:
+  media_ids:
+    initial_value: null
+    value_reset_delay: null
+    type: list
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: media_ids
+  body:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: body
+  subject:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: subject
+  mail_id:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: mail_id
+  quick_reply:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: quick_reply
+  latitude:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: latitude
+  longitude:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: longitude
+  doc_url:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: doc_url
+  document:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: document
+  video:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: video
+  audio:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: audio
+  image:
+    initial_value: null
+    value_reset_delay: null
+    type: text
+    influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: image
+  http_status_code:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: http_status_code
+  flow_reply:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: flow_reply
+  payment:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: payment
+  order:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: order
+  kairon_action_response:
+    initial_value: null
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: kairon_action_response
+  bot:
+    initial_value: 68181cfea4060625fee27cd6
+    value_reset_delay: null
+    type: any
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: bot
+session_config:
+  session_expiration_time: 60
+  carry_over_slots: true
+responses:
+  utter_please_rephrase:
+  - text: I'm sorry, I didn't quite understand that. Could you rephrase?
+  utter_bye:
+  - text: Take care, I'm here for you if you need anything.
+  - text: Adieu, always here for you.
+  - text: See you later, I'm here to help.
+  utter_greet:
+  - text: I'm your AI Assistant, ready to assist
+  - text: Let me be your AI Assistant and provide you with service
+  utter_default:
+  - text: Sorry I didn't get that. Can you rephrase?
+entities:
+- bot
+- kairon_action_response
+- order
+- payment
+- flow_reply
+- http_status_code
+- image
+- audio
+- video
+- document
+- doc_url
+- longitude
+- latitude
+- quick_reply
+- mail_id
+- subject
+- body
+- media_ids
