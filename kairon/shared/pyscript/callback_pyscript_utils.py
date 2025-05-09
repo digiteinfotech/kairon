@@ -69,7 +69,7 @@ class CallbackScriptUtility:
 
         script = callback_config.get('pyscript_code')
 
-        func = obj_to_ref(ExecutorFactory.get_executor().execute_task)
+        func = obj_to_ref(ExecutorFactory.get_executor_for_data(data).execute_task)
 
         schedule_data = {
             'source_code': script,
