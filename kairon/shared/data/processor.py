@@ -4816,6 +4816,41 @@ class MongoProcessor:
             action.pop("timestamp")
             yield action
 
+    def list_existing_actions_for_parallel_action(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches actions filtered by predefined action types from the collection.
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of filtered actions.
+        """
+        action_types = [
+            ActionType.http_action,
+            ActionType.email_action,
+            ActionType.jira_action,
+            ActionType.zendesk_action,
+            ActionType.pipedrive_leads_action,
+            ActionType.hubspot_forms_action,
+            ActionType.prompt_action,
+            ActionType.pyscript_action,
+            ActionType.database_action,
+            ActionType.callback_action,
+            ActionType.schedule_action
+        ]
+
+        query = {"bot": bot, "status": True, "type": {"$in": [action.value for action in action_types]}}
+
+        for action in Actions.objects(**query):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = str(action["_id"])
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("status")
+            action.pop("timestamp")
+            yield action
+
     def add_slot(self, slot_value: Dict, bot: str, user: str, raise_exception_if_exists=True, is_default = False):
         """
         Adds slot if it doesn't exist, updates slot if it exists
@@ -8999,6 +9034,23 @@ class MongoProcessor:
 
         return file_path
 
+    @staticmethod
+    def get_flows_by_tag(bot: str, tag: str):
+        data = {
+            'rule': [],
+            'multiflow': []
+        }
+
+        rules = Rules.objects(bot=bot, flow_tags__in=[tag])
+        for rule in rules:
+            data['rule'].append(rule.block_name)
+
+        multiflows = MultiflowStories.objects(bot=bot, flow_tags__in=[tag])
+        for multiflow in multiflows:
+            data['multiflow'].append(multiflow.block_name)
+
+        return data
+
     def add_parallel_action(self, request_data: dict, bot: Text, user: Text):
         """
         Add Parallel Action
@@ -9040,23 +9092,6 @@ class MongoProcessor:
             action_type=ActionType.parallel_action,
         )
         return action_id
-
-    @staticmethod
-    def get_flows_by_tag(bot: str, tag: str):
-        data = {
-            'rule': [],
-            'multiflow': []
-        }
-
-        rules = Rules.objects(bot=bot, flow_tags__in=[tag])
-        for rule in rules:
-            data['rule'].append(rule.block_name)
-
-        multiflows = MultiflowStories.objects(bot=bot, flow_tags__in=[tag])
-        for multiflow in multiflows:
-            data['multiflow'].append(multiflow.block_name)
-
-        return data
 
 
     def update_parallel_action(self, request_data: dict, bot: Text, user: Text):

@@ -750,6 +750,15 @@ async def list_available_actions(
     actions = list(mongo_processor.list_all_actions(bot=current_user.get_bot()))
     return Response(data=actions)
 
+@router.get("/parallel/actions", response_model=Response)
+async def list_existing__actions_for_parallel_action(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of all actions for bot.
+    """
+    actions = list(mongo_processor.list_existing_actions_for_parallel_action(bot=current_user.get_bot()))
+    return Response(data=actions)
+
 
 @router.post("/schedule", response_model=Response)
 async def add_schedule_action(
