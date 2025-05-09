@@ -30145,15 +30145,11 @@ def test_delete_parallel_action_not_exists():
     )
 
 def test_delete_parallel_action():
-    parallel_action_count = ParallelActionConfig.objects()
-    for ac in parallel_action_count:
-        print(ac.to_mongo().to_dict())
     response = client.delete(
         f"/api/bot/{pytest.bot}/action/parallel_action_test",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Action deleted"
