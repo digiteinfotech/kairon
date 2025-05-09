@@ -1,0 +1,41 @@
+http_action:
+- action_name: api1
+  content_type: json
+  headers: []
+  http_url: https://jsonplaceholder.typicode.com/users
+  params_list: []
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: API action 1 success
+  set_slots: []
+- action_name: api2
+  content_type: json
+  headers: []
+  http_url: https://jsonplaceholder.typicode.com/todos
+  params_list: []
+  request_method: GET
+  response:
+    dispatch: true
+    dispatch_type: text
+    evaluation_type: expression
+    value: API action 2 success
+  set_slots: []
+parallel_action:
+- actions:
+  - api1
+  - api2
+  - py1
+  - py2
+  dispatch_response_text: 'true'
+  name: parallel_action
+  response_text: Parallel Action Success
+pyscript_action:
+- dispatch_response: true
+  name: py1
+  source_code: bot_response = "Pyscript 1 success"
+- dispatch_response: true
+  name: py2
+  source_code: bot_response = "Pyscript 2 success"
