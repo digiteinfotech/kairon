@@ -29920,6 +29920,7 @@ def test_upload_with_parallel_action():
 
 
 def test_list_existing_actions_for_parallel_action():
+    Actions.objects(bot=pytest.bot).delete()
     processor = MongoProcessor()
     user = "integration@demo.ai"
     action_1 = "http_action_1"
