@@ -30,7 +30,7 @@ from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.data_objects import UserEmailConfirmation
-from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType
+from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
 from kairon.shared.chat.data_objects import Channels
@@ -30236,6 +30236,47 @@ def test_upload_with_parallel_action():
     HttpActionConfig.objects(action_name__in=["api1", "api2"]).delete()
     ParallelActionConfig.objects(name="parallel_action").delete()
 
+
+def test_list_existing_actions_for_parallel_action():
+    processor = MongoProcessor()
+    user = "integration@demo.ai"
+    action_1 = "http_action_1"
+    action_2 = "email_action_1"
+    action_3 = "jira_action_1"
+    action_4 = "live_agent_action_1"
+    action_5 = "parallel_action_1"
+
+    processor.add_action(action_1, pytest.bot, user, action_type=ActionType.http_action)
+    processor.add_action(action_2, pytest.bot, user, action_type=ActionType.email_action)
+    processor.add_action(action_3, pytest.bot, user, action_type=ActionType.jira_action)
+    processor.add_action(action_4, pytest.bot, user, action_type=ActionType.live_agent_action)
+    processor.add_action(action_5, pytest.bot, user, action_type=ActionType.parallel_action)
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/parallel/actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"] is True
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+
+    assert len(actual["data"]) == 3
+    expected_actions = {action_1: ActionType.http_action.value,
+                        action_2: ActionType.email_action.value,
+                        action_3: ActionType.jira_action.value}
+    actual_actions = {action["name"]: action["type"] for action in actual["data"]}
+
+    for name, action_type in expected_actions.items():
+        assert name in actual_actions
+        assert actual_actions[name] == action_type
+
+    assert action_4 not in actual_actions
+    assert action_5 not in actual_actions
+
+    Actions.objects(name__in=[action_1, action_2, action_3, action_4, action_5], bot=pytest.bot).delete()
 
 @responses.activate
 def test_idp_provider_fields():
