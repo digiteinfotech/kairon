@@ -48,7 +48,6 @@ from kairon.shared.actions.exception import ActionFailure
 from unittest.mock import patch
 from urllib.parse import urlencode
 
-
 class TestActions:
 
     @pytest.fixture(autouse=True, scope='class')
@@ -2876,6 +2875,7 @@ class TestActions:
                                 'integrations_per_user_limit': 3,
                                 'live_agent_enabled': False,
                                 'retry_broadcasting_limit': 3}
+        LLMSecret.objects.delete()
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
