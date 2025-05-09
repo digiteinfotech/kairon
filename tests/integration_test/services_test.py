@@ -33,6 +33,7 @@ from kairon.shared.actions.models import ActionParameterType, DbActionOperationT
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
+from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.llm.processor import LLMProcessor
 import numpy as np
@@ -29826,6 +29827,9 @@ def test_delete_parallel_action_not_exists():
     )
 
 def test_delete_parallel_action():
+    parallel_action_count = ParallelActionConfig.objects()
+    for ac in parallel_action_count:
+        print(ac.to_mongo().to_dict())
     response = client.delete(
         f"/api/bot/{pytest.bot}/action/parallel_action_test",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -29835,7 +29839,7 @@ def test_delete_parallel_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Action deleted"
-    parallel_action_count = ParallelActionConfig.objects().count()
+    parallel_action_count = ParallelActionConfig.objects(bot = pytest.bot).count()
     assert parallel_action_count == 0
     Actions.objects(name__in=["pyscript_action", "pyscript_action_2", "prompt_action"]).delete()
     PyscriptActionConfig.objects(name__in=["pyscript_action", "pyscript_action_2"]).delete()
@@ -29844,6 +29848,7 @@ def test_delete_parallel_action():
 
 @responses.activate
 def test_upload_with_parallel_action():
+    ValidationLogs.objects(bot = pytest.bot).delete()
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
         f"/api/events/execute/{EventClass.data_importer}",
