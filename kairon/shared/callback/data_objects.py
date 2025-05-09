@@ -14,6 +14,7 @@ from mongoengine import StringField, DictField, DateTimeField, Document, Dynamic
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import CallbackActionConfig
+from kairon.shared.constants import EventClass
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
 from cryptography.fernet import Fernet
@@ -444,3 +445,7 @@ class PyscriptPayload(BaseModel):
     """
     source_code: str
     predefined_objects: Optional[Dict[str, Any]] = None
+class CallbackRequest(BaseModel):
+    event_class: EventClass
+    data: dict
+    task_type: str
