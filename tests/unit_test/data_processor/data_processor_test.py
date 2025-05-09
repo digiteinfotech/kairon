@@ -19592,6 +19592,7 @@ class TestModelProcessor:
         assert result == []
 
     def test_list_existing_actions_for_parallel_action_success(self):
+        Actions.objects(bot=pytest.bot).delete()
         bot = "test_bot"
         user = "test_user"
         processor = MongoProcessor()
