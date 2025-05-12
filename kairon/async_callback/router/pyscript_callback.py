@@ -116,6 +116,6 @@ async def handle_callback(body: CallbackRequest):
         }
     except Exception as e:
         return {
-            "statusCode": 500,
+            "statusCode": 422,
             "body": str(e)
         }
