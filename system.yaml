@@ -125,8 +125,8 @@ notifications:
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5056"}
   executor:
-    type: ${EVENTS_EXECUTOR_TYPE:"standalone"}
-    callback_executor: ${CALLBACK_EXECUTOR_TYPE:"callback"}
+    type: ${EVENTS_EXECUTOR_TYPE}
+    callback_executor: ${CALLBACK_EXECUTOR_TYPE}
     region: ${EVENTS_EXECUTOR_REGION}
     timeout: ${EVENTS_EXECUTOR_TIMEOUT_MINUTES:60}
     callback_executor_url: ${CALLBACK_EXECUTOR_URL:"http://localhost:5059//callback/handle_event"}
