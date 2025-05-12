@@ -354,3 +354,36 @@ class TestExecutors:
         with pytest.raises(AppException) as exc:
             executor.execute_task(EventClass.scheduler_evaluator, {"foo": "bar"})
         assert "Callback request failed: network error" in str(exc.value)
+
+    def test_get_executor_for_data_default(self,monkeypatch):
+        monkeypatch.setitem(Utility.environment['events']['executor'], 'type', EventExecutor.aws_lambda.value)
+        inst = ExecutorFactory.get_executor_for_data({'foo': 'bar'})
+        assert isinstance(inst, LambdaExecutor)
+
+    @pytest.mark.parametrize("executor_key, executor_class", [
+        ('aws_lambda', LambdaExecutor),
+        ('dramatiq', DramatiqExecutor),
+        ('standalone', StandaloneExecutor),
+    ])
+    def test_get_executor_for_data_various(self,monkeypatch, executor_key, executor_class):
+        monkeypatch.setitem(Utility.environment['events']['executor'], 'type', executor_key)
+        inst = ExecutorFactory.get_executor_for_data({'task_type': 'Other'})
+        assert isinstance(inst, executor_class)
+
+    def test_get_executor_for_data_callback(self,monkeypatch):
+        monkeypatch.setitem(Utility.environment['events']['executor'], 'callback_executor',
+                            EventExecutor.callback.value)
+
+        monkeypatch.setitem(Utility.environment['events']['executor'], 'type', 'standalone')
+        inst = ExecutorFactory.get_executor_for_data({'task_type': 'Callback'})
+        assert isinstance(inst, CallbackExecutor)
+
+    def test_get_executor_for_data_not_configured(self,monkeypatch):
+        monkeypatch.setitem(Utility.environment['events']['executor'], 'type', 'invalid')
+        monkeypatch.setitem(Utility.environment['events']['executor'], 'callback_executor', 'also_invalid')
+        with pytest.raises(AppException) as exc_info:
+            ExecutorFactory.get_executor_for_data({'task_type': 'Other'})
+        assert "Executor type not configured in system.yaml." in str(exc_info.value)
+        with pytest.raises(AppException) as exc_info2:
+            ExecutorFactory.get_executor_for_data({'task_type': 'Callback'})
+        assert "Executor type not configured in system.yaml." in str(exc_info2.value)
