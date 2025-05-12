@@ -1,9 +1,8 @@
-from fastapi import requests
+import requests
 
 from kairon import Utility
 from kairon.events.executors.base import ExecutorBase
 from kairon.exceptions import AppException
-from kairon.shared.constants import EventClass
 
 
 class CallbackExecutor(ExecutorBase):
