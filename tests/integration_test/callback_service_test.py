@@ -694,3 +694,61 @@ async def test_execute_python_failure(mock_handler):
 
     assert response.status == 422
     assert json_response["success"] is False
+
+
+@pytest.mark.asyncio
+@patch("kairon.async_callback.utils.CallbackUtility.execute_script")
+async def test_handle_callback_success(mock_execute, monkeypatch):
+    mock_execute.return_value = {"result": "ok", "details": {"x": 1}}
+    client = TestClient(app)
+    await app.start()
+    payload = {
+        "event_class": "scheduler_evaluator",
+        "data": {
+            "source_code": "bot_response = 42",
+            "predefined_objects": {"x": 1}
+        },
+        "task_type": "Callback"
+    }
+
+    response = await client.post(
+        "/callback/handle_event",
+        content=JSONContent(payload)
+    )
+
+    assert response.status == 200
+    body = await response.json()
+    assert body["statusCode"] == 200
+    assert body["body"] == {"result": "ok", "details": {"x": 1}}
+
+    mock_execute.assert_called_once_with(
+        "bot_response = 42",
+        {"x": 1}
+    )
+
+
+@pytest.mark.asyncio
+@patch("kairon.async_callback.utils.CallbackUtility.execute_script")
+async def test_handle_callback_failure(mock_execute, monkeypatch):
+    mock_execute.side_effect = Exception("script error")
+
+    client = TestClient(app)
+    await app.start()
+
+    payload = {
+        "event_class": "scheduler_evaluator",
+        "data": {
+            "source_code": "raise Exception('fail')",
+            "predefined_objects": {}
+        },
+        "task_type": "Callback"
+    }
+    response = await client.post(
+        "/callback/handle_event",
+        content=JSONContent(payload)
+    )
+    body = await response.json()
+
+    assert response.status == 200
+    assert body["statusCode"] == 422
+    assert "script error" in body["body"]
