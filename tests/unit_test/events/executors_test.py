@@ -2,6 +2,8 @@ import ujson as json
 import os
 import re
 from unittest.mock import patch
+
+import requests
 from mongoengine import connect
 
 import pytest
@@ -14,6 +16,7 @@ from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
+from kairon.events.executors.callback_executor import CallbackExecutor
 from kairon.events.executors.dramatiq import DramatiqExecutor
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.executors.lamda import LambdaExecutor
@@ -27,6 +30,10 @@ from kairon.shared.events.broker.mongo import MongoBroker
 
 def _mock_broker_connection_error(*args, **kwargs):
     raise Exception("Failed to connect to broker")
+
+
+class DummyReqExc:
+    pass
 
 
 class TestExecutors:
@@ -306,3 +313,44 @@ class TestExecutors:
         monkeypatch.setitem(Utility.environment['events']['queue'], "type", "redis")
         with pytest.raises(AppException, match=re.escape("Not a valid broker type. Accepted types: ['mongo']")):
             BrokerFactory.get_instance()
+
+    def test_callback_executor_success(self,monkeypatch):
+        callback_url = "http://dummy-callback/api"
+        env = Utility.environment.copy()
+        env['events']['executor']['callback_executor_url'] = callback_url
+        monkeypatch.setattr(Utility, "environment", env)
+        called = {}
+
+        def fake_http_request(method, url, payload):
+            called['method'] = method
+            called['url'] = url
+            called['payload'] = payload
+            return {"success": True, "data": {"foo": "bar"}}
+
+        monkeypatch.setattr(Utility, "execute_http_request", fake_http_request)
+        executor = CallbackExecutor()
+        data = {"bot": "bot1", "user": "u1"}
+        resp = executor.execute_task(EventClass.scheduler_evaluator, data, task_type="MyTask")
+        assert resp == {"success": True, "data": {"foo": "bar"}}
+        assert called['method'] == "POST"
+        assert called['url'] == callback_url
+        assert called['payload'] == {
+            "event_class": EventClass.scheduler_evaluator,
+            "data": data,
+            "task_type": "MyTask"
+        }
+
+    def test_callback_executor_http_failure(self,monkeypatch):
+        callback_url = "http://dummy-callback/fail"
+        env = Utility.environment.copy()
+        env['events']['executor']['callback_executor_url'] = callback_url
+        monkeypatch.setattr(Utility, "environment", env)
+
+        def fake_http_request(method, url, payload):
+            raise requests.RequestException("network error")
+
+        monkeypatch.setattr(Utility, "execute_http_request", fake_http_request)
+        executor = CallbackExecutor()
+        with pytest.raises(AppException) as exc:
+            executor.execute_task(EventClass.scheduler_evaluator, {"foo": "bar"})
+        assert "Callback request failed: network error" in str(exc.value)
