@@ -132,7 +132,7 @@ class TestMessageBroadcastProcessor:
         scheduler = KScheduler()
         monkeypatch.setitem(Utility.environment["events"]["executor"], "type", None)
         with pytest.raises(AppException, match=re.escape(
-                "Executor type not configured in system.yaml. Valid types: ['aws_lambda', 'dramatiq', 'standalone']")):
+                "Executor type not configured in system.yaml. Valid types: ['aws_lambda', 'dramatiq', 'standalone', 'callback']")):
             scheduler.add_job(event_id, TASK_TYPE.EVENT.value,
                               cron_exp, EventClass.message_broadcast.value, body)
 
