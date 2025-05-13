@@ -20,6 +20,7 @@ allow_module("time")
 allow_module("googlemaps")
 allow_module("decimal")
 allow_module("_strptime")
+allow_module("orjson")
 
 global_safe = _safe_globals
 global_safe['_getattr_'] = safer_getattr
