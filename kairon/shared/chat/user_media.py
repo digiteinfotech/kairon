@@ -15,14 +15,17 @@ from uuid6 import uuid7
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import Actions, PromptAction
+from kairon.shared.actions.models import ActionType
+from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.data.data_objects import UserMediaData
-from kairon.shared.models import UserMediaUploadType, UserMediaUploadStatus
+from kairon.shared.data.data_objects import UserMediaData, Rules
+from kairon.shared.models import UserMediaUploadType, UserMediaUploadStatus, FlowTagType
 import fitz
 
 
 class UserMedia:
-
+    MEDIA_EXTRACTION_FLOW_NAME = "k_media_extraction"
     @staticmethod
     def create_user_media_data(bot: str, media_id: str, filename: str, sender_id: str, upload_type: str = UserMediaUploadType.user_uploaded.value):
         """
@@ -210,6 +213,7 @@ class UserMedia:
             binary_data,
             filename
         )
+        await UserMedia.extract_media_information(bot, media_id, sender_id)
 
     @staticmethod
     async def upload_media_contents(
@@ -225,11 +229,13 @@ class UserMedia:
         :return: list of media ids
         """
         media_ids = []
+        file_names = []
         read_tasks = [asyncio.create_task(file.read()) for file in files]
         binary_datas = await asyncio.gather(*read_tasks)
 
         for file, binary_data in zip(files, binary_datas):
             filename = file.filename
+            file_names.append(filename)
             media_id = uuid7().hex
             media_ids.append(media_id)
             UserMedia.create_user_media_data(
@@ -245,7 +251,7 @@ class UserMedia:
                 binary_data=binary_data,
                 filename=filename
             ))
-        return media_ids
+        return media_ids, file_names
 
 
     @staticmethod
@@ -376,5 +382,91 @@ class UserMedia:
                 filename=filepath
             )
         return binary_data, media_id
+
+    @staticmethod
+    def add_media_extraction_flow_if_not_exist( bot: str):
+        try:
+            instructions = ['Extract all relevant information from the media file and return as a markdown']
+
+            llm_prompts = [
+                {'name': 'System Prompt',
+                 'instructions': f'{instructions[0]}',
+                 'type': 'system',
+                 'data': 'Extract information',
+                 },
+            ]
+
+            action_name = f"{UserMedia.MEDIA_EXTRACTION_FLOW_NAME}_prompt_action"
+            if not Actions.objects(bot=bot, name=action_name).first():
+                action = Actions(
+                    bot=bot,
+                    name=action_name,
+                    type=ActionType.prompt_action.value,
+                    status=True,
+                    user="system",
+                )
+                action.save()
+
+
+            if not PromptAction.objects(bot=bot, name=action_name).first():
+                prompt_action = PromptAction(
+                    name=action_name,
+                    instructions=instructions,
+                    llm_prompts=llm_prompts,
+                    dispatch_response=True,
+                    process_media=True,
+                    bot=bot,
+                    status=True,
+                    user="system",
+                )
+                prompt_action.save()
+
+            if not Rules.objects(block_name=UserMedia.MEDIA_EXTRACTION_FLOW_NAME, bot=bot).first():
+                rule_data = {
+                    "block_name": UserMedia.MEDIA_EXTRACTION_FLOW_NAME,
+                    "condition_events_indices": [],
+                    "start_checkpoints": ["STORY_START"],
+                    "end_checkpoints": [],
+                    "events": [
+                        {"name": "...", "type": "action"},
+                        {"name": "k_multimedia_msg", "type": "user"},
+                        {"name": action_name, "type": "action"}
+                    ],
+                    "bot": bot,
+                    "user": "system",
+                    "timestamp": datetime.utcnow(),
+                    "status": True,
+                    "template_type": "CUSTOM",
+                    "flow_tags": [FlowTagType.agentic_flow.value]
+                }
+                Rules(**rule_data).save()
+
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(f"Failed to add media extraction flow: {e}")
+
+    @staticmethod
+    async def extract_media_information(bot:str, media_id: str, sender_id: str):
+        try:
+            UserMedia.add_media_extraction_flow_if_not_exist(bot)
+            slot_data = {
+                "media_ids": [media_id],
+            }
+            flow = AgenticFlow(bot, slot_vals=slot_data, sender_id=sender_id)
+            responses, errors = await flow.execute_rule(UserMedia.MEDIA_EXTRACTION_FLOW_NAME)
+            if errors:
+                raise AppException(f"Failed to extract media information: {errors}")
+            if not responses:
+                raise AppException(f"extraction prompt action execution failed: {media_id}")
+
+            user_media_data = UserMediaData.objects(media_id=media_id).get()
+
+            user_media_data.summary = responses[0].get("text")
+            user_media_data.save()
+
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(f"Failed to extract media information: {e}")
+
 
 

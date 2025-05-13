@@ -7934,6 +7934,7 @@ class MongoProcessor:
         action.set_slots = request_data.get("set_slots", [])
         action.dispatch_response = request_data.get("dispatch_response", True)
         action.timestamp = datetime.utcnow()
+        action.process_media=request_data.get("process_media", False)
         action.user = user
         action.save()
 

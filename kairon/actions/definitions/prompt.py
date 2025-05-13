@@ -75,11 +75,14 @@ class ActionPrompt(ActionsBase):
             model_to_check = llm_params['hyperparameters'].get('model')
             Sysadmin.check_llm_model_exists(model_to_check, llm_type, self.bot)
             media_ids = tracker.get_slot('media_ids')
+            should_process_media =  k_faq_action_config.get('process_media')
+
             llm_response, time_taken_llm_response = await llm_processor.predict(user_msg,
                                                                                 user= tracker.sender_id,
                                                                                 invocation='prompt_action',
                                                                                 llm_type=llm_type,
                                                                                 media_ids=media_ids,
+                                                                                should_process_media=should_process_media,
                                                                                 **llm_params)
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")

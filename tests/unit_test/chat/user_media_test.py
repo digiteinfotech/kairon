@@ -87,7 +87,7 @@ async def test_upload_media_contents(uuid_mock, save_task_mock, create_data_mock
 
     uuid_mock.return_value.hex = "fake-id"
 
-    media_ids = await UserMedia.upload_media_contents("bot1", "user@example.com", [file_mock])
+    media_ids, _ = await UserMedia.upload_media_contents("bot1", "user@example.com", [file_mock])
 
     assert media_ids == ["fake-id"]
     create_data_mock.assert_called_once()
@@ -108,7 +108,7 @@ async def test_upload_multiple_media_contents(uuid_mock, save_task_mock, create_
 
     uuid_mock.side_effect = [MagicMock(hex="id1"), MagicMock(hex="id2")]
 
-    media_ids = await UserMedia.upload_media_contents("bot123", "user@domain.com", [file1, file2])
+    media_ids, _ = await UserMedia.upload_media_contents("bot123", "user@domain.com", [file1, file2])
 
     assert media_ids == ["id1", "id2"]
     assert create_data_mock.call_count == 2
@@ -258,10 +258,12 @@ def test_save_media_content_no_filename():
 
 
 @pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.UserMedia.extract_media_information")
 @patch("kairon.shared.chat.user_media.UserMedia.save_media_content", autospec=True)
-async def test_save_media_content_task(mock_save):
+async def test_save_media_content_task(mock_save, mock_extract_media_information):
     await UserMedia.save_media_content_task("bot", "user", "id", b"data", "file.txt")
     mock_save.assert_called_once()
+    mock_extract_media_information.assert_called_once()
 
 
 @patch("kairon.shared.chat.user_media.MarkdownPdf")
@@ -309,7 +311,7 @@ async def test_get_media_content_buffer_not_found(mock_objects):
 
 @pytest.mark.asyncio
 async def test_upload_empty_media_list():
-    media_ids = await UserMedia.upload_media_contents("bot123", "user@domain.com", [])
+    media_ids, _ = await UserMedia.upload_media_contents("bot123", "user@domain.com", [])
     assert media_ids == []
 
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
@@ -427,4 +429,124 @@ def test_save_whatsapp_media_content_meta_failure(mock_get):
     with pytest.raises(AppException) as exc:
         UserMedia.save_whatsapp_media_content("b","s","id", config)
     assert "Failed to get url from meta" in str(exc.value)
+
+
+
+
+@patch("kairon.shared.chat.user_media.Actions")
+@patch("kairon.shared.chat.user_media.PromptAction")
+@patch("kairon.shared.chat.user_media.Rules")
+@patch("kairon.shared.chat.user_media.logger")
+def test_add_media_extraction_flow_if_not_exist(mock_logger, mock_rules, mock_prompt_action, mock_actions):
+    bot = "test_bot"
+
+    mock_actions.objects.return_value.first.return_value = None
+    mock_prompt_action.objects.return_value.first.return_value = None
+    mock_rules.objects.return_value.first.return_value = None
+
+    mock_action_instance = MagicMock()
+    mock_actions.return_value = mock_action_instance
+
+    mock_prompt_action_instance = MagicMock()
+    mock_prompt_action.return_value = mock_prompt_action_instance
+
+    mock_rule_instance = MagicMock()
+    mock_rules.return_value = mock_rule_instance
+
+    UserMedia.add_media_extraction_flow_if_not_exist(bot)
+
+    mock_actions.objects.assert_called_once_with(bot=bot, name=f"{UserMedia.MEDIA_EXTRACTION_FLOW_NAME}_prompt_action")
+    mock_prompt_action.objects.assert_called_once_with(bot=bot, name=f"{UserMedia.MEDIA_EXTRACTION_FLOW_NAME}_prompt_action")
+    mock_rules.objects.assert_called_once_with(block_name=UserMedia.MEDIA_EXTRACTION_FLOW_NAME, bot=bot)
+
+    mock_action_instance.save.assert_called_once()
+    mock_prompt_action_instance.save.assert_called_once()
+    mock_rule_instance.save.assert_called_once()
+
+    mock_logger.exception.assert_not_called()
+
+@patch("kairon.shared.chat.user_media.logger")
+def test_add_media_extraction_flow_if_not_exist_exception(mock_logger):
+    bot = "test_bot"
+
+    with patch("kairon.shared.chat.user_media.Actions.objects", side_effect=Exception("Database error")):
+        with pytest.raises(AppException, match="Failed to add media extraction flow: Database error"):
+            UserMedia.add_media_extraction_flow_if_not_exist(bot)
+
+    mock_logger.exception.assert_called_once()
+
+
+import pytest
+from unittest.mock import patch, MagicMock, AsyncMock
+from kairon.shared.chat.user_media import UserMedia
+from kairon.exceptions import AppException
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.UserMedia.add_media_extraction_flow_if_not_exist")
+@patch("kairon.shared.chat.user_media.AgenticFlow")
+async def test_extract_media_information_execution_error(mock_agentic_flow, mock_add_flow):
+    bot = "test_bot"
+    media_id = "media123"
+    sender_id = "user123"
+
+    mock_flow_instance = MagicMock()
+    mock_flow_instance.execute_rule = AsyncMock(return_value=(None, "Execution error"))
+    mock_agentic_flow.return_value = mock_flow_instance
+
+    with pytest.raises(AppException, match="Failed to extract media information: Execution error"):
+        await UserMedia.extract_media_information(bot, media_id, sender_id)
+
+    mock_add_flow.assert_called_once_with(bot)
+    mock_agentic_flow.assert_called_once_with(bot, slot_vals={"media_ids": [media_id]}, sender_id=sender_id)
+    mock_flow_instance.execute_rule.assert_called_once_with(UserMedia.MEDIA_EXTRACTION_FLOW_NAME)
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.UserMedia.add_media_extraction_flow_if_not_exist")
+@patch("kairon.shared.chat.user_media.AgenticFlow")
+@patch("kairon.shared.chat.user_media.UserMediaData.objects")
+async def test_extract_media_information_success(mock_objects, mock_agentic_flow, mock_add_flow):
+    bot = "test_bot"
+    media_id = "media123"
+    sender_id = "user123"
+
+    mock_flow_instance = MagicMock()
+    mock_flow_instance.execute_rule = AsyncMock(return_value=([{"text": "Extracted summary"}], None))
+    mock_agentic_flow.return_value = mock_flow_instance
+
+    mock_media_data = MagicMock()
+    mock_media_data.summary = "Extracted summary"
+    mock_objects.get.return_value = mock_media_data
+
+    await UserMedia.extract_media_information(bot, media_id, sender_id)
+
+    mock_add_flow.assert_called_once_with(bot)
+    mock_agentic_flow.assert_called_once_with(bot, slot_vals={"media_ids": [media_id]}, sender_id=sender_id)
+    mock_flow_instance.execute_rule.assert_called_once_with(UserMedia.MEDIA_EXTRACTION_FLOW_NAME)
+    assert mock_media_data.summary == "Extracted summary"
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.UserMedia.add_media_extraction_flow_if_not_exist")
+@patch("kairon.shared.chat.user_media.AgenticFlow")
+@patch("kairon.shared.chat.user_media.UserMediaData.objects")
+async def test_extract_media_information_exceptions(mock_objects, mock_agentic_flow, mock_add_flow):
+    bot = "test_bot"
+    media_id = "media123"
+    sender_id = "user123"
+
+    mock_flow_instance = MagicMock()
+    mock_flow_instance.execute_rule = AsyncMock(return_value=(None, "Some error occurred"))
+    mock_agentic_flow.return_value = mock_flow_instance
+
+    with pytest.raises(AppException, match="Failed to extract media information: Some error occurred"):
+        await UserMedia.extract_media_information(bot, media_id, sender_id)
+
+    mock_flow_instance.execute_rule = AsyncMock(return_value=([], None))
+    mock_agentic_flow.return_value = mock_flow_instance
+
+    with pytest.raises(AppException, match=f"extraction prompt action execution failed: {media_id}"):
+        await UserMedia.extract_media_information(bot, media_id, sender_id)
+
+    mock_agentic_flow.return_value = mock_flow_instance
 

@@ -11976,7 +11976,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
             'hyperparameters': hyperparameters,
             'user': user,
             'invocation': "prompt_action",
-            'media_ids': []
+            'media_ids': [],
+            'should_process_media': False
         },
         timeout=Utility.environment['llm'].get('request_timeout', 30)
     )

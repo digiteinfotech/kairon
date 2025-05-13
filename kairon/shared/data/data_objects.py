@@ -1074,6 +1074,7 @@ class UserMediaData(Auditlog):
     filename = StringField(required=True)
     extension = StringField(required=True)
     output_filename = StringField()
+    summary = StringField()
     upload_status = StringField(default=UserMediaUploadStatus.processing.value,
                                 choices=[e.value for e in UserMediaUploadStatus])
     upload_type = StringField(default=UserMediaUploadType.user_uploaded.value,
