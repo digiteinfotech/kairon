@@ -32,7 +32,7 @@ class PyscriptSharedUtility:
 
 
     @staticmethod
-    def get_data(collection_name: str, user: str, data_filter: dict, bot: Text = None,kwargs=None):
+    def get_data(collection_name: str, user: str, data_filter: dict, kwargs=None, bot: Text = None):
         if not bot:
             raise Exception("Missing bot id")
 
