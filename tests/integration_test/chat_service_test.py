@@ -4142,7 +4142,7 @@ async def test_media_download_not_found():
 
 @patch("kairon.shared.chat.user_media.UserMedia.upload_media_contents", new_callable=AsyncMock)
 def test_chat_media(mock_upload_media):
-    mock_upload_media.return_value = ['12342']
+    mock_upload_media.return_value = ['12342'], ['hapa']
     data_field = json.dumps('hi')
     metadata_field = json.dumps({"foo": "bar"})
     files = [("files", ("dummy.txt", b"", "text/plain"))]

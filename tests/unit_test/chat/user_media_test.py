@@ -544,5 +544,4 @@ async def test_extract_media_information_exceptions(mock_objects, mock_agentic_f
     with pytest.raises(AppException, match=f"extraction prompt action execution failed: {media_id}"):
         await UserMedia.extract_media_information(bot, media_id, sender_id)
 
-    mock_agentic_flow.return_value = mock_flow_instance
 
