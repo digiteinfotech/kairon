@@ -476,10 +476,6 @@ def test_add_media_extraction_flow_if_not_exist_exception(mock_logger):
     mock_logger.exception.assert_called_once()
 
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from kairon.shared.chat.user_media import UserMedia
-from kairon.exceptions import AppException
 
 
 @pytest.mark.asyncio
