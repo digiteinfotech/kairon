@@ -7,6 +7,7 @@ from AccessControl.ZopeGuards import _safe_globals
 from RestrictedPython import compile_restricted
 from RestrictedPython.Guards import safer_getattr
 from loguru import logger
+from orjson import orjson
 from timeout_decorator import timeout_decorator
 
 from kairon.exceptions import AppException
@@ -24,6 +25,7 @@ allow_module("_strptime")
 global_safe = _safe_globals
 global_safe['_getattr_'] = safer_getattr
 global_safe['json'] = json
+global_safe['orjson'] = orjson
 global_safe['srtp_time'] = PyscriptUtility.srtptime
 global_safe['srtf_time'] = PyscriptUtility.srtftime
 global_safe['url_parse'] = PyscriptUtility.url_parse_quote_plus
