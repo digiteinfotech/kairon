@@ -823,6 +823,7 @@ class PromptAction(Auditlog):
     instructions = ListField(StringField())
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
+    process_media=BooleanField(default=False)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}

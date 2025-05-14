@@ -116,10 +116,11 @@ class LLMProcessor(LLMBase):
             system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
             context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
             media_ids = kwargs.pop('media_ids', None)
+            should_process_media = kwargs.pop('should_process_media', False)
 
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
             answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,llm_type = llm_type,
-                                             media_ids=media_ids, **kwargs)
+                                             media_ids=media_ids, should_process_media=should_process_media, **kwargs)
             response = {"content": answer, "similarity_context": context}
         except Exception as e:
             logging.exception(e)
@@ -184,6 +185,7 @@ class LLMProcessor(LLMBase):
 
     async def __get_completion(self, messages, hyperparameters, user, **kwargs):
         media_ids = kwargs.pop('media_ids')
+        should_process_media = kwargs.pop('should_process_media', False)
         if not media_ids:
             media_ids = []
         body = {
@@ -191,7 +193,8 @@ class LLMProcessor(LLMBase):
             'hyperparameters': hyperparameters,
             'user': user,
             'invocation': kwargs.get("invocation"),
-            'media_ids': media_ids
+            'media_ids': media_ids,
+            'should_process_media': should_process_media
         }
 
         timeout = Utility.environment['llm'].get('request_timeout', 30)
@@ -214,6 +217,7 @@ class LLMProcessor(LLMBase):
         query_prompt = ''
         invocation = kwargs.pop('invocation')
         media_ids = kwargs.pop('media_ids')
+        should_process_media = kwargs.pop('should_process_media')
         llm_type = kwargs.get('llm_type')
         if kwargs.get('query_prompt', {}):
             query_prompt_dict = kwargs.pop('query_prompt')
@@ -241,7 +245,8 @@ class LLMProcessor(LLMBase):
                                                                hyperparameters=hyperparameters,
                                                                user=user,
                                                                invocation=invocation,
-                                                               media_ids=media_ids)
+                                                               media_ids=media_ids,
+                                                               should_process_media=should_process_media)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'answer_query', 'hyperparameters': hyperparameters})
         return completion

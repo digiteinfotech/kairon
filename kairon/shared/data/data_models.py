@@ -1142,6 +1142,7 @@ class PromptActionConfigRequest(BaseModel):
     instructions: List[str] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
     dispatch_response: bool = True
+    process_media: bool = False
     bot: str
 
     @validator("llm_type", pre=True, always=True)
