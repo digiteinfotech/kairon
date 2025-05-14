@@ -39,7 +39,6 @@ class PyscriptSharedUtility:
         if isinstance(dt, str):
             dt = isoparse(dt)
         elif isinstance(dt, date) and not isinstance(dt, datetime):
-            # Convert date to datetime at midnight UTC
             dt = datetime.combine(dt, datetime.min.time()).replace(tzinfo=pytz.UTC)
         elif isinstance(dt, datetime):
             if dt.tzinfo is None:
