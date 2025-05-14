@@ -21,7 +21,7 @@ class ActionHandler():
             tracker = Tracker.from_dict(tracker_json)
             dispatcher = CollectingDispatcher()
 
-            events = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+            events = await ActionProcessor.process_action(dispatcher=dispatcher, tracker=tracker, domain=domain, action=action_name, action_call=action_call)
 
             if not events:
                 events = []
