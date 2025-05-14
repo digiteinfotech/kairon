@@ -220,7 +220,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             raise AppException(f"UserMediaData not found for media_id: {media_id}")
 
         try:
-            file_stream, filename, extension = await UserMedia.get_media_content_buffer(media_id)
+            file_stream, filename, _ = await UserMedia.get_media_content_buffer(media_id)
 
             if not file_stream:
                 raise AppException("File stream not found")

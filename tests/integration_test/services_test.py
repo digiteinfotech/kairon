@@ -1915,7 +1915,8 @@ def test_default_values():
 
 @pytest.mark.asyncio
 @responses.activate
-def test_bsp_upload_media_success(monkeypatch):
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_success(mock_get_buffer):
     media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
     bsp_type = "360dialog"
     access_token = "hL0V3EgIV7v1tsh9qlr9Oul5AK"
@@ -1937,11 +1938,11 @@ def test_bsp_upload_media_success(monkeypatch):
 
     from kairon.shared.chat.user_media import UserMedia
 
-    async def mock_get_media_content_buffer(media_id_arg):
-        assert media_id_arg == media_id
-        return io.BytesIO(b"%PDF-1.4 mock content"), "Upload_Download Data.pdf", ".pdf"
-
-    monkeypatch.setattr(UserMedia, "get_media_content_buffer", mock_get_media_content_buffer)
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf"
+    )
 
     responses.add(
         responses.POST,
@@ -1964,7 +1965,7 @@ def test_bsp_upload_media_success(monkeypatch):
     UserMediaData.objects().delete()
 
 @pytest.mark.asyncio
-def test_bsp_upload_media_media_id_not_found(monkeypatch):
+def test_bsp_upload_media_media_id_not_found():
     media_id = "non_existing_media_id"
     bsp_type = "360dialog"
     access_token = "dummy_access_token"
@@ -1981,7 +1982,8 @@ def test_bsp_upload_media_media_id_not_found(monkeypatch):
     assert "UserMediaData not found for media_id: non_existing_media_id" in actual["message"]
 
 @pytest.mark.asyncio
-def test_bsp_upload_media_no_file_stream(monkeypatch):
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_no_file_stream(mock_get_buffer):
     media_id = "no_stream_media_id"
     bsp_type = "360dialog"
     access_token = "dummy_access_token"
@@ -2002,10 +2004,7 @@ def test_bsp_upload_media_no_file_stream(monkeypatch):
 
     from kairon.shared.chat.user_media import UserMedia
 
-    async def mock_get_media_content_buffer(media_id_arg):
-        return None, "no_stream.pdf", ".pdf"
-
-    monkeypatch.setattr(UserMedia, "get_media_content_buffer", mock_get_media_content_buffer)
+    mock_get_buffer.return_value = (None, "no_stream.pdf", ".pdf")
 
     response = client.get(
         f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}?access_token={access_token}",
@@ -2022,7 +2021,8 @@ def test_bsp_upload_media_no_file_stream(monkeypatch):
 
 @pytest.mark.asyncio
 @responses.activate
-def test_bsp_upload_media_360dialog_upload_failed(monkeypatch):
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
     media_id = "upload_fail_media"
     bsp_type = "360dialog"
     access_token = "dummy_access_token"
@@ -2046,7 +2046,11 @@ def test_bsp_upload_media_360dialog_upload_failed(monkeypatch):
     async def mock_get_media_content_buffer(media_id_arg):
         return io.BytesIO(b"%PDF mock"), "upload_fail.pdf", ".pdf"
 
-    monkeypatch.setattr(UserMedia, "get_media_content_buffer", mock_get_media_content_buffer)
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF mock"),
+        "upload_fail.pdf",
+        ".pdf"
+    )
 
     responses.add(
         responses.POST,

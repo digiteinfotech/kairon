@@ -2,6 +2,7 @@ import io
 import os
 from datetime import datetime
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 import responses
@@ -851,7 +852,8 @@ class TestBusinessServiceProvider:
 
     @pytest.mark.asyncio
     @responses.activate
-    async def test_upload_media_success(self):
+    @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+    async def test_upload_media_success(self, mock_get_buffer):
         media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
         bsp_type = "360dialog"
         access_token = "test-token"
@@ -871,11 +873,11 @@ class TestBusinessServiceProvider:
             output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         ).save()
 
-        async def mock_get_media_content_buffer(media_id_arg):
-            assert media_id_arg == media_id
-            return io.BytesIO(b"%PDF-1.4 mock content"), "Upload_Download Data.pdf", ".pdf"
-
-        UserMedia.get_media_content_buffer = mock_get_media_content_buffer
+        mock_get_buffer.return_value = (
+            io.BytesIO(b"%PDF-1.4 mock content"),
+            "Upload_Download Data.pdf",
+            ".pdf",
+        )
 
         responses.add(
             responses.POST,
@@ -908,8 +910,8 @@ class TestBusinessServiceProvider:
 
         assert str(exc_info.value) == f"UserMediaData not found for media_id: {media_id}"
 
-    @pytest.mark.asyncio
-    async def test_upload_media_file_stream_not_found(self):
+    @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+    async def test_upload_media_file_stream_not_found(self, mock_get_buffer):
         media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
         bsp_type = "360dialog"
         access_token = "test-token"
@@ -928,10 +930,7 @@ class TestBusinessServiceProvider:
             output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         ).save()
 
-        async def mock_get_media_content_buffer(media_id_arg):
-            return None, None, None
-
-        UserMedia.get_media_content_buffer = mock_get_media_content_buffer
+        mock_get_buffer.return_value = (None, None, None)
 
         with pytest.raises(AppException) as exc_info:
             await BSP360Dialog.upload_media(bsp_type, media_id, access_token)
