@@ -1,4 +1,8 @@
+from datetime import date, datetime
 from typing import Text
+
+import pytz
+from dateutil.parser import isoparse
 from loguru import logger
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -30,7 +34,17 @@ class PyscriptSharedUtility:
 
             yield final_data
 
-
+    @staticmethod
+    def ensure_datetime(dt):
+        if isinstance(dt, str):
+            dt = isoparse(dt)
+        elif isinstance(dt, date) and not isinstance(dt, datetime):
+            # Convert date to datetime at midnight UTC
+            dt = datetime.combine(dt, datetime.min.time()).replace(tzinfo=pytz.UTC)
+        elif isinstance(dt, datetime):
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=pytz.UTC)
+        return dt
     @staticmethod
     def get_data(collection_name: str, user: str, data_filter: dict, kwargs=None, bot: Text = None):
         if not bot:
@@ -40,10 +54,13 @@ class PyscriptSharedUtility:
         query = {"bot": bot, "collection_name": collection_name}
         start_time = kwargs.pop("start_time", None) if kwargs else None
         end_time = kwargs.pop("end_time", None) if kwargs else None
+
+        start_time = PyscriptSharedUtility.ensure_datetime(start_time) if start_time else None
+        end_time = PyscriptSharedUtility.ensure_datetime(end_time) if end_time else None
         if start_time:
-            query["timestamp__gte"] = start_time
+            query.setdefault("timestamp", {})["$gte"] = start_time
         if end_time:
-            query["timestamp__lte"] = end_time
+            query.setdefault("timestamp", {})["$lte"] = end_time
         if data_filter.get("raw_query"):
             query.update(data_filter.get("raw_query"))
         else:
