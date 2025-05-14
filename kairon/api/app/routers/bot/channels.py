@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Security, Path
+from fastapi import APIRouter, Security, Path, Query
 from starlette.requests import Request
 
 from kairon import Utility
@@ -254,3 +254,14 @@ async def get_channel_metrics(
     Get Channel metrics (Failures/Successes).
     """
     return Response(data=MessageBroadcastProcessor.get_channel_metrics(channel_type, current_user.get_bot()))
+
+@router.get("/media/upload/{bsp_type}/{media_id}", response_model=Response)
+async def bsp_upload_media(
+    media_id: str = Path(description="Id of the document"),
+    access_token: str = Query(description="360Dialog access token"),
+    bsp_type: str = Path(description="Business service provider type", examples=[WhatsappBSPTypes.bsp_360dialog.value]),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    external_media_id = await provider.upload_media(bsp_type, media_id, access_token)
+    return Response(data={"external_media_id": external_media_id})
