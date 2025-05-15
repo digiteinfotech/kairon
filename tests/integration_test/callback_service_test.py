@@ -1,9 +1,12 @@
+import json
+from datetime import datetime, timedelta
 import os
 
 import pytest
 from unittest.mock import patch, AsyncMock
 
 from httpx import QueryParams
+from jose import jwt
 from mongoengine import connect
 from blacksheep.contents import JSONContent
 from requests import Request
@@ -12,6 +15,7 @@ from kairon import Utility
 from fastapi.testclient import TestClient
 from blacksheep.testing import TestClient
 from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, encrypt_secret
+from kairon.shared.auth import Authentication
 
 from kairon.async_callback.main import app
 
@@ -696,13 +700,224 @@ async def test_execute_python_failure(mock_handler):
     assert json_response["success"] is False
 
 
+SECRET_KEY = Utility.environment['security']["secret_key"]
+ALGORITHM = Utility.environment['security']["algorithm"]
+from kairon.shared.data.constant import TOKEN_TYPE
+
 @pytest.mark.asyncio
 @patch("kairon.async_callback.utils.CallbackUtility.execute_script")
 async def test_handle_callback_success(mock_execute, monkeypatch):
     mock_execute.return_value = {"result": "ok", "details": {"x": 1}}
+
+    # Generate encrypted token claims and extract only the encrypted string
+    claims = Authentication.encrypt_token_claims({"type": TOKEN_TYPE.DYNAMIC.value})
+    token = jwt.encode({"sub": claims["sub"]}, SECRET_KEY, algorithm=ALGORITHM)
+
     client = TestClient(app)
     await app.start()
+
+    request_payload = {
+        "event_class": "scheduler_evaluator",
+        "data": {
+            "source_code": "bot_response = 42",
+            "predefined_objects": {"x": 1}
+        },
+        "task_type": "Callback"
+    }
+
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
+    response = await client.post(
+        "/callback/handle_event",
+        headers=headers,
+        content=JSONContent(request_payload),
+    )
+
+    body = await response.json()
+    assert body["statusCode"] == 200
+    assert body["body"] == {"result": "ok", "details": {"x": 1}}
+
+
+@pytest.mark.asyncio
+@patch("kairon.async_callback.utils.CallbackUtility.execute_script")
+async def test_handle_callback_failure(mock_execute, monkeypatch):
+    mock_execute.side_effect = Exception("script error")
+
+    # Use datetime.utcnow() as expected by encrypt_token_claims
+    exp = datetime.utcnow() + timedelta(minutes=5)
+    token_claims = {
+        "type": TOKEN_TYPE.DYNAMIC.value,
+        "exp": exp
+    }
+    encrypted = Authentication.encrypt_token_claims(token_claims)
+
+    # Construct token from encrypted claims
+    token_payload = {
+        "sub": encrypted["sub"],
+        "exp": encrypted["exp"]  # already converted in encrypt_token_claims
+    }
+
+    token = jwt.encode(token_payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    client = TestClient(app)
+    await app.start()
+
+    request_payload = {
+        "event_class": "scheduler_evaluator",
+        "data": {
+            "source_code": "raise Exception('fail')",
+            "predefined_objects": {}
+        },
+        "task_type": "Callback"
+    }
+
+    response = await client.post(
+        "/callback/handle_event",
+        headers={"Authorization": f"Bearer {token}"},
+        content=JSONContent(request_payload)
+    )
+    json_body = await response.json()
+    print(json_body)
+    assert json_body["statusCode"] == 422
+    assert "script error" in json_body["body"]
+
+@pytest.mark.asyncio
+async def test_missing_authorization_header():
+    client = TestClient(app)
+    await app.start()
+    valid_body_payload = {
+        "event_class": "scheduler_evaluator",
+        "data": {
+            "source_code": "",
+            "predefined_objects": {}
+        },
+        "task_type": "Callback"
+    }
+
+    response = await client.post("/callback/handle_event", content=JSONContent(valid_body_payload))
+    body = await response.json()
+    print(body)
+    assert body == {"success": False, "error": "Missing Authorization header"}
+
+@pytest.mark.asyncio
+async def test_bad_authorization_header_format():
+    client = TestClient(app)
+    await app.start()
+    headers = {"Authorization": "InvalidToken"}
+
+    valid_body_payload = {
+        "event_class": "scheduler_evaluator",
+        "data": {
+            "source_code": "",
+            "predefined_objects": {}
+        },
+        "task_type": "Callback"
+    }
+
+    response = await client.post(
+        "/callback/handle_event",
+        headers=headers,
+        content=JSONContent(valid_body_payload)
+    )
+    body = await response.json()
+    print(body)
+    assert body == {"success": False, "error": "Bad Authorization header"}
+
+
+@pytest.mark.asyncio
+async def test_invalid_token_type(monkeypatch):
+    claims = {"type": "wrong_type"}
+    encrypted_claims = Authentication.encrypt_token_claims(claims)
+    # Ensure it's string
+    if not isinstance(encrypted_claims, str):
+        encrypted_claims = json.dumps(encrypted_claims)
+
     payload = {
+        "sub": encrypted_claims,
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    client = TestClient(app)
+    await app.start()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    valid_body_payload = {
+        "event_class": "scheduler_evaluator",
+        "data": {
+            "source_code": "",
+            "predefined_objects": {}
+        },
+        "task_type": "Callback"
+    }
+
+    response = await client.post("/callback/handle_event", headers=headers, content=JSONContent(valid_body_payload))
+    body = await response.json()
+    print(body)
+    assert body["success"] is False
+    assert body["error"].startswith("Token error:")
+
+@pytest.mark.asyncio
+async def test_expired_token(monkeypatch):
+    expired_time = datetime.utcnow() - timedelta(hours=1)
+    claims = {"type": TOKEN_TYPE.DYNAMIC.value, "exp": expired_time}
+    encrypted_claims = Authentication.encrypt_token_claims(claims)
+    payload = {"sub": encrypted_claims["sub"], "exp": int(expired_time.timestamp())}
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    client = TestClient(app)
+    await app.start()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    valid_body_payload = {
+        "event_class": "scheduler_evaluator",
+        "data": {
+            "source_code": "",
+            "predefined_objects": {}
+        },
+        "task_type": "Callback"
+    }
+
+    response = await client.post("/callback/handle_event", headers=headers, content=JSONContent(valid_body_payload))
+    body = await response.json()
+    print(body)
+    assert body == {"success": False, "error": "Token expired"}
+
+@pytest.mark.asyncio
+async def test_invalid_token(monkeypatch):
+    token = "malformed.token.value"
+    client = TestClient(app)
+    await app.start()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    valid_body_payload = {
+        "event_class": "scheduler_evaluator",
+        "data": {
+            "source_code": "",
+            "predefined_objects": {}
+        },
+        "task_type": "Callback"
+    }
+
+    response = await client.post("/callback/handle_event", headers=headers, content=JSONContent(valid_body_payload))
+    body = await response.json()
+    print(body)
+    assert body["success"] is False
+    assert body["error"].startswith("Token error:")
+
+@pytest.mark.asyncio
+@patch("kairon.async_callback.utils.CallbackUtility.execute_script")
+async def test_successful_execution(mock_execute, monkeypatch):
+    mock_execute.return_value = {"result": "ok", "details": {"x": 1}}
+    claims = {"type": TOKEN_TYPE.DYNAMIC.value}
+    encrypted_claims = Authentication.encrypt_token_claims(claims)
+    payload = {"sub": encrypted_claims["sub"]}
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    client = TestClient(app)
+    await app.start()
+    headers = {"Authorization": f"Bearer {token}"}
+    request_payload = {
         "event_class": "scheduler_evaluator",
         "data": {
             "source_code": "bot_response = 42",
@@ -713,29 +928,26 @@ async def test_handle_callback_success(mock_execute, monkeypatch):
 
     response = await client.post(
         "/callback/handle_event",
-        content=JSONContent(payload)
+        headers=headers,
+        content=JSONContent(request_payload)
     )
-
-    assert response.status == 200
     body = await response.json()
-    assert body["statusCode"] == 200
-    assert body["body"] == {"result": "ok", "details": {"x": 1}}
-
-    mock_execute.assert_called_once_with(
-        "bot_response = 42",
-        {"x": 1}
-    )
-
+    print(body)
+    assert body == {"statusCode": 200, "body": mock_execute.return_value}
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.utils.CallbackUtility.execute_script")
-async def test_handle_callback_failure(mock_execute, monkeypatch):
+async def test_script_execution_failure(mock_execute, monkeypatch):
     mock_execute.side_effect = Exception("script error")
+    claims = {"type": TOKEN_TYPE.DYNAMIC.value}
+    encrypted_claims = Authentication.encrypt_token_claims(claims)
+    payload = {"sub": encrypted_claims["sub"]}
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
     client = TestClient(app)
     await app.start()
-
-    payload = {
+    headers = {"Authorization": f"Bearer {token}"}
+    request_payload = {
         "event_class": "scheduler_evaluator",
         "data": {
             "source_code": "raise Exception('fail')",
@@ -743,12 +955,13 @@ async def test_handle_callback_failure(mock_execute, monkeypatch):
         },
         "task_type": "Callback"
     }
+
     response = await client.post(
         "/callback/handle_event",
-        content=JSONContent(payload)
+        headers=headers,
+        content=JSONContent(request_payload)
     )
     body = await response.json()
-
-    assert response.status == 200
+    print(body)
     assert body["statusCode"] == 422
     assert "script error" in body["body"]

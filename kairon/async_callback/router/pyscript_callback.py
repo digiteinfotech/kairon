@@ -1,6 +1,7 @@
 from typing import Optional
 from blacksheep import Router, Request, Response as BSResponse, json
 from blacksheep.contents import JSONContent
+from jose import jwt, ExpiredSignatureError
 
 from loguru import logger
 from kairon.async_callback.processor import CallbackProcessor
@@ -8,6 +9,10 @@ from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
 from kairon.shared.callback.data_objects import PyscriptPayload
 from kairon.shared.callback.data_objects import CallbackRequest
+from kairon import Utility
+from kairon.shared.auth import Authentication
+from kairon.shared.data.constant import TOKEN_TYPE
+
 
 router = Router()
 
@@ -104,18 +109,37 @@ async def trigger_restricted_python(payload: PyscriptPayload):
         return json({"success": False, "error": str(e)}, status=422)
 
 @router.post("/callback/handle_event")
-async def handle_callback(body: CallbackRequest):
+async def handle_callback(
+    request: Request,
+    body: CallbackRequest
+):
+    SECRET_KEY = Utility.environment['security']["secret_key"]
+    ALGORITHM = Utility.environment['security']["algorithm"]
+    authorization = request.headers.get(b"authorization") or ""
+    if not authorization:
+        return json({"success": False, "error": "Missing Authorization header"}, status=401)
+    authorization = authorization[0].decode("utf-8")
+    if not authorization.startswith("Bearer "):
+        return json({"success": False, "error": "Bad Authorization header"}, status=401)
+
+    token = authorization.split(" ", 1)[1]
+    try:
+        decoded = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        claims = Authentication.decrypt_token_claims(decoded["sub"])
+        if claims.get("type") != TOKEN_TYPE.DYNAMIC.value:
+            return json({"success": False, "error": "Invalid token type"}, status=401)
+    except ExpiredSignatureError:
+        return json({"success": False, "error": "Token expired"}, status=401)
+    except Exception as e:
+        return json({"success": False, "error": f"Token error: {e}"}, status=401)
+
     try:
         payload = body.data
-        source_code = payload.get("source_code")
-        predefined_objects = payload.get("predefined_objects", {})
-        result = CallbackUtility.execute_script(source_code, predefined_objects)
-        return {
-            "statusCode": 200,
-            "body": result
-        }
+        result = CallbackUtility.execute_script(
+            payload.get("source_code"),
+            payload.get("predefined_objects", {})
+        )
+        return {"statusCode": 200, "body": result}
     except Exception as e:
-        return {
-            "statusCode": 422,
-            "body": str(e)
-        }
+        return {"statusCode": 422, "body": str(e)}
+
