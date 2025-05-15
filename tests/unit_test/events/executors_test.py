@@ -4,6 +4,8 @@ import re
 from unittest.mock import patch
 
 import requests
+from kairon.shared.auth import Authentication
+
 from mongoengine import connect
 
 import pytest
@@ -22,8 +24,9 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.executors.lamda import LambdaExecutor
 from kairon.events.executors.standalone import StandaloneExecutor
 from kairon.exceptions import AppException
+from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass, EventExecutor
-from kairon.shared.data.constant import TASK_TYPE
+from kairon.shared.data.constant import TASK_TYPE, EVENT_STATUS
 from kairon.shared.events.broker.factory import BrokerFactory
 from kairon.shared.events.broker.mongo import MongoBroker
 
@@ -34,6 +37,11 @@ def _mock_broker_connection_error(*args, **kwargs):
 
 class DummyReqExc:
     pass
+
+
+class DummyData(dict):
+    def get(self, key, default=None):
+        return super().get(key, default)
 
 
 class TestExecutors:
@@ -321,7 +329,7 @@ class TestExecutors:
         monkeypatch.setattr(Utility, "environment", env)
         called = {}
 
-        def fake_http_request(method, url, payload):
+        def fake_http_request(method, url, payload,headers):
             called['method'] = method
             called['url'] = url
             called['payload'] = payload
@@ -330,14 +338,14 @@ class TestExecutors:
         monkeypatch.setattr(Utility, "execute_http_request", fake_http_request)
         executor = CallbackExecutor()
         data = {"bot": "bot1", "user": "u1"}
-        resp = executor.execute_task(EventClass.scheduler_evaluator, data, task_type="MyTask")
+        resp = executor.execute_task(EventClass.scheduler_evaluator, data, task_type="Callback")
         assert resp == {"success": True, "data": {"foo": "bar"}}
         assert called['method'] == "POST"
         assert called['url'] == callback_url
         assert called['payload'] == {
             "event_class": EventClass.scheduler_evaluator,
             "data": data,
-            "task_type": "MyTask"
+            "task_type": "Callback"
         }
 
     def test_callback_executor_http_failure(self,monkeypatch):
@@ -346,13 +354,19 @@ class TestExecutors:
         env['events']['executor']['callback_executor_url'] = callback_url
         monkeypatch.setattr(Utility, "environment", env)
 
-        def fake_http_request(method, url, payload):
+        def fake_http_request(method, url, payload, headers):
             raise requests.RequestException("network error")
 
         monkeypatch.setattr(Utility, "execute_http_request", fake_http_request)
         executor = CallbackExecutor()
+        data = {
+            "predefined_objects": {
+                "bot": "test-bot"
+            }
+        }
+
         with pytest.raises(AppException) as exc:
-            executor.execute_task(EventClass.scheduler_evaluator, {"foo": "bar"})
+            executor.execute_task(EventClass.scheduler_evaluator, data)
         assert "Callback request failed: network error" in str(exc.value)
 
     def test_get_executor_for_data_default(self,monkeypatch):
@@ -387,3 +401,69 @@ class TestExecutors:
         with pytest.raises(AppException) as exc_info2:
             ExecutorFactory.get_executor_for_data({'task_type': 'Callback'})
         assert "Executor type not configured in system.yaml." in str(exc_info2.value)
+
+    def test_execute_task_success(self,monkeypatch):
+        monkeypatch.setattr(Authentication, 'create_access_token', lambda data, token_type, token_expire: 'fake_token')
+        monkeypatch.setattr(Utility, 'execute_http_request', lambda *args, **kwargs: {"success": True})
+
+        calls = []
+
+        def fake_log_task(*args, **kwargs):
+            calls.append(kwargs)
+
+        monkeypatch.setattr(CloudUtility, 'log_task', fake_log_task)
+
+        executor = CallbackExecutor()
+        data = DummyData(predefined_objects={'bot': 'bot123'})
+        result = executor.execute_task(EventClass.scheduler_evaluator, data, task_type=TASK_TYPE.CALLBACK.value)
+        print(result)
+        assert result['success'] ==True
+        assert len(calls) == 2
+
+    def test_execute_task_failure(monkey_log_calls, monkeypatch):
+        # patch token
+        monkeypatch.setattr(Authentication, 'create_access_token', lambda data, token_type, token_expire: 'fake')
+        # patch http to raise
+        monkeypatch.setattr(Utility, 'execute_http_request',
+                            lambda *args, **kwargs: (_ for _ in ()).throw(requests.RequestException('fail')))
+        calls = []
+
+        def fake_log(**kwargs):
+            calls.append(kwargs)
+            return kwargs.get('executor_log_id') or 'gen'
+
+        monkeypatch.setattr(CloudUtility, 'log_task', fake_log)
+
+        executor = CallbackExecutor()
+        data = DummyData(predefined_objects={'bot': 'botXYZ'})
+        with pytest.raises(AppException) as excinfo:
+            executor.execute_task(EventClass.scheduler_evaluator, data)
+        assert 'Callback request failed' in str(excinfo.value)
+        assert len(calls) == 2
+        assert calls[1]['status'] == EVENT_STATUS.FAIL
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("executor_log_id", [None, "existing_log_id_123"])
+    async def test_callback_log_task(self,monkeypatch, executor_log_id):
+        def fake_log_task(**kwargs):
+            return kwargs.get("executor_log_id", "generated_log_id")
+
+        monkeypatch.setattr("kairon.shared.cloud.utils.CloudUtility.log_task", fake_log_task)
+
+        event_class = EventClass.scheduler_evaluator
+        task_type = TASK_TYPE.CALLBACK
+        data = {"key": "value"}
+        status = EVENT_STATUS.INITIATED
+        extra_kwargs = {"response": {"status": "ok"}}
+
+        kwargs = extra_kwargs.copy()
+        if executor_log_id:
+            kwargs["executor_log_id"] = executor_log_id
+
+        returned_log_id = CallbackExecutor.callback_log_task(event_class, task_type, data, status, **kwargs)
+
+        if executor_log_id:
+            assert returned_log_id == executor_log_id
+        else:
+            assert isinstance(returned_log_id, str)
+            assert returned_log_id != ""
