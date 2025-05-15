@@ -1,5 +1,8 @@
+import io
 import os
+from datetime import datetime
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 import responses
@@ -11,9 +14,10 @@ from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProv
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.data_objects import BotSettings
+from kairon.shared.data.data_objects import BotSettings, UserMediaData
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
@@ -845,3 +849,92 @@ class TestBusinessServiceProvider:
 
         with pytest.raises(Exception):
             WhatsappBusinessServiceProviderBase.delete_template()
+
+    @pytest.mark.asyncio
+    @responses.activate
+    @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+    async def test_upload_media_success(self, mock_get_buffer):
+        media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+        bsp_type = "360dialog"
+        access_token = "test-token"
+        expected_external_media_id = "abc123"
+
+        UserMediaData(
+            media_id=media_id,
+            filename="Upload_Download Data.pdf",
+            extension=".pdf",
+            upload_status="completed",
+            upload_type="user_uploaded",
+            filesize=410484,
+            sender_id="himanshu.gupta@digite.com",
+            bot="682323a603ec3be7dcaa75bc",
+            timestamp=datetime.utcnow(),
+            media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+            output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+        ).save()
+
+        mock_get_buffer.return_value = (
+            io.BytesIO(b"%PDF-1.4 mock content"),
+            "Upload_Download Data.pdf",
+            ".pdf",
+        )
+
+        responses.add(
+            responses.POST,
+            "https://waba-v2.360dialog.io/media",
+            json={"id": expected_external_media_id},
+            status=200,
+            content_type="application/json"
+        )
+
+        external_media_id = await BSP360Dialog.upload_media(bsp_type, media_id, access_token)
+
+        assert external_media_id == expected_external_media_id
+
+        updated_doc = UserMediaData.objects.get(media_id=media_id)
+        assert updated_doc.external_upload_info == {
+            "bsp": bsp_type,
+            "external_media_id": expected_external_media_id,
+            "error": ""
+        }
+        UserMediaData.objects().delete()
+
+    @pytest.mark.asyncio
+    async def test_upload_media_media_not_found(self):
+        media_id = "non_existing_media_id"
+        bsp_type = "360dialog"
+        access_token = "test-token"
+
+        with pytest.raises(AppException) as exc_info:
+            await BSP360Dialog.upload_media(bsp_type, media_id, access_token)
+
+        assert str(exc_info.value) == f"UserMediaData not found for media_id: {media_id}"
+
+    @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+    async def test_upload_media_file_stream_not_found(self, mock_get_buffer):
+        media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+        bsp_type = "360dialog"
+        access_token = "test-token"
+
+        UserMediaData(
+            media_id=media_id,
+            filename="Upload_Download Data.pdf",
+            extension=".pdf",
+            upload_status="completed",
+            upload_type="user_uploaded",
+            filesize=410484,
+            sender_id="himanshu.gupta@digite.com",
+            bot="682323a603ec3be7dcaa75bc",
+            timestamp=datetime.utcnow(),
+            media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+            output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+        ).save()
+
+        mock_get_buffer.return_value = (None, None, None)
+
+        with pytest.raises(AppException) as exc_info:
+            await BSP360Dialog.upload_media(bsp_type, media_id, access_token)
+
+        assert str(exc_info.value) == "File stream not found"
+
+        UserMediaData.objects().delete()

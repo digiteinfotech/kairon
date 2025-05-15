@@ -1084,6 +1084,7 @@ class UserMediaData(Auditlog):
     sender_id = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+    external_upload_info = DictField()
 
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id"), "media_id"]}]}

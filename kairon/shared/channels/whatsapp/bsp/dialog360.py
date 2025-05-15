@@ -1,6 +1,8 @@
 import ast
+import io
 from typing import Text, Dict
 
+import requests
 from loguru import logger
 from mongoengine import DoesNotExist
 
@@ -9,7 +11,9 @@ from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
+from kairon.shared.data.data_objects import UserMediaData
 
 
 class BSP360Dialog(WhatsappBusinessServiceProviderBase):
@@ -203,3 +207,67 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
                                             request_body=request_body, headers=headers, validate_status=True,
                                             err_msg="Failed to set webhook url: ")
         return resp.get("url")
+
+    @staticmethod
+    async def upload_media(bsp_type:str, media_id: str, access_token: str) -> str:
+        """
+        Uploads the PDF to 360dialog and returns the external media ID.
+        """
+
+        try:
+            media_doc = UserMediaData.objects.get(media_id=media_id)
+        except DoesNotExist:
+            raise AppException(f"UserMediaData not found for media_id: {media_id}")
+
+        try:
+            file_stream, filename, _ = await UserMedia.get_media_content_buffer(media_id)
+
+            if not file_stream:
+                raise AppException("File stream not found")
+
+            pdf_bytes = file_stream.read()
+
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+            auth_header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+
+            files = [
+                ('file', (filename, io.BytesIO(pdf_bytes), 'application/pdf'))
+            ]
+            headers = {
+                auth_header: access_token
+            }
+
+            payload = {'messaging_product': 'whatsapp'}
+
+            response = requests.post(f"{base_url}/media", headers=headers, data=payload, files=files)
+
+            if response.status_code != 200:
+                media_doc.external_upload_info = {
+                    "bsp": bsp_type,
+                    "external_media_id": "",
+                    "error": response.text
+                }
+                media_doc.save()
+                raise AppException(response.text)
+
+            external_media_id = response.json().get("id")
+
+            media_doc.external_upload_info = {
+                "bsp": bsp_type,
+                "external_media_id": external_media_id,
+                "error": ""
+            }
+            media_doc.save()
+
+            return external_media_id
+
+        except Exception as e:
+            media_doc.external_upload_info = {
+                "bsp": bsp_type,
+                "error": str(e)
+            }
+            media_doc.save()
+            raise e
+
+
+

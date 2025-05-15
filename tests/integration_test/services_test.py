@@ -1,3 +1,4 @@
+import io
 import os
 import re
 import shutil
@@ -71,7 +72,7 @@ from kairon.shared.data.data_objects import (
     ChatClientConfig,
     BotSettings,
     LLMSettings,
-    DemoRequestLogs,
+    DemoRequestLogs, UserMediaData,
 )
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -1911,6 +1912,167 @@ def test_default_values():
     ]
 
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_success(mock_get_buffer):
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+    bsp_type = "360dialog"
+    access_token = "hL0V3EgIV7v1tsh9qlr9Oul5AK"
+    expected_external_media_id = "abc123"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="himanshu.gupta@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+        output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+    ).save()
+
+    from kairon.shared.chat.user_media import UserMedia
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf"
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        json={"id": expected_external_media_id},
+        status=200,
+        content_type="application/json"
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}?access_token={access_token}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["external_media_id"] == expected_external_media_id
+    UserMediaData.objects().delete()
+
+@pytest.mark.asyncio
+def test_bsp_upload_media_media_id_not_found():
+    media_id = "non_existing_media_id"
+    bsp_type = "360dialog"
+    access_token = "dummy_access_token"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}?access_token={access_token}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert "UserMediaData not found for media_id: non_existing_media_id" in actual["message"]
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_no_file_stream(mock_get_buffer):
+    media_id = "no_stream_media_id"
+    bsp_type = "360dialog"
+    access_token = "dummy_access_token"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="no_stream.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="test@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="some_url",
+        output_filename="output_file.pdf",
+    ).save()
+
+    from kairon.shared.chat.user_media import UserMedia
+
+    mock_get_buffer.return_value = (None, "no_stream.pdf", ".pdf")
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}?access_token={access_token}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert "File stream not found" in actual["message"]
+    UserMediaData.objects().delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
+    media_id = "upload_fail_media"
+    bsp_type = "360dialog"
+    access_token = "dummy_access_token"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="upload_fail.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="test@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="some_url",
+        output_filename="output_file.pdf",
+    ).save()
+
+    from kairon.shared.chat.user_media import UserMedia
+
+    async def mock_get_media_content_buffer(media_id_arg):
+        return io.BytesIO(b"%PDF mock"), "upload_fail.pdf", ".pdf"
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF mock"),
+        "upload_fail.pdf",
+        ".pdf"
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        body="Failure Test Case Simulation",
+        status=400,
+        content_type="application/json"
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}?access_token={access_token}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert "Failure Test Case Simulation" in actual["message"]
+    UserMediaData.objects().delete()
 
 @pytest.mark.asyncio
 @responses.activate
