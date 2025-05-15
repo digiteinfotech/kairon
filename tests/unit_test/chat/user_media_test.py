@@ -545,3 +545,65 @@ async def test_extract_media_information_exceptions(mock_objects, mock_agentic_f
         await UserMedia.extract_media_information(bot, media_id, sender_id)
 
 
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.asyncio.create_task")
+@patch("kairon.shared.chat.user_media.requests.get")
+@patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
+def test_save_whatsapp_media_content_background_task_failure(mock_create_user_media_data, mock_requests_get, mock_create_task):
+    bot = "test_bot"
+    sender_id = "user123"
+    whatsapp_media_id = "media123"
+    config = {"bsp_type": "meta", "access_token": "test_token"}
+
+    mock_media_info_resp = MagicMock()
+    mock_media_info_resp.status_code = 200
+    mock_media_info_resp.json.return_value = {"url": "http://example.com/media", "mime_type": "image/png"}
+
+    mock_media_resp = MagicMock()
+    mock_media_resp.status_code = 200
+    mock_media_resp.iter_content.return_value = [b"chunk1", b"chunk2"]
+
+    mock_requests_get.side_effect = [mock_media_info_resp, mock_media_resp]
+
+    def mock_background_task(*args, **kwargs):
+        raise Exception("Background task failed")
+    mock_create_task.side_effect = mock_background_task
+
+    with pytest.raises(Exception, match="Background task failed"):
+        UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
+
+    mock_requests_get.assert_called()
+    mock_create_user_media_data.assert_called_once()
+    mock_create_task.assert_called_once()
+
+
+
+
+@patch("kairon.shared.chat.user_media.asyncio.create_task")
+@patch("kairon.shared.chat.user_media.requests.get")
+@patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
+def test_save_whatsapp_media_content_success(mock_create_user_media_data, mock_requests_get, mock_create_task):
+    bot = "test_bot"
+    sender_id = "user123"
+    whatsapp_media_id = "media123"
+    config = {"bsp_type": "meta", "access_token": "test_token"}
+
+    mock_media_info_resp = MagicMock()
+    mock_media_info_resp.status_code = 200
+    mock_media_info_resp.json.return_value = {"url": "http://example.com/media", "mime_type": "image/png"}
+
+    mock_media_resp = MagicMock()
+    mock_media_resp.status_code = 200
+    mock_media_resp.iter_content.return_value = [b"chunk1", b"chunk2"]
+
+    mock_requests_get.side_effect = [mock_media_info_resp, mock_media_resp]
+
+    mock_create_task.return_value = None
+
+    result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
+
+    assert result == [mock_create_user_media_data.call_args[1]["media_id"]]
+    mock_requests_get.assert_called()
+    mock_create_user_media_data.assert_called_once()
+    mock_create_task.assert_called_once()

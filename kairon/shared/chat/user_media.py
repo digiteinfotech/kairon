@@ -186,13 +186,19 @@ class UserMedia:
             sender_id=sender_id,
             upload_type=UserMediaUploadType.user_uploaded.value)
 
-        asyncio.create_task(UserMedia.save_media_content_task(
-                bot=bot,
-                sender_id=sender_id,
-                media_id=media_id,
-                binary_data=file_buffer,
-                filename=file_path
-            ))
+        def background_task():
+            try:
+                asyncio.run(UserMedia.save_media_content_task(
+                    bot=bot,
+                    sender_id=sender_id,
+                    media_id=media_id,
+                    binary_data=file_buffer,
+                    filename=file_path
+                ))
+            except Exception as e:
+                logger.exception(f"Background task failed for media_id {media_id}: {e}")
+
+        asyncio.create_task(asyncio.to_thread(background_task))
 
         return [media_id]
 
