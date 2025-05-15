@@ -9,9 +9,11 @@ from email.mime.text import MIMEText
 from unittest.mock import patch, MagicMock
 
 import pytest
+import pytz
 import responses
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref
+from dateutil.parser import isoparse
 from mongoengine import connect
 from pymongo import MongoClient
 
@@ -1128,6 +1130,56 @@ def test_get_data_success(mock_fetch):
 
     assert result == {"data": [{"dummy": "data"}]}
 
+@patch.object(PyscriptSharedUtility, "fetch_collection_data", return_value=[{"dummy": "data"}])
+def test_get_data_with_datetime_kwargs(mock_fetch):
+    collection_name = "TestCollection"
+    user = "user1"
+    data_filter = {"field": "value"}
+    bot = "TestBot"
+
+    # Different datetime formats
+    iso_start_time = "2025-04-10T10:13:45.871+00:00"
+    date_start_time = date(2025, 4, 10)
+    naive_dt = datetime(2025, 4, 10, 10, 13)
+    aware_dt = datetime(2025, 4, 10, 10, 13, tzinfo=pytz.UTC)
+
+    for start_time in [iso_start_time, date_start_time, naive_dt, aware_dt]:
+        kwargs = {"start_time": start_time}
+        result = PyscriptSharedUtility.get_data(collection_name, user, data_filter, kwargs=kwargs.copy(), bot=bot)
+
+        # Ensure datetime for assertion
+        expected_time = PyscriptSharedUtility.ensure_datetime(start_time)
+        expected_query = {
+            "bot": bot,
+            "collection_name": collection_name.lower(),
+            "timestamp": {"$gte": expected_time},
+            "data.field": "value"
+        }
+
+        mock_fetch.assert_called_with(expected_query)
+        assert result == {"data": [{"dummy": "data"}]}
+
+def test_ensure_datetime_from_str():
+    dt_str = "2025-04-10T10:13:45.871+00:00"
+    result = PyscriptSharedUtility.ensure_datetime(dt_str)
+    assert result == isoparse(dt_str)
+    assert result.tzinfo is not None
+
+def test_ensure_datetime_from_date():
+    dt_date = date(2025, 4, 10)
+    result = PyscriptSharedUtility.ensure_datetime(dt_date)
+    expected = datetime(2025, 4, 10, 0, 0, 0, tzinfo=pytz.UTC)
+    assert result == expected
+
+def test_ensure_datetime_from_naive_datetime():
+    naive_dt = datetime(2025, 4, 10, 10, 0, 0)
+    result = PyscriptSharedUtility.ensure_datetime(naive_dt)
+    assert result == naive_dt.replace(tzinfo=pytz.UTC)
+
+def test_ensure_datetime_from_aware_datetime():
+    aware_dt = datetime(2025, 4, 10, 10, 0, 0, tzinfo=pytz.UTC)
+    result = PyscriptSharedUtility.ensure_datetime(aware_dt)
+    assert result == aware_dt
 
 def test_fetch_collection_data_success():
     """Test fetch_collection_data with valid query returning data."""
