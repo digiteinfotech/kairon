@@ -192,6 +192,9 @@ class CloudUtility:
                         bot = predefined_objects['bot']
                         break
 
+        elif event_class == EventClass.scheduler_evaluator and isinstance(data, dict):
+            bot=data.get('predefined_objects').get('bot')
+
         elif from_executor and isinstance(data, list):
             for item in data:
                 if item.get('name') == 'BOT':

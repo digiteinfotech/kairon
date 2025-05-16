@@ -96,7 +96,7 @@ class EventExecutor(str, Enum):
     aws_lambda = "aws_lambda"
     dramatiq = "dramatiq"
     standalone = "standalone"
-
+    callback="callback"
 
 class MaskingStrategy(str, Enum):
     from_right = "from_right"

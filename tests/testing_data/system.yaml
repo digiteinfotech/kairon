@@ -118,6 +118,7 @@ events:
   executor:
     type: ${EVENTS_EXECUTOR_TYPE}
     region: ${EVENTS_EXECUTOR_REGION}
+    callback_executor_url: ${CALLBACK_EXECUTOR_URL:"http://localhost:5059//callback/handle_event"}
   queue:
     type: ${EVENTS_QUEUE_TYPE:"mongo"}
     url: ${EVENTS_QUEUE_URL:"mongodb://localhost:27017/events"}
