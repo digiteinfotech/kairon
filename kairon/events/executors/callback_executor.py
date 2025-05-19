@@ -17,12 +17,13 @@ class CallbackExecutor(ExecutorBase):
         Executes a callback by making an HTTP POST request to a callback server.
         """
         callback_url = Utility.environment['events']['executor']['callback_executor_url']
+        lifespan =Utility.environment['events']['executor']['dynamic_token_lifespan']
         claims = {"sub": "action-server", "callback": True}
 
         token = Authentication.create_access_token(
             data=claims,
             token_type=TOKEN_TYPE.DYNAMIC.value,
-            token_expire=1
+            token_expire=lifespan
         )
 
         payload = {
