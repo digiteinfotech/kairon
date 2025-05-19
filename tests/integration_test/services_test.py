@@ -33,6 +33,7 @@ from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.llm.processor import LLMProcessor
@@ -1917,9 +1918,28 @@ def test_default_values():
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_bsp_upload_media_success(mock_get_buffer):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
     media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
     bsp_type = "360dialog"
-    access_token = "hL0V3EgIV7v1tsh9qlr9Oul5AK"
     expected_external_media_id = "abc123"
 
     UserMediaData(
@@ -1929,14 +1949,12 @@ def test_bsp_upload_media_success(mock_get_buffer):
         upload_status="completed",
         upload_type="user_uploaded",
         filesize=410484,
-        sender_id="himanshu.gupta@digite.com",
+        sender_id="himanshu.gupta_@digite.com",
         bot=pytest.bot,
         timestamp=datetime.utcnow(),
         media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
     ).save()
-
-    from kairon.shared.chat.user_media import UserMedia
 
     mock_get_buffer.return_value = (
         io.BytesIO(b"%PDF-1.4 mock content"),
@@ -1953,7 +1971,7 @@ def test_bsp_upload_media_success(mock_get_buffer):
     )
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}?access_token={access_token}",
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1962,16 +1980,20 @@ def test_bsp_upload_media_success(mock_get_buffer):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]["external_media_id"] == expected_external_media_id
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "meta"
+    bot_settings.save()
     UserMediaData.objects().delete()
+    Channels.objects().delete()
 
 @pytest.mark.asyncio
 def test_bsp_upload_media_media_id_not_found():
     media_id = "non_existing_media_id"
     bsp_type = "360dialog"
-    access_token = "dummy_access_token"
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}?access_token={access_token}",
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1981,12 +2003,11 @@ def test_bsp_upload_media_media_id_not_found():
     assert actual["error_code"] == 422
     assert "UserMediaData not found for media_id: non_existing_media_id" in actual["message"]
 
+
 @pytest.mark.asyncio
-@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
-def test_bsp_upload_media_no_file_stream(mock_get_buffer):
-    media_id = "no_stream_media_id"
+def test_bsp_upload_media_channel_not_configured():
+    media_id = "non_existing_media_id"
     bsp_type = "360dialog"
-    access_token = "dummy_access_token"
 
     UserMediaData(
         media_id=media_id,
@@ -2002,12 +2023,119 @@ def test_bsp_upload_media_no_file_stream(mock_get_buffer):
         output_filename="output_file.pdf",
     ).save()
 
-    from kairon.shared.chat.user_media import UserMedia
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert f"Channel config not found for bot: {pytest.bot}, connector_type: whatsapp, bsp_type: {bsp_type}" in actual["message"]
+    UserMediaData.objects().delete()
+
+
+@pytest.mark.asyncio
+def test_bsp_upload_media_access_token_not_found():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    media_id = "non_existing_media_id"
+    bsp_type = "360dialog"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="no_stream.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="test@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="some_url",
+        output_filename="output_file.pdf",
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert "API key (access token) not found in channel config" in actual["message"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "meta"
+    bot_settings.save()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_no_file_stream(mock_get_buffer):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    media_id = "no_stream_media_id"
+    bsp_type = "360dialog"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="no_stream.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="test@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="some_url",
+        output_filename="output_file.pdf",
+    ).save()
 
     mock_get_buffer.return_value = (None, "no_stream.pdf", ".pdf")
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}?access_token={access_token}",
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -2016,16 +2144,39 @@ def test_bsp_upload_media_no_file_stream(mock_get_buffer):
     assert actual["data"] is None
     assert actual["error_code"] == 422
     assert "File stream not found" in actual["message"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "meta"
+    bot_settings.save()
     UserMediaData.objects().delete()
+    Channels.objects().delete()
 
 
 @pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
     media_id = "upload_fail_media"
     bsp_type = "360dialog"
-    access_token = "dummy_access_token"
 
     UserMediaData(
         media_id=media_id,
@@ -2040,11 +2191,6 @@ def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
         media_url="some_url",
         output_filename="output_file.pdf",
     ).save()
-
-    from kairon.shared.chat.user_media import UserMedia
-
-    async def mock_get_media_content_buffer(media_id_arg):
-        return io.BytesIO(b"%PDF mock"), "upload_fail.pdf", ".pdf"
 
     mock_get_buffer.return_value = (
         io.BytesIO(b"%PDF mock"),
@@ -2061,18 +2207,21 @@ def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
     )
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}?access_token={access_token}",
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
-    print(actual)
-
     assert not actual["success"]
     assert actual["data"] is None
     assert actual["error_code"] == 422
     assert "Failure Test Case Simulation" in actual["message"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "meta"
+    bot_settings.save()
     UserMediaData.objects().delete()
+    Channels.objects().delete()
 
 @pytest.mark.asyncio
 @responses.activate

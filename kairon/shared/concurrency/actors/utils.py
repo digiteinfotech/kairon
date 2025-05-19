@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from datetime import datetime
@@ -15,6 +16,7 @@ from kairon import Utility
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.data.constant import DEFAULT_LLM, QDRANT_SUFFIX
 
 
@@ -178,3 +180,8 @@ class PyscriptUtility:
         waba_url = "https://waba-v2.360dialog.io/messages"
         headers = {"D360-API-KEY": key, "Content-TYpe": "application/json"}
         return requests.post(url=waba_url, headers=headers, data=orjson.dumps(payload)).json
+
+    @staticmethod
+    def upload_media_to_360dialog(bot: str, bsp_type: str, media_id: str):
+        external_media_id = asyncio.run(BSP360Dialog.upload_media(bot, bsp_type, media_id))
+        return external_media_id
