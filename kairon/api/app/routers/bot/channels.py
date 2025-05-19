@@ -258,10 +258,9 @@ async def get_channel_metrics(
 @router.get("/media/upload/{bsp_type}/{media_id}", response_model=Response)
 async def bsp_upload_media(
     media_id: str = Path(description="Id of the document"),
-    access_token: str = Query(description="360Dialog access token"),
     bsp_type: str = Path(description="Business service provider type", examples=[WhatsappBSPTypes.bsp_360dialog.value]),
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
-    external_media_id = await provider.upload_media(bsp_type, media_id, access_token)
+    external_media_id = await provider.upload_media(current_user.get_bot(), bsp_type, media_id)
     return Response(data={"external_media_id": external_media_id})

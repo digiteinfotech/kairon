@@ -10,6 +10,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
@@ -209,15 +210,24 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         return resp.get("url")
 
     @staticmethod
-    async def upload_media(bsp_type:str, media_id: str, access_token: str) -> str:
+    async def upload_media(bot: str, bsp_type: str, media_id: str) -> str:
         """
         Uploads the PDF to 360dialog and returns the external media ID.
         """
-
+        connector_type = "whatsapp"
         try:
             media_doc = UserMediaData.objects.get(media_id=media_id)
         except DoesNotExist:
             raise AppException(f"UserMediaData not found for media_id: {media_id}")
+
+        channel_config = Channels.objects(bot=bot, connector_type=connector_type).first()
+        if not channel_config or "config" not in channel_config or channel_config.config.get("bsp_type") != bsp_type:
+            raise AppException(
+                f"Channel config not found for bot: {bot}, connector_type: {connector_type}, bsp_type: {bsp_type}")
+
+        access_token = channel_config.config.get("api_key")
+        if not access_token:
+            raise AppException("API key (access token) not found in channel config")
 
         try:
             file_stream, filename, _ = await UserMedia.get_media_content_buffer(media_id)
@@ -227,8 +237,10 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
 
             pdf_bytes = file_stream.read()
 
-            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
-            auth_header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "waba_base_url"]
+            auth_header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "auth_header"]
 
             files = [
                 ('file', (filename, io.BytesIO(pdf_bytes), 'application/pdf'))
@@ -268,6 +280,5 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             }
             media_doc.save()
             raise e
-
 
 

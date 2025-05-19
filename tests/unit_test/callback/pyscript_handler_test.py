@@ -1,3 +1,4 @@
+import io
 import os
 import re
 import textwrap
@@ -22,7 +23,9 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.user_media import UserMedia
+from kairon.shared.data.data_objects import BotSettings, UserMediaData
 from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
 from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 
@@ -1585,6 +1588,442 @@ def test_delete_schedule_job_failure(monkeypatch):
         PyscriptSharedUtility.delete_schedule_job(event_id, bot)
 
     mock_execute_http_request.assert_called_once_with("http://mockserver.com/api/events/test_event", "DELETE")
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_pyscript_handler_for_upload_media_success(mock_get_buffer):
+    expected_external_media_id = "abc123"
+    bot = "test_bot"
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5aa",
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=bot,
+        timestamp=datetime.utcnow(),
+        media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+        output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+    ).save()
+
+    BotSettings(
+        bot=bot,
+        user="himanshu.gupta_@digite.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf",
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        json={"id": expected_external_media_id},
+        status=200,
+        content_type="application/json"
+    )
+
+    source_code = '''
+        external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+        bot_response = external_media_id
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    bot_response = data['body']['bot_response']
+    assert data['statusCode'] == 200
+    assert data['statusDescription'] == '200 OK'
+    assert bot_response == "abc123"
+    UserMediaData.objects().delete()
+    BotSettings.objects().delete()
+    Channels.objects().delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_pyscript_handler_for_upload_media_media_not_found(mock_get_buffer):
+    expected_external_media_id = "abc123"
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf",
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        json={"id": expected_external_media_id},
+        status=200,
+        content_type="application/json"
+    )
+
+    source_code = '''
+            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            bot_response = external_media_id
+            '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data == {
+      "statusCode": 422,
+      "statusDescription": "200 OK",
+      "isBase64Encoded": False,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "body": "Script execution error: UserMediaData not found for media_id: 0196c9efbf547b81a66ba2af7b72d5aa"
+    }
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_pyscript_handler_for_upload_media_channel_not_configured(mock_get_buffer):
+    expected_external_media_id = "abc123"
+    bot = "test_bot"
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5aa",
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=bot,
+        timestamp=datetime.utcnow(),
+        media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+        output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+    ).save()
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf",
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        json={"id": expected_external_media_id},
+        status=200,
+        content_type="application/json"
+    )
+
+    source_code = '''
+            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            bot_response = external_media_id
+            '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data == {
+      "statusCode": 422,
+      "statusDescription": "200 OK",
+      "isBase64Encoded": False,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "body": f"Script execution error: Channel config not found for bot: {bot}, connector_type: whatsapp, bsp_type: 360dialog"
+    }
+    UserMediaData.objects().delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_pyscript_handler_for_upload_media_access_token_not_found(mock_get_buffer):
+    expected_external_media_id = "abc123"
+    bot = "test_bot"
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5aa",
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=bot,
+        timestamp=datetime.utcnow(),
+        media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+        output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+    ).save()
+
+    BotSettings(
+        bot=bot,
+        user="himanshu.gupta_@digite.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf",
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        json={"id": expected_external_media_id},
+        status=200,
+        content_type="application/json"
+    )
+
+    source_code = '''
+            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            bot_response = external_media_id
+            '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data == {
+      "statusCode": 422,
+      "statusDescription": "200 OK",
+      "isBase64Encoded": False,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "body": "Script execution error: API key (access token) not found in channel config"
+    }
+    UserMediaData.objects().delete()
+    BotSettings.objects().delete()
+    Channels.objects().delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_pyscript_handler_for_upload_media_file_stream_not_found(mock_get_buffer):
+    expected_external_media_id = "abc123"
+    bot = "test_bot"
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5aa",
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="himanshu.gupta@digite.com",
+        bot="test_bot",
+        timestamp=datetime.utcnow(),
+        media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+        output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+    ).save()
+
+    BotSettings(
+        bot=bot,
+        user="himanshu.gupta_@digite.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    mock_get_buffer.return_value = (None, None, None)
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        json={"id": expected_external_media_id},
+        status=200,
+        content_type="application/json"
+    )
+
+    source_code = '''
+            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            bot_response = external_media_id
+            '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data == {
+      "statusCode": 422,
+      "statusDescription": "200 OK",
+      "isBase64Encoded": False,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "body": "Script execution error: File stream not found"
+    }
+    UserMediaData.objects().delete()
+    BotSettings.objects().delete()
+    Channels.objects().delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buffer):
+    bot = "test_bot"
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5aa",
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="himanshu.gupta@digite.com",
+        bot="test_bot",
+        timestamp=datetime.utcnow(),
+        media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+        output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+    ).save()
+
+    BotSettings(
+        bot=bot,
+        user="himanshu.gupta_@digite.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf",
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        body="Failure Test Case Simulation",
+        status=400,
+        content_type="application/json"
+    )
+
+    source_code = '''
+        external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+        bot_response = external_media_id
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data == {
+      "statusCode": 422,
+      "statusDescription": "200 OK",
+      "isBase64Encoded": False,
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      "body": "Script execution error: Failure Test Case Simulation"
+    }
+    UserMediaData.objects().delete()
+    BotSettings.objects().delete()
+    Channels.objects().delete()
 
 
 def test_pyscript_handler_for_decrypt_request_success():
