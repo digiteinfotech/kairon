@@ -1,6 +1,7 @@
 import asyncio
 from mongoengine import connect, disconnect
 
+from kairon.async_callback.auth import AuthError
 from kairon.shared.utils import Utility
 from kairon.shared.account.processor import AccountProcessor
 
@@ -81,6 +82,13 @@ async def catch_exceptions_middleware(request: Request, handler):
     try:
         response = await handler(request)
         return response
+
+    except AuthError as auth_err:
+        return JSONResponse(
+            {"success": False,"error_code": 422, "error": str(auth_err)},
+            status=422
+        )
+
     except Exception as exc:
         logger.exception(exc)
         error_response = {

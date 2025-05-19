@@ -1453,8 +1453,8 @@ def test_add_schedule_job_http_failure(monkeypatch):
 
     monkeypatch.setattr(CallbackConfig, "get_entry", lambda bot, name: {"pyscript_code": "dummy_code"})
 
-    dummy_executor = type("DummyExecutor", (), {"execute_task": dummy_execute_task})
-    monkeypatch.setattr(ExecutorFactory, "get_executor", lambda: dummy_executor)
+    dummy_executor = type("DummyExecutor", (), {"execute_task": dummy_execute_task})()
+    monkeypatch.setattr(ExecutorFactory, "get_executor_for_data", lambda data: dummy_executor)
 
     monkeypatch.setattr(obj_to_ref, "__call__", lambda self, func: func)
 
@@ -1504,8 +1504,8 @@ def test_add_schedule_job_success(monkeypatch):
 
     monkeypatch.setattr(CallbackConfig, "get_entry", lambda bot, name: {"pyscript_code": "dummy_code"})
 
-    dummy_executor = type("DummyExecutor", (), {"execute_task": dummy_execute_task})
-    monkeypatch.setattr(ExecutorFactory, "get_executor", lambda: dummy_executor)
+    dummy_executor = type("DummyExecutor", (), {"execute_task": dummy_execute_task})()
+    monkeypatch.setattr(ExecutorFactory, "get_executor_for_data", lambda data: dummy_executor)
 
     monkeypatch.setattr(obj_to_ref, "__call__", lambda self, func: func)
 

@@ -3,10 +3,14 @@ from blacksheep import Router, Request, Response as BSResponse, json
 from blacksheep.contents import JSONContent
 
 from loguru import logger
+
+from kairon.async_callback.auth import CallbackAuthenticator
 from kairon.async_callback.processor import CallbackProcessor
 from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
 from kairon.shared.callback.data_objects import PyscriptPayload
+from kairon.shared.callback.data_objects import CallbackRequest
+
 
 router = Router()
 
@@ -101,3 +105,19 @@ async def trigger_restricted_python(payload: PyscriptPayload):
         return {"success": True, **result}
     except Exception as e:
         return json({"success": False, "error": str(e)}, status=422)
+
+@router.post("/callback/handle_event")
+async def handle_callback(
+    request: Request,
+    body: CallbackRequest
+):
+    await CallbackAuthenticator.verify(request)
+    payload = body.data
+    try:
+        result = CallbackUtility.execute_script(
+            payload.get("source_code"),
+            payload.get("predefined_objects", {})
+        )
+        return {"statusCode": 200, "body": result}
+    except Exception as e:
+        return {"statusCode": 422, "body": str(e)}
