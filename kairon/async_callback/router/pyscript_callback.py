@@ -1,7 +1,6 @@
 from typing import Optional
 from blacksheep import Router, Request, Response as BSResponse, json
 from blacksheep.contents import JSONContent
-from jose import jwt, ExpiredSignatureError
 
 from loguru import logger
 
@@ -11,9 +10,6 @@ from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
 from kairon.shared.callback.data_objects import PyscriptPayload
 from kairon.shared.callback.data_objects import CallbackRequest
-from kairon import Utility
-from kairon.shared.auth import Authentication
-from kairon.shared.data.constant import TOKEN_TYPE
 
 
 router = Router()
