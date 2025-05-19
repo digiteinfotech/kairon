@@ -1,4 +1,4 @@
-from blacksheep import Request, json
+from blacksheep import Request
 from jose import jwt, ExpiredSignatureError
 
 from kairon import Utility
