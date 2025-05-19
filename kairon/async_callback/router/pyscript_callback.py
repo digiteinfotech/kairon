@@ -112,8 +112,6 @@ async def handle_callback(
     body: CallbackRequest
 ):
     auth_error = await CallbackAuthenticator.verify(request)
-    if auth_error:
-        return auth_error
     payload = body.data
     try:
         result = CallbackUtility.execute_script(

@@ -799,7 +799,7 @@ async def test_missing_authorization_header():
     response = await client.post("/callback/handle_event", content=JSONContent(valid_body_payload))
     body = await response.json()
     print(body)
-    assert body == {"success": False, "error": "Missing Authorization header"}
+    assert body == {"success": False,'error_code': 422, "error": "Missing Authorization header"}
 
 @pytest.mark.asyncio
 async def test_bad_authorization_header_format():
@@ -823,7 +823,7 @@ async def test_bad_authorization_header_format():
     )
     body = await response.json()
     print(body)
-    assert body == {"success": False, "error": "Bad Authorization header"}
+    assert body == {'success': False, 'error_code': 422, 'error': 'Bad Authorization header'}
 
 
 @pytest.mark.asyncio
@@ -881,7 +881,7 @@ async def test_expired_token(monkeypatch):
     response = await client.post("/callback/handle_event", headers=headers, content=JSONContent(valid_body_payload))
     body = await response.json()
     print(body)
-    assert body == {"success": False, "error": "Token expired"}
+    assert body == {'success': False, 'error_code': 422, 'error': 'Token expired'}
 
 @pytest.mark.asyncio
 async def test_invalid_token(monkeypatch):
