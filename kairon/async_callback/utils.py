@@ -7,7 +7,7 @@ from typing import Text, Dict, Callable
 import requests
 from AccessControl.SecurityInfo import allow_module
 from RestrictedPython.Guards import safer_getattr
-import orjson as json
+import json
 from loguru import logger
 from kairon.api.app.routers.bot.data import CognitionDataProcessor
 from kairon.shared.callback.data_objects import CallbackResponseType
@@ -23,6 +23,7 @@ allow_module("time")
 allow_module("requests")
 allow_module("googlemaps")
 allow_module("_strptime")
+allow_module("orjson")
 cognition_processor = CognitionDataProcessor()
 
 
