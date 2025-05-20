@@ -2,7 +2,7 @@ from functools import partial
 from types import ModuleType
 from typing import Text, Dict, Optional, Callable
 from datetime import datetime, date
-import orjson as json
+import json
 from AccessControl.ZopeGuards import _safe_globals
 from RestrictedPython import compile_restricted
 from RestrictedPython.Guards import safer_getattr
