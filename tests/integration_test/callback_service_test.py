@@ -661,21 +661,29 @@ async def test_execute_python_success(mock_handler):
     await app.start()
     client = TestClient(app)
 
+    # Create a mock token with three segments
+    mock_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJnQUFBQUFCb0xjUi00QnRVM1FFOUdBRFdONVg0N29Yay03VDdxN2dOQks1dlFqM3VnQkoybnZlLVBrVGVTUzZYRm55dkRjM0RmMmNob2JUSFAyM0dDTnI3STZ2eWwyZ0tUYkF3eXFFNERKVDU1TWNsWmV5LWdSRGR4dG55TS01M1R0cjVQLU9iQ3lKTmpDcTFaa1NkRFFQNWk0eDZsN3R1c0E9PSIsInZlcnNpb24iOiIyLjAifQ.HEL3BSt1uO2uRfwwPTVV5UgYvwXsSoyERqZ9Gev2X-U"
+
+    mock_handler.return_value = {"output": "Execution successful", "success": True}
+
     payload = {
         "source_code": "bot_response=100",
         "predefined_objects": {"x": 1}
     }
 
-    # Simulate response from handler
-    mock_handler.return_value = {"output": "Execution successful", "success": True}
+    headers = {
+        "Authorization": f"Bearer {mock_token}"
+    }
 
-    response = await client.post("/main_pyscript/execute-python", content=JSONContent(payload))
+    response = await client.post("/main_pyscript/execute-python", headers=headers, content=JSONContent(payload))
     json_response = await response.json()
     print(json_response)
 
+    # Assertions
     assert response.status == 200
     assert json_response["output"] == "Execution successful"
     assert json_response["success"] is True
+
 
 
 @pytest.mark.asyncio
