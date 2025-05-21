@@ -25,7 +25,7 @@ from .models import ActionParameterType, HttpRequestContentType, EvaluationType,
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
-from ..data.constant import REQUEST_TIMESTAMP_HEADER, TASK_TYPE
+from ..data.constant import REQUEST_TIMESTAMP_HEADER, TASK_TYPE, TOKEN_TYPE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..rest_client import AioRestClient
@@ -691,6 +691,20 @@ class ActionUtility:
             result = lambda_response["Payload"].get('body')
         else:
             callback_url=Utility.environment['async_callback_action']['pyscript']['url']
+            lifespan = Utility.environment['events']['executor']['dynamic_token_lifespan']
+            from ..auth import Authentication
+
+            claims = {"sub": "action-server", "callback": True}
+
+            token = Authentication.create_access_token(
+                data=claims,
+                token_type=TOKEN_TYPE.DYNAMIC.value,
+                token_expire=lifespan
+            )
+            headers = {
+                       "Content-Type": "application/json",
+                       "Authorization": f"Bearer {token}"
+                       }
             resp = Utility.execute_http_request(
                 "POST",
                 http_url=callback_url,
@@ -698,7 +712,7 @@ class ActionUtility:
                     "source_code": source_code,
                     "predefined_objects": context
                 },
-                headers={"Content-Type": "application/json"}
+                headers=headers
             )
             if resp.get('statusCode') != 200:
                 raise ActionFailure(f'Pyscript evaluation failed: {resp}')
