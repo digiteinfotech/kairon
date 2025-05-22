@@ -684,7 +684,42 @@ async def test_execute_python_success(mock_handler):
     assert json_response["output"] == "Execution successful"
     assert json_response["success"] is True
 
+@pytest.mark.asyncio
+@patch("kairon.async_callback.utils.CallbackUtility.main_pyscript_handler")
+async def test_execute_python_failure(mock_handler):
+    await app.start()
+    client = TestClient(app)
 
+    # Generate a real token using the create_access_token method
+    data = {"sub": "action-server", "callback": True}
+    token = Authentication.create_access_token(
+        data=data,
+        token_type="dynamic",  # Use the dynamic token type if needed
+        token_expire=30  # Set expiration time
+    )
+
+    # Simulate an exception being raised in the handler
+    mock_handler.side_effect = Exception("Simulated exception")
+
+    payload = {
+        "source_code": "bot_response=100",
+        "predefined_objects": {"x": 1}
+    }
+
+    # Send the request with the real token in the header
+    headers = {
+        "Authorization": f"Bearer {token}"  # Use the real token created above
+    }
+
+    response = await client.post("/main_pyscript/execute-python", headers=headers, content=JSONContent(payload))
+    json_response = await response.json()
+    print(json_response)
+
+    # Assertions to check if the exception handling block is reached
+    assert response.status == 422  # This should match the status code in your error response
+    assert json_response["success"] is False
+    assert "error" in json_response  # Ensure the error message is included in the response
+    assert json_response["error"] == "Simulated exception"  # Check if the simulated exception message is returned
 
 @pytest.mark.asyncio
 @patch("kairon.async_callback.utils.CallbackUtility.main_pyscript_handler")
