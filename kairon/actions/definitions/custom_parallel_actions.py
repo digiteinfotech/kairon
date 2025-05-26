@@ -1,7 +1,7 @@
 import asyncio
 from typing import Text, Dict, Any
 
-import httpx
+import aiohttp
 from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
@@ -140,13 +140,16 @@ class ActionParallel(ActionsBase):
         request_json['next_action'] = action_name
 
         url = Utility.environment["action"].get("url")
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=request_json)
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=request_json) as response:
+                response_json = await response.json()
+
 
         return {
             "action_name": action_name,
-            "status_code": response.status_code,
-            "body": response.json()
+            "status_code": response.status,
+            "body": response_json
         }
 
     @staticmethod
