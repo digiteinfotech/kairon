@@ -1136,7 +1136,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d21",

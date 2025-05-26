@@ -58,7 +58,7 @@ class ActionParallel(ActionsBase):
         from kairon.actions.definitions.factory import ActionFactory
 
         exception = None
-        slot_changes = []
+        executed_actions_info = []
         filled_slots = {}
         status = "SUCCESS"
         dispatch_bot_response = False
@@ -72,50 +72,16 @@ class ActionParallel(ActionsBase):
         try:
             action_config = self.retrieve_config()
             action_names = action_config['actions']
-            bot = action_config['bot']
             dispatch_bot_response = action_config['dispatch_response_text']
             response_text = action_config['response_text']
-            actions = [
-                (ActionFactory.get_instance(bot, name), name)
-                for name in action_names
-            ]
 
             results = await asyncio.gather(
-                *[action[0].execute(dispatcher, tracker, domain) for action in actions],
+                *[self.execute_webhook(action_name, action_call)
+                  for action_name in action_names],
                 return_exceptions=True
             )
-            # #One parallel action at a time
-            # #Hit action server for each action
-            # #parallel_action inside pa should not be there
-            # #limit on parallel concurrency(environment driven)
-            # #should not be allowed to delete individual action of present in parallel_action
-            # action_config = self.retrieve_config()
-            # action_names = action_config['actions']
-            # bot = action_config['bot']
-            # dispatch_bot_response = action_config['dispatch_response_text']
-            # response_text = action_config['response_text']
-            #
-            #
-            #
-            # # actions = [
-            # #     (ActionFactory.get_instance(bot, name), name)
-            # #     for name in action_names
-            # # ]
-            #
-            # results = await asyncio.gather(
-            #     *[self.execute_webhook(action_name, action_call)
-            #       for action_name in action_names],
-            #     return_exceptions=True
-            # )
 
-
-            for i, result in enumerate(results):
-                if isinstance(result, Exception):
-                    logger.exception(result)
-                    raise result
-
-                # slot_changes.append((result, actions[i][1]))
-                filled_slots.update(result)
+            executed_actions_info, filled_slots = self.formatted_results(results, action_names, filled_slots)
 
             self.__is_success = True
 
@@ -140,7 +106,7 @@ class ActionParallel(ActionsBase):
                 bot=self.bot,
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
-                slot_changes=slot_changes
+                executed_actions_info=executed_actions_info
             ).save()
 
         return filled_slots
@@ -175,11 +141,53 @@ class ActionParallel(ActionsBase):
         request_json['next_action'] = action_name
 
         url = Utility.environment["action"].get("url")
-        # request_method = 'POST'
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json=request_json)
 
-        # if response.status_code != status.HTTP_200_OK:
-        #     raise Exception(f"Webhook call failed with status {response.status_code}: {response.text}")
-        print(response.json())
-        return response.json()
+        return {
+            "action_name": action_name,
+            "status_code": response.status_code,
+            "body": response.json()
+        }
+
+    @staticmethod
+    def formatted_results(results, action_names, filled_slots):
+        """
+        Formats the webhook results with action name, status, and slot changes.
+
+        @param results: Raw results from webhook calls.
+        @param action_names: Corresponding action names.
+        @return: List of formatted result dicts.
+        """
+        formatted_results = []
+        for i, result in enumerate(results):
+            action_name = action_names[i]
+            if isinstance(result, Exception):
+                logger.exception(f"Error in action '{action_name}': {result}")
+                formatted_results.append({
+                    "name": action_name,
+                    "status": "FAILURE",
+                    "slot_changes": {}
+                })
+                continue
+
+            status_code = result.get("status_code", 500)
+            body = result.get("body", {})
+            slot_changes = {}
+
+            if isinstance(body, dict) and "events" in body:
+                slot_changes = {
+                    event.get("name"): event.get("value")
+                    for event in body["events"]
+                    if event.get("event") == "slot"
+                }
+
+            filled_slots.update(slot_changes)
+
+            formatted_results.append({
+                "name": action_name,
+                "status": "SUCCESS" if status_code == 200 else "FAILURE",
+                "slot_changes": slot_changes
+            })
+
+        return formatted_results, filled_slots

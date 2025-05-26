@@ -1916,9 +1916,6 @@ def test_default_values():
 
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
 
-
-
-
 @pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
@@ -29987,6 +29984,66 @@ def test_add_parallel_action_missing_existing_action(monkeypatch):
     print(actual)
     assert actual["error_code"] == 422
     assert actual["message"] == "Action with name prompt_action does not exist!"
+    assert not actual["success"]
+    Actions.objects(name="parallel_action_test").delete()
+    Actions.objects(name="pyscript_action").delete()
+    ParallelActionConfig.objects(name="parallel_action_test").delete()
+    PyscriptActionConfig.objects(name="pyscript_action").delete()
+
+def test_add_parallel_action_nested_parallel_action(monkeypatch):
+    script = "bot_response='hello world'"
+    request_body = {
+        "name": "pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    parallel_action_nested_request_body = {
+        "name": "parallel_action_nested_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action", "parallel_action_test"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_nested_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "ParallelAction cannot include other parallel actions: ['parallel_action_test']"
+    assert actual["message"][0]['type'] == "value_error"
     assert not actual["success"]
     Actions.objects(name="parallel_action_test").delete()
     Actions.objects(name="pyscript_action").delete()

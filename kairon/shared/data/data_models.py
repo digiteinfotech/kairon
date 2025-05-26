@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import ScheduleActionType
+from kairon.shared.actions.data_objects import ScheduleActionType, Actions
 from kairon.shared.data.constant import (
     EVENT_STATUS,
     SLOT_MAPPING_TYPE,
@@ -23,7 +23,7 @@ from kairon.shared.actions.models import (
     EvaluationType,
     DispatchType,
     DbQueryValueType,
-    DbActionOperationType, UserMessageType, HttpRequestContentType
+    DbActionOperationType, UserMessageType, HttpRequestContentType, ActionType
 )
 from kairon.shared.callback.data_objects import CallbackExecutionMode, CallbackResponseType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
@@ -1402,3 +1402,14 @@ class ParallelActionRequest(BaseModel):
     dispatch_response_text: bool = False
     response_text: Optional[str]
     actions: List[str]
+
+    @root_validator
+    def validate_no_nested_parallel_actions(cls, values):
+        action_names = values.get("actions", [])
+        if action_names:
+            # Check if any of the actions are of type 'parallel_action'
+            existing = Actions.objects(name__in=action_names, type=ActionType.parallel_action.value).only("name")
+            if existing:
+                names = [a.name for a in existing]
+                raise ValueError(f"ParallelAction cannot include other parallel actions: {names}")
+        return values

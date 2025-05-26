@@ -1135,7 +1135,6 @@ async def get_client_config(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     config = mongo_processor.get_chat_client_config(current_user.get_bot(), current_user.email)
     config = config.to_mongo().to_dict()
-    config["config"]["chat_server_base_url"] = "http://localhost:5000/"
     return Response(data=config['config'])
 
 
