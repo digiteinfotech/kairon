@@ -3,6 +3,9 @@ import datetime
 import os
 from unittest.mock import patch
 from urllib.parse import urlencode, urljoin
+
+from aioresponses import aioresponses
+
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -706,7 +709,8 @@ def test_process_razorpay_action_with_notes():
                                             'template': None, 'text': 'https://rzp.io/i/nxrHnLJ'}]}
 
 @responses.activate
-def test_parallel_action_execution():
+@pytest.mark.asyncio
+def test_parallel_action_execution(aioresponses):
     import textwrap
     name = "test_parallel_action_execution"
     Actions(name=name, type=ActionType.parallel_action.value,
@@ -717,7 +721,8 @@ def test_parallel_action_execution():
         bot="5f50fd0a56b698ca10d35d2z",
         user="user",
         actions=["test_pyscript_action_execution"],
-        response_text="Parallel Action Executed"
+        response_text="Parallel Action Executed",
+        dispatch_response_text=True
     ).save()
 
     action_name = "test_pyscript_action_execution"
@@ -791,21 +796,28 @@ def test_parallel_action_execution():
         "version": "version"
     }
 
-    responses.add(
-        "POST", Utility.environment["action"]["url"],
-        json={'events': [{'event': 'slot', 'name': 'kairon_action_response', 'timestamp': None, 'value': 15}],
-              'responses': [{'attachment': None, 'buttons': [], 'custom': {}, 'elements': [], 'image': None, 'response': None, 'template': None, 'text': 15}]},
-        match=[responses.matchers.json_params_matcher({
-            "next_action": action_name,
-            "tracker": request_object["tracker"],
-            "domain": request_object["domain"],
-            "version": request_object["version"]
-        })],
+    aioresponses.add(
+        method="POST",
+        url=Utility.environment["action"]["url"],
+        payload={
+            "events": [
+                {"event": "slot", "timestamp": None, "name": "location", "value": "Bangalore"},
+                {"event": "slot", "timestamp": None, "name": "langauge", "value": "Kannada"},
+                {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+                 "value": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5}}
+            ],
+            "responses": [
+                {"text": None, "buttons": [], "elements": [],
+                 "custom": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                 "template": None, "response": None, "image": None, "attachment": None}
+            ]
+        },
         status=200
     )
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
+    print(response_json)
     assert response.status_code == 200
     assert len(response_json['events']) == 3
     assert len(response_json['responses']) == 1
@@ -813,8 +825,37 @@ def test_parallel_action_execution():
         {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
         {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}]
-    assert response_json['responses'][0]['custom'] == {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}
+         'value': 'Parallel Action Executed'}]
+    assert response_json['responses'][0]['text'] == 'Parallel Action Executed'
+    log = ActionServerLogs.objects(action="test_parallel_action_execution").get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log == {
+        "type": "parallel_action",
+        "intent": "pyscript_action",
+        "action": "test_parallel_action_execution",
+        "sender": "default",
+        "headers": {},
+        "bot_response": "Parallel Action Executed",
+        "bot": "5f50fd0a56b698ca10d35d2z",
+        "status": "SUCCESS",
+        "executed_actions_info": [
+            {
+                "name": "test_pyscript_action_execution",
+                "status": "SUCCESS",
+                "slot_changes": {
+                    "location": "Bangalore",
+                    "langauge": "Kannada",
+                    "kairon_action_response": {
+                        "numbers": [1, 2, 3, 4, 5],
+                        "total": 15,
+                        "i": 5
+                    }
+                }
+            }
+        ],
+        "user_msg": "get intents"
+    }
     PyscriptActionConfig.objects(name="test_pyscript_action_execution").delete()
     Actions.objects(name="test_pyscript_action_execution").delete()
 

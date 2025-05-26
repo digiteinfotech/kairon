@@ -1059,7 +1059,7 @@ class TestActions:
     @responses.activate
     @pytest.mark.asyncio
     @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
-    async def test_run_parallel_action(self, mock_get_action):
+    async def test_run_parallel_action(self, mock_get_action, aioresponses):
         import textwrap
 
         slots = {"bot": "5f50fd0a56b698ca10d35d21", "param2": "param2value"}
@@ -1073,7 +1073,7 @@ class TestActions:
             user = "user",
             actions = ["test_run_pyscript_action"],
             response_text = "Parallel Action Success",
-            dispatch_response_text = False
+            dispatch_response_text = True
         ).save()
 
         pyscript_name = "test_run_pyscript_action"
@@ -1143,6 +1143,26 @@ class TestActions:
             "version": "3.6.21",
             "domain": domain
         }
+
+        aioresponses.add(
+            method="POST",
+            url=Utility.environment["action"]["url"],
+            payload={
+                "events": [
+                    {'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                    {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                     'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}
+                ],
+                "responses": [
+                    {"text": None, "buttons": [], "elements": [],
+                     "custom": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                     "template": None, "response": None, "image": None, "attachment": None}
+                ]
+            },
+            status=200
+        )
+
+
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
@@ -1151,7 +1171,7 @@ class TestActions:
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-                           'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}]
+                           'value': 'Parallel Action Success'}]
         ParallelActionConfig.objects(name=action_name).delete()
         PyscriptActionConfig.objects(name=pyscript_name).delete()
 
@@ -1226,7 +1246,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name,action_call = action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action= action_name,
                                        bot="5f50fd0a56b698ca10d35d21",
