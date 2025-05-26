@@ -55,7 +55,6 @@ class ActionParallel(ActionsBase):
         @param domain: Bot domain providing context for the action execution.
         @return: A dictionary of slot changes after executing all actions.
         """
-        from kairon.actions.definitions.factory import ActionFactory
 
         exception = None
         executed_actions_info = []
