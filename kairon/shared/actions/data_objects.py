@@ -270,7 +270,7 @@ class ActionServerLogs(DynamicDocument):
     bot = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
     status = StringField(default="SUCCESS")
-    slot_changes = DynamicField()
+    executed_actions_info = ListField()
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "-timestamp")]}]}
 
