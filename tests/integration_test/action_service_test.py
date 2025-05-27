@@ -869,8 +869,10 @@ def test_parallel_action_execution(aioresponses):
         ],
         "user_msg": "get intents"
     }
-    PyscriptActionConfig.objects(name="test_pyscript_action_execution").delete()
     Actions.objects(name="test_pyscript_action_execution").delete()
+    PyscriptActionConfig.objects(name="test_pyscript_action_execution").delete()
+    Actions.objects(name="test_api_action_execution").delete()
+    HttpActionConfig.objects(action_name="test_api_action_execution").delete()
     Actions.objects(name="test_parallel_action_execution").delete()
     ParallelActionConfig.objects(name="test_parallel_action_execution").delete()
     ActionServerLogs.objects(action="test_parallel_action_execution").delete()
