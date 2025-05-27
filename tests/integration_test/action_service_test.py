@@ -720,7 +720,7 @@ def test_parallel_action_execution(aioresponses):
         name=name,
         bot="5f50fd0a56b698ca10d35d2z",
         user="user",
-        actions=["test_pyscript_action_execution"],
+        actions=["test_pyscript_action_execution", "test_api_action_execution"],
         response_text="Parallel Action Executed",
         dispatch_response_text=True
     ).save()
@@ -743,29 +743,17 @@ def test_parallel_action_execution(aioresponses):
         user="user"
     ).save()
 
-    responses.add(
-        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
-        json={"success": True, "body": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
-              "statusCode": 200,
-              "message": None, "error_code": 0},
-        match=[responses.matchers.json_params_matcher({'source_code': script,
-                                                       'predefined_objects': {'chat_log': [],
-                                                                              'intent': 'pyscript_action',
-                                                                              'kairon_user_msg': None, 'key_vault': {},
-                                                                              'latest_message': {'intent_ranking': [
-                                                                                  {'name': 'pyscript_action'}],
-                                                                                  'text': 'get intents'},
-                                                                              'sender_id': 'default',
-                                                                              'session_started': None,
-                                                                              'slot': {
-                                                                                  'bot': '5f50fd0a56b698ca10d35d2z',
-                                                                                  'langauge': 'Kannada',
-                                                                                  'location': 'Bangalore'},
-                                                                              'user_message': 'get intents'}
+    Actions(name="test_api_action_execution", type=ActionType.http_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
 
-                                                       })]
-    )
+    HttpActionConfig(
+        action_name="test_api_action_execution",
+        http_url="http://example.com/api",
+        request_method="POST",
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user",
+        response = HttpActionResponse(value="API action 1 success"),
+    ).save()
 
     request_object = {
         "next_action": name,
@@ -773,7 +761,7 @@ def test_parallel_action_execution(aioresponses):
             "sender_id": "default",
             "conversation_id": "default",
             "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'parallel_action'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
             "paused": False,
@@ -815,24 +803,41 @@ def test_parallel_action_execution(aioresponses):
         status=200
     )
 
+    aioresponses.add(
+        method="POST",
+        url=Utility.environment["action"]["url"],
+        payload={
+            "events": [
+                {"event": "slot", "timestamp": None, "name": "kairon_action_response", "value": "API action 1 success"},
+                {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200}
+            ],
+            "responses": [
+                {"text": "API action 1 success", "buttons": [], "elements": [],
+                 "custom": {}, "template": None, "response": None, "image": None, "attachment": None}
+            ]
+        },
+        status=200
+    )
+
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     print(response_json)
     assert response.status_code == 200
-    assert len(response_json['events']) == 3
+    assert len(response_json['events']) == 4
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
         {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': 'Parallel Action Executed'}]
+         'value': 'Parallel Action Executed'},
+        {'event': 'slot', 'timestamp': None, 'name': 'http_status_code', 'value': 200}]
     assert response_json['responses'][0]['text'] == 'Parallel Action Executed'
     log = ActionServerLogs.objects(action="test_parallel_action_execution").get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
     assert log == {
         "type": "parallel_action",
-        "intent": "pyscript_action",
+        "intent": "parallel_action",
         "action": "test_parallel_action_execution",
         "sender": "default",
         "headers": {},
@@ -851,6 +856,14 @@ def test_parallel_action_execution(aioresponses):
                         "total": 15,
                         "i": 5
                     }
+                }
+            },
+            {
+                "name": "test_api_action_execution",
+                "status": "SUCCESS",
+                "slot_changes": {
+                    "http_status_code": 200,
+                    "kairon_action_response": "API action 1 success"
                 }
             }
         ],
