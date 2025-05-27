@@ -28,7 +28,7 @@ from kairon.shared.actions.models import (
 from kairon.shared.callback.data_objects import CallbackExecutionMode, CallbackResponseType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
-from pydantic import BaseModel, validator, SecretStr, root_validator, constr
+from pydantic import BaseModel, validator, SecretStr, root_validator, constr, Field
 from kairon.shared.models import (
     StoryStepType,
     StoryType,
@@ -1392,3 +1392,46 @@ class FlowTagChangeRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     tag: str
     type: str
+
+class CollectionDataPayload(BaseModel):
+    collection_name: str = Field(..., description="Name of the collection (lowercased internally)")
+    is_secure: List[str] = Field(default_factory=list,
+                                 description="Keys in `data` that should be treated as secure")
+    data: Dict = Field(default_factory=dict, description="The document payload")
+    status: bool = Field(True, description="Active/inactive flag")
+
+
+class AddCollectionPayload(CollectionDataPayload):
+    pass  # exactly the same shape
+
+
+class DeleteCollectionPayload(BaseModel):
+    collection_name: str = Field(..., description="Name of the collection to delete")
+
+
+class ListCollectionDataPayload(BaseModel):
+    collection_name: str = Field(..., description="Name of the collection to list")
+
+
+class AddCollectionDataPayload(BaseModel):
+    collection_name: str = Field(..., description="Name of the collection")
+    data: Dict = Field(..., description="Document to insert")
+    is_secure: List[str] = Field(default_factory=list,
+                                 description="Keys in `data` that should be treated as secure")
+    is_editable: List[str] = Field(default_factory=list,
+                                 description="Keys in `data` that should be treated as non editable")
+    status: bool = Field(True, description="Active/inactive flag")
+
+
+class UpdateCollectionDataPayload(BaseModel):
+    id: str = Field(..., description="Document (_id) to update")
+    collection_name: str = Field(..., description="Collection name the document belongs to")
+    data: Dict = Field(..., description="Fields to merge into existing `data`")
+    is_secure: List[str] = Field(default_factory=list, description="(Optional) Updated secure keys list")
+    is_editable: List[str] = Field(default_factory=list,
+                                 description="(Optional) Updated non editable keys list")
+    status: bool = Field(None, description="(Optional) Updated status flag")
+
+
+class DeleteCollectionDataPayload(BaseModel):
+    id: str = Field(..., description="Document (_id) to delete")

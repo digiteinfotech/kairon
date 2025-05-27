@@ -1,13 +1,17 @@
 import os
 import re
+from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 import pytest
+from mongoengine import DoesNotExist
 from rasa.shared.core.events import ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
 
 from kairon.exceptions import AppException
+from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
+from kairon.shared.data.processor_new import DataProcessor
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -1206,3 +1210,202 @@ def test_prepare_training_actions_without_story_graphs(mock_fetch_actions):
 
     mock_fetch_actions.assert_called_once_with('test_bot')
     assert result == ['action1', 'action2', 'action3']
+
+
+class CollectionProcessor:
+    pass
+
+
+def test_get_all_collections_success():
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects:
+        # Create separate mocks for distinct and count
+        mock_distinct_queryset = MagicMock()
+        mock_distinct_queryset.distinct.return_value = ['collection1', 'collection2']
+
+        def side_effect(**kwargs):
+            if kwargs == {"bot": "test_bot"}:
+                return mock_distinct_queryset
+            elif kwargs == {"bot": "test_bot", "collection_name": "collection1"}:
+                mock_count_qs = MagicMock()
+                mock_count_qs.count.return_value = 2
+                return mock_count_qs
+            elif kwargs == {"bot": "test_bot", "collection_name": "collection2"}:
+                mock_count_qs = MagicMock()
+                mock_count_qs.count.return_value = 5
+                return mock_count_qs
+            else:
+                mock_count_qs = MagicMock()
+                mock_count_qs.count.return_value = 0
+                return mock_count_qs
+
+        mock_objects.side_effect = side_effect
+
+        # Act
+        result = DataProcessor.get_all_collections(bot="test_bot")
+
+        # Assert
+        assert {"collection_name": "collection1", "count": 2} in result
+        assert {"collection_name": "collection2", "count": 5} in result
+        assert len(result) == 2
+
+
+def test_delete_collection_success():
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects:
+        mock_query = MagicMock()
+        mock_query.delete.return_value = 1  # Simulate successful deletion
+        mock_objects.return_value = mock_query
+
+        result = DataProcessor.delete_collection(bot="test_bot", name="sample_collection")
+
+        mock_objects.assert_called_once_with(bot="test_bot", collection_name="sample_collection")
+        mock_query.delete.assert_called_once()
+        assert result == ["Collection sample_collection deleted successfully!", 1]
+
+def test_delete_collection_not_found():
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects:
+        mock_query = MagicMock()
+        mock_query.delete.return_value = 0  # Simulate no deletion (not found)
+        mock_objects.return_value = mock_query
+
+        result = DataProcessor.delete_collection(bot="test_bot", name="nonexistent_collection")
+
+        mock_objects.assert_called_once_with(bot="test_bot", collection_name="nonexistent_collection")
+        mock_query.delete.assert_called_once()
+        assert result == ["Collection nonexistent_collection does not exist!", 0]
+
+def test_list_collection_data_success():
+    mock_doc = MagicMock()
+    mock_doc.id = "1234567890abcdef"
+    mock_doc.collection_name = "test_collection"
+    mock_doc.is_secure = {"key1", "key2"}  # set
+    mock_doc.data = {"sample_key": "sample_value"}
+    mock_doc.status = "active"
+    mock_doc.timestamp = datetime(2023, 1, 1, 12, 0, 0)
+    mock_doc.user = "test_user"
+    mock_doc.bot = "test_bot"
+
+    expected_result = [{
+        "id": str(mock_doc.id),
+        "collection_name": mock_doc.collection_name,
+        "is_secure": list(mock_doc.is_secure),
+        "data": mock_doc.data,
+        "status": mock_doc.status,
+        "timestamp": mock_doc.timestamp.isoformat(),
+        "user": mock_doc.user,
+        "bot": mock_doc.bot
+    }]
+
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects:
+        mock_objects.return_value = [mock_doc]
+
+        result = DataProcessor.list_collection_data(bot="test_bot", name="test_collection")
+
+        mock_objects.assert_called_once_with(bot="test_bot", collection_name="test_collection")
+        assert result == expected_result
+
+@patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_encrypted_data")
+@patch("kairon.shared.cognition.processor.CognitionDataProcessor.validate_collection_payload")
+@patch("kairon.shared.cognition.data_objects.CollectionData.objects")
+def test_update_crud_collection_data_success(mock_objects, mock_validate, mock_prepare_data):
+    # Arrange
+    collection_id = "123"
+    bot = "test_bot"
+    user = "test_user"
+    payload = {
+        "collection_name": "test_collection",
+        "data": {"key1": "value1", "key2": "value2"},
+        "is_secure": ["key1"],
+        "is_editable": ["key2"]
+    }
+
+    encrypted_data = {"key1": "encrypted_value1", "key2": "value2"}
+    mock_prepare_data.return_value = encrypted_data
+
+    mock_doc = MagicMock()
+    mock_doc.data = MagicMock()  # <-- Mocking the data dict so we can track `update`
+    mock_objects.return_value.get.return_value = mock_doc
+
+    # Act
+    result = DataProcessor.update_crud_collection_data(
+        collection_id=collection_id,
+        payload=payload,
+        user=user,
+        bot=bot
+    )
+
+    # Assert
+    mock_validate.assert_called_once_with("test_collection", ["key1"], {"key1": "value1", "key2": "value2"})
+    mock_prepare_data.assert_called_once_with({"key1": "value1", "key2": "value2"}, ["key1"])
+    mock_objects.assert_called_once_with(bot=bot, id=collection_id, collection_name="test_collection")
+    mock_objects.return_value.get.assert_called_once()
+    mock_doc.save.assert_called_once()
+
+    # Ensure key2 was filtered out (in is_editable)
+    args, _ = mock_doc.data.update.call_args
+    assert "key2" not in args[0]
+    assert "key1" in args[0]
+
+    assert result == collection_id
+
+
+@patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_encrypted_data")
+@patch("kairon.shared.cognition.processor.CognitionDataProcessor.validate_collection_payload")
+@patch("kairon.shared.cognition.data_objects.CollectionData.objects")
+def test_update_crud_collection_data_collection_not_found(mock_objects, mock_validate, mock_prepare_data):
+    # Arrange
+    collection_id = "123"
+    bot = "test_bot"
+    user = "test_user"
+    payload = {
+        "collection_name": "test_collection",
+        "data": {"key1": "value1"},
+        "is_secure": ["key1"],
+        "is_editable": []
+    }
+
+    mock_objects.return_value.get.side_effect = DoesNotExist("CollectionData matching query does not exist.")
+
+    # Act & Assert
+    with pytest.raises(AppException, match="Collection Data with given id and collection_name not found!"):
+        DataProcessor.update_crud_collection_data(
+            collection_id=collection_id,
+            payload=payload,
+            user=user,
+            bot=bot
+        )
+
+@patch("kairon.shared.data.processor_new.CollectionData")
+@patch("kairon.shared.cognition.processor.CognitionDataProcessor.validate_collection_payload")
+@patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_encrypted_data")
+def test_save_crud_collection_data_success(mock_prepare, mock_validate, mock_collection_class):
+    user = "test_user"
+    bot = "test_bot"
+    payload = {
+        "collection_name": "test_collection",
+        "data": {"key1": "value1", "key2": "value2"},
+        "is_secure": ["key1"],
+        "is_editable": ["key2"]
+    }
+
+    # Setup mock for encrypted data
+    encrypted_data = {"key1": "encrypted_value1", "key2": "value2"}
+    mock_prepare.return_value = encrypted_data
+
+    # Setup mock for save() chain
+    mock_save_return = MagicMock()
+    mock_to_mongo = MagicMock()
+    mock_to_mongo.to_dict.return_value = {"_id": "abc123"}
+    mock_save_return.to_mongo.return_value = mock_to_mongo
+
+    mock_instance = MagicMock()
+    mock_instance.save.return_value = mock_save_return
+    mock_collection_class.return_value = mock_instance
+
+    from kairon.shared.data.processor_new import DataProcessor
+    result = DataProcessor.save_crud_collection_data(payload, user, bot)
+
+    assert result == "abc123"
+    mock_validate.assert_called_once_with("test_collection", ["key1"], {"key1": "value1", "key2": "value2"})
+    mock_prepare.assert_called_once_with({"key1": "value1", "key2": "value2"}, ["key1"])
+    mock_collection_class.assert_called_once()
+    mock_instance.save.assert_called_once()

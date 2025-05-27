@@ -2,7 +2,7 @@ import os
 from datetime import date, datetime
 from typing import List, Optional, Dict, Text
 
-from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
+from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
@@ -27,6 +27,7 @@ from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
 from kairon.shared.channels.mail.processor import MailProcessor
+from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     EventClass, AGENT_ACCESS
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
@@ -35,10 +36,12 @@ from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import ENDPOINT_TYPE, ModelTestType, \
     AuditlogActions
-from kairon.shared.data.data_models import FlowTagChangeRequest
+from kairon.shared.data.data_models import FlowTagChangeRequest, DeleteCollectionDataPayload, \
+    UpdateCollectionDataPayload, AddCollectionDataPayload, ListCollectionDataPayload, DeleteCollectionPayload
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.data.processor_new import DataProcessor
 from kairon.shared.events.processor import ExecutorProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.importer.processor import DataImporterLogProcessor
@@ -1700,3 +1703,91 @@ async def get_flow_tag(
     flows = mongo_processor.get_flows_by_tag(current_user.get_bot(), tag)
     return Response(data=flows)
 
+
+@router.get("/collections", response_model=Response)
+async def get_all_collections(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    List all collection names for the bot.
+    """
+    names = DataProcessor.get_all_collections(current_user.get_bot())
+    return Response(data=names)
+
+@router.delete("/collections", response_model=Response)
+async def delete_collection(
+    payload: DeleteCollectionPayload = Body(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Drop an entire collection and its documents.
+    """
+    message, deleted_count = DataProcessor.delete_collection(
+        bot=current_user.get_bot(),
+        name=payload.collection_name
+    )
+    return Response(message=message, data={"deleted": deleted_count})
+
+
+@router.post("/collections/data", response_model=Response)
+async def list_collection_data(
+    payload: ListCollectionDataPayload = Body(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    List all documents within a collection.
+    """
+    records = DataProcessor.list_collection_data(
+        bot=current_user.get_bot(),
+        name=payload.collection_name
+    )
+    return Response(data=records)
+
+
+@router.post("/collections/data/add", response_model=Response)
+async def add_collection_data(
+    payload: AddCollectionDataPayload = Body(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Insert a new document into a collection using secure-aware logic.
+    """
+    collection_id = DataProcessor.save_crud_collection_data(
+        payload=payload.dict(),
+        user=current_user.get_user(),
+        bot=current_user.get_bot()
+    )
+    return Response(message="Record saved!", data={"id": collection_id})
+
+
+@router.put("/collections/data/update", response_model=Response)
+async def update_collection_data(
+    payload: UpdateCollectionDataPayload = Body(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Merge new values into an existing document’s `data`, plus optional `is_secure` and `status`.
+    """
+    result = DataProcessor.update_crud_collection_data(
+        collection_id=payload.id,
+        user=current_user.get_user(),
+        payload=payload.dict(),
+        bot=current_user.get_bot()
+    )
+    return Response(data=result, message="Doccument Updated")
+
+
+@router.delete("/collections/data/delete", response_model=Response)
+async def delete_collection_data(
+    payload: DeleteCollectionDataPayload = Body(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Remove one document from a collection.
+    """
+    CognitionDataProcessor().delete_collection_data(
+        collection_id=payload.id,
+        bot=current_user.get_bot(),
+        user=current_user.get_user()
+    )
+    return Response(message="Record deleted!", data={"deleted": 1})
