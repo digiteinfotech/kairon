@@ -155,7 +155,7 @@ def test_get_collection_infos():
 
     action_info_keys = action_info.keys()
     other_collection_info_keys = other_collection_info.keys()
-    test_action_keys = ['http_action', 'two_stage_fallback', 'email_action', 'zendesk_action', 'jira_action', 'form_validation_action', 'slot_set_action', 'google_search_action', 'pipedrive_leads_action', 'prompt_action', 'web_search_action', 'razorpay_action', 'pyscript_action', 'database_action', 'live_agent_action', 'callback_action', 'schedule_action']
+    test_action_keys = ['http_action', 'two_stage_fallback', 'email_action', 'zendesk_action', 'jira_action', 'form_validation_action', 'slot_set_action', 'google_search_action', 'pipedrive_leads_action', 'prompt_action', 'web_search_action', 'razorpay_action', 'pyscript_action', 'database_action', 'live_agent_action', 'callback_action', 'schedule_action', 'parallel_action']
     test_other_collection_keys = ['callbackconfig']
 
     for k in test_action_keys:
@@ -166,7 +166,7 @@ def test_get_collection_infos():
         assert k in other_collection_info_keys
         assert other_collection_info[k].get('db_model') is not None
 
-    assert len(action_info_keys) == 17
+    assert len(action_info_keys) == 18
     assert len(other_collection_info_keys) == 1
 
 

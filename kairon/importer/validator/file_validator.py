@@ -330,6 +330,15 @@ class TrainingDataValidator(Validator):
 
         unused_actions = user_actions - utterance_in_domain - set(story_actions) - set(multiflow_actions) - {
             f'validate_{name}' for name in self.domain.form_names}
+
+        parallel_actions = set()
+        all_actions = self.actions
+        if all_actions and 'parallel_action' in all_actions:
+            for action in all_actions['parallel_action']:
+                parallel_actions.update(action['actions'])
+
+        unused_actions -= parallel_actions
+
         for action in unused_actions:
             if action not in system_triggered_actions.union(fallback_action):
                 msg = f"The action '{action}' is not used in any story."

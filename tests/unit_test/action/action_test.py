@@ -6,6 +6,7 @@ from unittest import mock
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
+from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.utils import Utility
 Utility.load_system_metadata()
@@ -41,7 +42,7 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig, WebSearchAction, \
-    CustomActionParameters
+    CustomActionParameters, ParallelActionConfig
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -1054,6 +1055,288 @@ class TestActions:
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is None
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_parallel_action(self, mock_get_action, aioresponses):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d21", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'parallel_action'}]}
+        action_name = "test_run_parallel_action"
+
+        ParallelActionConfig(
+            name= action_name,
+            bot = "5f50fd0a56b698ca10d35d21",
+            user = "user",
+            actions = ["test_run_pyscript_action"],
+            response_text = "Parallel Action Success",
+            dispatch_response_text = True
+        ).save()
+
+        pyscript_name = "test_run_pyscript_action"
+        script = """
+            numbers = [1, 2, 3, 4, 5]
+            total = 0
+            for i in numbers:
+                total += i
+            print(total)
+            """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=pyscript_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d21",
+            user="user"
+        ).save()
+
+        def _get_action(bot: str, name: str):
+            if name == "test_run_parallel_action":
+                return {"type": ActionType.parallel_action.value}
+            else:
+                return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            responses.POST,
+            Utility.environment["async_callback_action"]["pyscript"]["url"],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                    "slots": {"param2": "param2value"}
+                },
+                "statusCode": 200
+            },
+            status=200,
+            match=[responses.matchers.json_params_matcher({
+                "source_code": script,
+                "predefined_objects": {
+                    "sender_id": "sender1",
+                    "user_message": "get intents",
+                    "latest_message": {
+                        "intent_ranking": [{"name": "parallel_action"}],
+                        "text": "get intents"
+                    },
+                    "slot": {
+                        "param2": "param2value",
+                        "bot": "5f50fd0a56b698ca10d35d21"
+                    },
+                    "intent": "parallel_action",
+                    "chat_log": [],
+                    "key_vault": {},
+                    "kairon_user_msg": None,
+                    "session_started": None
+                }
+            })]
+        )
+        mock_get_action.side_effect = _get_action
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+
+        aioresponses.add(
+            method="POST",
+            url=Utility.environment["action"]["url"],
+            payload={
+                "events": [
+                    {'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                    {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                     'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}
+                ],
+                "responses": [
+                    {"text": None, "buttons": [], "elements": [],
+                     "custom": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                     "template": None, "response": None, "image": None, "attachment": None}
+                ]
+            },
+            status=200
+        )
+
+
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d21",
+                                       status="SUCCESS").get().to_mongo().to_dict()
+
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {
+            "type": "parallel_action",
+            "intent": "parallel_action",
+            "action": "test_run_parallel_action",
+            "sender": "sender1",
+            "headers": {},
+            "bot_response": "Parallel Action Success",
+            "bot": "5f50fd0a56b698ca10d35d21",
+            "status": "SUCCESS",
+            "executed_actions_info": [
+                {
+                    "name": "test_run_pyscript_action",
+                    "status": "SUCCESS",
+                    "slot_changes": {
+                        "param2": "param2value",
+                        "kairon_action_response": {
+                            "numbers": [1, 2, 3, 4, 5],
+                            "total": 15,
+                            "i": 5
+                        }
+                    }
+                }
+            ],
+            "user_msg": "get intents"
+        }
+        assert len(actual) == 2
+        assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                          {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                           'value': 'Parallel Action Success'}]
+        ParallelActionConfig.objects(name=action_name).delete()
+        PyscriptActionConfig.objects(name=pyscript_name).delete()
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_parallel_action_without_action(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d21", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'parallel_action'}]}
+        action_name = "test_run_parallel_action"
+
+        pyscript_name = "test_run_pyscript_action"
+        script = """
+                numbers = [1, 2, 3, 4, 5]
+                total = 0
+                for i in numbers:
+                    total += i
+                print(total)
+                """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=pyscript_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d21",
+            user="user"
+        ).save()
+
+        def _get_action(bot: str, name: str):
+            if name == "test_run_parallel_action":
+                return {"type": ActionType.parallel_action.value}
+            else:
+                return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            responses.POST,
+            Utility.environment["async_callback_action"]["pyscript"]["url"],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                    "slots": {"param2": "param2value"}
+                },
+                "statusCode": 200
+            },
+            status=200,
+            match=[responses.matchers.json_params_matcher({
+                "source_code": script,
+                "predefined_objects": {
+                    "sender_id": "sender1",
+                    "user_message": "get intents",
+                    "latest_message": {
+                        "intent_ranking": [{"name": "parallel_action"}],
+                        "text": "get intents"
+                    },
+                    "slot": {
+                        "param2": "param2value",
+                        "bot": "5f50fd0a56b698ca10d35d21"
+                    },
+                    "intent": "parallel_action",
+                    "chat_log": [],
+                    "key_vault": {},
+                    "kairon_user_msg": None,
+                    "session_started": None
+                }
+            })]
+        )
+        mock_get_action.side_effect = _get_action
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name,action_call = action_call)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action= action_name,
+                                       bot="5f50fd0a56b698ca10d35d21",
+                                       status="FAILURE").get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {
+            "type": "parallel_action",
+            "intent": "parallel_action",
+            "action": "test_run_parallel_action",
+            "sender": "sender1",
+            "headers": {},
+            "exception": "No parallel action found for given action and bot",
+            "bot": "5f50fd0a56b698ca10d35d21",
+            "status": "FAILURE",
+            "executed_actions_info": [],
+            "user_msg": "get intents"
+        }
+        assert log['exception'] == "No parallel action found for given action and bot"
+        ParallelActionConfig.objects(name=action_name).delete()
+        PyscriptActionConfig.objects(name=pyscript_name).delete()
+
+    def test_get_parallel_action_config_bot_empty(self):
+        with pytest.raises(ActionFailure, match="No parallel action found for given action and bot"):
+            ActionParallel(' ', 'test_get_parallel_action_config_bot_empty').retrieve_config()
+
+    def test_get_parallel_action_config_action_empty(self):
+        with pytest.raises(ActionFailure, match="No parallel action found for given action and bot"):
+            ActionParallel('test_get_parallel_action_config_action_empty', ' ').retrieve_config()
+
+    def test_get_parallel_action_no_bot(self):
+        with pytest.raises(ActionFailure, match="No parallel action found for given action and bot"):
+            ActionParallel(bot=None, name="http_action").retrieve_config()
+
+    def test_get_parallel_action_no_parallel_action(self):
+        with pytest.raises(ActionFailure, match="No parallel action found for given action and bot"):
+            ActionParallel(bot="bot", name=None).retrieve_config()
+
+    def test_get_parallel_action_config(self):
+        action_name = "test_get_parallel_action_config"
+        expected = ParallelActionConfig(
+            name=action_name,
+            bot="5f50fd0a56b698ca10d35d21",
+            user="user",
+            actions=["test_run_pyscript_action"],
+            response_text="Parallel Action Success",
+            dispatch_response_text=False
+        ).save().to_mongo().to_dict()
+
+        actual = ActionParallel("5f50fd0a56b698ca10d35d21", action_name).retrieve_config()
+        assert actual is not None
+        assert expected['name'] == actual['name']
+        assert expected['actions'] == actual['actions']
+        assert expected['response_text'] == actual['response_text']
+        assert actual['status']
 
     def test_get_pyscript_action_config_bot_empty(self):
         with pytest.raises(ActionFailure, match="No pyscript action found for given action and bot"):

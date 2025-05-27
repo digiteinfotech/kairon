@@ -10,6 +10,7 @@ from ...shared.actions.data_objects import ActionServerLogs
 from ...shared.actions.exception import ActionFailure
 from ...shared.actions.utils import ActionUtility
 from loguru import logger
+from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 
 
 class ActionProcessor:
@@ -17,13 +18,13 @@ class ActionProcessor:
     @staticmethod
     async def process_action(dispatcher: CollectingDispatcher,
                              tracker: Tracker,
-                             domain: Dict[Text, Any], action: Text) -> List[Dict[Text, Any]]:
-        return await ActionProcessor.__process_action(dispatcher, tracker, domain, action)
+                             domain: Dict[Text, Any], action: Text, **kwargs) -> List[Dict[Text, Any]]:
+        return await ActionProcessor.__process_action(dispatcher=dispatcher, tracker=tracker, domain=domain, action=action, **kwargs)
 
     @staticmethod
     async def __process_action(dispatcher: CollectingDispatcher,
                                tracker: Tracker,
-                               domain: Dict[Text, Any], action) -> List[Dict[Text, Any]]:
+                               domain: Dict[Text, Any], action, **kwargs) -> List[Dict[Text, Any]]:
         try:
             logger.info(tracker.current_slot_values())
             intent = tracker.get_intent_of_latest_message()
@@ -33,7 +34,12 @@ class ActionProcessor:
             if ActionUtility.is_empty(bot_id) or ActionUtility.is_empty(action):
                 raise ActionFailure("Bot id and action name not found in slot")
 
-            slots = await ActionFactory.get_instance(bot_id, action).execute(dispatcher, tracker, domain)
+            action_instance = ActionFactory.get_instance(bot_id, action)
+
+            if isinstance(action_instance, ActionParallel):
+                slots = await action_instance.execute(dispatcher=dispatcher, tracker=tracker, domain=domain, **kwargs)
+            else:
+                slots = await action_instance.execute(dispatcher=dispatcher, tracker=tracker, domain=domain)
             return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)

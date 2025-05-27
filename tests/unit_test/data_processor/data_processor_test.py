@@ -58,7 +58,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
     DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction, PromptAction, UserQuestion, DbQuery, \
     CallbackActionConfig, CustomActionDynamicParameters, ScheduleAction, LiveAgentActionConfig, \
-    KaironTwoStageFallbackAction
+    KaironTwoStageFallbackAction, ParallelActionConfig
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
 from kairon.shared.actions.models import ActionType, DispatchType, DbActionOperationType, DbQueryValueType, \
     ActionParameterType
@@ -8484,7 +8484,8 @@ class TestMongoProcessor:
                             'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
                             'pipedrive_leads_action': [], 'prompt_action': [], 'razorpay_action': [],
                             'pyscript_action': [], 'database_action': [], 'callback_action': [], 'callbackconfig': [],
-                            'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': []
+                            'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': [],
+                            'parallel_action': [],
                         }, ignore_order=True)
                         assert non_event_validation_summary['component_count']['http_action'] == 4
                         assert non_event_validation_summary['component_count']['jira_action'] == 2
@@ -13964,7 +13965,7 @@ class TestMongoProcessor:
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-            'callback_action': [], 'schedule_action': [],
+            'callback_action': [], 'schedule_action': [],'parallel_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -13988,6 +13989,7 @@ class TestMongoProcessor:
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
+            'parallel_action': []
         }
 
     def test_add_complex_story(self):
@@ -14013,7 +14015,7 @@ class TestMongoProcessor:
                                       'kairon_bot_response': [],
                                       'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
                                       'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-                                      'callback_action': [], 'schedule_action': [],
+                                      'callback_action': [], 'schedule_action': [],'parallel_action': [],
                                       'utterances': ['utter_greet',
                                                      'utter_cheer_up',
                                                      'utter_did_that_help',
@@ -15904,7 +15906,7 @@ class TestMongoProcessor:
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
             'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
-                           'utter_please_rephrase'], 'web_search_action': []}, ignore_order=True)
+                           'utter_please_rephrase'], 'web_search_action': [], 'parallel_action': []}, ignore_order=True)
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -16012,7 +16014,7 @@ class TestMongoProcessor:
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-            'callback_action': [], 'schedule_action': [],
+            'callback_action': [], 'schedule_action': [], 'parallel_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',
@@ -19327,3 +19329,295 @@ class TestModelProcessor:
         processor = MongoProcessor()
         action = processor.get_schedule_action(bot, name)
         assert action is None
+
+    def test_add_parallel_action_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2]
+        }
+
+        action_id = processor.add_parallel_action(request_data, bot, user)
+
+        result = ParallelActionConfig.objects(id=action_id, bot=bot).first()
+        assert result is not None
+        assert result.name == "parallel_test_action"
+        assert result.actions == [action_1, action_2]
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
+
+    def test_add_parallel_action_invalid_name(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "valid_action"
+        processor.add_action(action_1, bot, user)
+
+        request_data = {
+            "name": "invalid name!",
+            "dispatch_response_text": True,
+            "response_text": "Invalid name case",
+            "actions": [action_1]
+        }
+
+        with pytest.raises(AppException, match="Invalid name! Only letters, numbers, and underscores"):
+            processor.add_parallel_action(request_data, bot, user)
+
+        Actions.objects(name=action_1, bot=bot).delete()
+
+    def test_add_parallel_action_duplicate_name_in_actions(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action1 = "action1"
+        duplicate_name = "duplicate_action"
+        processor.add_action(duplicate_name, bot, user)
+        processor.add_action(action1, bot, user)
+
+        request_data = {
+            "name": duplicate_name,
+            "dispatch_response_text": True,
+            "response_text": "should fail",
+            "actions": [action1]
+        }
+
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_parallel_action(request_data, bot, user)
+
+        Actions.objects(name__in=[duplicate_name, action1], bot=bot).delete()
+
+    def test_add_parallel_action_duplicate_name_in_parallel_config(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action1 = "action1"
+        existing_parallel = "existing_parallel_action"
+        processor.add_action(action1, bot, user)
+
+        request_data_1 = {
+            "name": existing_parallel,
+            "dispatch_response_text": True,
+            "response_text": "first one",
+            "actions": [action1]
+        }
+
+        processor.add_parallel_action(request_data_1, bot, user)
+
+        request_data_2 = {
+            "name": existing_parallel,
+            "dispatch_response_text": False,
+            "response_text": "duplicate entry",
+            "actions": [action1]
+        }
+
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_parallel_action(request_data_2, bot, user)
+
+        Actions.objects(name__in=[existing_parallel, action1], bot=bot).delete()
+        ParallelActionConfig.objects(name=existing_parallel, bot=bot).delete()
+
+    def test_add_parallel_action_missing_subaction(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        valid_action = "valid_action"
+        missing_action = "missing_action"
+        processor.add_action(valid_action, bot, user)
+
+        request_data = {
+            "name": "parallel_missing_action",
+            "dispatch_response_text": False,
+            "response_text": "error case",
+            "actions": [valid_action, missing_action]
+        }
+
+        with pytest.raises(AppException, match=f"Action with name {missing_action} does not exist!"):
+            processor.add_parallel_action(request_data, bot, user)
+
+        Actions.objects(name=valid_action, bot=bot).delete()
+
+    def test_update_parallel_action_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+        parallel_name = "update_test_parallel"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        create_data = {
+            "name": parallel_name,
+            "dispatch_response_text": False,
+            "response_text": "Initial",
+            "actions": [action_1]
+        }
+
+        processor.add_parallel_action(create_data, bot, user)
+
+        update_data = {
+            "name": parallel_name,
+            "response_text": "Updated response",
+            "actions": [action_1, action_2]
+        }
+
+        updated_id = processor.update_parallel_action(update_data, bot, user)
+        updated = ParallelActionConfig.objects(id=updated_id).first()
+
+        assert updated is not None
+        assert updated.response_text == "Updated response"
+        assert set(updated.actions) == {action_1, action_2}
+        assert updated.user == user
+
+        Actions.objects(name__in=[action_1, action_2, parallel_name], bot=bot).delete()
+        ParallelActionConfig.objects(name=parallel_name, bot=bot).delete()
+
+    def test_update_parallel_action_invalid_name(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        request_data = {
+            "name": "invalid name!",
+            "response_text": "invalid case",
+            "actions": ["action_1"]
+        }
+
+        with pytest.raises(AppException, match="Invalid name! Only letters, numbers, and underscores"):
+            processor.update_parallel_action(request_data, bot, user)
+
+    def test_update_parallel_action_not_found(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        request_data = {
+            "name": "non_existing_parallel",
+            "response_text": "trying to update",
+            "actions": ["action_1"]
+        }
+
+        with pytest.raises(AppException, match="Parallel Action with name 'non_existing_parallel' not found!"):
+            processor.update_parallel_action(request_data, bot, user)
+
+    def test_update_parallel_action_missing_sub_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        existing_action = "existing_action"
+        missing_action = "missing_action"
+        parallel_name = "update_missing_sub"
+
+        processor.add_action(existing_action, bot, user)
+
+        create_data = {
+            "name": parallel_name,
+            "dispatch_response_text": False,
+            "response_text": "Initial",
+            "actions": [existing_action]
+        }
+
+        processor.add_parallel_action(create_data, bot, user)
+
+        update_data = {
+            "name": parallel_name,
+            "response_text": "Trying to add missing action",
+            "actions": [existing_action, missing_action]
+        }
+
+        with pytest.raises(AppException, match=f"Action with name {missing_action} does not exist!"):
+            processor.update_parallel_action(update_data, bot, user)
+
+        Actions.objects(name__in=[existing_action, parallel_name], bot=bot).delete()
+        ParallelActionConfig.objects(name=parallel_name, bot=bot).delete()
+
+    def test_list_parallel_action_returns_created_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "list_action_1"
+        action_2 = "list_action_2"
+        parallel_name = "parallel_list_test"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": parallel_name,
+            "dispatch_response_text": True,
+            "response_text": "List test response",
+            "actions": [action_1, action_2]
+        }
+
+        processor.add_parallel_action(request_data, bot, user)
+
+        result = list(processor.list_parallel_action(bot))
+        found = next((action for action in result if action["name"] == parallel_name), None)
+
+        assert found is not None
+        assert found["name"] == parallel_name
+        assert found["actions"] == [action_1, action_2]
+        assert "user" not in found
+        assert "bot" not in found
+        assert "status" not in found
+
+        Actions.objects(name__in=[action_1, action_2, parallel_name], bot=bot).delete()
+        ParallelActionConfig.objects(name=parallel_name, bot=bot).delete()
+
+    def test_list_parallel_action_empty_when_none_exist(self):
+        bot = "test_bot_empty_list"
+        processor = MongoProcessor()
+
+        result = list(processor.list_parallel_action(bot))
+        assert result == []
+
+    def test_list_existing_actions_for_parallel_action_success(self):
+
+        bot = "test_bot"
+        user = "test_user"
+        processor = MongoProcessor()
+        Actions.objects(bot=bot).delete()
+        action_1 = "http_action_1"
+        action_2 = "email_action_1"
+        action_3 = "jira_action_1"
+        action_4 = "live_agent_action_1"
+        action_5 = "parallel_action_1"
+
+        processor.add_action(action_1, bot, user, action_type=ActionType.http_action)
+        processor.add_action(action_2, bot, user, action_type=ActionType.email_action)
+        processor.add_action(action_3, bot, user, action_type=ActionType.jira_action)
+        processor.add_action(action_4, bot, user, action_type=ActionType.live_agent_action)
+        processor.add_action(action_5, bot, user, action_type=ActionType.parallel_action)
+
+        result = list(processor.list_existing_actions_for_parallel_action(bot))
+
+        assert len(result) == 3
+
+        action_names = [action["name"] for action in result]
+        assert action_1 in action_names
+        assert action_2 in action_names
+        assert action_3 in action_names
+        assert action_4 not in action_names
+        assert action_5 not in action_names
+
+        Actions.objects(name__in=[action_1, action_2, action_3, action_4, action_5], bot=bot).delete()

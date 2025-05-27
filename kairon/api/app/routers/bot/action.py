@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Path, Security, Depends, Request
 
 from kairon.shared.callback.data_objects import CallbackConfig
+from kairon.shared.data.data_models import ParallelActionRequest
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
@@ -749,6 +750,15 @@ async def list_available_actions(
     actions = list(mongo_processor.list_all_actions(bot=current_user.get_bot()))
     return Response(data=actions)
 
+@router.get("/parallel/actions", response_model=Response)
+async def list_existing__actions_for_parallel_action(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of all actions for bot.
+    """
+    actions = list(mongo_processor.list_existing_actions_for_parallel_action(bot=current_user.get_bot()))
+    return Response(data=actions)
+
 
 @router.post("/schedule", response_model=Response)
 async def add_schedule_action(
@@ -780,4 +790,37 @@ async def list_schedule_actions(current_user: User = Security(Authentication.get
     Returns list of schedule actions for bot.
     """
     actions = list(mongo_processor.list_schedule_action(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.post("/parallel", response_model=Response)
+async def add_parallel_actions(
+        request_data: ParallelActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Add the parallel action
+    """
+    action_id = mongo_processor.add_parallel_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action added!")
+
+
+@router.put("/parallel", response_model=Response)
+async def update_parallel_actions(
+        request_data: ParallelActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Update the parallel action
+    """
+    action_id = mongo_processor.update_parallel_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action updated!")
+
+
+@router.get("/parallel", response_model=Response)
+async def list_parallel_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of parallel actions for bot.
+    """
+    actions = list(mongo_processor.list_parallel_action(current_user.get_bot()))
     return Response(data=actions)

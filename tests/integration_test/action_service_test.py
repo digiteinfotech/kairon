@@ -3,6 +3,9 @@ import datetime
 import os
 from unittest.mock import patch
 from urllib.parse import urlencode, urljoin
+
+from aioresponses import aioresponses
+
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -36,7 +39,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
     DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion, LiveAgentActionConfig, \
-    CustomActionParameters, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType
+    CustomActionParameters, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType, \
+    ParallelActionConfig
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
@@ -205,7 +209,7 @@ def test_callback_action_execution(aioresponses):
                    'headers': {}, 'bot_response': 'Hello',
                    'messages': [], 'bot': '6697add6b8e47524eb983373',
                    'status': 'SUCCESS', 'user_msg': 'get intents',
-                   'callback_url_slot': 'callback_url', 'metadata': {}}
+                   'executed_actions_info': [], 'callback_url_slot': 'callback_url', 'metadata': {}}
 
 
 def test_callback_action_execution_fail_no_callback_config(aioresponses):
@@ -320,7 +324,7 @@ def test_callback_action_execution_fail_no_callback_config(aioresponses):
                    'messages': [], 'bot': '6697add6b8e47524eb983373',
                    'exception': "Callback Configuration with name 'callback_script3' does not exist!",
                    'status': 'FAILURE', 'user_msg': 'get intents',
-                   'callback_url_slot': 'callback_url', 'metadata': {}}
+                   'executed_actions_info': [], 'callback_url_slot': 'callback_url', 'metadata': {}}
 
 
 def test_live_agent_action_execution(aioresponses):
@@ -435,7 +439,7 @@ def test_live_agent_action_execution(aioresponses):
     log.pop('timestamp')
     assert log == {'type': 'live_agent_action', 'intent': 'live_agent_action', 'action': 'live_agent_action',
                    'sender': 'default', 'headers': {}, 'bot_response': 'Connecting to live agent', 'messages': [],
-                   'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+                   'executed_actions_info': [], 'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
 
 def test_live_agent_action_execution_no_agent_available(aioresponses):
@@ -704,6 +708,462 @@ def test_process_razorpay_action_with_notes():
                                             'elements': [], 'image': None, 'response': None,
                                             'template': None, 'text': 'https://rzp.io/i/nxrHnLJ'}]}
 
+@responses.activate
+@pytest.mark.asyncio
+def test_parallel_action_execution(aioresponses):
+    import textwrap
+    name = "test_parallel_action_execution"
+    Actions(name=name, type=ActionType.parallel_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+
+    ParallelActionConfig(
+        name=name,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user",
+        actions=["test_pyscript_action_execution", "test_api_action_execution"],
+        response_text="Parallel Action Executed",
+        dispatch_response_text=True
+    ).save()
+
+    action_name = "test_pyscript_action_execution"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    Actions(name="test_api_action_execution", type=ActionType.http_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+
+    HttpActionConfig(
+        action_name="test_api_action_execution",
+        http_url="http://example.com/api",
+        request_method="POST",
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user",
+        response = HttpActionResponse(value="API action 1 success"),
+    ).save()
+
+    request_object = {
+        "next_action": name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'parallel_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+
+    aioresponses.add(
+        method="POST",
+        url=Utility.environment["action"]["url"],
+        payload={
+            "events": [
+                {"event": "slot", "timestamp": None, "name": "location", "value": "Bangalore"},
+                {"event": "slot", "timestamp": None, "name": "langauge", "value": "Kannada"},
+                {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+                 "value": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5}}
+            ],
+            "responses": [
+                {"text": None, "buttons": [], "elements": [],
+                 "custom": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                 "template": None, "response": None, "image": None, "attachment": None}
+            ]
+        },
+        status=200
+    )
+
+    aioresponses.add(
+        method="POST",
+        url=Utility.environment["action"]["url"],
+        payload={
+            "events": [
+                {"event": "slot", "timestamp": None, "name": "kairon_action_response", "value": "API action 1 success"},
+                {"event": "slot", "timestamp": None, "name": "http_status_code", "value": 200}
+            ],
+            "responses": [
+                {"text": "API action 1 success", "buttons": [], "elements": [],
+                 "custom": {}, "template": None, "response": None, "image": None, "attachment": None}
+            ]
+        },
+        status=200
+    )
+
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json['events']) == 4
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'Parallel Action Executed'},
+        {'event': 'slot', 'timestamp': None, 'name': 'http_status_code', 'value': 200}]
+    assert response_json['responses'][0]['text'] == 'Parallel Action Executed'
+    log = ActionServerLogs.objects(action="test_parallel_action_execution").get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log == {
+        "type": "parallel_action",
+        "intent": "parallel_action",
+        "action": "test_parallel_action_execution",
+        "sender": "default",
+        "headers": {},
+        "bot_response": "Parallel Action Executed",
+        "bot": "5f50fd0a56b698ca10d35d2z",
+        "status": "SUCCESS",
+        "executed_actions_info": [
+            {
+                "name": "test_pyscript_action_execution",
+                "status": "SUCCESS",
+                "slot_changes": {
+                    "location": "Bangalore",
+                    "langauge": "Kannada",
+                    "kairon_action_response": {
+                        "numbers": [1, 2, 3, 4, 5],
+                        "total": 15,
+                        "i": 5
+                    }
+                }
+            },
+            {
+                "name": "test_api_action_execution",
+                "status": "SUCCESS",
+                "slot_changes": {
+                    "http_status_code": 200,
+                    "kairon_action_response": "API action 1 success"
+                }
+            }
+        ],
+        "user_msg": "get intents"
+    }
+    Actions.objects(name="test_pyscript_action_execution").delete()
+    PyscriptActionConfig.objects(name="test_pyscript_action_execution").delete()
+    Actions.objects(name="test_api_action_execution").delete()
+    HttpActionConfig.objects(action_name="test_api_action_execution").delete()
+    Actions.objects(name="test_parallel_action_execution").delete()
+    ParallelActionConfig.objects(name="test_parallel_action_execution").delete()
+    ActionServerLogs.objects(action="test_parallel_action_execution").delete()
+
+@responses.activate
+@pytest.mark.asyncio
+def test_parallel_action_execution_dispatch_response_false(aioresponses):
+    import textwrap
+    name = "test_parallel_action_execution"
+    Actions(name=name, type=ActionType.parallel_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+
+    ParallelActionConfig(
+        name=name,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user",
+        actions=["test_pyscript_action_execution"],
+        response_text="Parallel Action Executed",
+        dispatch_response_text=False
+    ).save()
+
+    action_name = "test_pyscript_action_execution"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "statusCode": 200,
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher({'source_code': script,
+                                                       'predefined_objects': {'chat_log': [],
+                                                                              'intent': 'pyscript_action',
+                                                                              'kairon_user_msg': None, 'key_vault': {},
+                                                                              'latest_message': {'intent_ranking': [
+                                                                                  {'name': 'pyscript_action'}],
+                                                                                  'text': 'get intents'},
+                                                                              'sender_id': 'default',
+                                                                              'session_started': None,
+                                                                              'slot': {
+                                                                                  'bot': '5f50fd0a56b698ca10d35d2z',
+                                                                                  'langauge': 'Kannada',
+                                                                                  'location': 'Bangalore'},
+                                                                              'user_message': 'get intents'}
+
+                                                       })]
+    )
+
+    request_object = {
+        "next_action": name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+
+    aioresponses.add(
+        method="POST",
+        url=Utility.environment["action"]["url"],
+        payload={
+            "events": [
+                {"event": "slot", "timestamp": None, "name": "location", "value": "Bangalore"},
+                {"event": "slot", "timestamp": None, "name": "langauge", "value": "Kannada"},
+                {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+                 "value": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5}}
+            ],
+            "responses": [
+                {"text": None, "buttons": [], "elements": [],
+                 "custom": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                 "template": None, "response": None, "image": None, "attachment": None}
+            ]
+        },
+        status=200
+    )
+
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 0
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}]
+    log = ActionServerLogs.objects(action="test_parallel_action_execution").get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log == {
+        "type": "parallel_action",
+        "intent": "pyscript_action",
+        "action": "test_parallel_action_execution",
+        "sender": "default",
+        "headers": {},
+        "bot": "5f50fd0a56b698ca10d35d2z",
+        "status": "SUCCESS",
+        "executed_actions_info": [
+            {
+                "name": "test_pyscript_action_execution",
+                "status": "SUCCESS",
+                "slot_changes": {
+                    "location": "Bangalore",
+                    "langauge": "Kannada",
+                    "kairon_action_response": {
+                        "numbers": [1, 2, 3, 4, 5],
+                        "total": 15,
+                        "i": 5
+                    }
+                }
+            }
+        ],
+        "user_msg": "get intents"
+    }
+    PyscriptActionConfig.objects(name="test_pyscript_action_execution").delete()
+    Actions.objects(name="test_pyscript_action_execution").delete()
+    Actions.objects(name="test_parallel_action_execution").delete()
+    ParallelActionConfig.objects(name="test_parallel_action_execution").delete()
+    ActionServerLogs.objects(action="test_parallel_action_execution").delete()
+
+@responses.activate
+@pytest.mark.asyncio
+def test_parallel_action_execution_failure(aioresponses):
+    import textwrap
+    name = "test_parallel_action_execution"
+    Actions(name=name, type=ActionType.parallel_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+
+    ParallelActionConfig(
+        name=name,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user",
+        actions=["test_pyscript_action_execution"],
+        response_text="Parallel Action Executed",
+        dispatch_response_text=True
+    ).save()
+
+    action_name = "test_pyscript_action_execution"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "statusCode": 200,
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher({'source_code': script,
+                                                       'predefined_objects': {'chat_log': [],
+                                                                              'intent': 'pyscript_action',
+                                                                              'kairon_user_msg': None, 'key_vault': {},
+                                                                              'latest_message': {'intent_ranking': [
+                                                                                  {'name': 'pyscript_action'}],
+                                                                                  'text': 'get intents'},
+                                                                              'sender_id': 'default',
+                                                                              'session_started': None,
+                                                                              'slot': {
+                                                                                  'bot': '5f50fd0a56b698ca10d35d2z',
+                                                                                  'langauge': 'Kannada',
+                                                                                  'location': 'Bangalore'},
+                                                                              'user_message': 'get intents'}
+
+                                                       })]
+    )
+
+    request_object = {
+        "next_action": name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+
+    aioresponses.add(
+        method="POST",
+        url=Utility.environment["action"]["url"],
+        status=422,
+        payload={
+            "detail": "Unprocessable Entity",
+            "error_code": 422
+        }
+    )
+
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Parallel Action Executed'}
+    ]
+    assert response_json['responses'][0]['text'] == 'Parallel Action Executed'
+    log = ActionServerLogs.objects(action="test_parallel_action_execution").get().to_mongo().to_dict()
+    print(log)
+    log.pop('_id')
+    log.pop('timestamp')
+    assert log == {
+        "type": "parallel_action",
+        "intent": "pyscript_action",
+        "action": "test_parallel_action_execution",
+        "sender": "default",
+        "headers": {},
+        "bot_response": "Parallel Action Executed",
+        "bot": "5f50fd0a56b698ca10d35d2z",
+        "status": "SUCCESS",
+        "executed_actions_info": [
+            {
+                "name": "test_pyscript_action_execution",
+                "status": "FAILURE",
+                "slot_changes": {}
+            }
+        ],
+        "user_msg": "get intents"
+    }
+    PyscriptActionConfig.objects(name="test_pyscript_action_execution").delete()
+    Actions.objects(name="test_pyscript_action_execution").delete()
+    Actions.objects(name="test_parallel_action_execution").delete()
+    ParallelActionConfig.objects(name="test_parallel_action_execution").delete()
+    ActionServerLogs.objects(action="test_parallel_action_execution").delete()
 
 @responses.activate
 def test_pyscript_action_execution():
@@ -1781,7 +2241,7 @@ def test_http_action_execution(aioresponses):
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                   'user_msg': 'get intents', 'http_status_code': 200
+                   'executed_actions_info': [], 'user_msg': 'get intents', 'http_status_code': 200
                    }
 
 
@@ -2276,7 +2736,7 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
                                          'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
                                          "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                          'response: red']}]
-    assert log == {'type': 'http_action', 'intent': 'test_run',
+    assert log == {'type': 'http_action', 'intent': 'test_run','executed_actions_info': [],
                    'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default', 'headers': {},
                    'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
@@ -2396,7 +2856,7 @@ def test_http_action_execution_script_evaluation(aioresponses):
                    'action': 'test_http_action_execution_script_evaluation', 'sender': 'default', 'headers': {},
                    'url': 'http://localhost:8081/mock', 'request_method': 'GET', 'bot_response': 'Mayank',
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                   'user_msg': 'get intents', 'http_status_code': 200}
+                   'executed_actions_info': [], 'user_msg': 'get intents', 'http_status_code': 200}
 
 
 @responses.activate
@@ -2524,7 +2984,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_post',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
                    'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
-                   'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
+                   'executed_actions_info': [], 'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
 
 @responses.activate
@@ -2673,7 +3133,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
-                   'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
+                   'executed_actions_info': [], 'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
 
 @responses.activate
@@ -2820,7 +3280,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
                        'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
                        'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                       'user_msg': 'get intents', 'http_status_code': 200}
+                       'executed_actions_info': [], 'user_msg': 'get intents', 'http_status_code': 200}
 
 
 @responses.activate
@@ -2987,7 +3447,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
                        'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
                        'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
                         'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
-                       'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
+                       'executed_actions_info': [], 'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
 
 @responses.activate
@@ -3339,7 +3799,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
                               'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock',
                               'request_method': 'GET', 'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e',
                               'status': 'SUCCESS', 'fail_reason': None, 'user_msg': 'get intents',
-                              'http_status_code': 200}, ignore_order=True)
+                              'executed_actions_info': [], 'http_status_code': 200}, ignore_order=True)
 
 
 @responses.activate
@@ -3720,7 +4180,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
                    'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET',
                    'bot_response': 'I have failed to process your request', 'bot': '5f50fd0a56b698ca10d35d2e',
                    'status': 'FAILURE', 'fail_reason': 'Got non-200 status code:408 http_response:None',
-                   'user_msg': 'get intents', 'time_elapsed': 0, 'http_status_code': 408}
+                   'executed_actions_info': [], 'user_msg': 'get intents', 'time_elapsed': 0, 'http_status_code': 408}
 
 
 def test_http_action_missing_action_name():
@@ -14085,7 +14545,7 @@ def test_schedule_action_invalid_date():
     assert log == {'type': 'schedule_action', 'intent': 'test_run',
                    'action': action_name, 'sender': 'default', 'headers': {},
                    'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
-                   'bot': bot,
+                   'bot': bot,'executed_actions_info': [],
                    'status': 'FAILURE',
                    'user_msg': 'get intents', 'schedule_action': callback_script,
                    'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
@@ -14165,6 +14625,7 @@ def test_schedule_action_invalid_callback():
                    'user_msg': 'get intents', 'schedule_action': 'invalid_callback',
                    'timezone': 'Asia/Kolkata',
                    'execution_info': None,
+                   'executed_actions_info': [],
                    'exception': 'Callback Configuration with name \'invalid_callback\' does not exist!'}
 
 
@@ -14251,6 +14712,7 @@ def test_schedule_action_execution(mock_add_job, aioresponses):
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                       'executed_actions_info': [],
                        'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {'user': '1011'}}
 
@@ -14353,6 +14815,7 @@ def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponse
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                       'executed_actions_info': [],
                        'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {}}
 
@@ -14459,6 +14922,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                       'executed_actions_info': [],
                        'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {'bot': '**********************74', 'user': '1011'}}
 
@@ -14558,6 +15022,7 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'greet',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
+                       'executed_actions_info': [],
                        'execution_info': {'flow': "greet", 'type': 'flow'},
                        'data': {'bot': '**********************74', 'user': '1011'}}
 

@@ -270,6 +270,7 @@ class ActionServerLogs(DynamicDocument):
     bot = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
     status = StringField(default="SUCCESS")
+    executed_actions_info = ListField()
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "-timestamp")]}]}
 
@@ -998,3 +999,20 @@ class ScheduleAction(Auditlog):
             raise ValidationError(
                 "Fields name, schedule_time, schedule_action are required!"
             )
+
+@auditlogger.log
+@push_notification.apply
+class ParallelActionConfig(Auditlog):
+    """
+    Model to store the configuration for parallel actions.
+    """
+    name = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    actions = ListField(StringField(), required=True)
+    response_text = StringField(required=False)
+    dispatch_response_text = BooleanField(default=False)
+    status = BooleanField(default=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
