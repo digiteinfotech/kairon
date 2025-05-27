@@ -38,7 +38,7 @@ class ActionParallel(ActionsBase):
         @return: Action configuration dictionary.
         """
         try:
-            p_action_config_dict = ParallelActionConfig .objects().get(
+            p_action_config_dict = ParallelActionConfig.objects().get(
                 bot=self.bot, name=self.name, status=True
             ).to_mongo().to_dict()
             return p_action_config_dict
