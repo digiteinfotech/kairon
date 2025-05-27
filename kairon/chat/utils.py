@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 from typing import Text, Dict, List
 
@@ -11,9 +12,11 @@ from rasa.core.tracker_store import SerializedTrackerAsDict
 
 from .agent_processor import AgentProcessor
 from .. import Utility
+from ..exceptions import AppException
 from ..live_agent.factory import LiveAgentFactory
 from ..shared.account.activity_log import UserActivityLogger
 from ..shared.actions.utils import ActionUtility
+from ..shared.chat.agent.agent_flow import AgenticFlow
 from ..shared.chat.user_media import UserMedia
 from ..shared.constants import UserActivityType
 from ..shared.live_agent.processor import LiveAgentsProcessor
@@ -330,3 +333,17 @@ class ChatUtils:
             metadata["telemetry-sid"] = x_telemetry_sid
         return metadata
 
+    @staticmethod
+    async def handle_media_agentic_flow(bot: str, sender_id: str, name: str, files: List[File], slot_vals: str = None):
+        mids, _ = await UserMedia.upload_media_content_sync(bot, sender_id, files)
+        slots = {}
+        if slot_vals:
+            try:
+                slots = json.loads(slot_vals)
+            except json.JSONDecodeError:
+                raise AppException("Invalid slot values format. Must be a valid JSON string.")
+        if mids:
+            slots['media_ids'] = mids
+        flow = AgenticFlow(bot, slots, sender_id)
+        responses, errors = await flow.execute_rule(name)
+        return responses, errors
