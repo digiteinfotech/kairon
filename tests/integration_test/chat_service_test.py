@@ -4175,4 +4175,4 @@ def test_agentic_flow_media(mock_media_agentic_flow):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-    assert mock_media_agentic_flow.called_once()
+    mock_media_agentic_flow.assert_called_once()
